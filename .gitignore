@@ -1,0 +1,55 @@
+# Secrets and local machine state
+.env
+.env.*
+!.env.example
+
+# Python/runtime caches
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Virtual environments and local tools
+.venv/
+venv/
+.tools/
+
+# LM-Bisect generated state
+results/
+scratch/
+.ccache/
+
+# Documentation, reports, and generated figures
+doc/
+docs/
+tools/generate_lm_bisect_method_figure.py
+tools/generate_trace_presentation_pdf.py
+*.md
+*.pdf
+*.aux
+*.log
+*.out
+*.synctex.gz
+*.jpg
+*.jpeg
+*.png
+*.svg
+*.csv
+
+# Downloaded per-issue bootstrap tool payloads.
+# bootstrap-tools.sh recreates these on demand.
+scripts/*/tools/
+
+# Local build artifacts and accidental files
+build/
+build-*/
+cmake-build-*/
+*.pcm
+NUL
+
+# Editor/OS noise
+.DS_Store
+Thumbs.db
+*~
+*.swp

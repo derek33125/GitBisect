@@ -1,0 +1,417 @@
+{
+  "pr165445": {
+    "issue_id": "pr165445",
+    "issue_url": "https://github.com/llvm/llvm-project/issues/165445",
+    "title": "Crash with C++20 modules and header units in clang 21",
+    "good_commit": "4be4b82e74f1b06f18efd1c6be3582daba2e6739",
+    "good_ref": "fccc6ee^",
+    "bad_commit": "222fc11f2b8f25f6a0f4976272ef1bb7bf49521d",
+    "bisect_log": "results/issues/pr165445/pr165445-bisect-log.txt",
+    "runner": "scripts/pr165445/bisect-runner.sh",
+    "bug_report_summary": "Clang crashes while precompiling a C++20 module that consumes a header unit. The public fix explains that enum-constant visibility lookup in ASTWriter assumes a named owning module, but header units make getTopLevelOwningNamedModule return null, so module serialization crashes in GenerateNameLookupTable.",
+    "keywords": [
+      "crash",
+      "modules",
+      "header unit",
+      "c++20",
+      "astwriter",
+      "generatenamelookuptable",
+      "writedeclcontextvisibleupdate",
+      "serialization",
+      "enum constant",
+      "named module"
+    ],
+    "relevant_paths": [
+      "clang/lib/Serialization",
+      "clang/lib/AST",
+      "clang/include/clang/Serialization",
+      "clang/include/clang/AST"
+    ],
+    "high_risk_paths": [
+      "clang/lib/Serialization",
+      "clang/lib/AST",
+      "clang/lib/Sema",
+      "clang/include/clang"
+    ]
+  },
+  "pr54556": {
+    "issue_id": "pr54556",
+    "issue_url": "https://github.com/llvm/llvm-project/issues/54556",
+    "title": "GNU ObjC frontend crash in clang 14 building Objective-C++ code",
+    "good_commit": "75e33f71c2dae584b13a7d1186ae0a038ba98838",
+    "good_ref": "llvmorg-13.0.1",
+    "bad_commit": "329fda39c507e8740978d10458451dcdb21563be",
+    "bisect_log": "results/issues/pr54556/pr54556-bisect-log.txt",
+    "runner": "scripts/pr54556/bisect-runner.sh",
+    "bug_report_summary": "Clang 14 regressed on Objective-C++ with the GNU runtime: compiling an instance-method call that passes a non-trivial C++ value such as std::string crashes during IR generation, with the stack rooted at clang::CodeGen::CreateGNUObjCRuntime and EmitObjCMessageExpr.",
+    "keywords": [
+      "crash",
+      "gnu objc",
+      "objective-c++",
+      "creategnuobjcruntime",
+      "emitobjcmessageexpr",
+      "codegen",
+      "std::string",
+      "instance method",
+      "value argument",
+      "frontend"
+    ],
+    "relevant_paths": [
+      "clang/lib/CodeGen",
+      "clang/lib/AST",
+      "clang/include/clang/CodeGen"
+    ],
+    "high_risk_paths": [
+      "clang/lib/CodeGen",
+      "clang/lib/Sema",
+      "clang/lib/Parse",
+      "clang/include/clang"
+    ]
+  },
+  "pr176682": {
+    "issue_id": "pr176682",
+    "issue_url": "https://github.com/llvm/llvm-project/issues/176682",
+    "title": "Miscompilation at -O3 with profiled data using PGO",
+    "good_commit": "3623fe661ae35c6c80ac221f14d85be76aa870f1",
+    "good_ref": "llvmorg-21.1.0",
+    "bad_commit": "af98aadc63637ac674d403c77ccba42b05a3d11c",
+    "bisect_log": "results/issues/pr176682/pr176682-bisect-log.txt",
+    "runner": "scripts/pr176682/bisect-runner.sh",
+    "bug_report_summary": "Reduced LLVM miscompilation: plain -O3 on x86_64 prints 1, but -O3 with PGO using llvm-profdata prints 0. The local bisect and later analysis point to SelectionDAG legalization behavior around widened build_vector lanes.",
+    "keywords": [
+      "miscompilation",
+      "pgo",
+      "profile",
+      "llvm-profdata",
+      "o3",
+      "msse4.2",
+      "selectiondag",
+      "dag",
+      "build_vector",
+      "poison",
+      "x86"
+    ],
+    "relevant_paths": [
+      "llvm/lib/CodeGen/SelectionDAG",
+      "llvm/lib/CodeGen",
+      "llvm/lib/Target/X86"
+    ],
+    "high_risk_paths": [
+      "llvm/lib/CodeGen",
+      "llvm/lib/Target",
+      "llvm/lib/Transforms",
+      "llvm/lib/Analysis"
+    ]
+  },
+  "pr187875": {
+    "issue_id": "pr187875",
+    "issue_url": "https://github.com/llvm/llvm-project/issues/187875",
+    "title": "Miscompilation at -Os",
+    "good_commit": "3623fe661ae35c6c80ac221f14d85be76aa870f1",
+    "good_ref": "llvmorg-21.1.0",
+    "bad_commit": "33cfc6ba610a1beb9a6e163d1779ae7a8f80aab6",
+    "bisect_log": "results/issues/pr187875/pr187875-bisect-log.txt",
+    "runner": "scripts/pr187875/bisect-runner.sh",
+    "bug_report_summary": "Reduced LLVM miscompilation: the program prints 55 without size optimization, but prints 53 at -Os. The existing local analysis shows the trigger commit was in loop vectorization and the visible semantic failure flowed through extract.last.active and SelectionDAG lowering.",
+    "keywords": [
+      "miscompilation",
+      "os",
+      "loop",
+      "vectorize",
+      "masked",
+      "reduction",
+      "extract.last.active",
+      "selectiondag",
+      "x86",
+      "find-last",
+      "vector"
+    ],
+    "relevant_paths": [
+      "llvm/lib/Transforms/Vectorize",
+      "llvm/lib/Analysis",
+      "llvm/lib/CodeGen/SelectionDAG",
+      "llvm/lib/Target/X86"
+    ],
+    "high_risk_paths": [
+      "llvm/lib/Transforms",
+      "llvm/lib/Analysis",
+      "llvm/lib/CodeGen",
+      "llvm/lib/Target"
+    ]
+  },
+  "pr191581": {
+    "issue_id": "pr191581",
+    "issue_url": "https://github.com/llvm/llvm-project/issues/191581",
+    "title": "Miscompilation at -Os with profiled data using PGO",
+    "good_commit": "87f0227cb60147a26a1eeb4fb06e3b505e9c7261",
+    "good_ref": "llvmorg-20.1.8",
+    "bad_commit": "45494d9c165965a8f5aaccd00c7301c166bcd575",
+    "bisect_log": "results/issues/pr191581/pr191581-bisect-log.txt",
+    "runner": "scripts/pr191581/bisect-runner.sh",
+    "bug_report_summary": "Reduced LLVM miscompilation: plain -Os prints 9, but -Os with PGO using llvm-profdata prints 1. The local bisect ended in a LICM-related change, so loop transforms, hoisting, aliasing, and profile-sensitive optimizations are relevant risk areas.",
+    "keywords": [
+      "miscompilation",
+      "pgo",
+      "profile",
+      "llvm-profdata",
+      "os",
+      "licm",
+      "hoisting",
+      "loop",
+      "writeonly",
+      "alias",
+      "optimization"
+    ],
+    "relevant_paths": [
+      "llvm/lib/Transforms/Scalar",
+      "llvm/lib/Transforms/Utils",
+      "llvm/lib/Analysis",
+      "llvm/lib/ProfileData"
+    ],
+    "high_risk_paths": [
+      "llvm/lib/Transforms",
+      "llvm/lib/Analysis",
+      "llvm/lib/ProfileData",
+      "llvm/lib/CodeGen"
+    ]
+  },
+  "pr172195": {
+    "issue_id": "pr172195",
+    "issue_url": "https://github.com/llvm/llvm-project/issues/172195",
+    "title": "Clang crashes on valid code when compiling with profiled data using PGO",
+    "good_commit": "8e2cd28cd4ba46613a46467b0c91b1cabead26cd",
+    "good_ref": "email-ground-truth-good",
+    "bad_commit": "86c5539aa89ac61058e3ba4fc0ae578c2879bf9e",
+    "bisect_log": "results/issues/pr172195/pr172195-email-bisect-log.txt",
+    "runner": "scripts/pr172195/bisect-runner.sh",
+    "bug_report_summary": "LLVM frontend crash on valid C code with PGO: -O3 with profile data compiles, but -Os with -fprofile-instr-use crashes in loop-vectorize, with the stack trace pointing at LoopVectorizationCostModel::expectedCost on func_21. The known first bad commit from the email bisect is a VPlan change.",
+    "keywords": [
+      "crash",
+      "pgo",
+      "profile",
+      "llvm-profdata",
+      "os",
+      "loop-vectorize",
+      "loopvectorizationcostmodel",
+      "expectedcost",
+      "vplan",
+      "blockfrequencyinfo",
+      "costmodel",
+      "vectorize"
+    ],
+    "relevant_paths": [
+      "llvm/lib/Transforms/Vectorize",
+      "llvm/lib/Transforms/Vectorize/VPlan",
+      "llvm/lib/Analysis",
+      "llvm/lib/Transforms/IPO",
+      "llvm/lib/CodeGen"
+    ],
+    "high_risk_paths": [
+      "llvm/lib/Transforms",
+      "llvm/lib/Analysis",
+      "llvm/lib/CodeGen",
+      "llvm/lib/ProfileData"
+    ]
+  },
+  "pr170421": {
+    "issue_id": "pr170421",
+    "issue_url": "https://github.com/llvm/llvm-project/issues/170421",
+    "title": "Crash with PCH and -ftime-trace",
+    "good_commit": "8e4fb4beada4ca34a2775512964ebe478967049d",
+    "good_ref": "97fdc23^ (normalized from fix 4e859c5a95ec)",
+    "bad_commit": "8cfda791054bf9a7cdb43369e36caae2a56032c6",
+    "bisect_log": "results/issues/pr170421/pr170421-bisect-log.txt",
+    "runner": "scripts/pr170421/bisect-runner.sh",
+    "bug_report_summary": "Clang crashes when compiling a source file with -ftime-trace while including a precompiled header. The issue report provides both the documented first bad commit 97fdc23 and the later fix commit 4e859c5a95ec; the LM-bisect profile normalizes that into the searchable interval regression^..fix^ so the first bad commit remains the documented regression inside the window.",
+    "keywords": [
+      "crash",
+      "pch",
+      "ftime-trace",
+      "precompiled header",
+      "astreader",
+      "loadexternalspecializations",
+      "densemap",
+      "invalid iterator access",
+      "serialization",
+      "clang"
+    ],
+    "relevant_paths": [
+      "clang/lib/Serialization",
+      "clang/lib/AST",
+      "clang/include/clang/Serialization",
+      "clang/include/clang/AST"
+    ],
+    "high_risk_paths": [
+      "clang/lib/Serialization",
+      "clang/lib/AST",
+      "clang/lib/Sema",
+      "clang/include/clang"
+    ]
+  },
+  "pr193932": {
+    "issue_id": "pr193932",
+    "issue_url": "https://github.com/llvm/llvm-project/issues/193932",
+    "title": "Crash in clang codegen with -gtemplate-alias",
+    "good_commit": "24a30daaa559829ad079f2ff7f73eb4e18095f88",
+    "good_ref": "llvmorg-20.1.0 (issue says Clang 20.0.0 works; 20.1.0 used as local good anchor)",
+    "bad_commit": "366f48890d643e15e1317ada300f2cc1be437721",
+    "bisect_log": "results/issues/pr193932/pr193932-bisect-log.txt",
+    "runner": "scripts/pr193932/bisect-runner.sh",
+    "bug_report_summary": "Clang crashes in debug info code generation for a template-alias reproducer compiled with -O2 -gtemplate-alias. The issue text states the crash has been present since commit 366f48890d64 and that Clang 20.0.0 works, so the current LM-bisect setup uses a local Clang 20 tag as the good anchor and the documented regression commit itself as the bad anchor.",
+    "keywords": [
+      "crash",
+      "codegen",
+      "debuginfo",
+      "debug info",
+      "cgdebuginfo",
+      "template alias",
+      "dependent types",
+      "unreachable",
+      "clang",
+      "frontend"
+    ],
+    "relevant_paths": [
+      "clang/lib/CodeGen",
+      "clang/include/clang/CodeGen",
+      "clang/lib/AST",
+      "clang/include/clang/AST"
+    ],
+    "high_risk_paths": [
+      "clang/lib/CodeGen",
+      "clang/lib/AST",
+      "clang/lib/Sema",
+      "clang/include/clang"
+    ]
+  },
+  "pr195788": {
+    "issue_id": "pr195788",
+    "issue_url": "https://github.com/llvm/llvm-project/issues/195788",
+    "title": "Crash in clangd on pseudo-destructor selection",
+    "good_commit": "5977cb59bda303e1ca98e7e7edc961fdb8160ab7",
+    "good_ref": "fix commit from PR #195939",
+    "bad_commit": "297e3e94c90ea75d72bcd881a300c852d8a4d725",
+    "bisect_log": "results/issues/pr195788/pr195788-bisect-log.txt",
+    "runner": "scripts/pr195788/bisect-runner.sh",
+    "bug_report_summary": "clangd crashes during an LSP codeAction reproducer involving pseudo-destructor selection. The current setup only validates whether the documented fix commit from PR #195939 is a trustworthy good endpoint before later bad-endpoint discovery.",
+    "keywords": [
+      "crash",
+      "clangd",
+      "lsp",
+      "codeAction",
+      "pseudo-destructor",
+      "selection",
+      "asan",
+      "null dereference"
+    ],
+    "relevant_paths": [
+      "clang-tools-extra/clangd",
+      "clang/lib/Sema",
+      "clang/lib/AST",
+      "clang/include/clang"
+    ],
+    "high_risk_paths": [
+      "clang-tools-extra/clangd",
+      "clang/lib/Sema",
+      "clang/lib/AST",
+      "clang/include/clang"
+    ]
+  },
+  "pr196450": {
+    "issue_id": "pr196450",
+    "issue_url": "https://github.com/llvm/llvm-project/issues/196450",
+    "title": "Crash in constexpr designated initialization",
+    "good_commit": "f34bba6980332ba9447397fc8bd8a0951b224747",
+    "good_ref": "llvmorg-19.1.7 validated older good anchor",
+    "bad_commit": "cf192f561b113a2c422197d92944d7852e0b2996",
+    "bisect_log": "results/issues/pr196450/pr196450-bisect-log.txt",
+    "runner": "scripts/pr196450/bisect-runner.sh",
+    "bug_report_summary": "Clang hits a frontend assertion while constexpr-evaluating a designated initializer with placement new under -std=c++2c. The current profile now uses the validated forward interval from llvmorg-19.1.7 to llvmorg-22.1.0 for real bisect runs.",
+    "keywords": [
+      "crash",
+      "constexpr",
+      "designated init",
+      "placement new",
+      "c++2c",
+      "frontend",
+      "assertion"
+    ],
+    "relevant_paths": [
+      "clang/lib/Sema",
+      "clang/lib/AST",
+      "clang/include/clang/Sema",
+      "clang/include/clang/AST"
+    ],
+    "high_risk_paths": [
+      "clang/lib/Sema",
+      "clang/lib/AST",
+      "clang/include/clang/Sema",
+      "clang/include/clang/AST"
+    ]
+  },
+  "pr196244": {
+    "issue_id": "pr196244",
+    "issue_url": "https://github.com/llvm/llvm-project/issues/196244",
+    "title": "Crash in clangd token collection",
+    "good_commit": "19a71f6bdf2dddb10764939e7f0ec2b98dba76c9",
+    "good_ref": "llvmorg-8.0.1 validated older good anchor",
+    "bad_commit": "4434dabb69916856b824f68a64b029c67175e532",
+    "bisect_log": "results/issues/pr196244/pr196244-bisect-log.txt",
+    "runner": "scripts/pr196244/bisect-runner.sh",
+    "bug_report_summary": "clangd crashes during an LSP documentSymbol reproducer on a deeply nested lambda testcase. The profile intentionally uses a long benchmark interval from llvmorg-8.0.1, which is good, to llvmorg-22.1.0, which is bad, even though the narrow validated release boundary is llvmorg-8.0.1 to llvmorg-9.0.1.",
+    "keywords": [
+      "crash",
+      "clangd",
+      "lsp",
+      "documentsymbol",
+      "tokencollector",
+      "expandedtokens",
+      "assertion",
+      "syntax token"
+    ],
+    "relevant_paths": [
+      "clang-tools-extra/clangd",
+      "clang/lib/Lex",
+      "clang/lib/Tooling",
+      "clang/include/clang"
+    ],
+    "high_risk_paths": [
+      "clang-tools-extra/clangd",
+      "clang/lib/Lex",
+      "clang/lib/Tooling",
+      "clang/include/clang"
+    ]
+  },
+  "pr65982": {
+    "issue_id": "pr65982",
+    "issue_url": "https://github.com/llvm/llvm-project/issues/65982",
+    "title": "Crash in C++20 virtual base name lookup",
+    "good_commit": "6009708b4367171ccdbf4b5905cb6a803753fe18",
+    "good_ref": "llvmorg-17.0.6 validated older good anchor",
+    "bad_commit": "abacab6e0c30ff0f6327e7b4fbc044af0a195efe",
+    "bisect_log": "results/issues/pr65982/pr65982-bisect-log.txt",
+    "runner": "scripts/pr65982/bisect-runner.sh",
+    "bug_report_summary": "Clang hits a frontend assertion while compiling a C++20 reproducer with virtual bases and pack-expanded using-declarations. The current profile now uses the validated forward interval from llvmorg-17.0.6 to the reporter crash build for real bisect runs.",
+    "keywords": [
+      "crash",
+      "c++20",
+      "virtual base",
+      "using declaration",
+      "apvalue",
+      "smallvector",
+      "assertion",
+      "frontend"
+    ],
+    "relevant_paths": [
+      "clang/lib/Sema",
+      "clang/lib/AST",
+      "clang/include/clang/Sema",
+      "clang/include/clang/AST"
+    ],
+    "high_risk_paths": [
+      "clang/lib/Sema",
+      "clang/lib/AST",
+      "clang/include/clang/Sema",
+      "clang/include/clang/AST"
+    ]
+  }
+}
