@@ -123,6 +123,7 @@ configure_args=(
   -DLLVM_INCLUDE_BENCHMARKS=OFF
   -DLLVM_INCLUDE_UTILS=ON
   -DLLVM_BUILD_TOOLS=ON
+  -DCMAKE_CXX_FLAGS=-include\ cstdint
 )
 
 if [[ -n "${CMAKE_C_COMPILER_LAUNCHER:-}" ]]; then

@@ -462,6 +462,55 @@ class FeedbackTests(unittest.TestCase):
         self.assertLessEqual(records[0].feedback_bias, 1.10)
         self.assertGreater(records[1].feedback_bias, records[0].feedback_bias)
 
+    def test_skip_observation_penalizes_build_probability_not_semantic_score(self) -> None:
+        profile = demo_profile(
+            keywords=["tokencollector", "clangd"],
+            relevant_paths=["clang-tools-extra/clangd"],
+            high_risk_paths=["clang-tools-extra/clangd"],
+        )
+        records = [
+            lm_bisect.CommitRecord(
+                index=1,
+                sha="a" * 40,
+                subject="clangd shutdown build fix",
+                body="",
+                changed_files=["clang-tools-extra/clangd/Shutdown.cpp"],
+                diff_text="std abort shutdown",
+                semantic_score=2.0,
+                build_success_prob=0.9,
+                suspicion_weight=0.0,
+                evidence=[],
+                features=[
+                    "path:clang-tools-extra/clangd",
+                    "path:clang-tools-extra/clangd/Shutdown.cpp",
+                    "term:abort",
+                ],
+            )
+        ]
+        observations = [
+            lm_bisect.CommitObservation(
+                sha="s" * 40,
+                verdict="skip",
+                summary="build failed; skipping commit",
+                features=[
+                    "path:clang-tools-extra/clangd",
+                    "path:clang-tools-extra/clangd/Shutdown.cpp",
+                    "term:abort",
+                ],
+                source="runner",
+                trace_excerpt="../clang-tools-extra/clangd/Shutdown.cpp:21:10: error: 'abort' is not a member of 'std'",
+            )
+        ]
+
+        original_semantic = records[0].semantic_score
+        original_build_prob = records[0].build_success_prob
+
+        lm_bisect.apply_feedback_bias(profile, records, observations)
+
+        self.assertEqual(records[0].semantic_score, original_semantic)
+        self.assertLess(records[0].build_success_prob, original_build_prob)
+        self.assertIn("skip-build-risk", " ".join(records[0].evidence or []))
+
 
 class RankingHelperTests(unittest.TestCase):
     def test_rank_of_commit_uses_utility_order(self) -> None:
@@ -1080,7 +1129,7 @@ class ModelPromptTests(unittest.TestCase):
         self.assertIn("full score range", lowered)
         self.assertIn("same subsystem", lowered)
 
-    def test_build_model_scoring_prompt_includes_only_latest_two_runner_crashes(self) -> None:
+    def test_build_model_scoring_prompt_splits_bad_and_skip_observations(self) -> None:
         profile = demo_profile()
         commits = [
             {
@@ -1111,6 +1160,12 @@ class ModelPromptTests(unittest.TestCase):
                 evidence=["error:"],
                 log_excerpt="",
                 trace_excerpt="middle trace",
+                build_failure={
+                    "phase": "build",
+                    "primary_error": "std::string is not a member of std",
+                    "failed_target": "LLVMDemangle",
+                    "failed_header": "llvm/include/llvm/Demangle/MicrosoftDemangleNodes.h",
+                },
             ),
             lm_bisect.CommitObservation(
                 sha="c" * 40,
@@ -1127,10 +1182,15 @@ class ModelPromptTests(unittest.TestCase):
         prompt = lm_bisect.build_model_scoring_prompt(profile, commits, observations)
 
         self.assertIn("Observed crash evidence from the latest bad builds", prompt)
-        self.assertNotIn("old trace", prompt)
+        self.assertIn("Observed skipped build/configuration failures", prompt)
+        self.assertIn("old trace", prompt)
+        self.assertIn("Observed skipped build, not a bug reproduction: " + "b" * 40, prompt)
+        self.assertNotIn("Observed bad commit: " + "b" * 40, prompt)
+        self.assertIn("LLVMDemangle", prompt)
         self.assertIn("middle trace", prompt)
         self.assertIn("latest trace", prompt)
         self.assertIn("strongest signal", prompt)
+        self.assertIn("Use skip evidence mainly to reduce build_success_prob", prompt)
 
     def test_build_model_scoring_prompt_trace_only_uses_only_trace_excerpt(self) -> None:
         profile = demo_profile()
@@ -1289,6 +1349,56 @@ class ModelPromptTests(unittest.TestCase):
         self.assertIn("Observed bad commit: " + "b" * 40, prompt)
         self.assertIn('Assertion `!Name.empty() && "Must have a name!"\' failed.', prompt)
         self.assertIn("fatal error: error in backend: cannot select", prompt)
+
+    def test_trace_only_prompt_does_not_count_skip_against_bad_limit(self) -> None:
+        profile = demo_profile()
+        commits = [
+            {
+                "sha": "1" * 40,
+                "subject": "vectorizer change",
+                "body": "",
+                "files": ["llvm/lib/Transforms/Vectorize/LoopVectorize.cpp"],
+                "diff": "vectorize expectedCost",
+            }
+        ]
+        observations = [
+            lm_bisect.CommitObservation(
+                sha="a" * 40,
+                verdict="bad",
+                summary="old bad",
+                features=[],
+                source="runner",
+                trace_excerpt="old bad trace",
+            ),
+            lm_bisect.CommitObservation(
+                sha="s" * 40,
+                verdict="skip",
+                summary="build failed",
+                features=[],
+                source="runner",
+                trace_excerpt="skip build trace",
+            ),
+            lm_bisect.CommitObservation(
+                sha="b" * 40,
+                verdict="bad",
+                summary="new bad",
+                features=[],
+                source="runner",
+                trace_excerpt="new bad trace",
+            ),
+        ]
+
+        prompt = lm_bisect.build_model_scoring_prompt(
+            profile,
+            commits,
+            observations,
+            observation_prompt_mode="trace-only",
+        )
+
+        self.assertIn("old bad trace", prompt)
+        self.assertIn("new bad trace", prompt)
+        self.assertIn("skip build trace", prompt)
+        self.assertIn("Observed skipped build, not a bug reproduction: " + "s" * 40, prompt)
 
     def test_build_model_scoring_prompt_trace_only_skips_observations_without_trace_excerpt(self) -> None:
         profile = demo_profile()
@@ -1457,14 +1567,51 @@ class ModelPromptTests(unittest.TestCase):
 
     def test_model_cache_path_includes_scoring_version(self) -> None:
         path = lm_bisect.model_cache_path("pr172195", "gpt-5.4-mini")
-        self.assertTrue(str(path).endswith("pr172195-gpt-5.4-mini-v5-distinct-crash-evidence.json"))
+        self.assertTrue(str(path).endswith("pr172195-gpt-5.4-mini-v6-split-skip-build-evidence.json"))
 
     def test_resolved_model_scoring_version_separates_trace_only_mode(self) -> None:
-        self.assertEqual(lm_bisect.resolved_model_scoring_version("legacy"), "v5-distinct-crash-evidence")
+        self.assertEqual(lm_bisect.resolved_model_scoring_version("legacy"), "v6-split-skip-build-evidence")
         self.assertEqual(
             lm_bisect.resolved_model_scoring_version("trace-only"),
-            "v5-distinct-crash-evidence-obs-trace-only",
+            "v6-split-skip-build-evidence-obs-trace-only",
         )
+
+
+class BuildFailureSummaryTests(unittest.TestCase):
+    def test_extract_build_failure_summary_from_ninja_compile_error(self) -> None:
+        output = """
+[5/1557] Building CXX object lib/Demangle/CMakeFiles/LLVMDemangle.dir/MicrosoftDemangle.cpp.o
+/usr/bin/c++ -c /repo/llvm/lib/Demangle/MicrosoftDemangle.cpp
+In file included from ../llvm/lib/Demangle/MicrosoftDemangle.cpp:16:
+../llvm/include/llvm/Demangle/MicrosoftDemangleNodes.h:259:8: error: 'string' in namespace 'std' does not name a type
+../llvm/include/llvm/Demangle/MicrosoftDemangleNodes.h:19:1: note: 'std::string' is defined in header '<string>'; did you forget to '#include <string>'?
+ninja: build stopped: subcommand failed.
+build failed; skipping commit
+"""
+
+        summary = lm_bisect.extract_build_failure_summary(output)
+
+        self.assertEqual(summary["phase"], "build")
+        self.assertEqual(summary["ninja_edge"], "5/1557")
+        self.assertEqual(summary["failed_target"], "LLVMDemangle")
+        self.assertEqual(summary["failed_source"], "llvm/lib/Demangle/MicrosoftDemangle.cpp")
+        self.assertEqual(summary["failed_header"], "llvm/include/llvm/Demangle/MicrosoftDemangleNodes.h")
+        self.assertEqual(summary["missing_include"], "<string>")
+        self.assertIn("std", summary["primary_error"])
+
+    def test_extract_build_failure_summary_from_cmake_error(self) -> None:
+        output = """
+CMake Error: CMAKE_C_COMPILER not set, after EnableLanguage
+CMake Error at /usr/share/cmake-3.28/Modules/CheckSymbolExists.cmake:140 (try_compile):
+  Failed to configure test project build system.
+configure failed; skipping commit
+"""
+
+        summary = lm_bisect.extract_build_failure_summary(output)
+
+        self.assertEqual(summary["phase"], "configure")
+        self.assertEqual(summary["primary_error"], "CMake Error: CMAKE_C_COMPILER not set, after EnableLanguage")
+        self.assertIn("CheckSymbolExists.cmake:140", summary["cmake_stack"])
 
 
 class CandidateFileTests(unittest.TestCase):

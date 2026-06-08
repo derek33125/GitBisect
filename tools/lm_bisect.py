@@ -77,7 +77,7 @@ DEFAULT_CALIBRATED_PRIOR_BONUS = 1.5
 DEFAULT_WEAK_RELEVANCE_PENALTY = 0.05
 DEFAULT_WEAK_RELEVANCE_THRESHOLD = 0.8
 DEFAULT_BUILD_SUCCESS_POWER = 1.0
-MODEL_SCORING_VERSION = "v5-distinct-crash-evidence"
+MODEL_SCORING_VERSION = "v6-split-skip-build-evidence"
 TRACE_PROMPT_SIGNATURE_SUFFIX = " [same crash signature repeated "
 DEFAULT_MODEL_SCORING_BATCH_SIZE = 12
 DEFAULT_MODEL_RANK_BONUS = 0.35
@@ -257,6 +257,7 @@ class CommitObservation:
     evidence: list[str] | None = None
     log_excerpt: str = ""
     trace_excerpt: str = ""
+    build_failure: dict[str, object] | None = None
 
 
 @dataclass(frozen=True)
@@ -825,11 +826,14 @@ def recent_crash_observations_for_prompt(
     *,
     limit: int = 2,
     trace_only: bool = False,
+    verdicts: set[str] | None = None,
 ) -> list[tuple[CommitObservation, int]]:
+    if verdicts is None:
+        verdicts = {"bad"}
     bad_runner_observations = [
         obs
         for obs in observations
-        if obs.verdict in {"bad", "skip"}
+        if obs.verdict in verdicts
         and obs.source == "runner"
         and (
             obs.trace_excerpt.strip() if trace_only else (obs.trace_excerpt or obs.log_excerpt or obs.evidence)
@@ -860,6 +864,30 @@ def format_observation_for_prompt(
     repeat_count: int = 1,
 ) -> str:
     trace_excerpt = (observation.trace_excerpt or "").strip()
+    is_skip = observation.verdict == "skip"
+    observation_label = (
+        f"Observed skipped build, not a bug reproduction: {observation.sha}"
+        if is_skip
+        else f"Observed bad commit: {observation.sha}"
+    )
+    evidence_label = "Primary build/configuration failure evidence" if is_skip else "Primary crash/assertion evidence"
+    structured_failure = ""
+    if is_skip and observation.build_failure:
+        fields = []
+        for key in (
+            "phase",
+            "failed_target",
+            "failed_source",
+            "failed_header",
+            "missing_include",
+            "primary_error",
+            "cmake_stack",
+        ):
+            value = observation.build_failure.get(key)
+            if value:
+                fields.append(f"{key}: {value}")
+        if fields:
+            structured_failure = "Structured build failure:\n" + "\n".join(fields) + "\n"
     if trace_only:
         if not trace_excerpt:
             return ""
@@ -869,8 +897,9 @@ def format_observation_for_prompt(
         if repeat_count > 1:
             repeat_note = f"{TRACE_PROMPT_SIGNATURE_SUFFIX}{repeat_count} times]"
         return (
-            f"Observed bad commit: {observation.sha}\n"
-            f"Primary crash/assertion evidence{repeat_note}:\n{trace_excerpt}\n"
+            f"{observation_label}\n"
+            f"{structured_failure}"
+            f"{evidence_label}{repeat_note}:\n{trace_excerpt}\n"
         )
     if not trace_excerpt and not trace_only:
         trace_excerpt = "\n".join((observation.evidence or [])[:8]).strip()
@@ -879,9 +908,10 @@ def format_observation_for_prompt(
     if len(trace_excerpt) > 1200:
         trace_excerpt = trace_excerpt[:1200]
     return (
-        f"Observed bad commit: {observation.sha}\n"
+        f"{observation_label}\n"
         f"Summary: {observation.summary}\n"
-        f"Trace excerpt:\n{trace_excerpt or '<none>'}\n"
+        f"{structured_failure}"
+        f"{'Build failure excerpt' if is_skip else 'Trace excerpt'}:\n{trace_excerpt or '<none>'}\n"
     )
 
 
@@ -905,6 +935,13 @@ Body: {item['body']}
         observations or [],
         limit=2,
         trace_only=trace_only,
+        verdicts={"bad"},
+    )
+    recent_skip_observations = recent_crash_observations_for_prompt(
+        observations or [],
+        limit=2,
+        trace_only=trace_only,
+        verdicts={"skip"},
     )
     observed_crash_context = ""
     if recent_bad_observations:
@@ -920,6 +957,23 @@ Body: {item['body']}
             "Observed crash evidence from the latest bad builds:\n\n"
             + "\n".join(formatted_observations)
         )
+    observed_skip_context = ""
+    if recent_skip_observations:
+        formatted_skip_observations = [
+            format_observation_for_prompt(obs, trace_only=trace_only, repeat_count=count)
+            for obs, count in recent_skip_observations
+        ]
+        formatted_skip_observations = [item for item in formatted_skip_observations if item.strip()]
+    else:
+        formatted_skip_observations = []
+    if formatted_skip_observations:
+        observed_skip_context = (
+            "Observed skipped build/configuration failures:\n\n"
+            + "\n".join(formatted_skip_observations)
+        )
+    observation_context = "\n\n".join(
+        item for item in (observed_crash_context, observed_skip_context) if item
+    )
     return f"""
 You are scoring LLVM commits for an LLM-assisted bug bisect system.
 
@@ -936,7 +990,7 @@ Issue:
 - high-risk paths: {', '.join(profile.high_risk_paths)}
 - keywords: {', '.join(profile.keywords)}
 
-{observed_crash_context if observed_crash_context else ''}
+{observation_context if observation_context else ''}
 
 Candidate commits:
 
@@ -955,6 +1009,9 @@ Return strict JSON as an array. One object per commit, with this schema:
 
 Scoring guidance:
 - If observed crash evidence is provided, treat assertion message or fatal error text as the strongest signal. Stack trace and pass/function names are supporting context. Use the issue summary only as backup context.
+- If observed skipped build/configuration failures are provided, do not treat them as target-bug reproductions.
+- Use skip evidence mainly to reduce build_success_prob for candidates likely to hit the same build/configuration failure.
+- Only let skip evidence increase semantic suspicion if the skip itself is a compiler crash/assertion that matches the issue mechanism.
 - semantic_score should be highest for commits that most directly match the reported bug mechanism, stack trace terms, relevant paths, or likely faulty optimization logic.
 - Lower the score when a commit only touches the same subsystem but does not strongly match the actual failure mechanism.
 - build_success_prob should be lower when the commit looks likely to fail build or be unstable to test.
@@ -1174,6 +1231,7 @@ def load_observations(path: Path) -> list[CommitObservation]:
                 evidence=list(item.get("evidence", [])),
                 log_excerpt=item.get("log_excerpt", ""),
                 trace_excerpt=item.get("trace_excerpt", ""),
+                build_failure=item.get("build_failure") or None,
             )
         )
     return observations
@@ -1191,6 +1249,7 @@ def save_observations(path: Path, observations: list[CommitObservation]) -> None
             "evidence": obs.evidence or [],
             "log_excerpt": obs.log_excerpt,
             "trace_excerpt": obs.trace_excerpt,
+            "build_failure": obs.build_failure or {},
         }
         for obs in observations
     ]
@@ -1672,6 +1731,89 @@ def extract_trace_excerpt(output: str, max_lines: int = 10, max_chars: int = 100
     return excerpt
 
 
+def normalize_build_path(path: str) -> str:
+    cleaned = path.strip().strip('"')
+    while cleaned.startswith("../"):
+        cleaned = cleaned[3:]
+    for prefix in ("llvm/", "clang/", "clang-tools-extra/"):
+        if cleaned.startswith(prefix):
+            return cleaned
+    marker_prefixes = (
+        "/llvm-project/",
+    )
+    for marker in marker_prefixes:
+        idx = cleaned.find(marker)
+        if idx >= 0:
+            return cleaned[idx + len(marker) :]
+    for prefix in ("llvm/", "clang/", "clang-tools-extra/"):
+        idx = cleaned.find(prefix)
+        if idx >= 0:
+            return cleaned[idx:]
+    return cleaned
+
+
+def extract_build_failure_summary(output: str) -> dict[str, object]:
+    lines = [line.rstrip() for line in output.splitlines() if line.strip()]
+    summary: dict[str, object] = {}
+    lowered = "\n".join(lines).lower()
+
+    if "configure failed" in lowered or any(line.startswith("CMake Error") for line in lines):
+        summary["phase"] = "configure"
+    elif "ninja: build stopped" in lowered or "build failed" in lowered:
+        summary["phase"] = "build"
+    else:
+        summary["phase"] = "unknown"
+
+    ninja_line = next((line for line in lines if re.match(r"^\[\d+/\d+\]", line)), "")
+    if ninja_line:
+        edge_match = re.match(r"^\[(\d+/\d+)\]\s+(.*)$", ninja_line)
+        if edge_match:
+            summary["ninja_edge"] = edge_match.group(1)
+            summary["ninja_action"] = edge_match.group(2)
+        target_match = re.search(r"CMakeFiles/([^/]+)\.dir/", ninja_line)
+        if target_match:
+            summary["failed_target"] = target_match.group(1)
+
+    compile_source = ""
+    for line in lines:
+        source_match = re.search(r"(?:^|\s)-c\s+(\S+)", line)
+        if source_match:
+            compile_source = normalize_build_path(source_match.group(1))
+            break
+    if compile_source:
+        summary["failed_source"] = compile_source
+
+    primary_error = ""
+    for line in lines:
+        if " error:" in line or line.startswith("error:") or line.startswith("CMake Error"):
+            primary_error = line.strip()
+            break
+    if primary_error:
+        summary["primary_error"] = primary_error
+
+    header = ""
+    for line in lines:
+        error_match = re.match(r"^(.+?):\d+:\d+:\s+error:", line.strip())
+        if error_match:
+            header = normalize_build_path(error_match.group(1))
+            break
+    if header:
+        summary["failed_header"] = header
+
+    missing_include_match = re.search(r"did you forget to ['`\"]?#include\s+(<[^>]+>)['`\"]?", output)
+    if missing_include_match:
+        summary["missing_include"] = missing_include_match.group(1)
+
+    cmake_stack = next((line.strip() for line in lines if line.startswith("CMake Error at ")), "")
+    if cmake_stack:
+        summary["cmake_stack"] = cmake_stack
+
+    if not primary_error and lines:
+        summary["primary_error"] = lines[-1].strip()
+
+    return summary
+
+
 def run_issue_runner(profile: IssueProfile, repo: Path) -> tuple[str, str, str, list[str]]:
     runner = runner_path_for_issue(profile)
     completed = subprocess.run(
@@ -1784,11 +1926,14 @@ def apply_feedback_bias(
 
         strong_positive_bias = touches_relevant_path or base_semantic_score >= 1.35
         bad_weight = 1.8 if strong_positive_bias else 0.35
-        bias = 1.0 + bad_weight * bad_sim - 1.2 * good_sim - 0.8 * skip_sim
+        bias = 1.0 + bad_weight * bad_sim - 1.2 * good_sim
         if not strong_positive_bias and bias > 1.0:
             bias = min(bias, 1.10)
         record.feedback_bias = max(0.20, bias)
         record.semantic_score *= record.feedback_bias
+        if skip_sim:
+            build_risk_multiplier = max(0.20, 1.0 - 0.60 * skip_sim)
+            record.build_success_prob = max(0.05, record.build_success_prob * build_risk_multiplier)
 
         feedback_bits = []
         if bad_sim:
@@ -1796,7 +1941,7 @@ def apply_feedback_bias(
         if good_sim:
             feedback_bits.append(f"good-sim={good_sim:.2f}")
         if skip_sim:
-            feedback_bits.append(f"skip-sim={skip_sim:.2f}")
+            feedback_bits.append(f"skip-build-risk={skip_sim:.2f}")
         if bad_sim and not strong_positive_bias:
             feedback_bits.append("feedback-gated=base-relevance")
         if feedback_bits:
@@ -3223,6 +3368,7 @@ def command_run_online(args: argparse.Namespace) -> int:
                     evidence=runner_evidence,
                     log_excerpt=runner_output[-4000:],
                     trace_excerpt=extract_trace_excerpt(runner_output),
+                    build_failure=extract_build_failure_summary(runner_output) if verdict == "skip" else None,
                 )
                 observations = update_observation(observations, observation)
                 save_observations(observation_path, observations)

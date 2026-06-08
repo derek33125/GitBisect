@@ -28,13 +28,15 @@ BAD_COMMIT="abacab6e0c30ff0f6327e7b4fbc044af0a195efe"
 
 mkdir -p "${RESULTS_DIR}"
 
-if [[ ! -d "${LLVM_DIR}/.git" ]]; then
+if ! git -C "${LLVM_DIR}" rev-parse --git-dir >/dev/null 2>&1; then
   echo "error: llvm-project checkout not found at ${LLVM_DIR}" >&2
   exit 1
 fi
 
 clear_stale_git_lock() {
-  local lock_file="${LLVM_DIR}/.git/index.lock"
+  local git_dir
+  git_dir=$(git -C "${LLVM_DIR}" rev-parse --git-dir)
+  local lock_file="${git_dir}/index.lock"
   if [[ ! -e "${lock_file}" ]]; then
     return 0
   fi

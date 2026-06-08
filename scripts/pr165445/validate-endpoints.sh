@@ -22,7 +22,7 @@ RUNNER="${SCRIPT_DIR}/bisect-runner.sh"
 BAD_COMMIT="${BAD_COMMIT:-222fc11f2b8f25f6a0f4976272ef1bb7bf49521d}"
 GOOD_COMMIT="${GOOD_COMMIT:-4be4b82e74f1b06f18efd1c6be3582daba2e6739}"
 
-if [[ ! -d "${LLVM_DIR}/.git" ]]; then
+if ! git -C "${LLVM_DIR}" rev-parse --git-dir >/dev/null 2>&1; then
   echo "error: llvm-project checkout not found at ${LLVM_DIR}" >&2
   exit 1
 fi

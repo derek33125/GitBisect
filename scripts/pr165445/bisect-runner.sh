@@ -156,9 +156,10 @@ fi
 
 cp "${HEADER_SRC}" "${TMP_DIR}/badHeader.h"
 cp "${MODULE_SRC}" "${TMP_DIR}/badModule.cppm"
+PCM_FILE="${TMP_DIR}/badHeader.pcm"
 
 set +e
-HEADER_STDERR=$("${CLANG_BIN}" -std=gnu++23 -fmodule-header=system "${TMP_DIR}/badHeader.h" -I "${TMP_DIR}" 2>&1)
+HEADER_STDERR=$("${CLANG_BIN}" -std=gnu++23 -fmodule-header=system "${TMP_DIR}/badHeader.h" -I "${TMP_DIR}" -o "${PCM_FILE}" 2>&1)
 HEADER_RC=$?
 set -e
 
@@ -171,8 +172,7 @@ if [[ ${HEADER_RC} -ne 0 ]]; then
   exit 125
 fi
 
-PCM_FILE="${TMP_DIR}/badHeader.pcm"
-if [[ ! -f "${TMP_DIR}/badHeader.pcm" ]]; then
+if [[ ! -f "${PCM_FILE}" ]]; then
   echo "missing generated badHeader.pcm; skipping commit" >&2
   exit 125
 fi

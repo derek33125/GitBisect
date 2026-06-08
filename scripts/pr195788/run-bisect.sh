@@ -5,7 +5,7 @@ usage() {
   cat <<'EOF'
 Usage: run-bisect.sh [llvm-project-path]
 
-Runs git bisect for issue #196244 using the long benchmark interval.
+Runs git bisect for issue #195788 using the validated long interval.
 EOF
 }
 
@@ -18,24 +18,26 @@ SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 ROOT_DIR=$(cd -- "${SCRIPT_DIR}/../.." && pwd)
 LLVM_DIR=${1:-"/home/derek331/research/gitbisect-work/llvm-project"}
 RUNNER="${SCRIPT_DIR}/bisect-runner.sh"
-RESULTS_DIR="${ROOT_DIR}/results/issues/pr196244"
-RESULT_NOTE="${RESULTS_DIR}/pr196244-bisect.md"
-RUN_LOG="${RESULTS_DIR}/pr196244-bisect-run.log"
+RESULTS_DIR="${ROOT_DIR}/results/issues/pr195788"
+RESULT_NOTE="${RESULTS_DIR}/pr195788-bisect.md"
+RUN_LOG="${RESULTS_DIR}/pr195788-bisect-run.log"
 
-GOOD_COMMIT="19a71f6bdf2dddb10764939e7f0ec2b98dba76c9"
-GOOD_REF="llvmorg-8.0.1"
-BAD_COMMIT="4434dabb69916856b824f68a64b029c67175e532"
-BAD_REF="llvmorg-22.1.0"
+GOOD_COMMIT="d2b30c38ff585ddec8fe05fac734c0bb2a6bacc3"
+GOOD_REF="llvmorg-15.0.7"
+BAD_COMMIT="297e3e94c90ea75d72bcd881a300c852d8a4d725"
+BAD_REF="fix-parent"
 
 mkdir -p "${RESULTS_DIR}"
 
-if ! git -C "${LLVM_DIR}" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+if ! git -C "${LLVM_DIR}" rev-parse --git-dir >/dev/null 2>&1; then
   echo "error: llvm-project checkout not found at ${LLVM_DIR}" >&2
   exit 1
 fi
 
 clear_stale_git_lock() {
-  local lock_file="${LLVM_DIR}/.git/index.lock"
+  local git_dir
+  git_dir=$(git -C "${LLVM_DIR}" rev-parse --git-dir)
+  local lock_file="${git_dir}/index.lock"
   if [[ ! -e "${lock_file}" ]]; then
     return 0
   fi
@@ -49,7 +51,6 @@ clear_stale_git_lock() {
 }
 
 ORIG_HEAD=$(git -C "${LLVM_DIR}" rev-parse --verify HEAD)
-
 cleanup() {
   set +e
   git -C "${LLVM_DIR}" bisect reset >/dev/null 2>&1 || true
@@ -62,8 +63,6 @@ clear_stale_git_lock
 exec > >(tee -a "${RUN_LOG}") 2>&1
 
 echo "[run-bisect] start $(date -u +%Y-%m-%dT%H:%M:%SZ)"
-echo "Good reference: ${GOOD_REF} ${GOOD_COMMIT}"
-echo "Bad reference: ${BAD_REF} ${BAD_COMMIT}"
 
 git -C "${LLVM_DIR}" checkout -q "${BAD_COMMIT}"
 set +e
@@ -89,9 +88,9 @@ git -C "${LLVM_DIR}" bisect start
 git -C "${LLVM_DIR}" bisect bad "${BAD_COMMIT}"
 git -C "${LLVM_DIR}" bisect good "${GOOD_COMMIT}"
 git -C "${LLVM_DIR}" bisect run "${RUNNER}" "${LLVM_DIR}"
-git -C "${LLVM_DIR}" bisect log > "${RESULTS_DIR}/pr196244-bisect-log.txt"
+git -C "${LLVM_DIR}" bisect log > "${RESULTS_DIR}/pr195788-bisect-log.txt"
 
-FIRST_BAD=$(sed -n 's/^# first bad commit: \[\([0-9a-f]\{7,\}\)\].*/\1/p' "${RESULTS_DIR}/pr196244-bisect-log.txt" | tail -n 1)
+FIRST_BAD=$(sed -n 's/^# first bad commit: \[\([0-9a-f]\{7,\}\)\].*/\1/p' "${RESULTS_DIR}/pr195788-bisect-log.txt" | tail -n 1)
 if [[ -z "${FIRST_BAD}" ]]; then
   echo "error: failed to extract first bad commit from bisect log" >&2
   exit 1
@@ -100,9 +99,9 @@ FIRST_BAD_SUBJECT=$(git -C "${LLVM_DIR}" show -s --format=%s "${FIRST_BAD}")
 FIRST_BAD_DATE=$(git -C "${LLVM_DIR}" show -s --format=%cs "${FIRST_BAD}")
 
 cat > "${RESULT_NOTE}" <<EOF
-# PR196244 Bisect Result
+# PR195788 Bisect Result
 
-- Issue: https://github.com/llvm/llvm-project/issues/196244
+- Issue: https://github.com/llvm/llvm-project/issues/195788
 - Good reference: \`${GOOD_REF}\`
 - Good commit: \`${GOOD_COMMIT}\`
 - Bad reference: \`${BAD_REF}\`
@@ -110,12 +109,12 @@ cat > "${RESULT_NOTE}" <<EOF
 - First bad commit: \`${FIRST_BAD}\`
 - Subject: ${FIRST_BAD_SUBJECT}
 - Commit date: ${FIRST_BAD_DATE}
-- Bisect log: \`results/issues/pr196244/pr196244-bisect-log.txt\`
+- Bisect log: \`results/issues/pr195788/pr195788-bisect-log.txt\`
 
 ## Command
 
 \`\`\`bash
-bash scripts/pr196244/run-bisect.sh
+bash scripts/pr195788/run-bisect.sh
 \`\`\`
 EOF
 
