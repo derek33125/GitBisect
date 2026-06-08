@@ -413,5 +413,39 @@
       "clang/include/clang/Sema",
       "clang/include/clang/AST"
     ]
+  },
+  "skip-pr199918-riscv": {
+    "issue_id": "skip-pr199918-riscv",
+    "issue_url": "https://github.com/llvm/llvm-project/issues/199918",
+    "title": "RISCV CodeGen build failure after Zvzip interleave shuffle change",
+    "good_commit": "18e5a2dbb47065dd4d9870d71431d715aa76bc14",
+    "good_ref": "validated wide good, 1000 first-parent commits before bad",
+    "bad_commit": "a4b1361f33139e7a0a02edee1a1b012740951e01",
+    "bisect_log": "results/issues/skip-pr199918-riscv/skip-pr199918-riscv-origin-bisect-log-20260606.txt",
+    "runner": "scripts/skip-pr199918-riscv/bisect-runner.sh",
+    "bug_report_summary": "LLVM RISCV CodeGen fails to build after PR #199512, with RISCVISelLowering.cpp passing too many arguments to isLegalVTForZvzipOperand. The revert PR #199899 fixes the source build failure. This benchmark studies whether build-failure evidence from a real source-level compile error helps LM-Bisect localize the bad commit.",
+    "keywords": [
+      "build failure",
+      "riscv",
+      "codegen",
+      "zvzip",
+      "vzip",
+      "interleave shuffle",
+      "isLegalVTForZvzipOperand",
+      "RISCVISelLowering",
+      "too many arguments",
+      "LLVMRISCVCodeGen"
+    ],
+    "relevant_paths": [
+      "llvm/lib/Target/RISCV",
+      "llvm/test/CodeGen/RISCV",
+      "llvm/include/llvm/TargetParser"
+    ],
+    "high_risk_paths": [
+      "llvm/lib/Target/RISCV",
+      "llvm/test/CodeGen/RISCV",
+      "llvm/include/llvm",
+      "llvm/utils/TableGen"
+    ]
   }
 }
