@@ -414,6 +414,110 @@
       "clang/include/clang/AST"
     ]
   },
+  "pr202343": {
+    "issue_id": "pr202343",
+    "issue_url": "https://github.com/llvm/llvm-project/issues/202343",
+    "title": "Crash in ScalarEvolution ExitLimit at -O3",
+    "good_commit": "24a30daaa559829ad079f2ff7f73eb4e18095f88",
+    "good_ref": "llvmorg-20.1.0",
+    "bad_commit": "3623fe661ae35c6c80ac221f14d85be76aa870f1",
+    "bisect_log": "results/issues/pr202343/pr202343-bisect-log.txt",
+    "runner": "scripts/pr202343/bisect-runner.sh",
+    "bug_report_summary": "Clang crashes at -O3 on a reduced C testcase with an assertion in ScalarEvolution::ExitLimit: no point in having a non-constant max backedge taken count. The crash occurs while the optimizer runs loop-rotate and loop-deletion, so ScalarEvolution, loop analysis, and loop transforms are the primary risk areas.",
+    "keywords": [
+      "crash",
+      "assertion",
+      "scalar evolution",
+      "scev",
+      "exitlimit",
+      "backedge taken count",
+      "loop deletion",
+      "loop rotate",
+      "optimizer",
+      "o3"
+    ],
+    "relevant_paths": [
+      "llvm/lib/Analysis/ScalarEvolution",
+      "llvm/lib/Transforms/Scalar",
+      "llvm/lib/Transforms/Utils",
+      "llvm/include/llvm/Analysis"
+    ],
+    "high_risk_paths": [
+      "llvm/lib/Analysis",
+      "llvm/lib/Transforms",
+      "llvm/include/llvm/Analysis",
+      "llvm/include/llvm/Transforms"
+    ]
+  },
+  "pr192829": {
+    "issue_id": "pr192829",
+    "issue_url": "https://github.com/llvm/llvm-project/issues/192829",
+    "title": "clang-tidy crash in readability-container-size-empty",
+    "good_commit": "3623fe661ae35c6c80ac221f14d85be76aa870f1",
+    "good_ref": "llvmorg-21.1.0",
+    "bad_commit": "1ab49a973e210e97d61e5db6557180dcb92c3e98",
+    "bisect_log": "results/issues/pr192829/pr192829-bisect-log.txt",
+    "runner": "scripts/pr192829/bisect-runner.sh",
+    "bug_report_summary": "clang-tidy crashes when running readability-container-size-empty on code that explicitly calls std::string's pseudo-destructor. The assertion says NamedDecl::getName requires a simple identifier, and the stack is inside AST matchers and clang-tidy's readability check.",
+    "keywords": [
+      "crash",
+      "clang-tidy",
+      "readability-container-size-empty",
+      "pseudo destructor",
+      "std::string",
+      "nameddecl",
+      "getname",
+      "ast matcher",
+      "assertion"
+    ],
+    "relevant_paths": [
+      "clang-tools-extra/clang-tidy/readability",
+      "clang/lib/ASTMatchers",
+      "clang/include/clang/ASTMatchers",
+      "clang/include/clang/AST"
+    ],
+    "high_risk_paths": [
+      "clang-tools-extra/clang-tidy",
+      "clang/lib/ASTMatchers",
+      "clang/lib/AST",
+      "clang/include/clang"
+    ]
+  },
+  "pr120802": {
+    "issue_id": "pr120802",
+    "issue_url": "https://github.com/llvm/llvm-project/issues/120802",
+    "title": "Clang crash on consteval lambda decltype instantiation",
+    "good_commit": "08d094a0e457360ad8b94b017d2dc277e697ca76",
+    "good_ref": "llvmorg-16.0.0",
+    "bad_commit": "e19b7dc36bc047b9eb72078d034596be766da350",
+    "bisect_log": "results/issues/pr120802/pr120802-bisect-log.txt",
+    "runner": "scripts/pr120802/bisect-runner.sh",
+    "bug_report_summary": "Clang crashes compiling a C++20 consteval template that returns a lambda with decltype over another lambda call. The stack reaches ASTContext::getTypeInfo and Sema return-type deduction during template instantiation, so Sema, AST layout/type information, and lambda instantiation are the main risk areas.",
+    "keywords": [
+      "crash",
+      "consteval",
+      "lambda",
+      "decltype",
+      "template instantiation",
+      "deduce return type",
+      "astcontext",
+      "gettypeinfo",
+      "c++20",
+      "sema"
+    ],
+    "relevant_paths": [
+      "clang/lib/Sema",
+      "clang/lib/AST",
+      "clang/include/clang/Sema",
+      "clang/include/clang/AST"
+    ],
+    "high_risk_paths": [
+      "clang/lib/Sema",
+      "clang/lib/AST",
+      "clang/lib/Parse",
+      "clang/include/clang"
+    ]
+  },
   "skip-pr199918-riscv": {
     "issue_id": "skip-pr199918-riscv",
     "issue_url": "https://github.com/llvm/llvm-project/issues/199918",

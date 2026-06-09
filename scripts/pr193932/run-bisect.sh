@@ -32,7 +32,7 @@ BAD_COMMIT="3b832a0c54877e083ce982f36762734f091f09f6"
 
 mkdir -p "${RESULTS_DIR}"
 
-if [[ ! -d "${LLVM_DIR}/.git" ]]; then
+if ! git -C "${LLVM_DIR}" rev-parse --git-dir >/dev/null 2>&1; then
   echo "error: llvm-project checkout not found at ${LLVM_DIR}" >&2
   exit 1
 fi
