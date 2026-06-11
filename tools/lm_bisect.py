@@ -77,7 +77,7 @@ DEFAULT_CALIBRATED_PRIOR_BONUS = 1.5
 DEFAULT_WEAK_RELEVANCE_PENALTY = 0.05
 DEFAULT_WEAK_RELEVANCE_THRESHOLD = 0.8
 DEFAULT_BUILD_SUCCESS_POWER = 1.0
-MODEL_SCORING_VERSION = "v6-split-skip-build-evidence"
+MODEL_SCORING_VERSION = "v7-first-bad-risk-guidance"
 TRACE_PROMPT_SIGNATURE_SUFFIX = " [same crash signature repeated "
 DEFAULT_MODEL_SCORING_BATCH_SIZE = 12
 DEFAULT_MODEL_RANK_BONUS = 0.35
@@ -1012,6 +1012,11 @@ Scoring guidance:
 - If observed skipped build/configuration failures are provided, do not treat them as target-bug reproductions.
 - Use skip evidence mainly to reduce build_success_prob for candidates likely to hit the same build/configuration failure.
 - Only let skip evidence increase semantic suspicion if the skip itself is a compiler crash/assertion that matches the issue mechanism.
+- Treat the candidate as high first-bad risk when its diff changes the exact file, function, class, pass, checker, or component named by the assertion, stack trace, running pass, or issue reproducer.
+- Treat the candidate as high first-bad risk when it introduces, enables, or rewires the specific mechanism in the report, such as token collection, constexpr evaluation, module/PCH serialization, codegen debug info, AST matching, loop/vector analysis, or target lowering.
+- Treat a build-skip candidate as semantically high risk only when the build error itself points to the changed file/function/component and that failure is plausibly the regression mechanism; otherwise it is mainly build risk.
+- Treat the candidate as lower first-bad risk when it only shares a broad subsystem, path prefix, or keyword with the issue but the diff mechanism does not explain the observed crash.
+- Treat NFC, formatting, documentation, test-only, release, version-bump, and unrelated build-system commits as low semantic risk unless the observed failure is specifically in that build/test/configuration path.
 - semantic_score should be highest for commits that most directly match the reported bug mechanism, stack trace terms, relevant paths, or likely faulty optimization logic.
 - Lower the score when a commit only touches the same subsystem but does not strongly match the actual failure mechanism.
 - build_success_prob should be lower when the commit looks likely to fail build or be unstable to test.

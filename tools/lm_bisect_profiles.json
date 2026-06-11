@@ -414,6 +414,42 @@
       "clang/include/clang/AST"
     ]
   },
+  "pr190445": {
+    "issue_id": "pr190445",
+    "issue_url": "https://github.com/llvm/llvm-project/issues/190445",
+    "title": "APInt ZeroExtend assertion while evaluating alloc_size",
+    "good_commit": "827731c0bf12b0ce8d70e15ebf9f731e7961fe51",
+    "good_ref": "llvmorg-21.1.0",
+    "bad_commit": "cf192f561b113a2c422197d92944d7852e0b2996",
+    "bisect_log": "results/issues/pr190445/pr190445-bisect-log.txt",
+    "runner": "scripts/pr190445/bisect-runner.sh",
+    "bug_report_summary": "Clang crashes with an APInt ZeroExtend assertion while compiling a reduced C++ reproducer with debug info and assembly output. The stack points through APInt::zext into CallExpr::evaluateBytesReturnedByAllocSizeCall and Sema::ActOnCastExpr, so alloc_size evaluation, APInt width handling, cast expressions, and Sema are the primary risk areas.",
+    "keywords": [
+      "crash",
+      "assertion",
+      "apint",
+      "zeroextend",
+      "alloc_size",
+      "evaluatebytesreturnedbyallocsizecall",
+      "cast",
+      "sema",
+      "clang++",
+      "debug info"
+    ],
+    "relevant_paths": [
+      "clang/lib/AST",
+      "clang/lib/Sema",
+      "clang/include/clang/AST",
+      "clang/include/clang/Sema",
+      "llvm/lib/Support"
+    ],
+    "high_risk_paths": [
+      "clang/lib/AST",
+      "clang/lib/Sema",
+      "clang/include/clang",
+      "llvm/lib/Support"
+    ]
+  },
   "pr202343": {
     "issue_id": "pr202343",
     "issue_url": "https://github.com/llvm/llvm-project/issues/202343",

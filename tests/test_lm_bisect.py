@@ -1567,13 +1567,13 @@ class ModelPromptTests(unittest.TestCase):
 
     def test_model_cache_path_includes_scoring_version(self) -> None:
         path = lm_bisect.model_cache_path("pr172195", "gpt-5.4-mini")
-        self.assertTrue(str(path).endswith("pr172195-gpt-5.4-mini-v6-split-skip-build-evidence.json"))
+        self.assertTrue(str(path).endswith("pr172195-gpt-5.4-mini-v7-first-bad-risk-guidance.json"))
 
     def test_resolved_model_scoring_version_separates_trace_only_mode(self) -> None:
-        self.assertEqual(lm_bisect.resolved_model_scoring_version("legacy"), "v6-split-skip-build-evidence")
+        self.assertEqual(lm_bisect.resolved_model_scoring_version("legacy"), "v7-first-bad-risk-guidance")
         self.assertEqual(
             lm_bisect.resolved_model_scoring_version("trace-only"),
-            "v6-split-skip-build-evidence-obs-trace-only",
+            "v7-first-bad-risk-guidance-obs-trace-only",
         )
 
 
