@@ -1880,6 +1880,37 @@ class SimulationHelpersTests(unittest.TestCase):
         assert cached is not None
         self.assertEqual(cached.verdict, "good")
 
+    def test_select_non_noop_candidate_rejects_cached_endpoint_noop(self) -> None:
+        records = [
+            lm_bisect.CommitRecord(
+                index=2,
+                sha="b" * 40,
+                subject="known bad endpoint",
+                body="",
+                changed_files=[],
+                diff_text="",
+                semantic_score=1.0,
+                build_success_prob=0.9,
+                suspicion_weight=0.0,
+                selection_score=1.0,
+            )
+        ]
+        observations = [
+            lm_bisect.CommitObservation(
+                sha="b" * 40,
+                verdict="bad",
+                summary="cached bad endpoint",
+                features=[],
+            )
+        ]
+
+        with self.assertRaises(lm_bisect.NoProgressCandidateError):
+            lm_bisect.select_non_noop_candidate(
+                records,
+                observations,
+                ["a" * 40, "b" * 40],
+            )
+
     def test_select_non_noop_candidate_skips_uncached_bad_endpoint(self) -> None:
         records = [
             lm_bisect.CommitRecord(

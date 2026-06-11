@@ -276,6 +276,10 @@ class CommitMetadata:
     changed_files: list[str]
 
 
+class NoProgressCandidateError(RuntimeError):
+    """Raised when every selectable candidate would leave the interval unchanged."""
+
+
 def load_profiles(path: Path = PROFILES_PATH) -> dict[str, IssueProfile]:
     raw = json.loads(path.read_text())
     profiles: dict[str, IssueProfile] = {}
@@ -2851,8 +2855,11 @@ def select_non_noop_candidate(
     good_endpoint = unresolved[0] if unresolved else None
     bad_endpoint = unresolved[-1] if unresolved else None
 
+    skipped_endpoints = 0
+    cached_noops: list[str] = []
     for candidate in ordered_candidates:
         if has_internal_probe and candidate.sha in unresolved_set and candidate.sha in {good_endpoint, bad_endpoint}:
+            skipped_endpoints += 1
             continue
         cached = find_observation_by_sha(observations, candidate.sha)
         if cached is None:
@@ -2860,9 +2867,16 @@ def select_non_noop_candidate(
         next_unresolved = partition_interval(unresolved, candidate.sha, cached.verdict)
         if next_unresolved != unresolved:
             return candidate, cached
+        cached_noops.append(f"{candidate.sha[:12]}:{cached.verdict}")
 
-    fallback = ordered_candidates[0]
-    return fallback, find_observation_by_sha(observations, fallback.sha)
+    detail = ", ".join(cached_noops[:5])
+    if len(cached_noops) > 5:
+        detail += ", ..."
+    raise NoProgressCandidateError(
+        "no candidate can shrink unresolved window "
+        f"(unresolved={len(unresolved)}, candidates={len(ordered_candidates)}, "
+        f"skipped_endpoints={skipped_endpoints}, cached_noops=[{detail}])"
+    )
 
 
 def apply_cached_interval_prepass(
@@ -3086,11 +3100,51 @@ def command_simulate_online(args: argparse.Namespace) -> int:
             weak_relevance_penalty=args.weak_relevance_penalty,
             weak_relevance_threshold=args.weak_relevance_threshold,
         )
-        selected, _cached = select_non_noop_candidate(
-            decision.ranked_candidates,
-            [],
-            unresolved,
-        )
+        try:
+            selected, _cached = select_non_noop_candidate(
+                decision.ranked_candidates,
+                [],
+                unresolved,
+            )
+        except NoProgressCandidateError:
+            if args.candidate_pruning == "off":
+                raise
+            records, fallback_pruning_summary = make_records(
+                repo,
+                profile,
+                scorer=args.scorer,
+                model_config=model_config,
+                candidate_shas=unresolved,
+                model_top_k=args.model_top_k,
+                model_frontier=args.model_frontier,
+                candidate_pruning="off",
+                heuristic_version=args.heuristic_version,
+                observations=[],
+                metadata_cache=metadata_cache,
+                model_cache=shared_model_cache,
+            )
+            decision = select_next_commit(
+                profile,
+                records,
+                lambda_weight=args.lambda_weight,
+                build_success_power=args.build_success_power,
+                search_policy=args.search_policy,
+                hybrid_switch_window=args.hybrid_switch_window,
+                calibrated_prior_power=args.calibrated_prior_power,
+                calibrated_prior_bonus=args.calibrated_prior_bonus,
+                weak_relevance_penalty=args.weak_relevance_penalty,
+                weak_relevance_threshold=args.weak_relevance_threshold,
+            )
+            selected, _cached = select_non_noop_candidate(
+                decision.ranked_candidates,
+                [],
+                unresolved,
+            )
+            pruning_summary = {
+                **fallback_pruning_summary,
+                "fallback_reason": "no-progress-after-pruning",
+                "fallback_from": pruning_summary,
+            }
         absolute_index = full_interval.index(selected.sha)
         if selected.sha in skip_shas:
             verdict = "skip"
@@ -3316,11 +3370,55 @@ def command_run_online(args: argparse.Namespace) -> int:
                 weak_relevance_threshold=args.weak_relevance_threshold,
             )
             log_progress(f"step {step}: selected {decision.selected.sha[:12]} mode={decision.selection_mode}")
-            selected, cached = select_non_noop_candidate(
-                decision.ranked_candidates,
-                observations,
-                unresolved,
-            )
+            try:
+                selected, cached = select_non_noop_candidate(
+                    decision.ranked_candidates,
+                    observations,
+                    unresolved,
+                )
+            except NoProgressCandidateError as exc:
+                if args.candidate_pruning == "off":
+                    raise
+                log_progress(f"step {step}: pruning produced no progress ({exc}); retrying with pruning disabled")
+                records, fallback_pruning_summary = make_records(
+                    repo,
+                    profile,
+                    scorer=args.scorer,
+                    model_config=model_config,
+                    candidate_shas=unresolved,
+                    model_top_k=args.model_top_k,
+                    model_frontier=args.model_frontier,
+                    candidate_pruning="off",
+                    heuristic_version=args.heuristic_version,
+                    observations=observations,
+                    metadata_cache=metadata_cache,
+                    model_cache=shared_model_cache,
+                )
+                log_progress(f"step {step}: fallback make_records done records={len(records)}")
+                apply_feedback_bias(profile, records, observations)
+                decision = select_next_commit(
+                    profile,
+                    records,
+                    lambda_weight=args.lambda_weight,
+                    build_success_power=args.build_success_power,
+                    search_policy=args.search_policy,
+                    hybrid_switch_window=args.hybrid_switch_window,
+                    calibrated_prior_power=args.calibrated_prior_power,
+                    calibrated_prior_bonus=args.calibrated_prior_bonus,
+                    weak_relevance_penalty=args.weak_relevance_penalty,
+                    weak_relevance_threshold=args.weak_relevance_threshold,
+                )
+                selected, cached = select_non_noop_candidate(
+                    decision.ranked_candidates,
+                    observations,
+                    unresolved,
+                )
+                pruning_summary = {
+                    **fallback_pruning_summary,
+                    "fallback_reason": "no-progress-after-pruning",
+                    "fallback_from": pruning_summary,
+                }
+                log_progress(f"step {step}: fallback selected {selected.sha[:12]} mode={decision.selection_mode}")
             log_progress(f"step {step}: non-noop selected {selected.sha[:12]} source={'cache' if cached else 'runner'}")
             top_candidates = [
                 compact_candidate_view(record, rank + 1)
