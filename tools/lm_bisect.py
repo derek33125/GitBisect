@@ -1267,6 +1267,18 @@ def save_observations(path: Path, observations: list[CommitObservation]) -> None
     tmp_path.replace(path)
 
 
+def runner_observation_history_fields(observation: CommitObservation) -> dict[str, object]:
+    """Return runner evidence fields that should survive in run-history JSON."""
+    payload: dict[str, object] = {
+        "evidence": observation.evidence or [],
+        "log_excerpt": observation.log_excerpt,
+        "trace_excerpt": observation.trace_excerpt,
+    }
+    if observation.build_failure:
+        payload["build_failure"] = observation.build_failure
+    return payload
+
+
 def observation_path_for_issue(issue_id: str) -> Path:
     return DEFAULT_OBSERVATIONS_DIR / f"{issue_id}.json"
 
@@ -3444,9 +3456,11 @@ def command_run_online(args: argparse.Namespace) -> int:
 
             source = "cache"
             runner_duration_sec = None
+            runner_history_fields: dict[str, object] = {}
             if cached is not None:
                 verdict = cached.verdict
                 summary = cached.summary or selected.subject
+                runner_history_fields = runner_observation_history_fields(cached)
             else:
                 source = "runner"
                 log_progress(f"step {step}: checkout {selected.sha[:12]}")
@@ -3475,6 +3489,7 @@ def command_run_online(args: argparse.Namespace) -> int:
                 )
                 observations = update_observation(observations, observation)
                 save_observations(observation_path, observations)
+                runner_history_fields = runner_observation_history_fields(observation)
 
             tested.append(
                 {
@@ -3503,6 +3518,7 @@ def command_run_online(args: argparse.Namespace) -> int:
                     "selection_mode": decision.selection_mode,
                     "selection": selection_payload(selected),
                     "top_candidates": top_candidates,
+                    **runner_history_fields,
                 },
             )
             if runner_duration_sec is not None:

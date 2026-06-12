@@ -2508,6 +2508,31 @@ class RunHistoryTests(unittest.TestCase):
 
         self.assertEqual(args.observation_prompt_mode, "trace-only")
 
+    def test_history_step_payload_preserves_runner_skip_evidence(self) -> None:
+        observation = lm_bisect.CommitObservation(
+            sha="a" * 40,
+            verdict="skip",
+            summary="build failed; skipping commit",
+            features=["path:llvm/include/llvm/Support"],
+            source="runner",
+            evidence=["error: uintptr_t was not declared"],
+            log_excerpt="[123/2241] Building CXX object\nerror: uintptr_t was not declared",
+            trace_excerpt="../llvm/include/llvm/Support/Signals.h:119:24: error: 'uintptr_t' was not declared",
+            build_failure={
+                "phase": "build",
+                "failed_target": "LLVMSupport",
+                "failed_header": "llvm/include/llvm/Support/Signals.h",
+                "primary_error": "error: 'uintptr_t' was not declared",
+            },
+        )
+
+        payload = lm_bisect.runner_observation_history_fields(observation)
+
+        self.assertEqual(payload["evidence"], ["error: uintptr_t was not declared"])
+        self.assertIn("uintptr_t", payload["trace_excerpt"])
+        self.assertIn("Building CXX object", payload["log_excerpt"])
+        self.assertEqual(payload["build_failure"]["failed_target"], "LLVMSupport")
+
     def test_run_label_makes_distinct_online_artifact_paths(self) -> None:
         path = lm_bisect.run_history_path_for_issue(
             "pr172195",

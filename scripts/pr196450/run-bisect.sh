@@ -29,13 +29,18 @@ BAD_REF="llvmorg-22.1.0"
 
 mkdir -p "${RESULTS_DIR}"
 
-if [[ ! -d "${LLVM_DIR}/.git" ]]; then
+if ! git -C "${LLVM_DIR}" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
   echo "error: llvm-project checkout not found at ${LLVM_DIR}" >&2
   exit 1
 fi
 
 clear_stale_git_lock() {
-  local lock_file="${LLVM_DIR}/.git/index.lock"
+  local git_dir
+  git_dir=$(git -C "${LLVM_DIR}" rev-parse --git-dir)
+  if [[ "${git_dir}" != /* ]]; then
+    git_dir="${LLVM_DIR}/${git_dir}"
+  fi
+  local lock_file="${git_dir}/index.lock"
   if [[ ! -e "${lock_file}" ]]; then
     return 0
   fi
