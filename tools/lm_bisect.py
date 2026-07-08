@@ -80,12 +80,17 @@ DEFAULT_BUILD_SUCCESS_POWER = 1.0
 MODEL_SCORING_VERSION = "v7-first-bad-risk-guidance"
 TRACE_PROMPT_SIGNATURE_SUFFIX = " [same crash signature repeated "
 DEFAULT_MODEL_SCORING_BATCH_SIZE = 12
+DEFAULT_MODEL_REQUEST_TIMEOUT = 120.0
 DEFAULT_MODEL_RANK_BONUS = 0.35
 DEFAULT_MODEL_PRIOR_SOFTMAX_TEMPERATURE = 4.0
 DEFAULT_MODEL_DIRECT_HIT_BONUS = 2.5
 DEFAULT_MODEL_MECHANISM_BONUS = 0.25
 DEFAULT_MODEL_MECHANISM_OVERRIDE_SCALE = 2.0
 TRACE_PROMPT_MAX_CHARS = 2400
+DEFAULT_DIFF_TEXT_MAX_CHARS = 12000
+DIFF_EXTRACTION_MAX_INPUT_CHARS = 600000
+DIFF_EXTRACTION_VERSION = "llm-v2-600k"
+DEFAULT_DIFF_EXTRACTION_BATCH_SIZE = 20
 
 CANDIDATE_PRUNING_GROUPS = {
     "clang-pgo": (
@@ -145,6 +150,7 @@ BUILD_KEEP_PREFIXES = (
 
 GENERATOR_FILE_SUFFIXES = (".td", ".def")
 LIT_CONFIG_NAMES = ("lit.cfg", "lit.cfg.py", "lit.site.cfg", "lit.site.cfg.py")
+TRANSITION_DIFF_FILE_LIMIT = 20
 
 
 def git(repo: Path, *args: str) -> str:
@@ -154,9 +160,9 @@ def git(repo: Path, *args: str) -> str:
         check=True,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
-        text=True,
+        text=False,
     )
-    return completed.stdout
+    return completed.stdout.decode("utf-8", "replace")
 
 
 def log_progress(message: str) -> None:
@@ -228,6 +234,10 @@ class CommitRecord:
     evidence: list[str] | None = None
     feedback_bias: float = 0.0
     features: list[str] | None = None
+    diff_mode: str = "parent"
+    diff_extraction: str = "raw"
+    diff_base_sha: str | None = None
+    diff_summary: str = ""
 
 
 @dataclass
@@ -333,6 +343,25 @@ def resolved_model_scoring_version(observation_prompt_mode: str = "legacy") -> s
     return f"{MODEL_SCORING_VERSION}-obs-{safe_mode}"
 
 
+def model_score_cache_key(
+    sha: str,
+    diff_mode: str = "parent",
+    diff_base_sha: str | None = None,
+    diff_extraction: str = "raw",
+) -> str:
+    if diff_extraction not in {"raw", "llm"}:
+        raise ValueError(f"unsupported diff_extraction: {diff_extraction}")
+    if diff_mode == "parent":
+        base_key = sha
+    elif diff_mode == "last-tested" and diff_base_sha:
+        base_key = f"{sha}|diff:last-tested-candidate-files|base:{diff_base_sha}"
+    else:
+        base_key = f"{sha}|diff:{diff_mode}"
+    if diff_extraction == "raw":
+        return base_key
+    return f"{base_key}|extract:{diff_extraction}-{DIFF_EXTRACTION_VERSION}"
+
+
 def load_model_cache(path: Path) -> dict[str, dict]:
     if not path.exists():
         return {}
@@ -388,11 +417,72 @@ def commit_changed_files(repo: Path, sha: str) -> list[str]:
     return [line.strip() for line in output.splitlines() if line.strip()]
 
 
-def commit_diff_text(repo: Path, sha: str, max_chars: int = 12000) -> str:
-    text = git(repo, "show", "--no-renames", "--format=", "--unified=0", sha)
-    if len(text) <= max_chars:
-        return text
-    return text[:max_chars]
+def git_limited_output(repo: Path, args: list[str], max_chars: int) -> str:
+    cmd = ["git", "-C", str(repo), *args]
+    # Bound diff extraction at the subprocess pipe. Large transition diffs can
+    # span thousands of commits; reading the full diff only to crop it later is
+    # too expensive for top-k model scoring.
+    max_bytes = max(1, max_chars * 4 + 1024)
+    process = subprocess.Popen(
+        cmd,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=False,
+    )
+    assert process.stdout is not None
+    chunks: list[bytes] = []
+    total = 0
+    truncated = False
+    while total < max_bytes:
+        chunk = process.stdout.read(min(8192, max_bytes - total))
+        if not chunk:
+            break
+        chunks.append(chunk)
+        total += len(chunk)
+    if total >= max_bytes:
+        truncated = True
+        process.kill()
+    _stdout_tail, stderr = process.communicate()
+    if not truncated and process.returncode:
+        stderr_text = stderr.decode("utf-8", "replace")
+        raise subprocess.CalledProcessError(process.returncode, cmd, output=b"".join(chunks), stderr=stderr_text)
+    return b"".join(chunks).decode("utf-8", "replace")[:max_chars]
+
+
+def commit_diff_text(repo: Path, sha: str, max_chars: int = DEFAULT_DIFF_TEXT_MAX_CHARS) -> str:
+    return git_limited_output(repo, ["show", "--no-renames", "--format=", "--unified=0", sha], max_chars)
+
+
+def commit_transition_diff_text(
+    repo: Path,
+    base_sha: str,
+    candidate_sha: str,
+    max_chars: int = DEFAULT_DIFF_TEXT_MAX_CHARS,
+) -> str:
+    return git_limited_output(repo, ["diff", "--no-renames", "--unified=0", base_sha, candidate_sha], max_chars)
+
+
+def commit_transition_changed_files(repo: Path, base_sha: str, candidate_sha: str) -> list[str]:
+    output = git(repo, "diff", "--no-renames", "--name-only", base_sha, candidate_sha)
+    return [line.strip() for line in output.splitlines() if line.strip()]
+
+
+def commit_transition_diff_for_files(
+    repo: Path,
+    base_sha: str,
+    candidate_sha: str,
+    files: list[str],
+    max_chars: int = DEFAULT_DIFF_TEXT_MAX_CHARS,
+    max_files: int = TRANSITION_DIFF_FILE_LIMIT,
+) -> str:
+    scoped_files = [path for path in files if path][:max_files]
+    if not scoped_files:
+        return ""
+    return git_limited_output(
+        repo,
+        ["diff", "--no-renames", "--unified=0", base_sha, candidate_sha, "--", *scoped_files],
+        max_chars,
+    )
 
 
 def commit_subject_and_files(repo: Path, sha: str) -> tuple[str, list[str]]:
@@ -764,9 +854,28 @@ def score_build_probability(subject: str, body: str, files: list[str], diff: str
     return score, evidence
 
 
-def compact_diff_for_prompt(files: list[str], diff: str, max_chars: int = 4000) -> str:
+def compact_diff_for_prompt(
+    files: list[str],
+    diff: str,
+    max_chars: int = 4000,
+    diff_mode: str = "parent",
+    base_sha: str | None = None,
+    candidate_sha: str | None = None,
+    diff_extraction: str = "raw",
+    diff_summary: str = "",
+) -> str:
     file_block = "\n".join(files[:20])
-    text = f"Changed files:\n{file_block}\n\nDiff:\n{diff}"
+    metadata = [f"Diff mode: {diff_mode}"]
+    if base_sha:
+        metadata.append(f"Base commit: {base_sha}")
+    if candidate_sha:
+        metadata.append(f"Candidate commit: {candidate_sha}")
+    if diff_extraction != "raw":
+        metadata.append(f"Diff extraction: {diff_extraction}")
+        summary_text = diff_summary.strip() or "<empty extracted diff evidence>"
+        text = "\n".join(metadata) + f"\nChanged files:\n{file_block}\n\nExtracted diff evidence:\n{summary_text}"
+    else:
+        text = "\n".join(metadata) + f"\nChanged files:\n{file_block}\n\nDiff:\n{diff}"
     if len(text) <= max_chars:
         return text
     return text[:max_chars]
@@ -931,7 +1040,15 @@ def build_model_scoring_prompt(
             f"""Commit SHA: {item['sha']}
 Subject: {item['subject']}
 Body: {item['body']}
-{compact_diff_for_prompt(item['files'], item.get('diff', '')) if item.get('diff') else summarize_files_for_prompt(item['files'])}
+{compact_diff_for_prompt(
+    item['files'],
+    item.get('diff', ''),
+    diff_mode=item.get('diff_mode', 'parent'),
+    base_sha=item.get('diff_base_sha'),
+    candidate_sha=item.get('sha'),
+    diff_extraction=item.get('diff_extraction', 'raw'),
+    diff_summary=item.get('diff_summary', ''),
+) if item.get('diff') or item.get('diff_summary') else summarize_files_for_prompt(item['files'])}
 """
         )
     trace_only = observation_prompt_mode == "trace-only"
@@ -1063,6 +1180,263 @@ def parse_model_json_payload(content: str) -> list[dict]:
     return payload
 
 
+def build_diff_extraction_prompt(profile: IssueProfile, item: dict) -> str:
+    raw_diff = str(item.get("diff", ""))
+    truncated = len(raw_diff) > DIFF_EXTRACTION_MAX_INPUT_CHARS
+    diff_excerpt = raw_diff[:DIFF_EXTRACTION_MAX_INPUT_CHARS]
+    changed_files = "\n".join(str(path) for path in item.get("files", [])[:30])
+    return f"""
+You are compressing Git diff evidence for a later LLVM bug-bisect scoring model.
+
+Task:
+- Extract general, reusable change evidence from this diff.
+- Keep mechanisms, touched symbols, file-level intent, and build-risk signals.
+- Do not decide the final score and do not overfit only to the issue text.
+- Omit cosmetic hunks, generated noise, and repetitive context.
+
+Issue context:
+- id: {profile.issue_id}
+- title: {profile.title}
+- summary: {profile.bug_report_summary}
+- relevant paths: {', '.join(profile.relevant_paths)}
+- keywords: {', '.join(profile.keywords)}
+
+Commit:
+- sha: {item.get('sha', '')}
+- subject: {item.get('subject', '')}
+- diff mode: {item.get('diff_mode', 'parent')}
+- base commit: {item.get('diff_base_sha', '')}
+- candidate commit: {item.get('sha', '')}
+
+Changed files:
+{changed_files or '<none>'}
+
+Diff excerpt:
+{diff_excerpt or '<empty diff>'}
+
+Return strict JSON with this schema:
+{{
+  "summary": "one paragraph summary of the substantive code change",
+  "mechanisms": ["mechanism or algorithm touched"],
+  "touched_symbols": ["function/class/pass/checker names when visible"],
+  "risk_relevance": ["signals that may explain a compiler crash/regression"],
+  "build_risk": ["signals that may affect build/testability"],
+  "raw_diff_truncated": {str(truncated).lower()}
+}}
+Only output JSON.
+""".strip()
+
+
+def build_diff_extraction_batch_prompt(profile: IssueProfile, items: list[dict]) -> str:
+    commit_blocks = []
+    for item in items:
+        raw_diff = str(item.get("diff", ""))
+        truncated = len(raw_diff) > DIFF_EXTRACTION_MAX_INPUT_CHARS
+        diff_excerpt = raw_diff[:DIFF_EXTRACTION_MAX_INPUT_CHARS]
+        changed_files = "\n".join(str(path) for path in item.get("files", [])[:30])
+        commit_blocks.append(
+            f"""
+Commit:
+- sha: {item.get('sha', '')}
+- subject: {item.get('subject', '')}
+- diff mode: {item.get('diff_mode', 'parent')}
+- base commit: {item.get('diff_base_sha', '')}
+- candidate commit: {item.get('sha', '')}
+- raw diff truncated: {str(truncated).lower()}
+
+Changed files:
+{changed_files or '<none>'}
+
+Diff excerpt:
+{diff_excerpt or '<empty diff>'}
+""".strip()
+        )
+    return f"""
+You are compressing Git diff evidence for a later LLVM bug-bisect scoring model.
+
+Task:
+- Extract general, reusable change evidence for each commit.
+- Keep mechanisms, touched symbols, file-level intent, and build-risk signals.
+- Do not decide the final score and do not overfit only to the issue text.
+- Omit cosmetic hunks, generated noise, and repetitive context.
+
+Issue context:
+- id: {profile.issue_id}
+- title: {profile.title}
+- summary: {profile.bug_report_summary}
+- relevant paths: {', '.join(profile.relevant_paths)}
+- keywords: {', '.join(profile.keywords)}
+
+Candidate commits:
+
+{chr(10).join(commit_blocks)}
+
+Return strict JSON as an array. One object per commit, with this schema:
+[
+  {{
+    "sha": "<commit sha>",
+    "summary": "one paragraph summary of the substantive code change",
+    "mechanisms": ["mechanism or algorithm touched"],
+    "touched_symbols": ["function/class/pass/checker names when visible"],
+    "risk_relevance": ["signals that may explain a compiler crash/regression"],
+    "build_risk": ["signals that may affect build/testability"],
+    "raw_diff_truncated": <true or false>
+  }}
+]
+Only output JSON.
+""".strip()
+
+
+def format_extracted_diff_evidence(payload: dict) -> str:
+    fields = []
+    summary = str(payload.get("summary", "")).strip()
+    if summary:
+        fields.append(f"Summary: {summary}")
+    for label, key in (
+        ("Mechanisms", "mechanisms"),
+        ("Touched symbols", "touched_symbols"),
+        ("Risk relevance", "risk_relevance"),
+        ("Build risk", "build_risk"),
+    ):
+        values = [str(value).strip() for value in payload.get(key, []) if str(value).strip()]
+        if values:
+            fields.append(f"{label}: " + "; ".join(values[:8]))
+    if payload.get("raw_diff_truncated"):
+        fields.append("Raw diff truncated before extraction: yes")
+    return "\n".join(fields).strip() or "Summary: model returned no substantive diff evidence."
+
+
+def normalize_model_usage(usage: object) -> dict[str, int] | None:
+    if usage is None:
+        return None
+
+    def value(name: str) -> int:
+        if isinstance(usage, dict):
+            raw = usage.get(name, 0)
+        else:
+            raw = getattr(usage, name, 0)
+        return int(raw or 0)
+
+    prompt_tokens = value("prompt_tokens")
+    completion_tokens = value("completion_tokens")
+    total_tokens = value("total_tokens")
+    if total_tokens == 0:
+        total_tokens = prompt_tokens + completion_tokens
+    if prompt_tokens == 0 and completion_tokens == 0 and total_tokens == 0:
+        return None
+    return {
+        "prompt_tokens": prompt_tokens,
+        "completion_tokens": completion_tokens,
+        "total_tokens": total_tokens,
+    }
+
+
+def record_model_usage(summary: dict[str, object], kind: str, response_or_usage: object) -> None:
+    usage_source = getattr(response_or_usage, "usage", response_or_usage)
+    usage = normalize_model_usage(usage_source)
+    if usage is None:
+        return
+    summary["requests"] = int(summary.get("requests", 0)) + 1
+    for key in ("prompt_tokens", "completion_tokens", "total_tokens"):
+        summary[key] = int(summary.get(key, 0)) + usage[key]
+
+    by_kind = summary.setdefault("by_kind", {})
+    if not isinstance(by_kind, dict):
+        by_kind = {}
+        summary["by_kind"] = by_kind
+    kind_summary = by_kind.setdefault(
+        kind,
+        {
+            "requests": 0,
+            "prompt_tokens": 0,
+            "completion_tokens": 0,
+            "total_tokens": 0,
+        },
+    )
+    kind_summary["requests"] = int(kind_summary.get("requests", 0)) + 1
+    for key in ("prompt_tokens", "completion_tokens", "total_tokens"):
+        kind_summary[key] = int(kind_summary.get(key, 0)) + usage[key]
+
+
+def extract_diff_evidence_with_model(
+    profile: IssueProfile,
+    item: dict,
+    config: ModelConfig,
+    usage_summary: dict[str, object] | None = None,
+) -> str:
+    try:
+        from openai import OpenAI
+    except Exception as exc:
+        raise RuntimeError("openai package is not available; install it in the local venv") from exc
+
+    client = OpenAI(api_key=config.api_key, base_url=config.base_url, timeout=DEFAULT_MODEL_REQUEST_TIMEOUT)
+    response = client.chat.completions.create(
+        model=config.model_name,
+        messages=[{"role": "user", "content": build_diff_extraction_prompt(profile, item)}],
+        temperature=0,
+    )
+    if usage_summary is not None:
+        record_model_usage(usage_summary, "diff_extraction", response)
+    content = response.choices[0].message.content or ""
+    try:
+        payload = json.loads(content.strip())
+    except json.JSONDecodeError:
+        fence_match = re.search(r"```(?:json)?\s*(.*?)```", content, re.DOTALL | re.IGNORECASE)
+        if not fence_match:
+            raise
+        payload = json.loads(fence_match.group(1).strip())
+    if not isinstance(payload, dict):
+        raise ValueError("diff extraction payload is not a JSON object")
+    return format_extracted_diff_evidence(payload)
+
+
+def extract_diff_evidence_batch_with_model(
+    profile: IssueProfile,
+    items: list[dict],
+    config: ModelConfig,
+    batch_size: int = DEFAULT_DIFF_EXTRACTION_BATCH_SIZE,
+    usage_summary: dict[str, object] | None = None,
+) -> dict[str, str]:
+    if not items:
+        return {}
+    if len(items) == 1:
+        return {items[0]["sha"]: extract_diff_evidence_with_model(profile, items[0], config, usage_summary)}
+    if batch_size <= 0:
+        raise ValueError("batch_size must be positive")
+    try:
+        from openai import OpenAI
+    except Exception as exc:
+        raise RuntimeError("openai package is not available; install it in the local venv") from exc
+
+    client = OpenAI(api_key=config.api_key, base_url=config.base_url, timeout=DEFAULT_MODEL_REQUEST_TIMEOUT)
+    extracted: dict[str, str] = {}
+    total_batches = math.ceil(len(items) / batch_size)
+    for start in range(0, len(items), batch_size):
+        batch = items[start : start + batch_size]
+        log_progress(
+            f"diff extraction batch {start // batch_size + 1}/{total_batches} size={len(batch)}"
+        )
+        response = client.chat.completions.create(
+            model=config.model_name,
+            messages=[{"role": "user", "content": build_diff_extraction_batch_prompt(profile, batch)}],
+            temperature=0,
+        )
+        if usage_summary is not None:
+            record_model_usage(usage_summary, "diff_extraction", response)
+        content = response.choices[0].message.content or ""
+        payload = parse_model_json_payload(content)
+        for entry in payload:
+            sha = str(entry.get("sha", ""))
+            if sha:
+                extracted[sha] = format_extracted_diff_evidence(entry)
+
+    for item in items:
+        sha = item["sha"]
+        if sha not in extracted:
+            extracted[sha] = extract_diff_evidence_with_model(profile, item, config, usage_summary)
+    return extracted
+
+
 def plan_model_scoring_batches(
     commits: list[dict],
     frontier_mode: str,
@@ -1083,13 +1457,14 @@ def model_score_commits(
     config: ModelConfig,
     observations: list[CommitObservation] | None = None,
     observation_prompt_mode: str = "legacy",
+    usage_summary: dict[str, object] | None = None,
 ) -> dict[str, dict]:
     try:
         from openai import OpenAI
     except Exception as exc:
         raise RuntimeError("openai package is not available; install it in the local venv") from exc
 
-    client = OpenAI(api_key=config.api_key, base_url=config.base_url)
+    client = OpenAI(api_key=config.api_key, base_url=config.base_url, timeout=DEFAULT_MODEL_REQUEST_TIMEOUT)
     prompt = build_model_scoring_prompt(
         profile,
         commits,
@@ -1102,6 +1477,8 @@ def model_score_commits(
         messages=[{"role": "user", "content": prompt}],
         temperature=0,
     )
+    if usage_summary is not None:
+        record_model_usage(usage_summary, "scoring", response)
     content = response.choices[0].message.content or ""
     payload = parse_model_json_payload(content)
     by_sha: dict[str, dict] = {}
@@ -1129,11 +1506,13 @@ def score_model_batch_with_backfill(
     score_fn,
     observations: list[CommitObservation] | None = None,
     observation_prompt_mode: str = "legacy",
+    usage_summary: dict[str, object] | None = None,
 ) -> dict[str, dict]:
+    score_kwargs = {"usage_summary": usage_summary} if usage_summary is not None else {}
     if observations is None:
-        scored = score_fn(profile, commits, config)
+        scored = score_fn(profile, commits, config, **score_kwargs)
     else:
-        scored = score_fn(profile, commits, config, observations, observation_prompt_mode)
+        scored = score_fn(profile, commits, config, observations, observation_prompt_mode, **score_kwargs)
     missing = [item for item in commits if item["sha"] not in scored]
     if not missing:
         return scored
@@ -1141,9 +1520,9 @@ def score_model_batch_with_backfill(
     recovered = dict(scored)
     for item in missing:
         if observations is None:
-            single = score_fn(profile, [item], config)
+            single = score_fn(profile, [item], config, **score_kwargs)
         else:
-            single = score_fn(profile, [item], config, observations, observation_prompt_mode)
+            single = score_fn(profile, [item], config, observations, observation_prompt_mode, **score_kwargs)
         result = single.get(item["sha"])
         if result is None:
             semantic_score, semantic_evidence = score_semantics(
@@ -1384,6 +1763,65 @@ def save_unresolved_window(path: Path, commits: list[str]) -> None:
     tmp_path.replace(path)
 
 
+def copy_if_exists(source: Path, destination: Path) -> bool:
+    if not source.is_file():
+        return False
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    destination.write_bytes(source.read_bytes())
+    return True
+
+
+def issue_artifact_bundle_dir(issue_id: str) -> Path:
+    return issue_results_dir(issue_id) / "report-trace-model-guided"
+
+
+def save_issue_artifact_bundle(
+    *,
+    issue_id: str,
+    observation_path: Path,
+    run_history_path: Path,
+    unresolved_window_path: Path,
+    model_cache_path_value: Path | None,
+) -> Path:
+    """Keep a self-contained JSON bundle under results/issues/<issue>/.
+
+    Remote result copies often pull only results/issues/<issue>/.  The canonical
+    LM artifacts live in global results/lm_bisect_* directories, so mirror the
+    relevant JSON files here as well.
+    """
+    bundle_dir = issue_artifact_bundle_dir(issue_id)
+    copied: dict[str, str] = {}
+    for label, source in (
+        ("observations", observation_path),
+        ("run_history", run_history_path),
+        ("unresolved_window", unresolved_window_path),
+        ("model_cache", model_cache_path_value),
+    ):
+        if source is None:
+            continue
+        destination = bundle_dir / source.name
+        if copy_if_exists(source, destination):
+            copied[label] = str(destination)
+
+    manifest = {
+        "issue": issue_id,
+        "artifact_bundle_dir": str(bundle_dir),
+        "canonical_paths": {
+            "observations": str(observation_path),
+            "run_history": str(run_history_path),
+            "unresolved_window": str(unresolved_window_path),
+            "model_cache": str(model_cache_path_value) if model_cache_path_value else None,
+        },
+        "copied_paths": copied,
+    }
+    manifest_path = bundle_dir / f"{issue_id}-artifact-bundle-manifest.json"
+    manifest_path.parent.mkdir(parents=True, exist_ok=True)
+    tmp_path = manifest_path.with_suffix(manifest_path.suffix + ".tmp")
+    tmp_path.write_text(json.dumps(manifest, indent=2) + "\n")
+    tmp_path.replace(manifest_path)
+    return bundle_dir
+
+
 def start_run_history_payload(
     issue_id: str,
     scorer: str,
@@ -1407,6 +1845,9 @@ def start_run_history_payload(
     build_success_power: float = DEFAULT_BUILD_SUCCESS_POWER,
     observation_prompt_mode: str = "legacy",
     run_label: str | None = None,
+    model_diff_mode: str = "parent",
+    model_diff_extraction: str = "raw",
+    model_top_k: int | None = None,
 ) -> dict:
     return {
         "issue": issue_id,
@@ -1424,6 +1865,9 @@ def start_run_history_payload(
         "build_success_power": build_success_power,
         "observation_prompt_mode": observation_prompt_mode,
         "run_label": run_label,
+        "model_diff_mode": model_diff_mode,
+        "model_diff_extraction": model_diff_extraction,
+        "model_top_k": model_top_k,
         "lambda_weight": lambda_weight,
         "max_steps": max_steps,
         "observation_path": observation_path,
@@ -1457,6 +1901,9 @@ def run_history_matches(
     build_success_power: float = DEFAULT_BUILD_SUCCESS_POWER,
     observation_prompt_mode: str = "legacy",
     run_label: str | None = None,
+    model_diff_mode: str = "parent",
+    model_diff_extraction: str = "raw",
+    model_top_k: int | None = None,
 ) -> bool:
     return (
         bool(history)
@@ -1474,6 +1921,9 @@ def run_history_matches(
         and float(history.get("build_success_power", DEFAULT_BUILD_SUCCESS_POWER)) == build_success_power
         and history.get("observation_prompt_mode", "legacy") == observation_prompt_mode
         and history.get("run_label") == run_label
+        and history.get("model_diff_mode", "parent") == model_diff_mode
+        and history.get("model_diff_extraction", "raw") == model_diff_extraction
+        and history.get("model_top_k") == model_top_k
     )
 
 
@@ -1503,6 +1953,9 @@ def prepare_run_history(
     build_success_power: float = DEFAULT_BUILD_SUCCESS_POWER,
     observation_prompt_mode: str = "legacy",
     run_label: str | None = None,
+    model_diff_mode: str = "parent",
+    model_diff_extraction: str = "raw",
+    model_top_k: int | None = None,
 ) -> tuple[dict, int, bool]:
     history_matches = (
         run_history_matches(
@@ -1520,6 +1973,9 @@ def prepare_run_history(
             build_success_power,
             observation_prompt_mode,
             run_label,
+            model_diff_mode,
+            model_diff_extraction,
+            model_top_k,
         )
         and existing_history.get("search_policy", "ranked") == search_policy
         and int(existing_history.get("hybrid_switch_window", hybrid_switch_window)) == hybrid_switch_window
@@ -1539,6 +1995,9 @@ def prepare_run_history(
         history["build_success_power"] = build_success_power
         history["observation_prompt_mode"] = observation_prompt_mode
         history["run_label"] = run_label
+        history["model_diff_mode"] = model_diff_mode
+        history["model_diff_extraction"] = model_diff_extraction
+        history["model_top_k"] = model_top_k
         history["lambda_weight"] = lambda_weight
         history["max_steps"] = max_steps
         history["observation_path"] = observation_path
@@ -1575,6 +2034,9 @@ def prepare_run_history(
         build_success_power=build_success_power,
         observation_prompt_mode=observation_prompt_mode,
         run_label=run_label,
+        model_diff_mode=model_diff_mode,
+        model_diff_extraction=model_diff_extraction,
+        model_top_k=model_top_k,
     )
     if candidate_file:
         history["candidate_file"] = candidate_file
@@ -1608,6 +2070,7 @@ def compact_candidate_view(record: CommitRecord, rank: int) -> dict:
         payload["calibrated_posterior_info_gain"] = round(record.calibrated_posterior_info_gain, 6)
     if record.weak_relevance_penalty:
         payload["weak_relevance_penalty"] = round(record.weak_relevance_penalty, 6)
+    add_diff_metadata_to_payload(payload, record)
     return payload
 
 
@@ -1634,7 +2097,18 @@ def selection_payload(record: CommitRecord) -> dict:
         payload["calibrated_posterior_info_gain"] = round(record.calibrated_posterior_info_gain, 6)
     if record.weak_relevance_penalty:
         payload["weak_relevance_penalty"] = round(record.weak_relevance_penalty, 6)
+    add_diff_metadata_to_payload(payload, record)
     return payload
+
+
+def add_diff_metadata_to_payload(payload: dict, record: CommitRecord) -> None:
+    if record.diff_mode != "parent" or record.diff_extraction != "raw" or record.diff_summary:
+        payload["diff_mode"] = record.diff_mode
+        payload["diff_extraction"] = record.diff_extraction
+    if record.diff_base_sha:
+        payload["diff_base_sha"] = record.diff_base_sha
+    if record.diff_summary:
+        payload["diff_summary"] = record.diff_summary
 
 
 def find_observation_by_sha(observations: list[CommitObservation], sha: str) -> CommitObservation | None:
@@ -1791,9 +2265,13 @@ def extract_build_failure_summary(output: str) -> dict[str, object]:
         if edge_match:
             summary["ninja_edge"] = edge_match.group(1)
             summary["ninja_action"] = edge_match.group(2)
-        target_match = re.search(r"CMakeFiles/([^/]+)\.dir/", ninja_line)
-        if target_match:
-            summary["failed_target"] = target_match.group(1)
+
+    target_match = next(
+        (re.search(r"CMakeFiles/([^/]+)\.dir/", line) for line in lines if "CMakeFiles/" in line),
+        None,
+    )
+    if target_match:
+        summary["failed_target"] = target_match.group(1)
 
     compile_source = ""
     for line in lines:
@@ -1821,7 +2299,10 @@ def extract_build_failure_summary(output: str) -> dict[str, object]:
     if header:
         summary["failed_header"] = header
 
-    missing_include_match = re.search(r"did you forget to ['`\"]?#include\s+(<[^>]+>)['`\"]?", output)
+    missing_include_match = re.search(
+        r"(?:did you forget to\s+['`\"]?#include\s+|is defined in header\s+['`\"]?)(<[^>]+>)",
+        output,
+    )
     if missing_include_match:
         summary["missing_include"] = missing_include_match.group(1)
 
@@ -1835,6 +2316,43 @@ def extract_build_failure_summary(output: str) -> dict[str, object]:
     return summary
 
 
+def issue_runner_log_path(profile: IssueProfile) -> Path:
+    run_id = os.environ.get("RUN_ID", "manual")
+    return DEFAULT_ISSUE_RESULTS_DIR / profile.issue_id / f"{profile.issue_id}-git-bisect-runner-{run_id}.log"
+
+
+def runner_log_tail(path: Path, max_chars: int = 20000) -> str:
+    if not path.exists() or not path.is_file():
+        return ""
+    try:
+        with path.open("rb") as handle:
+            handle.seek(0, os.SEEK_END)
+            size = handle.tell()
+            handle.seek(max(0, size - max_chars), os.SEEK_SET)
+            data = handle.read()
+    except OSError:
+        return ""
+    return data.decode("utf-8", errors="replace")
+
+
+def append_runner_log_tail(output: str, profile: IssueProfile, verdict: str) -> str:
+    if verdict != "skip":
+        return output
+    log_tail = runner_log_tail(issue_runner_log_path(profile))
+    if not log_tail:
+        return output
+    if log_tail.strip() in output:
+        return output
+    parts = [output.strip()] if output.strip() else []
+    parts.extend(
+        [
+            "=== runner log tail ===",
+            log_tail.strip(),
+        ]
+    )
+    return "\n".join(parts)
+
+
 def run_issue_runner(profile: IssueProfile, repo: Path) -> tuple[str, str, str, list[str]]:
     runner = runner_path_for_issue(profile)
     completed = subprocess.run(
@@ -1846,6 +2364,7 @@ def run_issue_runner(profile: IssueProfile, repo: Path) -> tuple[str, str, str, 
     verdict = verdict_from_runner_exit_code(completed.returncode)
     output = completed.stdout.strip()
     summary = output.splitlines()[-1].strip() if output else f"runner verdict {verdict}"
+    output = append_runner_log_tail(output, profile, verdict)
     evidence = runner_evidence_lines(output)
     return verdict, summary, output, evidence
 
@@ -1876,6 +2395,10 @@ def build_commit_record(
         body = commit_body(repo, sha)
         files = commit_changed_files(repo, sha)
         diff = commit_diff_text(repo, sha) if load_diff else ""
+        diff_mode = "parent"
+        diff_extraction = "raw"
+        diff_base_sha = None
+        diff_summary = ""
     else:
         subject = preloaded["subject"]
         body = preloaded["body"]
@@ -1883,6 +2406,11 @@ def build_commit_record(
         diff = preloaded.get("diff", "")
         if load_diff and not diff:
             diff = commit_diff_text(repo, sha)
+        preloaded_result = preloaded.get("model_result", {})
+        diff_mode = str(preloaded.get("diff_mode") or preloaded_result.get("diff_mode") or "parent")
+        diff_extraction = str(preloaded.get("diff_extraction") or preloaded_result.get("diff_extraction") or "raw")
+        diff_base_sha = preloaded.get("diff_base_sha") or preloaded_result.get("diff_base_sha")
+        diff_summary = str(preloaded.get("diff_summary") or preloaded_result.get("diff_summary") or "")
     if scorer == "model":
         if model_config is None:
             raise RuntimeError("model_config is required for scorer=model")
@@ -1920,6 +2448,10 @@ def build_commit_record(
         suspicion_weight=0.0,
         evidence=evidence + [f"features: {', '.join(features[:6])}" if features else "features: none"],
         features=features,
+        diff_mode=diff_mode,
+        diff_extraction=diff_extraction,
+        diff_base_sha=diff_base_sha,
+        diff_summary=diff_summary,
     )
 
 
@@ -2438,6 +2970,7 @@ def make_records(
     scorer: str = "heuristic",
     model_config: ModelConfig | None = None,
     candidate_shas: list[str] | None = None,
+    heuristic_top_k: int | None = None,
     model_top_k: int | None = None,
     model_frontier: str = "topk",
     candidate_pruning: str = "off",
@@ -2445,7 +2978,15 @@ def make_records(
     observations: list[CommitObservation] | None = None,
     metadata_cache: dict[str, CommitMetadata] | None = None,
     model_cache: dict[str, dict] | None = None,
+    model_diff_mode: str = "parent",
+    model_diff_extraction: str = "raw",
+    last_tested_sha: str | None = None,
+    model_usage_summary: dict[str, object] | None = None,
 ) -> tuple[list[CommitRecord], dict]:
+    if model_diff_mode not in {"parent", "last-tested"}:
+        raise ValueError(f"unsupported model_diff_mode: {model_diff_mode}")
+    if model_diff_extraction not in {"raw", "llm"}:
+        raise ValueError(f"unsupported model_diff_extraction: {model_diff_extraction}")
     shas = candidate_shas if candidate_shas is not None else list_candidate_commits(repo, profile.good_commit, profile.bad_commit)
     if max_candidates is not None:
         shas = shas[:max_candidates]
@@ -2488,6 +3029,23 @@ def make_records(
         for index, item in enumerate(preloaded_items)
     ]
 
+    if scorer == "heuristic" and heuristic_top_k is not None:
+        if heuristic_top_k <= 0:
+            raise ValueError("heuristic_top_k must be positive")
+        before_count = len(records)
+        selected_records = sorted(
+            records,
+            key=lambda record: (record.semantic_score, record.build_success_prob, -record.index),
+            reverse=True,
+        )[: min(heuristic_top_k, len(records))]
+        selected_shas = {record.sha for record in selected_records}
+        records = [record for record in records if record.sha in selected_shas]
+        for index, record in enumerate(records, start=1):
+            record.index = index
+        pruning_summary["heuristic_top_k"] = heuristic_top_k
+        pruning_summary["before_heuristic_top_k"] = before_count
+        pruning_summary["after_heuristic_top_k"] = len(records)
+
     if scorer != "model":
         return records, pruning_summary
 
@@ -2503,31 +3061,96 @@ def make_records(
         scoring_version=resolved_model_scoring_version(model_config.observation_prompt_mode),
     )
     cache = model_cache if model_cache is not None else load_model_cache(cache_path)
-    uncached_shas = [
-        item["sha"]
-        for item in preloaded_items
-        if item["sha"] in selected_shas and cache.get(item["sha"]) is None
-    ]
+    effective_model_diff_mode = "last-tested" if model_diff_mode == "last-tested" and last_tested_sha else "parent"
+    effective_diff_base_sha = last_tested_sha if effective_model_diff_mode == "last-tested" else None
+    diff_fetch_max_chars = (
+        DIFF_EXTRACTION_MAX_INPUT_CHARS
+        if model_diff_extraction == "llm"
+        else DEFAULT_DIFF_TEXT_MAX_CHARS
+    )
+    def is_complete_model_cache_entry(entry: dict | None) -> bool:
+        if entry is None:
+            return False
+        if model_diff_extraction == "llm" and not entry.get("diff_summary"):
+            return False
+        return True
+
+    uncached_shas = []
+    for item in preloaded_items:
+        if item["sha"] not in selected_shas:
+            continue
+        cached = cache.get(
+            model_score_cache_key(
+                item["sha"],
+                effective_model_diff_mode,
+                effective_diff_base_sha,
+                model_diff_extraction,
+            )
+        )
+        if not is_complete_model_cache_entry(cached):
+            uncached_shas.append(item["sha"])
     deep_metadata_by_sha = load_commit_metadata(repo, uncached_shas, include_body=True) if uncached_shas else {}
     uncached: list[dict] = []
     for item in preloaded_items:
         if item["sha"] not in selected_shas:
             continue
-        cached = cache.get(item["sha"])
-        if cached is None:
+        diff_base_sha = effective_diff_base_sha
+        item["diff_mode"] = effective_model_diff_mode
+        item["diff_extraction"] = model_diff_extraction
+        if diff_base_sha:
+            item["diff_base_sha"] = diff_base_sha
+        cache_key = model_score_cache_key(
+            item["sha"],
+            effective_model_diff_mode,
+            diff_base_sha,
+            model_diff_extraction,
+        )
+        cached = cache.get(cache_key)
+        if not is_complete_model_cache_entry(cached):
             deep_metadata = deep_metadata_by_sha.get(item["sha"])
             if deep_metadata is None:
                 raise RuntimeError(f"missing deep metadata for commit {item['sha']}")
             item["subject"] = deep_metadata.subject
             item["body"] = deep_metadata.body
             item["files"] = deep_metadata.changed_files
-            item["diff"] = commit_diff_text(repo, item["sha"])
+            if effective_model_diff_mode == "last-tested" and last_tested_sha:
+                item["diff"] = commit_transition_diff_for_files(
+                    repo,
+                    last_tested_sha,
+                    item["sha"],
+                    deep_metadata.changed_files,
+                    max_chars=diff_fetch_max_chars,
+                )
+                item["files"] = deep_metadata.changed_files
+                item["diff_mode"] = "last-tested"
+                item["diff_base_sha"] = last_tested_sha
+            else:
+                item["diff"] = commit_diff_text(repo, item["sha"], max_chars=diff_fetch_max_chars)
+                item["diff_mode"] = "parent"
+            item["diff_extraction"] = model_diff_extraction
             uncached.append(item)
         else:
             item["model_result"] = cached
+            if cached.get("diff_summary"):
+                item["diff_summary"] = str(cached["diff_summary"])
 
     if uncached:
+        if model_diff_extraction == "llm":
+            extraction_kwargs = {}
+            if model_usage_summary is not None:
+                extraction_kwargs["usage_summary"] = model_usage_summary
+            extracted_diffs = extract_diff_evidence_batch_with_model(
+                profile,
+                uncached,
+                model_config,
+                **extraction_kwargs,
+            )
+            for item in uncached:
+                item["diff_summary"] = extracted_diffs[item["sha"]]
         for batch in plan_model_scoring_batches(uncached, frontier_mode=model_frontier):
+            score_kwargs = {}
+            if model_usage_summary is not None:
+                score_kwargs["usage_summary"] = model_usage_summary
             scored = score_model_batch_with_backfill(
                 profile,
                 batch,
@@ -2535,13 +3158,28 @@ def make_records(
                 model_score_commits,
                 observations,
                 getattr(model_config, "observation_prompt_mode", "legacy"),
+                **score_kwargs,
             )
             for batch_item in batch:
                 result = scored.get(batch_item["sha"])
                 if result is None:
                     raise RuntimeError(f"model response missing commit {batch_item['sha']}")
+                result = dict(result)
+                result["diff_mode"] = batch_item.get("diff_mode", "parent")
+                result["diff_extraction"] = batch_item.get("diff_extraction", model_diff_extraction)
+                if batch_item.get("diff_base_sha"):
+                    result["diff_base_sha"] = batch_item["diff_base_sha"]
+                if batch_item.get("diff_summary"):
+                    result["diff_summary"] = batch_item["diff_summary"]
+                    result["diff_summary_version"] = DIFF_EXTRACTION_VERSION
                 batch_item["model_result"] = result
-                cache[batch_item["sha"]] = result
+                cache_key = model_score_cache_key(
+                    batch_item["sha"],
+                    batch_item.get("diff_mode", "parent"),
+                    batch_item.get("diff_base_sha"),
+                    batch_item.get("diff_extraction", model_diff_extraction),
+                )
+                cache[cache_key] = result
         save_model_cache(cache_path, cache)
 
     preloaded_by_sha = {item["sha"]: item for item in preloaded_items}
@@ -2556,6 +3194,10 @@ def make_records(
         record.evidence = ["model-scored"] + [str(entry) for entry in result.get("evidence", [])]
         if record.features:
             record.evidence.append(f"features: {', '.join(record.features[:6])}")
+        record.diff_mode = str(item.get("diff_mode") or result.get("diff_mode") or "parent")
+        record.diff_extraction = str(item.get("diff_extraction") or result.get("diff_extraction") or "raw")
+        record.diff_base_sha = item.get("diff_base_sha") or result.get("diff_base_sha")
+        record.diff_summary = str(item.get("diff_summary") or result.get("diff_summary") or "")
 
     return records, pruning_summary
 
@@ -2606,6 +3248,8 @@ def command_suggest(args: argparse.Namespace) -> int:
         heuristic_version=args.heuristic_version,
         observations=observations,
         metadata_cache=metadata_cache,
+        model_diff_mode=args.model_diff_mode,
+        model_diff_extraction=args.model_diff_extraction,
     )
     apply_feedback_bias(profile, records, observations)
     decision = select_next_commit(
@@ -3099,6 +3743,9 @@ def command_simulate_online(args: argparse.Namespace) -> int:
             observations=[],
             metadata_cache=metadata_cache,
             model_cache=shared_model_cache,
+            model_diff_mode=args.model_diff_mode,
+            model_diff_extraction=args.model_diff_extraction,
+            last_tested_sha=tested[-1]["sha"] if tested else None,
         )
         decision = select_next_commit(
             profile,
@@ -3127,6 +3774,7 @@ def command_simulate_online(args: argparse.Namespace) -> int:
                 scorer=args.scorer,
                 model_config=model_config,
                 candidate_shas=unresolved,
+                heuristic_top_k=args.heuristic_top_k if args.scorer == "heuristic" else None,
                 model_top_k=args.model_top_k,
                 model_frontier=args.model_frontier,
                 candidate_pruning="off",
@@ -3134,6 +3782,9 @@ def command_simulate_online(args: argparse.Namespace) -> int:
                 observations=[],
                 metadata_cache=metadata_cache,
                 model_cache=shared_model_cache,
+                model_diff_mode=args.model_diff_mode,
+                model_diff_extraction=args.model_diff_extraction,
+                last_tested_sha=tested[-1]["sha"] if tested else None,
             )
             decision = select_next_commit(
                 profile,
@@ -3188,6 +3839,8 @@ def command_simulate_online(args: argparse.Namespace) -> int:
     if args.scorer == "model":
         print(f"Model: {args.model_name or os.getenv('CHATANYWHERE_MODEL', 'gpt-5.4-mini')}")
         print(f"Model frontier: {args.model_frontier}")
+        print(f"Model diff mode: {args.model_diff_mode}")
+        print(f"Model diff extraction: {args.model_diff_extraction}")
     if args.oracle_file:
         print(f"Oracle file: {args.oracle_file}")
     print(f"Ground-truth first bad: {first_bad_sha}")
@@ -3280,6 +3933,9 @@ def command_run_online(args: argparse.Namespace) -> int:
         build_success_power=args.build_success_power,
         observation_prompt_mode=args.observation_prompt_mode,
         run_label=args.run_label,
+        model_diff_mode=args.model_diff_mode,
+        model_diff_extraction=args.model_diff_extraction if args.scorer == "model" else "raw",
+        model_top_k=args.model_top_k if args.scorer == "model" else None,
     )
     save_run_history(run_history_path, run_history)
     log_progress(f"history initialized: completed_steps={completed_steps} resumed={resumed}")
@@ -3325,8 +3981,22 @@ def command_run_online(args: argparse.Namespace) -> int:
         if model_config is not None
         else None
     )
+    shared_model_cache_path = (
+        model_cache_path(
+            profile.issue_id,
+            model_config.model_name,
+            scoring_version=resolved_model_scoring_version(model_config.observation_prompt_mode),
+        )
+        if model_config is not None
+        else None
+    )
     if shared_model_cache is not None:
         log_progress(f"model cache loaded: {len(shared_model_cache)} entries")
+
+    model_usage_summary = run_history.setdefault("model_usage", {}) if args.scorer == "model" else None
+    if model_usage_summary is not None and not isinstance(model_usage_summary, dict):
+        model_usage_summary = {}
+        run_history["model_usage"] = model_usage_summary
 
     try:
         step = completed_steps
@@ -3351,6 +4021,9 @@ def command_run_online(args: argparse.Namespace) -> int:
 
             step += 1
             unresolved_before = len(unresolved)
+            last_tested_sha = None
+            if run_history.get("steps"):
+                last_tested_sha = str(run_history["steps"][-1].get("sha") or "") or None
             log_progress(f"step {step}: make_records start unresolved={unresolved_before}")
             records, pruning_summary = make_records(
                 repo,
@@ -3362,10 +4035,18 @@ def command_run_online(args: argparse.Namespace) -> int:
                 model_frontier=args.model_frontier,
                 candidate_pruning=args.candidate_pruning,
                 heuristic_version=args.heuristic_version,
+                heuristic_top_k=args.heuristic_top_k if args.scorer == "heuristic" else None,
                 observations=observations,
                 metadata_cache=metadata_cache,
                 model_cache=shared_model_cache,
+                model_diff_mode=args.model_diff_mode,
+                model_diff_extraction=args.model_diff_extraction,
+                last_tested_sha=last_tested_sha,
+                model_usage_summary=model_usage_summary,
             )
+            if model_usage_summary is not None:
+                run_history["model_usage"] = model_usage_summary
+                save_run_history(run_history_path, run_history)
             log_progress(f"step {step}: make_records done records={len(records)}")
             apply_feedback_bias(profile, records, observations)
             log_progress(f"step {step}: select_next_commit start")
@@ -3402,9 +4083,13 @@ def command_run_online(args: argparse.Namespace) -> int:
                     model_frontier=args.model_frontier,
                     candidate_pruning="off",
                     heuristic_version=args.heuristic_version,
+                    heuristic_top_k=args.heuristic_top_k if args.scorer == "heuristic" else None,
                     observations=observations,
                     metadata_cache=metadata_cache,
                     model_cache=shared_model_cache,
+                    model_diff_mode=args.model_diff_mode,
+                    model_diff_extraction=args.model_diff_extraction,
+                    last_tested_sha=last_tested_sha,
                 )
                 log_progress(f"step {step}: fallback make_records done records={len(records)}")
                 apply_feedback_bias(profile, records, observations)
@@ -3437,12 +4122,9 @@ def command_run_online(args: argparse.Namespace) -> int:
                 for rank, record in enumerate(decision.ranked_candidates[:5])
             ]
             if selected.sha != decision.selected.sha:
-                top_candidates.insert(
-                    0,
+                selected_compact = compact_candidate_view(selected, 0)
+                selected_compact.update(
                     {
-                        "rank": 0,
-                        "sha": selected.sha,
-                        "subject": selected.subject,
                         "selection_score": selected.selection_score,
                         "semantic_score": selected.semantic_score,
                         "build_success_prob": selected.build_success_prob,
@@ -3451,7 +4133,11 @@ def command_run_online(args: argparse.Namespace) -> int:
                         "calibrated_suspicion_weight": selected.calibrated_suspicion_weight,
                         "calibrated_posterior_bad_mass": selected.calibrated_posterior_bad_mass,
                         "calibrated_posterior_info_gain": selected.calibrated_posterior_info_gain,
-                    },
+                    }
+                )
+                top_candidates.insert(
+                    0,
+                    selected_compact,
                 )
 
             source = "cache"
@@ -3537,6 +4223,8 @@ def command_run_online(args: argparse.Namespace) -> int:
     run_history["steps_executed"] = len(run_history.get("steps", []))
     run_history["remaining_unresolved"] = len(unresolved)
     run_history["final_unresolved_window"] = unresolved[:]
+    if len(unresolved) == 1:
+        run_history["first_bad_commit"] = unresolved[0]
     run_history["unresolved_window_path"] = str(unresolved_window_path)
     run_history["runner_build_count"] = len(runner_durations)
     run_history["runner_build_avg_duration_sec"] = (
@@ -3544,6 +4232,13 @@ def command_run_online(args: argparse.Namespace) -> int:
     )
     save_run_history(run_history_path, run_history)
     save_unresolved_window(unresolved_window_path, unresolved)
+    artifact_bundle_dir = save_issue_artifact_bundle(
+        issue_id=profile.issue_id,
+        observation_path=observation_path,
+        run_history_path=run_history_path,
+        unresolved_window_path=unresolved_window_path,
+        model_cache_path_value=shared_model_cache_path,
+    )
 
     print(f"Issue: {profile.issue_id}")
     print(f"Scorer: {args.scorer}")
@@ -3562,6 +4257,7 @@ def command_run_online(args: argparse.Namespace) -> int:
     print(f"Observation file: {observation_path}")
     print(f"Run history file: {run_history_path}")
     print(f"Unresolved window file: {unresolved_window_path}")
+    print(f"Issue artifact bundle: {artifact_bundle_dir}")
     print(f"Resumed: {'yes' if resumed else 'no'}")
     print(f"Steps executed this run: {len(tested)}")
     print(f"Total recorded steps: {len(run_history.get('steps', []))}")
@@ -3612,6 +4308,8 @@ def build_parser() -> argparse.ArgumentParser:
     suggest.add_argument("--model-name", default=None, help="optional model override for scorer=model")
     suggest.add_argument("--model-top-k", type=int, default=3, help="number of heuristic-prefiltered commits to rescore with the model")
     suggest.add_argument("--model-frontier", choices=("topk", "diverse", "all"), default="topk", help="how to choose the model rescoring frontier")
+    suggest.add_argument("--model-diff-mode", choices=("parent", "last-tested"), default="parent", help="diff evidence passed to model-scored candidates")
+    suggest.add_argument("--model-diff-extraction", choices=("raw", "llm"), default="raw", help="whether model-scored candidates use raw diff text or an LLM-extracted diff summary")
     suggest.add_argument("--observation-prompt-mode", choices=("legacy", "trace-only"), default="legacy", help="how runner-backed crash observations are formatted when scorer=model")
     suggest.add_argument("--search-policy", choices=("ranked", "hybrid", "posterior", "calibrated-posterior"), default="ranked", help="commit selection policy")
     suggest.add_argument("--candidate-pruning", choices=("off", "conservative"), default="off", help="prune obviously irrelevant commits before scoring")
@@ -3680,6 +4378,8 @@ def build_parser() -> argparse.ArgumentParser:
     simulate.add_argument("--model-name", default=None, help="optional model override for scorer=model")
     simulate.add_argument("--model-top-k", type=int, default=3, help="number of heuristic-prefiltered commits to rescore with the model")
     simulate.add_argument("--model-frontier", choices=("topk", "diverse", "all"), default="topk", help="how to choose the model rescoring frontier")
+    simulate.add_argument("--model-diff-mode", choices=("parent", "last-tested"), default="parent", help="diff evidence passed to model-scored candidates")
+    simulate.add_argument("--model-diff-extraction", choices=("raw", "llm"), default="raw", help="whether model-scored candidates use raw diff text or an LLM-extracted diff summary")
     simulate.add_argument("--observation-prompt-mode", choices=("legacy", "trace-only"), default="legacy", help="how runner-backed crash observations are formatted when scorer=model")
     simulate.add_argument("--search-policy", choices=("ranked", "hybrid", "posterior", "calibrated-posterior"), default="ranked", help="commit selection policy")
     simulate.add_argument("--candidate-pruning", choices=("off", "conservative"), default="off", help="prune obviously irrelevant commits before scoring")
@@ -3702,9 +4402,12 @@ def build_parser() -> argparse.ArgumentParser:
     )
     run_online.add_argument("--scorer", choices=("heuristic", "model"), default="heuristic", help="scoring backend")
     run_online.add_argument("--heuristic-version", choices=("v1", "tuned"), default="tuned", help="heuristic scoring version to use for baseline vs tuned comparisons")
+    run_online.add_argument("--heuristic-top-k", type=int, default=None, help="optional cap: rank locally by heuristic score, keep top K candidates, then preserve interval order for selection")
     run_online.add_argument("--model-name", default=None, help="optional model override for scorer=model")
     run_online.add_argument("--model-top-k", type=int, default=3, help="number of heuristic-prefiltered commits to rescore with the model")
     run_online.add_argument("--model-frontier", choices=("topk", "diverse", "all"), default="topk", help="how to choose the model rescoring frontier")
+    run_online.add_argument("--model-diff-mode", choices=("parent", "last-tested"), default="parent", help="diff evidence passed to model-scored candidates")
+    run_online.add_argument("--model-diff-extraction", choices=("raw", "llm"), default="raw", help="whether model-scored candidates use raw diff text or an LLM-extracted diff summary")
     run_online.add_argument("--observation-prompt-mode", choices=("legacy", "trace-only"), default="legacy", help="how runner-backed crash observations are formatted when scorer=model")
     run_online.add_argument("--search-policy", choices=("ranked", "hybrid", "posterior", "calibrated-posterior"), default="ranked", help="commit selection policy")
     run_online.add_argument("--candidate-pruning", choices=("off", "conservative"), default="off", help="prune obviously irrelevant commits before scoring")

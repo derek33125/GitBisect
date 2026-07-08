@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 import tempfile
 import unittest
 from pathlib import Path
@@ -293,6 +294,10 @@ class ProfileTests(unittest.TestCase):
         self.assertIn("pr193932", profiles)
         self.assertIn("pr196244", profiles)
         self.assertIn("pr65982", profiles)
+        self.assertIn("pr121365", profiles)
+        self.assertIn("pr193164", profiles)
+        self.assertEqual(profiles["pr121365"].runner, "scripts/pr121365/bisect-runner.sh")
+        self.assertEqual(profiles["pr193164"].runner, "scripts/pr193164/bisect-runner.sh")
 
 
 class FeedbackTests(unittest.TestCase):
@@ -1468,6 +1473,61 @@ class ModelPromptTests(unittest.TestCase):
         self.assertLess(prompt.count("x"), 5000)
         self.assertLessEqual(prompt.count("x"), lm_bisect.TRACE_PROMPT_MAX_CHARS)
 
+    def test_compact_diff_for_prompt_marks_transition_diff(self) -> None:
+        text = lm_bisect.compact_diff_for_prompt(
+            ["llvm/lib/Transforms/Vectorize/VPlan.cpp"],
+            "+ changed body",
+            diff_mode="last-tested",
+            base_sha="a" * 40,
+            candidate_sha="b" * 40,
+        )
+
+        self.assertIn("Diff mode: last-tested", text)
+        self.assertIn("Base commit: " + "a" * 40, text)
+        self.assertIn("Candidate commit: " + "b" * 40, text)
+        self.assertIn("+ changed body", text)
+
+    def test_build_model_scoring_prompt_includes_transition_diff_metadata(self) -> None:
+        profile = demo_profile()
+        commits = [
+            {
+                "sha": "b" * 40,
+                "subject": "candidate",
+                "body": "",
+                "files": ["llvm/lib/Transforms/Vectorize/VPlan.cpp"],
+                "diff": "+ changed body",
+                "diff_mode": "last-tested",
+                "diff_base_sha": "a" * 40,
+            }
+        ]
+
+        prompt = lm_bisect.build_model_scoring_prompt(profile, commits)
+
+        self.assertIn("Diff mode: last-tested", prompt)
+        self.assertIn("Base commit: " + "a" * 40, prompt)
+        self.assertIn("Candidate commit: " + "b" * 40, prompt)
+
+    def test_build_model_scoring_prompt_uses_extracted_diff_evidence(self) -> None:
+        profile = demo_profile()
+        commits = [
+            {
+                "sha": "b" * 40,
+                "subject": "candidate",
+                "body": "",
+                "files": ["llvm/lib/Transforms/Vectorize/VPlan.cpp"],
+                "diff": "RAW_DIFF_SHOULD_NOT_APPEAR",
+                "diff_mode": "parent",
+                "diff_extraction": "llm",
+                "diff_summary": "Summary: changed the recipe dominance check.",
+            }
+        ]
+
+        prompt = lm_bisect.build_model_scoring_prompt(profile, commits)
+
+        self.assertIn("Diff extraction: llm", prompt)
+        self.assertIn("Summary: changed the recipe dominance check.", prompt)
+        self.assertNotIn("RAW_DIFF_SHOULD_NOT_APPEAR", prompt)
+
     def test_plan_model_scoring_batches_keeps_small_topk_frontier_together(self) -> None:
         commits = [{"sha": str(index)} for index in range(12)]
 
@@ -1612,6 +1672,61 @@ configure failed; skipping commit
         self.assertEqual(summary["phase"], "configure")
         self.assertEqual(summary["primary_error"], "CMake Error: CMAKE_C_COMPILER not set, after EnableLanguage")
         self.assertIn("CheckSymbolExists.cmake:140", summary["cmake_stack"])
+
+    def test_skip_output_can_be_enriched_from_runner_log_tail(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            original_results_dir = lm_bisect.DEFAULT_ISSUE_RESULTS_DIR
+            original_run_id = os.environ.get("RUN_ID")
+            lm_bisect.DEFAULT_ISSUE_RESULTS_DIR = Path(tmpdir)
+            os.environ["RUN_ID"] = "unit-test"
+            try:
+                profile = lm_bisect.IssueProfile(
+                    issue_id="pr-unit",
+                    issue_url="https://example.invalid/pr-unit",
+                    title="unit",
+                    good_commit="a" * 40,
+                    good_ref="unit-good",
+                    bad_commit="b" * 40,
+                    bisect_log="results/pr-unit.log",
+                    runner="runner.sh",
+                    bug_report_summary="unit",
+                    relevant_paths=[],
+                    high_risk_paths=[],
+                    keywords=[],
+                )
+                log_dir = Path(tmpdir) / "pr-unit"
+                log_dir.mkdir(parents=True)
+                log_path = log_dir / "pr-unit-git-bisect-runner-unit-test.log"
+                log_path.write_text(
+                    """
+=== validated-bisect-runner ===
+FAILED: [code=1] lib/Support/CMakeFiles/LLVMSupport.dir/Signals.cpp.o
+../llvm/include/llvm/Support/Signals.h:119:24: error: 'uintptr_t' was not declared in this scope
+../llvm/include/llvm/Support/Signals.h:18:1: note: 'uintptr_t' is defined in header '<cstdint>'
+ninja: build stopped: subcommand failed.
+build failed; skipping commit
+"""
+                )
+
+                enriched = lm_bisect.append_runner_log_tail(
+                    "=== validated-bisect-runner ===\nbuild failed; skipping commit",
+                    profile,
+                    "skip",
+                )
+            finally:
+                lm_bisect.DEFAULT_ISSUE_RESULTS_DIR = original_results_dir
+                if original_run_id is None:
+                    os.environ.pop("RUN_ID", None)
+                else:
+                    os.environ["RUN_ID"] = original_run_id
+
+        self.assertIn("runner log tail", enriched)
+        self.assertIn("uintptr_t", enriched)
+        self.assertIn("LLVMSupport", enriched)
+        summary = lm_bisect.extract_build_failure_summary(enriched)
+        self.assertEqual(summary["failed_target"], "LLVMSupport")
+        self.assertEqual(summary["failed_header"], "llvm/include/llvm/Support/Signals.h")
+        self.assertEqual(summary["missing_include"], "<cstdint>")
 
 
 class CandidateFileTests(unittest.TestCase):
@@ -2344,6 +2459,37 @@ class RunHistoryTests(unittest.TestCase):
         self.assertEqual(history["steps"][0]["top_candidates"][1]["rank"], 2)
         self.assertEqual(history["steps"][0]["top_candidates"][1]["sha"], "d" * 40)
 
+    def test_candidate_payloads_preserve_extracted_diff_summary(self) -> None:
+        record = lm_bisect.CommitRecord(
+            index=1,
+            sha="a" * 40,
+            subject="candidate",
+            body="",
+            changed_files=["candidate-file.cpp"],
+            diff_text="raw diff",
+            semantic_score=4.0,
+            build_success_prob=0.9,
+            suspicion_weight=0.0,
+            evidence=["model-scored"],
+            features=["feature-a"],
+            diff_mode="last-tested",
+            diff_extraction="llm",
+            diff_base_sha="b" * 40,
+            diff_summary="Summary: extracted evidence",
+        )
+        record.utility = 1.25
+        record.selection_score = 1.25
+
+        selection = lm_bisect.selection_payload(record)
+        compact = lm_bisect.compact_candidate_view(record, rank=1)
+
+        self.assertEqual(selection["diff_mode"], "last-tested")
+        self.assertEqual(selection["diff_extraction"], "llm")
+        self.assertEqual(selection["diff_base_sha"], "b" * 40)
+        self.assertIn("Summary: extracted evidence", selection["diff_summary"])
+        self.assertEqual(compact["diff_extraction"], "llm")
+        self.assertIn("Summary: extracted evidence", compact["diff_summary"])
+
     def test_start_run_history_payload_records_policy_fields(self) -> None:
         history = lm_bisect.start_run_history_payload(
             issue_id="pr172195",
@@ -2359,12 +2505,96 @@ class RunHistoryTests(unittest.TestCase):
             good_commit="g" * 40,
             bad_commit="b" * 40,
             initial_unresolved=100,
+            model_top_k=2000,
         )
         self.assertEqual(history["search_policy"], "hybrid")
         self.assertEqual(history["hybrid_switch_window"], 24)
         self.assertEqual(history["model_frontier"], "diverse")
+        self.assertEqual(history["model_top_k"], 2000)
         self.assertEqual(history["calibrated_prior_power"], lm_bisect.DEFAULT_CALIBRATED_PRIOR_POWER)
         self.assertEqual(history["weak_relevance_threshold"], lm_bisect.DEFAULT_WEAK_RELEVANCE_THRESHOLD)
+
+    def test_prepare_run_history_does_not_resume_when_model_top_k_changes(self) -> None:
+        existing = lm_bisect.start_run_history_payload(
+            issue_id="pr176682",
+            scorer="model",
+            model_name="gpt-5.4-mini",
+            model_frontier="topk",
+            search_policy="calibrated-posterior",
+            hybrid_switch_window=32,
+            lambda_weight=2.0,
+            max_steps=12,
+            observation_path="/tmp/obs.json",
+            run_history_path="/tmp/run.json",
+            good_commit="g" * 40,
+            bad_commit="b" * 40,
+            initial_unresolved=200,
+            model_top_k=3,
+        )
+
+        history, completed_steps, resumed = lm_bisect.prepare_run_history(
+            existing_history=existing,
+            issue_id="pr176682",
+            scorer="model",
+            model_name="gpt-5.4-mini",
+            model_frontier="topk",
+            search_policy="calibrated-posterior",
+            hybrid_switch_window=32,
+            lambda_weight=2.0,
+            max_steps=12,
+            observation_path="/tmp/obs.json",
+            run_history_path="/tmp/run.json",
+            good_commit="g" * 40,
+            bad_commit="b" * 40,
+            initial_unresolved=150,
+            candidate_file="/tmp/window.json",
+            model_top_k=2000,
+        )
+
+        self.assertFalse(resumed)
+        self.assertEqual(completed_steps, 0)
+        self.assertEqual(history["model_top_k"], 2000)
+
+    def test_prepare_run_history_does_not_resume_when_model_diff_extraction_changes(self) -> None:
+        existing = lm_bisect.start_run_history_payload(
+            issue_id="pr176682",
+            scorer="model",
+            model_name="gpt-5.4-mini",
+            model_frontier="topk",
+            search_policy="calibrated-posterior",
+            hybrid_switch_window=32,
+            lambda_weight=2.0,
+            max_steps=12,
+            observation_path="/tmp/obs.json",
+            run_history_path="/tmp/run.json",
+            good_commit="g" * 40,
+            bad_commit="b" * 40,
+            initial_unresolved=200,
+            model_diff_extraction="raw",
+        )
+
+        history, completed_steps, resumed = lm_bisect.prepare_run_history(
+            existing_history=existing,
+            issue_id="pr176682",
+            scorer="model",
+            model_name="gpt-5.4-mini",
+            model_frontier="topk",
+            search_policy="calibrated-posterior",
+            hybrid_switch_window=32,
+            lambda_weight=2.0,
+            max_steps=12,
+            observation_path="/tmp/obs.json",
+            run_history_path="/tmp/run.json",
+            good_commit="g" * 40,
+            bad_commit="b" * 40,
+            initial_unresolved=150,
+            candidate_file="/tmp/window.json",
+            model_diff_extraction="llm",
+        )
+
+        self.assertFalse(resumed)
+        self.assertEqual(completed_steps, 0)
+        self.assertEqual(history["model_diff_extraction"], "llm")
 
     def test_prepare_run_history_does_not_resume_when_calibrated_settings_change(self) -> None:
         existing = lm_bisect.start_run_history_payload(
@@ -2507,6 +2737,57 @@ class RunHistoryTests(unittest.TestCase):
         )
 
         self.assertEqual(args.observation_prompt_mode, "trace-only")
+
+    def test_build_parser_accepts_model_diff_mode(self) -> None:
+        parser = lm_bisect.build_parser()
+        args = parser.parse_args(
+            [
+                "run-online",
+                "--issue",
+                "pr172195",
+                "--scorer",
+                "model",
+                "--model-diff-mode",
+                "last-tested",
+                "--model-top-k",
+                "2000",
+            ]
+        )
+
+        self.assertEqual(args.model_diff_mode, "last-tested")
+        self.assertEqual(args.model_top_k, 2000)
+
+    def test_build_parser_accepts_model_diff_extraction(self) -> None:
+        parser = lm_bisect.build_parser()
+        args = parser.parse_args(
+            [
+                "run-online",
+                "--issue",
+                "pr172195",
+                "--scorer",
+                "model",
+                "--model-diff-extraction",
+                "llm",
+            ]
+        )
+
+        self.assertEqual(args.model_diff_extraction, "llm")
+
+    def test_build_parser_accepts_heuristic_top_k(self) -> None:
+        parser = lm_bisect.build_parser()
+        args = parser.parse_args(
+            [
+                "run-online",
+                "--issue",
+                "pr172195",
+                "--scorer",
+                "heuristic",
+                "--heuristic-top-k",
+                "600",
+            ]
+        )
+
+        self.assertEqual(args.heuristic_top_k, 600)
 
     def test_history_step_payload_preserves_runner_skip_evidence(self) -> None:
         observation = lm_bisect.CommitObservation(
@@ -2798,8 +3079,192 @@ class RunHistoryTests(unittest.TestCase):
 
         self.assertEqual(loaded, commits)
 
+    def test_run_online_forwards_heuristic_top_k_to_make_records(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tmp = Path(tmpdir)
+            repo = tmp / "repo"
+            repo.mkdir()
+            (repo / ".git").mkdir()
+            run_history = tmp / "run-history.json"
+            unresolved_window = tmp / "window.json"
+            observations = tmp / "observations.json"
+            shas = ["a" * 40, "b" * 40, "c" * 40]
+            args = mock.Mock(
+                llvm_dir=str(repo),
+                issue="demo",
+                scorer="heuristic",
+                run_label="test-heuristic-topk",
+                candidate_file=None,
+                observations=str(observations),
+                model_name=None,
+                search_policy="calibrated-posterior",
+                model_frontier="topk",
+                candidate_pruning="off",
+                heuristic_version="tuned",
+                observation_prompt_mode="trace-only",
+                hybrid_switch_window=32,
+                lambda_weight=2.0,
+                max_steps=1,
+                calibrated_prior_power=lm_bisect.DEFAULT_CALIBRATED_PRIOR_POWER,
+                calibrated_prior_bonus=lm_bisect.DEFAULT_CALIBRATED_PRIOR_BONUS,
+                weak_relevance_penalty=lm_bisect.DEFAULT_WEAK_RELEVANCE_PENALTY,
+                weak_relevance_threshold=lm_bisect.DEFAULT_WEAK_RELEVANCE_THRESHOLD,
+                build_success_power=lm_bisect.DEFAULT_BUILD_SUCCESS_POWER,
+                model_diff_mode="parent",
+                model_diff_extraction="raw",
+                model_top_k=3,
+                heuristic_top_k=7,
+            )
+
+            def stop_after_make_records(*_args, **_kwargs):
+                raise RuntimeError("stop after make_records")
+
+            with mock.patch.object(lm_bisect, "load_profiles", return_value={}), mock.patch.object(
+                lm_bisect, "load_issue_profile", return_value=demo_profile()
+            ), mock.patch.object(
+                lm_bisect, "list_candidate_commits", return_value=shas
+            ), mock.patch.object(
+                lm_bisect, "run_history_path_for_issue", return_value=run_history
+            ), mock.patch.object(
+                lm_bisect, "unresolved_window_path_for_issue", return_value=unresolved_window
+            ), mock.patch.object(
+                lm_bisect, "git", return_value="h" * 40
+            ), mock.patch.object(
+                lm_bisect, "checkout_commit"
+            ), mock.patch.object(
+                lm_bisect, "make_records", side_effect=stop_after_make_records
+            ) as make_records:
+                with self.assertRaisesRegex(RuntimeError, "stop after make_records"):
+                    lm_bisect.command_run_online(args)
+
+        self.assertEqual(make_records.call_args.kwargs["heuristic_top_k"], 7)
+
 
 class MetadataLoadingTests(unittest.TestCase):
+    def test_commit_diff_text_tolerates_non_utf8_patch_bytes(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            repo = Path(tmpdir)
+            lm_bisect.subprocess.run(["git", "init"], cwd=repo, check=True, stdout=lm_bisect.subprocess.PIPE)
+            lm_bisect.subprocess.run(
+                ["git", "config", "user.email", "test@example.invalid"],
+                cwd=repo,
+                check=True,
+                stdout=lm_bisect.subprocess.PIPE,
+            )
+            lm_bisect.subprocess.run(
+                ["git", "config", "user.name", "Test User"],
+                cwd=repo,
+                check=True,
+                stdout=lm_bisect.subprocess.PIPE,
+            )
+            (repo / "binary-ish.txt").write_bytes(b"ok\n")
+            lm_bisect.subprocess.run(["git", "add", "binary-ish.txt"], cwd=repo, check=True)
+            lm_bisect.subprocess.run(["git", "commit", "-m", "initial"], cwd=repo, check=True)
+            (repo / "binary-ish.txt").write_bytes(b"ok\nbad-\x92-byte\n")
+            lm_bisect.subprocess.run(["git", "add", "binary-ish.txt"], cwd=repo, check=True)
+            lm_bisect.subprocess.run(["git", "commit", "-m", "non utf8 diff"], cwd=repo, check=True)
+            sha = lm_bisect.git(repo, "rev-parse", "HEAD").strip()
+
+            diff = lm_bisect.commit_diff_text(repo, sha)
+
+        self.assertIn("binary-ish.txt", diff)
+        self.assertIn("bad-", diff)
+
+    def test_commit_transition_diff_text_compares_base_to_candidate(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            repo = Path(tmpdir)
+            lm_bisect.subprocess.run(["git", "init"], cwd=repo, check=True, stdout=lm_bisect.subprocess.PIPE)
+            lm_bisect.subprocess.run(
+                ["git", "config", "user.email", "test@example.invalid"],
+                cwd=repo,
+                check=True,
+                stdout=lm_bisect.subprocess.PIPE,
+            )
+            lm_bisect.subprocess.run(
+                ["git", "config", "user.name", "Test User"],
+                cwd=repo,
+                check=True,
+                stdout=lm_bisect.subprocess.PIPE,
+            )
+            tracked = repo / "tracked.txt"
+            tracked.write_text("base\n")
+            lm_bisect.subprocess.run(["git", "add", "tracked.txt"], cwd=repo, check=True)
+            lm_bisect.subprocess.run(["git", "commit", "-m", "base"], cwd=repo, check=True)
+            base = lm_bisect.git(repo, "rev-parse", "HEAD").strip()
+            tracked.write_text("base\nmiddle\n")
+            lm_bisect.subprocess.run(["git", "commit", "-am", "middle"], cwd=repo, check=True)
+            tracked.write_text("base\nmiddle\ncandidate\n")
+            lm_bisect.subprocess.run(["git", "commit", "-am", "candidate"], cwd=repo, check=True)
+            candidate = lm_bisect.git(repo, "rev-parse", "HEAD").strip()
+
+            diff = lm_bisect.commit_transition_diff_text(repo, base, candidate)
+
+        self.assertIn("+middle", diff)
+        self.assertIn("+candidate", diff)
+
+    def test_commit_transition_changed_files_compares_base_to_candidate(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            repo = Path(tmpdir)
+            lm_bisect.subprocess.run(["git", "init"], cwd=repo, check=True, stdout=lm_bisect.subprocess.PIPE)
+            lm_bisect.subprocess.run(
+                ["git", "config", "user.email", "test@example.invalid"],
+                cwd=repo,
+                check=True,
+                stdout=lm_bisect.subprocess.PIPE,
+            )
+            lm_bisect.subprocess.run(
+                ["git", "config", "user.name", "Test User"],
+                cwd=repo,
+                check=True,
+                stdout=lm_bisect.subprocess.PIPE,
+            )
+            first = repo / "first.txt"
+            first.write_text("base\n")
+            lm_bisect.subprocess.run(["git", "add", "first.txt"], cwd=repo, check=True)
+            lm_bisect.subprocess.run(["git", "commit", "-m", "base"], cwd=repo, check=True)
+            base = lm_bisect.git(repo, "rev-parse", "HEAD").strip()
+            second = repo / "second.txt"
+            second.write_text("candidate\n")
+            lm_bisect.subprocess.run(["git", "add", "second.txt"], cwd=repo, check=True)
+            lm_bisect.subprocess.run(["git", "commit", "-m", "candidate"], cwd=repo, check=True)
+            candidate = lm_bisect.git(repo, "rev-parse", "HEAD").strip()
+
+            files = lm_bisect.commit_transition_changed_files(repo, base, candidate)
+
+        self.assertEqual(files, ["second.txt"])
+
+    def test_commit_transition_diff_for_files_scopes_to_candidate_files(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            repo = Path(tmpdir)
+            lm_bisect.subprocess.run(["git", "init"], cwd=repo, check=True, stdout=lm_bisect.subprocess.PIPE)
+            lm_bisect.subprocess.run(
+                ["git", "config", "user.email", "test@example.invalid"],
+                cwd=repo,
+                check=True,
+                stdout=lm_bisect.subprocess.PIPE,
+            )
+            lm_bisect.subprocess.run(
+                ["git", "config", "user.name", "Test User"],
+                cwd=repo,
+                check=True,
+                stdout=lm_bisect.subprocess.PIPE,
+            )
+            (repo / "candidate.txt").write_text("base\n")
+            (repo / "unrelated.txt").write_text("base\n")
+            lm_bisect.subprocess.run(["git", "add", "candidate.txt", "unrelated.txt"], cwd=repo, check=True)
+            lm_bisect.subprocess.run(["git", "commit", "-m", "base"], cwd=repo, check=True)
+            base = lm_bisect.git(repo, "rev-parse", "HEAD").strip()
+            (repo / "unrelated.txt").write_text("base\nunrelated change\n")
+            lm_bisect.subprocess.run(["git", "commit", "-am", "middle"], cwd=repo, check=True)
+            (repo / "candidate.txt").write_text("base\ncandidate change\n")
+            lm_bisect.subprocess.run(["git", "commit", "-am", "candidate"], cwd=repo, check=True)
+            candidate = lm_bisect.git(repo, "rev-parse", "HEAD").strip()
+
+            diff = lm_bisect.commit_transition_diff_for_files(repo, base, candidate, ["candidate.txt"])
+
+        self.assertIn("+candidate change", diff)
+        self.assertNotIn("unrelated change", diff)
+
     def test_load_commit_metadata_subject_and_files_only(self) -> None:
         repo = Path("/home/derek331/research/gitbisect-work/llvm-project")
         shas = [
@@ -2874,6 +3339,50 @@ class MetadataLoadingTests(unittest.TestCase):
         self.assertEqual(summary_first["before_count"], 2)
         self.assertEqual(summary_second["before_count"], 2)
 
+    def test_make_records_heuristic_top_k_keeps_highest_scored_candidates(self) -> None:
+        profile = demo_profile(keywords=["vplan"])
+        repo = Path("/tmp/fake-llvm-project")
+        shas = ["a" * 40, "b" * 40, "c" * 40]
+        metadata_cache: dict[str, lm_bisect.CommitMetadata] = {
+            shas[0]: lm_bisect.CommitMetadata(
+                sha=shas[0],
+                subject="docs cleanup",
+                body="",
+                changed_files=["llvm/docs/ReleaseNotes.md"],
+            ),
+            shas[1]: lm_bisect.CommitMetadata(
+                sha=shas[1],
+                subject="vplan fix",
+                body="",
+                changed_files=["llvm/lib/Transforms/Vectorize/VPlan.cpp"],
+            ),
+            shas[2]: lm_bisect.CommitMetadata(
+                sha=shas[2],
+                subject="loop vectorize vplan",
+                body="",
+                changed_files=["llvm/lib/Transforms/Vectorize/LoopVectorize.cpp"],
+            ),
+        }
+
+        with mock.patch.object(lm_bisect, "load_commit_metadata", return_value=metadata_cache), mock.patch.object(
+            lm_bisect,
+            "commit_diff_text",
+            return_value="",
+        ):
+            records, summary = lm_bisect.make_records(
+                repo,
+                profile,
+                scorer="heuristic",
+                candidate_shas=shas,
+                metadata_cache={},
+                heuristic_top_k=2,
+            )
+
+        self.assertEqual([record.sha for record in records], [shas[1], shas[2]])
+        self.assertEqual(summary["heuristic_top_k"], 2)
+        self.assertEqual(summary["before_heuristic_top_k"], 3)
+        self.assertEqual(summary["after_heuristic_top_k"], 2)
+
     def test_make_records_reuses_model_cache_without_reloading(self) -> None:
         profile = demo_profile()
         repo = Path("/tmp/fake-llvm-project")
@@ -2926,6 +3435,404 @@ class MetadataLoadingTests(unittest.TestCase):
 
         self.assertEqual(records[0].semantic_score, 4.0)
         self.assertEqual(records[0].features, ["feature-a"])
+
+    def test_model_usage_summary_accumulates_response_usage_by_kind(self) -> None:
+        summary: dict[str, object] = {}
+        response = mock.Mock()
+        response.usage = mock.Mock(prompt_tokens=10, completion_tokens=3, total_tokens=13)
+
+        lm_bisect.record_model_usage(summary, "diff_extraction", response)
+        lm_bisect.record_model_usage(
+            summary,
+            "scoring",
+            {"prompt_tokens": 20, "completion_tokens": 5, "total_tokens": 25},
+        )
+        lm_bisect.record_model_usage(summary, "diff_extraction", None)
+
+        self.assertEqual(
+            summary,
+            {
+                "requests": 2,
+                "prompt_tokens": 30,
+                "completion_tokens": 8,
+                "total_tokens": 38,
+                "by_kind": {
+                    "diff_extraction": {
+                        "requests": 1,
+                        "prompt_tokens": 10,
+                        "completion_tokens": 3,
+                        "total_tokens": 13,
+                    },
+                    "scoring": {
+                        "requests": 1,
+                        "prompt_tokens": 20,
+                        "completion_tokens": 5,
+                        "total_tokens": 25,
+                    },
+                },
+            },
+        )
+
+    def test_make_records_last_tested_mode_uses_candidate_files_for_transition_diff(self) -> None:
+        profile = demo_profile()
+        repo = Path("/tmp/fake-llvm-project")
+        sha = "b" * 40
+        last_tested_sha = "a" * 40
+        metadata_cache: dict[str, lm_bisect.CommitMetadata] = {
+            sha: lm_bisect.CommitMetadata(
+                sha=sha,
+                subject="candidate",
+                body="",
+                changed_files=["candidate-file.cpp"],
+            ),
+        }
+        model_config = lm_bisect.ModelConfig(
+            api_key="k",
+            base_url="http://example.invalid",
+            model_name="gpt-5.4-mini",
+        )
+        model_cache: dict[str, dict] = {}
+
+        def fake_score_model_batch_with_backfill(
+            profile_arg,
+            batch,
+            model_config_arg,
+            scorer_arg,
+            observations_arg,
+            observation_prompt_mode_arg,
+        ):
+            self.assertEqual(batch[0]["files"], ["candidate-file.cpp"])
+            self.assertEqual(batch[0]["diff_mode"], "last-tested")
+            self.assertEqual(batch[0]["diff_base_sha"], last_tested_sha)
+            return {
+                sha: {
+                    "semantic_score": 4.0,
+                    "build_success_prob": 0.9,
+                    "evidence": ["transition-scored"],
+                    "features": ["feature-a"],
+                }
+            }
+
+        with mock.patch.object(lm_bisect, "load_commit_metadata", return_value=metadata_cache), mock.patch.object(
+            lm_bisect,
+            "commit_transition_diff_for_files",
+            return_value="transition diff",
+        ), mock.patch.object(
+            lm_bisect,
+            "score_model_batch_with_backfill",
+            side_effect=fake_score_model_batch_with_backfill,
+        ):
+            records, _summary = lm_bisect.make_records(
+                repo,
+                profile,
+                scorer="model",
+                model_config=model_config,
+                candidate_shas=[sha],
+                model_top_k=1,
+                metadata_cache={},
+                model_cache={},
+                model_diff_mode="last-tested",
+                last_tested_sha=last_tested_sha,
+            )
+
+        self.assertEqual(records[0].semantic_score, 4.0)
+        self.assertIn("transition-scored", records[0].evidence)
+
+    def test_model_score_cache_key_distinguishes_diff_extraction(self) -> None:
+        sha = "b" * 40
+
+        raw_key = lm_bisect.model_score_cache_key(sha, "parent", None, "raw")
+        extracted_key = lm_bisect.model_score_cache_key(sha, "parent", None, "llm")
+        last_tested_key = lm_bisect.model_score_cache_key(sha, "last-tested", "a" * 40, "llm")
+
+        self.assertEqual(raw_key, sha)
+        self.assertNotEqual(raw_key, extracted_key)
+        self.assertIn("extract:llm", extracted_key)
+        self.assertIn("diff:last-tested-candidate-files", last_tested_key)
+        self.assertIn("extract:llm", last_tested_key)
+
+    def test_make_records_parent_mode_can_use_llm_diff_extraction(self) -> None:
+        profile = demo_profile()
+        repo = Path("/tmp/fake-llvm-project")
+        sha = "b" * 40
+        metadata_cache: dict[str, lm_bisect.CommitMetadata] = {
+            sha: lm_bisect.CommitMetadata(
+                sha=sha,
+                subject="candidate",
+                body="",
+                changed_files=["candidate-file.cpp"],
+            ),
+        }
+        model_config = lm_bisect.ModelConfig(
+            api_key="k",
+            base_url="http://example.invalid",
+            model_name="gpt-5.4-mini",
+        )
+        model_cache: dict[str, dict] = {}
+
+        def fake_score_model_batch_with_backfill(
+            profile_arg,
+            batch,
+            model_config_arg,
+            scorer_arg,
+            observations_arg,
+            observation_prompt_mode_arg,
+        ):
+            self.assertEqual(batch[0]["diff_mode"], "parent")
+            self.assertEqual(batch[0]["diff_extraction"], "llm")
+            self.assertEqual(batch[0]["diff"], "raw parent diff")
+            self.assertIn("Extracted parent summary", batch[0]["diff_summary"])
+            return {
+                sha: {
+                    "semantic_score": 4.0,
+                    "build_success_prob": 0.9,
+                    "evidence": ["extracted-parent-scored"],
+                    "features": ["feature-a"],
+                }
+            }
+
+        with mock.patch.object(lm_bisect, "load_commit_metadata", return_value=metadata_cache), mock.patch.object(
+            lm_bisect,
+            "commit_diff_text",
+            return_value="raw parent diff",
+        ) as commit_diff, mock.patch.object(
+            lm_bisect,
+            "extract_diff_evidence_with_model",
+            return_value="Extracted parent summary",
+        ) as extract_diff, mock.patch.object(
+            lm_bisect,
+            "score_model_batch_with_backfill",
+            side_effect=fake_score_model_batch_with_backfill,
+        ):
+            records, _summary = lm_bisect.make_records(
+                repo,
+                profile,
+                scorer="model",
+                model_config=model_config,
+                candidate_shas=[sha],
+                model_top_k=1,
+                metadata_cache={},
+                model_cache=model_cache,
+                model_diff_extraction="llm",
+            )
+
+        self.assertEqual(extract_diff.call_count, 1)
+        self.assertEqual(commit_diff.call_args.kwargs["max_chars"], lm_bisect.DIFF_EXTRACTION_MAX_INPUT_CHARS)
+        self.assertEqual(extract_diff.call_args.args[1]["diff_mode"], "parent")
+        self.assertEqual(records[0].semantic_score, 4.0)
+        self.assertIn("extracted-parent-scored", records[0].evidence)
+        self.assertEqual(records[0].diff_extraction, "llm")
+        self.assertIn("Extracted parent summary", records[0].diff_summary)
+        cache_key = lm_bisect.model_score_cache_key(sha, "parent", None, "llm")
+        self.assertIn("Extracted parent summary", model_cache[cache_key]["diff_summary"])
+
+    def test_make_records_uses_batch_llm_diff_extraction_for_multiple_candidates(self) -> None:
+        profile = demo_profile()
+        repo = Path("/tmp/fake-llvm-project")
+        shas = ["b" * 40, "c" * 40]
+        metadata_cache: dict[str, lm_bisect.CommitMetadata] = {
+            shas[0]: lm_bisect.CommitMetadata(
+                sha=shas[0],
+                subject="candidate b",
+                body="",
+                changed_files=["candidate-b.cpp"],
+            ),
+            shas[1]: lm_bisect.CommitMetadata(
+                sha=shas[1],
+                subject="candidate c",
+                body="",
+                changed_files=["candidate-c.cpp"],
+            ),
+        }
+        model_config = lm_bisect.ModelConfig(
+            api_key="k",
+            base_url="http://example.invalid",
+            model_name="gpt-5.4-mini",
+        )
+        model_cache: dict[str, dict] = {}
+
+        def fake_extract_batch(profile_arg, items, model_config_arg):
+            self.assertEqual([item["sha"] for item in items], shas)
+            return {item["sha"]: f"Extracted summary for {item['sha'][:1]}" for item in items}
+
+        def fake_score_model_batch_with_backfill(
+            profile_arg,
+            batch,
+            model_config_arg,
+            scorer_arg,
+            observations_arg,
+            observation_prompt_mode_arg,
+        ):
+            self.assertEqual([item["diff_summary"] for item in batch], ["Extracted summary for b", "Extracted summary for c"])
+            return {
+                item["sha"]: {
+                    "semantic_score": 4.0,
+                    "build_success_prob": 0.9,
+                    "evidence": ["batch-extracted"],
+                    "features": ["feature-a"],
+                }
+                for item in batch
+            }
+
+        with mock.patch.object(lm_bisect, "load_commit_metadata", return_value=metadata_cache), mock.patch.object(
+            lm_bisect,
+            "commit_diff_text",
+            side_effect=["raw parent diff b", "raw parent diff c"],
+        ), mock.patch.object(
+            lm_bisect,
+            "extract_diff_evidence_batch_with_model",
+            side_effect=fake_extract_batch,
+        ) as extract_batch, mock.patch.object(
+            lm_bisect,
+            "extract_diff_evidence_with_model",
+            side_effect=AssertionError("per-candidate extraction should not be used"),
+        ), mock.patch.object(
+            lm_bisect,
+            "score_model_batch_with_backfill",
+            side_effect=fake_score_model_batch_with_backfill,
+        ):
+            records, _summary = lm_bisect.make_records(
+                repo,
+                profile,
+                scorer="model",
+                model_config=model_config,
+                candidate_shas=shas,
+                model_top_k=2,
+                metadata_cache={},
+                model_cache=model_cache,
+                model_diff_extraction="llm",
+            )
+
+        self.assertEqual(extract_batch.call_count, 1)
+        self.assertEqual([record.diff_summary for record in records], ["Extracted summary for b", "Extracted summary for c"])
+        self.assertEqual(set(model_cache), {lm_bisect.model_score_cache_key(sha, "parent", None, "llm") for sha in shas})
+
+    def test_make_records_last_tested_mode_can_use_llm_diff_extraction(self) -> None:
+        profile = demo_profile()
+        repo = Path("/tmp/fake-llvm-project")
+        sha = "b" * 40
+        last_tested_sha = "a" * 40
+        metadata_cache: dict[str, lm_bisect.CommitMetadata] = {
+            sha: lm_bisect.CommitMetadata(
+                sha=sha,
+                subject="candidate",
+                body="",
+                changed_files=["candidate-file.cpp"],
+            ),
+        }
+        model_config = lm_bisect.ModelConfig(
+            api_key="k",
+            base_url="http://example.invalid",
+            model_name="gpt-5.4-mini",
+        )
+
+        def fake_score_model_batch_with_backfill(
+            profile_arg,
+            batch,
+            model_config_arg,
+            scorer_arg,
+            observations_arg,
+            observation_prompt_mode_arg,
+        ):
+            self.assertEqual(batch[0]["diff_mode"], "last-tested")
+            self.assertEqual(batch[0]["diff_base_sha"], last_tested_sha)
+            self.assertEqual(batch[0]["diff_extraction"], "llm")
+            self.assertEqual(batch[0]["diff"], "raw transition diff")
+            self.assertIn("Extracted transition summary", batch[0]["diff_summary"])
+            return {
+                sha: {
+                    "semantic_score": 4.0,
+                    "build_success_prob": 0.9,
+                    "evidence": ["extracted-transition-scored"],
+                    "features": ["feature-a"],
+                }
+            }
+
+        with mock.patch.object(lm_bisect, "load_commit_metadata", return_value=metadata_cache), mock.patch.object(
+            lm_bisect,
+            "commit_transition_diff_for_files",
+            return_value="raw transition diff",
+        ) as transition_diff, mock.patch.object(
+            lm_bisect,
+            "extract_diff_evidence_with_model",
+            return_value="Extracted transition summary",
+        ) as extract_diff, mock.patch.object(
+            lm_bisect,
+            "score_model_batch_with_backfill",
+            side_effect=fake_score_model_batch_with_backfill,
+        ):
+            records, _summary = lm_bisect.make_records(
+                repo,
+                profile,
+                scorer="model",
+                model_config=model_config,
+                candidate_shas=[sha],
+                model_top_k=1,
+                metadata_cache={},
+                model_cache={},
+                model_diff_mode="last-tested",
+                last_tested_sha=last_tested_sha,
+                model_diff_extraction="llm",
+            )
+
+        self.assertEqual(extract_diff.call_count, 1)
+        self.assertEqual(transition_diff.call_args.kwargs["max_chars"], lm_bisect.DIFF_EXTRACTION_MAX_INPUT_CHARS)
+        self.assertEqual(extract_diff.call_args.args[1]["diff_mode"], "last-tested")
+        self.assertEqual(records[0].semantic_score, 4.0)
+        self.assertIn("extracted-transition-scored", records[0].evidence)
+        self.assertEqual(records[0].diff_mode, "last-tested")
+        self.assertEqual(records[0].diff_extraction, "llm")
+        self.assertEqual(records[0].diff_base_sha, last_tested_sha)
+        self.assertIn("Extracted transition summary", records[0].diff_summary)
+
+
+class IssueProfileCoverageTests(unittest.TestCase):
+    def test_pr204178_endpoint_validated_case_has_online_profile(self) -> None:
+        profiles = lm_bisect.load_profiles()
+
+        profile = lm_bisect.load_issue_profile(profiles, "pr204178")
+
+        self.assertEqual(profile.good_commit, "d0b54bb50e5110a004b41fc06dadf3fee70834b7")
+        self.assertEqual(profile.bad_commit, "3b5b5c1ec4a3095ab096dd780e84d7ab81f3d7ff")
+        self.assertEqual(profile.runner, "scripts/pr204178/bisect-runner.sh")
+        self.assertTrue(Path(profile.runner).is_file())
+        self.assertIn("ItaniumMangle", profile.bug_report_summary)
+        self.assertIn("clang/lib/AST/ItaniumMangle.cpp", profile.relevant_paths)
+
+
+class IssueArtifactBundleTests(unittest.TestCase):
+    def test_save_issue_artifact_bundle_mirrors_global_lm_json_files(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            issue_dir = root / "results" / "issues"
+            obs = root / "results" / "lm_bisect_observations" / "prx.json"
+            run = root / "results" / "lm_bisect_runs" / "prx-model-run.json"
+            window = root / "results" / "issues" / "prx" / "prx-window.json"
+            cache = root / "results" / "lm_bisect_model_cache" / "prx-model-cache.json"
+            for path in (obs, run, window, cache):
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_text(json.dumps({"name": path.name}) + "\n")
+
+            with mock.patch.object(lm_bisect, "DEFAULT_ISSUE_RESULTS_DIR", issue_dir):
+                bundle_dir = lm_bisect.save_issue_artifact_bundle(
+                    issue_id="prx",
+                    observation_path=obs,
+                    run_history_path=run,
+                    unresolved_window_path=window,
+                    model_cache_path_value=cache,
+                )
+
+            self.assertEqual(bundle_dir, issue_dir / "prx" / "report-trace-model-guided")
+            self.assertTrue((bundle_dir / obs.name).is_file())
+            self.assertTrue((bundle_dir / run.name).is_file())
+            self.assertTrue((bundle_dir / window.name).is_file())
+            self.assertTrue((bundle_dir / cache.name).is_file())
+
+            manifest = json.loads((bundle_dir / "prx-artifact-bundle-manifest.json").read_text())
+            self.assertEqual(manifest["issue"], "prx")
+            self.assertIn("run_history", manifest["copied_paths"])
+            self.assertIn("observations", manifest["copied_paths"])
+            self.assertIn("model_cache", manifest["copied_paths"])
 
 
 if __name__ == "__main__":
