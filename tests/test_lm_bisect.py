@@ -2843,7 +2843,7 @@ class RunHistoryTests(unittest.TestCase):
 
         self.assertEqual(args.model_diff_extraction, "llm")
 
-    def test_build_parser_accepts_heuristic_top_k(self) -> None:
+    def test_build_parser_accepts_deprecated_heuristic_top_k_as_noop(self) -> None:
         parser = lm_bisect.build_parser()
         args = parser.parse_args(
             [
@@ -3149,7 +3149,7 @@ class RunHistoryTests(unittest.TestCase):
 
         self.assertEqual(loaded, commits)
 
-    def test_run_online_forwards_heuristic_top_k_to_make_records(self) -> None:
+    def test_run_online_does_not_forward_heuristic_top_k_to_make_records(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
             tmp = Path(tmpdir)
             repo = tmp / "repo"
@@ -3183,7 +3183,6 @@ class RunHistoryTests(unittest.TestCase):
                 model_diff_mode="parent",
                 model_diff_extraction="raw",
                 model_top_k=3,
-                heuristic_top_k=7,
             )
 
             def stop_after_make_records(*_args, **_kwargs):
@@ -3207,7 +3206,7 @@ class RunHistoryTests(unittest.TestCase):
                 with self.assertRaisesRegex(RuntimeError, "stop after make_records"):
                     lm_bisect.command_run_online(args)
 
-        self.assertEqual(make_records.call_args.kwargs["heuristic_top_k"], 7)
+        self.assertNotIn("heuristic_top_k", make_records.call_args.kwargs)
 
 
 class MetadataLoadingTests(unittest.TestCase):
@@ -3409,7 +3408,7 @@ class MetadataLoadingTests(unittest.TestCase):
         self.assertEqual(summary_first["before_count"], 2)
         self.assertEqual(summary_second["before_count"], 2)
 
-    def test_make_records_heuristic_top_k_keeps_highest_scored_candidates(self) -> None:
+    def test_make_records_heuristic_keeps_full_candidate_window(self) -> None:
         profile = demo_profile(keywords=["vplan"])
         repo = Path("/tmp/fake-llvm-project")
         shas = ["a" * 40, "b" * 40, "c" * 40]
@@ -3445,13 +3444,12 @@ class MetadataLoadingTests(unittest.TestCase):
                 scorer="heuristic",
                 candidate_shas=shas,
                 metadata_cache={},
-                heuristic_top_k=2,
             )
 
-        self.assertEqual([record.sha for record in records], [shas[1], shas[2]])
-        self.assertEqual(summary["heuristic_top_k"], 2)
-        self.assertEqual(summary["before_heuristic_top_k"], 3)
-        self.assertEqual(summary["after_heuristic_top_k"], 2)
+        self.assertEqual([record.sha for record in records], shas)
+        self.assertNotIn("heuristic_top_k", summary)
+        self.assertNotIn("before_heuristic_top_k", summary)
+        self.assertNotIn("after_heuristic_top_k", summary)
 
     def test_make_records_reuses_model_cache_without_reloading(self) -> None:
         profile = demo_profile()

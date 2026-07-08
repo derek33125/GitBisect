@@ -3008,7 +3008,6 @@ def make_records(
     scorer: str = "heuristic",
     model_config: ModelConfig | None = None,
     candidate_shas: list[str] | None = None,
-    heuristic_top_k: int | None = None,
     model_top_k: int | None = None,
     model_frontier: str = "topk",
     candidate_pruning: str = "off",
@@ -3066,23 +3065,6 @@ def make_records(
         )
         for index, item in enumerate(preloaded_items)
     ]
-
-    if scorer == "heuristic" and heuristic_top_k is not None:
-        if heuristic_top_k <= 0:
-            raise ValueError("heuristic_top_k must be positive")
-        before_count = len(records)
-        selected_records = sorted(
-            records,
-            key=lambda record: (record.semantic_score, record.build_success_prob, -record.index),
-            reverse=True,
-        )[: min(heuristic_top_k, len(records))]
-        selected_shas = {record.sha for record in selected_records}
-        records = [record for record in records if record.sha in selected_shas]
-        for index, record in enumerate(records, start=1):
-            record.index = index
-        pruning_summary["heuristic_top_k"] = heuristic_top_k
-        pruning_summary["before_heuristic_top_k"] = before_count
-        pruning_summary["after_heuristic_top_k"] = len(records)
 
     if scorer != "model":
         return records, pruning_summary
@@ -3812,7 +3794,6 @@ def command_simulate_online(args: argparse.Namespace) -> int:
                 scorer=args.scorer,
                 model_config=model_config,
                 candidate_shas=unresolved,
-                heuristic_top_k=args.heuristic_top_k if args.scorer == "heuristic" else None,
                 model_top_k=args.model_top_k,
                 model_frontier=args.model_frontier,
                 candidate_pruning="off",
@@ -4073,7 +4054,6 @@ def command_run_online(args: argparse.Namespace) -> int:
                 model_frontier=args.model_frontier,
                 candidate_pruning=args.candidate_pruning,
                 heuristic_version=args.heuristic_version,
-                heuristic_top_k=args.heuristic_top_k if args.scorer == "heuristic" else None,
                 observations=observations,
                 metadata_cache=metadata_cache,
                 model_cache=shared_model_cache,
@@ -4121,7 +4101,6 @@ def command_run_online(args: argparse.Namespace) -> int:
                     model_frontier=args.model_frontier,
                     candidate_pruning="off",
                     heuristic_version=args.heuristic_version,
-                    heuristic_top_k=args.heuristic_top_k if args.scorer == "heuristic" else None,
                     observations=observations,
                     metadata_cache=metadata_cache,
                     model_cache=shared_model_cache,
@@ -4440,7 +4419,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     run_online.add_argument("--scorer", choices=("heuristic", "model"), default="heuristic", help="scoring backend")
     run_online.add_argument("--heuristic-version", choices=("v1", "tuned"), default="tuned", help="heuristic scoring version to use for baseline vs tuned comparisons")
-    run_online.add_argument("--heuristic-top-k", type=int, default=None, help="optional cap: rank locally by heuristic score, keep top K candidates, then preserve interval order for selection")
+    run_online.add_argument("--heuristic-top-k", type=int, default=None, help=argparse.SUPPRESS)
     run_online.add_argument("--model-name", default=None, help="optional model override for scorer=model")
     run_online.add_argument("--model-top-k", type=int, default=3, help="number of heuristic-prefiltered commits to rescore with the model")
     run_online.add_argument("--model-frontier", choices=("topk", "diverse", "all"), default="topk", help="how to choose the model rescoring frontier")
