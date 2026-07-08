@@ -91,6 +91,7 @@ DEFAULT_DIFF_TEXT_MAX_CHARS = 12000
 DIFF_EXTRACTION_MAX_INPUT_CHARS = 600000
 DIFF_EXTRACTION_VERSION = "llm-v2-600k"
 DEFAULT_DIFF_EXTRACTION_BATCH_SIZE = 20
+DEFAULT_DIFF_EXTRACTION_MAX_PROMPT_CHARS = 240000
 
 CANDIDATE_PRUNING_GROUPS = {
     "clang-pgo": (
@@ -1287,6 +1288,33 @@ Only output JSON.
 """.strip()
 
 
+def plan_diff_extraction_batches(
+    profile: IssueProfile,
+    items: list[dict],
+    batch_size: int = DEFAULT_DIFF_EXTRACTION_BATCH_SIZE,
+    max_prompt_chars: int = DEFAULT_DIFF_EXTRACTION_MAX_PROMPT_CHARS,
+) -> list[list[dict]]:
+    if batch_size <= 0:
+        raise ValueError("batch_size must be positive")
+    if max_prompt_chars <= 0:
+        raise ValueError("max_prompt_chars must be positive")
+    batches: list[list[dict]] = []
+    current: list[dict] = []
+    for item in items:
+        candidate = [*current, item]
+        if current and (
+            len(candidate) > batch_size
+            or len(build_diff_extraction_batch_prompt(profile, candidate)) > max_prompt_chars
+        ):
+            batches.append(current)
+            current = [item]
+        else:
+            current = candidate
+    if current:
+        batches.append(current)
+    return batches
+
+
 def format_extracted_diff_evidence(payload: dict) -> str:
     fields = []
     summary = str(payload.get("summary", "")).strip()
@@ -1410,25 +1438,35 @@ def extract_diff_evidence_batch_with_model(
 
     client = OpenAI(api_key=config.api_key, base_url=config.base_url, timeout=DEFAULT_MODEL_REQUEST_TIMEOUT)
     extracted: dict[str, str] = {}
-    total_batches = math.ceil(len(items) / batch_size)
-    for start in range(0, len(items), batch_size):
-        batch = items[start : start + batch_size]
+    batches = plan_diff_extraction_batches(profile, items, batch_size=batch_size)
+    total_batches = len(batches)
+    for batch_index, batch in enumerate(batches, start=1):
         log_progress(
-            f"diff extraction batch {start // batch_size + 1}/{total_batches} size={len(batch)}"
+            f"diff extraction batch {batch_index}/{total_batches} size={len(batch)}"
         )
-        response = client.chat.completions.create(
-            model=config.model_name,
-            messages=[{"role": "user", "content": build_diff_extraction_batch_prompt(profile, batch)}],
-            temperature=0,
-        )
-        if usage_summary is not None:
-            record_model_usage(usage_summary, "diff_extraction", response)
-        content = response.choices[0].message.content or ""
-        payload = parse_model_json_payload(content)
-        for entry in payload:
-            sha = str(entry.get("sha", ""))
-            if sha:
-                extracted[sha] = format_extracted_diff_evidence(entry)
+        try:
+            response = client.chat.completions.create(
+                model=config.model_name,
+                messages=[{"role": "user", "content": build_diff_extraction_batch_prompt(profile, batch)}],
+                temperature=0,
+            )
+            if usage_summary is not None:
+                record_model_usage(usage_summary, "diff_extraction", response)
+            choices = getattr(response, "choices", None) or []
+            if not choices:
+                raise ValueError("diff extraction batch response contained no choices")
+            content = choices[0].message.content or ""
+            payload = parse_model_json_payload(content)
+            for entry in payload:
+                sha = str(entry.get("sha", ""))
+                if sha:
+                    extracted[sha] = format_extracted_diff_evidence(entry)
+        except Exception as exc:
+            log_progress(
+                f"diff extraction batch {batch_index}/{total_batches} failed ({exc}); retrying items individually"
+            )
+            for item in batch:
+                extracted[item["sha"]] = extract_diff_evidence_with_model(profile, item, config, usage_summary)
 
     for item in items:
         sha = item["sha"]

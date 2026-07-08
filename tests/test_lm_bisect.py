@@ -2,7 +2,9 @@ from __future__ import annotations
 
 import json
 import os
+import sys
 import tempfile
+import types
 import unittest
 from pathlib import Path
 from unittest import mock
@@ -1624,6 +1626,74 @@ class ModelPromptTests(unittest.TestCase):
         self.assertEqual(len(payload), 1)
         self.assertEqual(payload[0]["sha"], "a" * 40)
         self.assertEqual(payload[0]["evidence"][0], "bad\u0001reason")
+
+    def test_plan_diff_extraction_batches_respects_prompt_budget(self) -> None:
+        profile = demo_profile()
+        items = [
+            {
+                "sha": f"{index:040x}",
+                "subject": f"candidate {index}",
+                "files": ["llvm/lib/IR/Example.cpp"],
+                "diff": "+" + ("x" * 120),
+            }
+            for index in range(3)
+        ]
+
+        batches = lm_bisect.plan_diff_extraction_batches(
+            profile,
+            items,
+            batch_size=20,
+            max_prompt_chars=len(lm_bisect.build_diff_extraction_batch_prompt(profile, items[:1])) + 20,
+        )
+
+        self.assertEqual([[item["sha"] for item in batch] for batch in batches], [[items[0]["sha"]], [items[1]["sha"]], [items[2]["sha"]]])
+
+    def test_extract_diff_evidence_batch_falls_back_when_response_has_no_choices(self) -> None:
+        profile = demo_profile()
+        items = [
+            {
+                "sha": "a" * 40,
+                "subject": "candidate a",
+                "files": ["a.cpp"],
+                "diff": "+a",
+            },
+            {
+                "sha": "b" * 40,
+                "subject": "candidate b",
+                "files": ["b.cpp"],
+                "diff": "+b",
+            },
+        ]
+        model_config = lm_bisect.ModelConfig(
+            api_key="k",
+            base_url="http://example.invalid",
+            model_name="gpt-5.4-mini",
+        )
+
+        class FakeCompletions:
+            def create(self, **_kwargs):
+                return types.SimpleNamespace(choices=None)
+
+        class FakeOpenAI:
+            def __init__(self, **_kwargs):
+                self.chat = types.SimpleNamespace(completions=FakeCompletions())
+
+        fake_openai = types.SimpleNamespace(OpenAI=FakeOpenAI)
+
+        with mock.patch.dict(sys.modules, {"openai": fake_openai}), mock.patch.object(
+            lm_bisect,
+            "extract_diff_evidence_with_model",
+            side_effect=lambda _profile, item, _config, _usage_summary=None: f"fallback {item['sha'][:1]}",
+        ) as fallback:
+            extracted = lm_bisect.extract_diff_evidence_batch_with_model(
+                profile,
+                items,
+                model_config,
+                batch_size=20,
+            )
+
+        self.assertEqual(extracted, {"a" * 40: "fallback a", "b" * 40: "fallback b"})
+        self.assertEqual(fallback.call_count, 2)
 
     def test_model_cache_path_includes_scoring_version(self) -> None:
         path = lm_bisect.model_cache_path("pr172195", "gpt-5.4-mini")
