@@ -387,6 +387,16 @@ def list_candidate_commits(repo: Path, good: str, bad: str) -> list[str]:
     return commits
 
 
+def commit_is_ancestor(repo: Path, ancestor_sha: str, descendant_sha: str) -> bool:
+    completed = subprocess.run(
+        ["git", "-C", str(repo), "merge-base", "--is-ancestor", ancestor_sha, descendant_sha],
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        check=False,
+    )
+    return completed.returncode == 0
+
+
 def load_candidate_commits_from_file(path: Path) -> list[str]:
     raw = json.loads(path.read_text())
     commits: list[str] = []
@@ -3088,6 +3098,14 @@ def make_records(
         if model_diff_extraction == "llm"
         else DEFAULT_DIFF_TEXT_MAX_CHARS
     )
+
+    def resolve_candidate_diff_mode(candidate_sha: str) -> tuple[str, str | None]:
+        if effective_model_diff_mode != "last-tested" or not last_tested_sha:
+            return "parent", None
+        if commit_is_ancestor(repo, last_tested_sha, candidate_sha):
+            return "last-tested", last_tested_sha
+        return "parent", None
+
     def is_complete_model_cache_entry(entry: dict | None) -> bool:
         if entry is None:
             return False
@@ -3099,11 +3117,18 @@ def make_records(
     for item in preloaded_items:
         if item["sha"] not in selected_shas:
             continue
+        item_diff_mode, item_diff_base_sha = resolve_candidate_diff_mode(item["sha"])
+        item["diff_mode"] = item_diff_mode
+        item["diff_extraction"] = model_diff_extraction
+        if item_diff_base_sha:
+            item["diff_base_sha"] = item_diff_base_sha
+        else:
+            item.pop("diff_base_sha", None)
         cached = cache.get(
             model_score_cache_key(
                 item["sha"],
-                effective_model_diff_mode,
-                effective_diff_base_sha,
+                item_diff_mode,
+                item_diff_base_sha,
                 model_diff_extraction,
             )
         )
@@ -3114,14 +3139,12 @@ def make_records(
     for item in preloaded_items:
         if item["sha"] not in selected_shas:
             continue
-        diff_base_sha = effective_diff_base_sha
-        item["diff_mode"] = effective_model_diff_mode
+        item_diff_mode = str(item.get("diff_mode") or "parent")
+        diff_base_sha = item.get("diff_base_sha")
         item["diff_extraction"] = model_diff_extraction
-        if diff_base_sha:
-            item["diff_base_sha"] = diff_base_sha
         cache_key = model_score_cache_key(
             item["sha"],
-            effective_model_diff_mode,
+            item_diff_mode,
             diff_base_sha,
             model_diff_extraction,
         )
@@ -3133,20 +3156,21 @@ def make_records(
             item["subject"] = deep_metadata.subject
             item["body"] = deep_metadata.body
             item["files"] = deep_metadata.changed_files
-            if effective_model_diff_mode == "last-tested" and last_tested_sha:
+            if item_diff_mode == "last-tested" and diff_base_sha:
                 item["diff"] = commit_transition_diff_for_files(
                     repo,
-                    last_tested_sha,
+                    diff_base_sha,
                     item["sha"],
                     deep_metadata.changed_files,
                     max_chars=diff_fetch_max_chars,
                 )
                 item["files"] = deep_metadata.changed_files
                 item["diff_mode"] = "last-tested"
-                item["diff_base_sha"] = last_tested_sha
+                item["diff_base_sha"] = diff_base_sha
             else:
                 item["diff"] = commit_diff_text(repo, item["sha"], max_chars=diff_fetch_max_chars)
                 item["diff_mode"] = "parent"
+                item.pop("diff_base_sha", None)
             item["diff_extraction"] = model_diff_extraction
             uncached.append(item)
         else:

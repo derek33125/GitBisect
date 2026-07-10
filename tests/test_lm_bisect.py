@@ -3583,6 +3583,10 @@ class MetadataLoadingTests(unittest.TestCase):
 
         with mock.patch.object(lm_bisect, "load_commit_metadata", return_value=metadata_cache), mock.patch.object(
             lm_bisect,
+            "commit_is_ancestor",
+            return_value=True,
+        ), mock.patch.object(
+            lm_bisect,
             "commit_transition_diff_for_files",
             return_value="transition diff",
         ), mock.patch.object(
@@ -3604,6 +3608,158 @@ class MetadataLoadingTests(unittest.TestCase):
             )
 
         self.assertEqual(records[0].semantic_score, 4.0)
+        self.assertIn("transition-scored", records[0].evidence)
+
+    def test_make_records_last_tested_mode_uses_parent_diff_for_older_candidate(self) -> None:
+        profile = demo_profile()
+        repo = Path("/tmp/fake-llvm-project")
+        candidate_sha = "b" * 40
+        last_tested_sha = "c" * 40
+        metadata_cache: dict[str, lm_bisect.CommitMetadata] = {
+            candidate_sha: lm_bisect.CommitMetadata(
+                sha=candidate_sha,
+                subject="older candidate",
+                body="",
+                changed_files=["candidate-file.cpp"],
+            ),
+        }
+        model_config = lm_bisect.ModelConfig(
+            api_key="k",
+            base_url="http://example.invalid",
+            model_name="gpt-5.4-mini",
+        )
+        model_cache: dict[str, dict] = {}
+
+        def fake_score_model_batch_with_backfill(
+            profile_arg,
+            batch,
+            model_config_arg,
+            scorer_arg,
+            observations_arg,
+            observation_prompt_mode_arg,
+        ):
+            self.assertEqual(batch[0]["diff_mode"], "parent")
+            self.assertNotIn("diff_base_sha", batch[0])
+            self.assertEqual(batch[0]["diff"], "parent diff")
+            return {
+                candidate_sha: {
+                    "semantic_score": 4.0,
+                    "build_success_prob": 0.9,
+                    "evidence": ["parent-fallback-scored"],
+                    "features": ["feature-a"],
+                }
+            }
+
+        with mock.patch.object(lm_bisect, "load_commit_metadata", return_value=metadata_cache), mock.patch.object(
+            lm_bisect,
+            "commit_is_ancestor",
+            return_value=False,
+        ) as is_ancestor, mock.patch.object(
+            lm_bisect,
+            "commit_diff_text",
+            return_value="parent diff",
+        ) as commit_diff, mock.patch.object(
+            lm_bisect,
+            "commit_transition_diff_for_files",
+            side_effect=AssertionError("older candidates must not use reverse transition diff"),
+        ), mock.patch.object(
+            lm_bisect,
+            "score_model_batch_with_backfill",
+            side_effect=fake_score_model_batch_with_backfill,
+        ):
+            records, _summary = lm_bisect.make_records(
+                repo,
+                profile,
+                scorer="model",
+                model_config=model_config,
+                candidate_shas=[candidate_sha],
+                model_top_k=1,
+                metadata_cache={},
+                model_cache=model_cache,
+                model_diff_mode="last-tested",
+                last_tested_sha=last_tested_sha,
+            )
+
+        is_ancestor.assert_called_once_with(repo, last_tested_sha, candidate_sha)
+        self.assertEqual(commit_diff.call_args.args[:2], (repo, candidate_sha))
+        self.assertEqual(records[0].diff_mode, "parent")
+        self.assertIsNone(records[0].diff_base_sha)
+        self.assertIn("parent-fallback-scored", records[0].evidence)
+        self.assertIn(lm_bisect.model_score_cache_key(candidate_sha, "parent", None, "raw"), model_cache)
+
+    def test_make_records_last_tested_mode_keeps_transition_diff_for_newer_candidate(self) -> None:
+        profile = demo_profile()
+        repo = Path("/tmp/fake-llvm-project")
+        candidate_sha = "c" * 40
+        last_tested_sha = "b" * 40
+        metadata_cache: dict[str, lm_bisect.CommitMetadata] = {
+            candidate_sha: lm_bisect.CommitMetadata(
+                sha=candidate_sha,
+                subject="newer candidate",
+                body="",
+                changed_files=["candidate-file.cpp"],
+            ),
+        }
+        model_config = lm_bisect.ModelConfig(
+            api_key="k",
+            base_url="http://example.invalid",
+            model_name="gpt-5.4-mini",
+        )
+
+        def fake_score_model_batch_with_backfill(
+            profile_arg,
+            batch,
+            model_config_arg,
+            scorer_arg,
+            observations_arg,
+            observation_prompt_mode_arg,
+        ):
+            self.assertEqual(batch[0]["diff_mode"], "last-tested")
+            self.assertEqual(batch[0]["diff_base_sha"], last_tested_sha)
+            self.assertEqual(batch[0]["diff"], "forward transition diff")
+            return {
+                candidate_sha: {
+                    "semantic_score": 4.0,
+                    "build_success_prob": 0.9,
+                    "evidence": ["transition-scored"],
+                    "features": ["feature-a"],
+                }
+            }
+
+        with mock.patch.object(lm_bisect, "load_commit_metadata", return_value=metadata_cache), mock.patch.object(
+            lm_bisect,
+            "commit_is_ancestor",
+            return_value=True,
+        ) as is_ancestor, mock.patch.object(
+            lm_bisect,
+            "commit_transition_diff_for_files",
+            return_value="forward transition diff",
+        ) as transition_diff, mock.patch.object(
+            lm_bisect,
+            "commit_diff_text",
+            side_effect=AssertionError("newer candidates should use transition diff"),
+        ), mock.patch.object(
+            lm_bisect,
+            "score_model_batch_with_backfill",
+            side_effect=fake_score_model_batch_with_backfill,
+        ):
+            records, _summary = lm_bisect.make_records(
+                repo,
+                profile,
+                scorer="model",
+                model_config=model_config,
+                candidate_shas=[candidate_sha],
+                model_top_k=1,
+                metadata_cache={},
+                model_cache={},
+                model_diff_mode="last-tested",
+                last_tested_sha=last_tested_sha,
+            )
+
+        is_ancestor.assert_called_once_with(repo, last_tested_sha, candidate_sha)
+        transition_diff.assert_called_once()
+        self.assertEqual(records[0].diff_mode, "last-tested")
+        self.assertEqual(records[0].diff_base_sha, last_tested_sha)
         self.assertIn("transition-scored", records[0].evidence)
 
     def test_model_score_cache_key_distinguishes_diff_extraction(self) -> None:
@@ -3817,6 +3973,10 @@ class MetadataLoadingTests(unittest.TestCase):
             }
 
         with mock.patch.object(lm_bisect, "load_commit_metadata", return_value=metadata_cache), mock.patch.object(
+            lm_bisect,
+            "commit_is_ancestor",
+            return_value=True,
+        ), mock.patch.object(
             lm_bisect,
             "commit_transition_diff_for_files",
             return_value="raw transition diff",
