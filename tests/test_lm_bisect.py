@@ -271,6 +271,58 @@ class ScoringTests(unittest.TestCase):
 
         self.assertGreater(tuned_score, v1_score)
 
+    def test_general_keyword_version_does_not_use_issue_authored_keywords(self) -> None:
+        profile = lm_bisect.IssueProfile(
+            issue_id="demo",
+            issue_url="https://example.invalid",
+            title="Demo",
+            good_commit="g" * 40,
+            good_ref="llvmorg-demo",
+            bad_commit="b" * 40,
+            bisect_log="results/demo.log",
+            runner="scripts/demo.sh",
+            bug_report_summary="demo",
+            keywords=["highly-specialized-trigger"],
+            relevant_paths=[],
+            high_risk_paths=[],
+        )
+
+        tuned_score, _ = lm_bisect.score_semantics(
+            profile,
+            subject="Fix highly-specialized-trigger",
+            body="",
+            files=[],
+            diff="",
+            heuristic_version="tuned",
+        )
+        general_score, general_evidence = lm_bisect.score_semantics(
+            profile,
+            subject="Fix assertion in optimizer",
+            body="",
+            files=[],
+            diff="",
+            heuristic_version="general",
+        )
+        specialized_general_score, _ = lm_bisect.score_semantics(
+            profile,
+            subject="Fix highly-specialized-trigger",
+            body="",
+            files=[],
+            diff="",
+            heuristic_version="general",
+        )
+
+        self.assertGreater(tuned_score, specialized_general_score)
+        self.assertGreater(general_score, specialized_general_score)
+        self.assertTrue(any("keyword hits" in item for item in general_evidence))
+
+    def test_parser_accepts_general_keyword_heuristic_version(self) -> None:
+        args = lm_bisect.build_parser().parse_args(
+            ["suggest", "--issue", "demo", "--heuristic-version", "general"]
+        )
+
+        self.assertEqual(args.heuristic_version, "general")
+
     def test_build_probability_drops_for_build_system_touch(self) -> None:
         score, evidence = lm_bisect.score_build_probability(
             subject="[clang] update build workflow",

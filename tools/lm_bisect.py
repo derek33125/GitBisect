@@ -9,7 +9,7 @@ import re
 import subprocess
 import sys
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Iterable
 
@@ -52,6 +52,29 @@ RISKY_WORDS = (
     "opt",
     "poison",
     "build_vector",
+)
+
+# This fixed vocabulary supports the scoped general-keyword ablation. It is
+# deliberately shared across all issues rather than derived from issue reports.
+GENERAL_CRASH_KEYWORDS = (
+    "crash",
+    "assertion",
+    "abort",
+    "segfault",
+    "ice",
+    "internal compiler error",
+    "diagnostic",
+    "parser",
+    "sema",
+    "ast",
+    "ir",
+    "optimizer",
+    "analysis",
+    "codegen",
+    "lowering",
+    "vectorizer",
+    "loop",
+    "target",
 )
 
 BUILD_RISK_WORDS = (
@@ -826,6 +849,14 @@ def score_semantics(
         return score_semantics_v1(profile, subject, body, files, diff)
     if heuristic_version == "tuned":
         return score_semantics_tuned(profile, subject, body, files, diff)
+    if heuristic_version == "general":
+        return score_semantics_tuned(
+            replace(profile, keywords=list(GENERAL_CRASH_KEYWORDS)),
+            subject,
+            body,
+            files,
+            diff,
+        )
     raise ValueError(f"unsupported heuristic version: {heuristic_version}")
 
 
@@ -3044,7 +3075,7 @@ def make_records(
         loaded_metadata = load_commit_metadata(
             repo,
             missing_shas,
-            include_body=(scorer == "heuristic" and heuristic_version == "tuned"),
+            include_body=(scorer == "heuristic" and heuristic_version in {"tuned", "general"}),
         )
         metadata_by_sha.update(loaded_metadata)
     shas, pruning_summary = apply_candidate_pruning(profile, shas, metadata_by_sha, candidate_pruning)
@@ -4345,7 +4376,7 @@ def build_parser() -> argparse.ArgumentParser:
     suggest.add_argument("--candidate-file", default=None, help="optional JSON file listing the candidate commit set to rank")
     suggest.add_argument("--observations", default=None, help="optional path to tested-commit observation JSON")
     suggest.add_argument("--scorer", choices=("heuristic", "model"), default="heuristic", help="scoring backend")
-    suggest.add_argument("--heuristic-version", choices=("v1", "tuned"), default="tuned", help="heuristic scoring version to use for baseline vs tuned comparisons")
+    suggest.add_argument("--heuristic-version", choices=("v1", "tuned", "general"), default="tuned", help="heuristic scoring version to use for baseline vs tuned/general-keyword comparisons")
     suggest.add_argument("--model-name", default=None, help="optional model override for scorer=model")
     suggest.add_argument("--model-top-k", type=int, default=3, help="number of heuristic-prefiltered commits to rescore with the model")
     suggest.add_argument("--model-frontier", choices=("topk", "diverse", "all"), default="topk", help="how to choose the model rescoring frontier")
@@ -4397,7 +4428,7 @@ def build_parser() -> argparse.ArgumentParser:
     eval_email.add_argument("--max-candidates", type=int, default=None, help="optional cap for candidate enumeration")
     eval_email.add_argument("--candidate-file", default=None, help="optional JSON file listing the candidate commit set to rank")
     eval_email.add_argument("--observations", default=None, help="optional path to tested-commit observation JSON")
-    eval_email.add_argument("--heuristic-version", choices=("v1", "tuned"), default="tuned", help="heuristic scoring version to use for baseline vs tuned comparisons")
+    eval_email.add_argument("--heuristic-version", choices=("v1", "tuned", "general"), default="tuned", help="heuristic scoring version to use for baseline vs tuned/general-keyword comparisons")
     eval_email.add_argument("--model-name", default=None, help="optional model override for scorer=model")
     eval_email.add_argument("--observation-prompt-mode", choices=("legacy", "trace-only"), default="legacy", help="how runner-backed crash observations are formatted when scorer=model")
     eval_email.add_argument("--candidate-pruning", choices=("off", "conservative"), default="off", help="prune obviously irrelevant commits before scoring")
@@ -4415,7 +4446,7 @@ def build_parser() -> argparse.ArgumentParser:
         help="path to llvm-project checkout",
     )
     simulate.add_argument("--scorer", choices=("heuristic", "model"), default="heuristic", help="scoring backend")
-    simulate.add_argument("--heuristic-version", choices=("v1", "tuned"), default="tuned", help="heuristic scoring version to use for baseline vs tuned comparisons")
+    simulate.add_argument("--heuristic-version", choices=("v1", "tuned", "general"), default="tuned", help="heuristic scoring version to use for baseline vs tuned/general-keyword comparisons")
     simulate.add_argument("--model-name", default=None, help="optional model override for scorer=model")
     simulate.add_argument("--model-top-k", type=int, default=3, help="number of heuristic-prefiltered commits to rescore with the model")
     simulate.add_argument("--model-frontier", choices=("topk", "diverse", "all"), default="topk", help="how to choose the model rescoring frontier")
@@ -4442,7 +4473,7 @@ def build_parser() -> argparse.ArgumentParser:
         help="path to llvm-project checkout",
     )
     run_online.add_argument("--scorer", choices=("heuristic", "model"), default="heuristic", help="scoring backend")
-    run_online.add_argument("--heuristic-version", choices=("v1", "tuned"), default="tuned", help="heuristic scoring version to use for baseline vs tuned comparisons")
+    run_online.add_argument("--heuristic-version", choices=("v1", "tuned", "general"), default="tuned", help="heuristic scoring version to use for baseline vs tuned/general-keyword comparisons")
     run_online.add_argument("--heuristic-top-k", type=int, default=None, help=argparse.SUPPRESS)
     run_online.add_argument("--model-name", default=None, help="optional model override for scorer=model")
     run_online.add_argument("--model-top-k", type=int, default=3, help="number of heuristic-prefiltered commits to rescore with the model")
