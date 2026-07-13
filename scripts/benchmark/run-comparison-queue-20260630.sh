@@ -13,6 +13,7 @@ fi
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 DEFAULT_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 ROOT="${ROOT:-${DEFAULT_ROOT}}"
+cd "${ROOT}"
 if [[ -z "${BASE_REPO:-}" ]]; then
   if [[ -d /home/ubuntu/gitbisect-work/llvm-project ]]; then
     BASE_REPO=/home/ubuntu/gitbisect-work/llvm-project
