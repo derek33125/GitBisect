@@ -54,9 +54,9 @@ RISKY_WORDS = (
     "build_vector",
 )
 
-# This fixed vocabulary supports the scoped general-keyword ablation. It is
-# deliberately shared across all issues rather than derived from issue reports.
-GENERAL_CRASH_KEYWORDS = (
+# Archived on 2026-07-13 after the first scoped general-keyword ablation.
+# Keep this list so completed `general` histories remain interpretable.
+GENERAL_CRASH_KEYWORDS_V1 = (
     "crash",
     "assertion",
     "abort",
@@ -75,6 +75,22 @@ GENERAL_CRASH_KEYWORDS = (
     "vectorizer",
     "loop",
     "target",
+)
+
+# The active fixed vocabulary is a deliberately weak maintenance-language
+# control. It is shared across all issues and avoids crash mechanisms and LLVM
+# subsystem names, leaving only the keyword signal different from tuned runs.
+GENERAL_KEYWORDS = (
+    "add",
+    "update",
+    "change",
+    "test",
+    "support",
+    "cleanup",
+    "refactor",
+    "rename",
+    "remove",
+    "document",
 )
 
 BUILD_RISK_WORDS = (
@@ -851,7 +867,7 @@ def score_semantics(
         return score_semantics_tuned(profile, subject, body, files, diff)
     if heuristic_version == "general":
         return score_semantics_tuned(
-            replace(profile, keywords=list(GENERAL_CRASH_KEYWORDS)),
+            replace(profile, keywords=list(GENERAL_KEYWORDS)),
             subject,
             body,
             files,

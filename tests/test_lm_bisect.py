@@ -271,7 +271,7 @@ class ScoringTests(unittest.TestCase):
 
         self.assertGreater(tuned_score, v1_score)
 
-    def test_general_keyword_version_does_not_use_issue_authored_keywords(self) -> None:
+    def test_general_keyword_version_uses_shared_maintenance_vocabulary(self) -> None:
         profile = lm_bisect.IssueProfile(
             issue_id="demo",
             issue_url="https://example.invalid",
@@ -297,15 +297,15 @@ class ScoringTests(unittest.TestCase):
         )
         general_score, general_evidence = lm_bisect.score_semantics(
             profile,
-            subject="Fix assertion in optimizer",
+            subject="Update test support documentation",
             body="",
             files=[],
             diff="",
             heuristic_version="general",
         )
-        specialized_general_score, _ = lm_bisect.score_semantics(
+        specialized_general_score, specialized_general_evidence = lm_bisect.score_semantics(
             profile,
-            subject="Fix highly-specialized-trigger",
+            subject="Assertion in optimizer",
             body="",
             files=[],
             diff="",
@@ -315,6 +315,7 @@ class ScoringTests(unittest.TestCase):
         self.assertGreater(tuned_score, specialized_general_score)
         self.assertGreater(general_score, specialized_general_score)
         self.assertTrue(any("keyword hits" in item for item in general_evidence))
+        self.assertFalse(any("keyword hits" in item for item in specialized_general_evidence))
 
     def test_parser_accepts_general_keyword_heuristic_version(self) -> None:
         args = lm_bisect.build_parser().parse_args(
