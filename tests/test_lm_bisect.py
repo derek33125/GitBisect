@@ -3231,7 +3231,7 @@ class RunHistoryTests(unittest.TestCase):
                 search_policy="calibrated-posterior",
                 model_frontier="topk",
                 candidate_pruning="off",
-                heuristic_version="tuned",
+                heuristic_version="general",
                 observation_prompt_mode="trace-only",
                 hybrid_switch_window=32,
                 lambda_weight=2.0,
@@ -3267,7 +3267,10 @@ class RunHistoryTests(unittest.TestCase):
                 with self.assertRaisesRegex(RuntimeError, "stop after make_records"):
                     lm_bisect.command_run_online(args)
 
+            saved_history = lm_bisect.load_run_history(run_history)
+
         self.assertNotIn("heuristic_top_k", make_records.call_args.kwargs)
+        self.assertEqual(saved_history["heuristic_keywords"], list(lm_bisect.GENERAL_KEYWORDS))
 
 
 class MetadataLoadingTests(unittest.TestCase):
