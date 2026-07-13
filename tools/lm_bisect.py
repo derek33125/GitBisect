@@ -867,13 +867,19 @@ def score_semantics(
         return score_semantics_tuned(profile, subject, body, files, diff)
     if heuristic_version == "general":
         return score_semantics_tuned(
-            replace(profile, keywords=list(GENERAL_KEYWORDS)),
+            replace(profile, keywords=effective_heuristic_keywords(profile, heuristic_version)),
             subject,
             body,
             files,
             diff,
         )
     raise ValueError(f"unsupported heuristic version: {heuristic_version}")
+
+
+def effective_heuristic_keywords(profile: IssueProfile, heuristic_version: str) -> list[str]:
+    if heuristic_version == "general":
+        return list(GENERAL_KEYWORDS)
+    return list(profile.keywords)
 
 
 def score_build_probability(subject: str, body: str, files: list[str], diff: str) -> tuple[float, list[str]]:
@@ -4027,6 +4033,7 @@ def command_run_online(args: argparse.Namespace) -> int:
         model_diff_extraction=args.model_diff_extraction if args.scorer == "model" else "raw",
         model_top_k=args.model_top_k if args.scorer == "model" else None,
     )
+    run_history["heuristic_keywords"] = effective_heuristic_keywords(profile, args.heuristic_version)
     save_run_history(run_history_path, run_history)
     log_progress(f"history initialized: completed_steps={completed_steps} resumed={resumed}")
 

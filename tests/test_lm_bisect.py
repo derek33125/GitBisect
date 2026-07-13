@@ -316,6 +316,14 @@ class ScoringTests(unittest.TestCase):
         self.assertGreater(general_score, specialized_general_score)
         self.assertTrue(any("keyword hits" in item for item in general_evidence))
         self.assertFalse(any("keyword hits" in item for item in specialized_general_evidence))
+        self.assertEqual(
+            lm_bisect.effective_heuristic_keywords(profile, "general"),
+            list(lm_bisect.GENERAL_KEYWORDS),
+        )
+        self.assertEqual(
+            lm_bisect.effective_heuristic_keywords(profile, "tuned"),
+            ["highly-specialized-trigger"],
+        )
 
     def test_parser_accepts_general_keyword_heuristic_version(self) -> None:
         args = lm_bisect.build_parser().parse_args(
