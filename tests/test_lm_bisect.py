@@ -1709,6 +1709,84 @@ class ModelPromptTests(unittest.TestCase):
 
         self.assertEqual([[item["sha"] for item in batch] for batch in batches], [[items[0]["sha"]], [items[1]["sha"]], [items[2]["sha"]]])
 
+    def test_single_diff_extraction_prompt_respects_prompt_budget(self) -> None:
+        profile = demo_profile()
+        item = {
+            "sha": "a" * 40,
+            "subject": "large generated change",
+            "files": ["llvm/lib/Transforms/Example.cpp"],
+            "diff": "+" + ("x" * lm_bisect.DIFF_EXTRACTION_MAX_INPUT_CHARS),
+        }
+
+        prompt = lm_bisect.build_diff_extraction_prompt(profile, item)
+
+        self.assertLessEqual(len(prompt), lm_bisect.DEFAULT_DIFF_EXTRACTION_MAX_PROMPT_CHARS)
+        self.assertIn('"raw_diff_truncated": true', prompt)
+
+    def test_single_diff_extraction_batch_prompt_respects_prompt_budget(self) -> None:
+        profile = demo_profile()
+        item = {
+            "sha": "a" * 40,
+            "subject": "large generated change",
+            "files": ["llvm/lib/Transforms/Example.cpp"],
+            "diff": "+" + ("x" * lm_bisect.DIFF_EXTRACTION_MAX_INPUT_CHARS),
+        }
+
+        prompt = lm_bisect.build_diff_extraction_batch_prompt(profile, [item])
+
+        self.assertLessEqual(len(prompt), lm_bisect.DEFAULT_DIFF_EXTRACTION_MAX_PROMPT_CHARS)
+        self.assertIn("Return strict JSON as an array.", prompt)
+        self.assertIn("- raw diff truncated: true", prompt)
+
+    def test_model_completion_retries_transient_server_error(self) -> None:
+        class TransientError(Exception):
+            status_code = 503
+
+        calls = 0
+
+        class FakeCompletions:
+            def create(self, **_kwargs):
+                nonlocal calls
+                calls += 1
+                if calls == 1:
+                    raise TransientError("temporary overload")
+                return "recovered"
+
+        client = types.SimpleNamespace(chat=types.SimpleNamespace(completions=FakeCompletions()))
+        config = lm_bisect.ModelConfig(
+            api_key="k",
+            base_url="http://example.invalid",
+            model_name="gpt-5.4-mini",
+        )
+
+        with mock.patch.object(lm_bisect.time, "sleep") as sleep:
+            response = lm_bisect.model_completion_with_retry(client, config, "prompt", "diff extraction")
+
+        self.assertEqual(response, "recovered")
+        self.assertEqual(calls, 2)
+        sleep.assert_called_once_with(lm_bisect.DEFAULT_MODEL_RETRY_BACKOFF_SECONDS)
+
+    def test_model_completion_does_not_retry_permanent_client_error(self) -> None:
+        class PermanentError(Exception):
+            status_code = 403
+
+        class FakeCompletions:
+            def create(self, **_kwargs):
+                raise PermanentError("invalid key")
+
+        client = types.SimpleNamespace(chat=types.SimpleNamespace(completions=FakeCompletions()))
+        config = lm_bisect.ModelConfig(
+            api_key="k",
+            base_url="http://example.invalid",
+            model_name="gpt-5.4-mini",
+        )
+
+        with mock.patch.object(lm_bisect.time, "sleep") as sleep:
+            with self.assertRaises(PermanentError):
+                lm_bisect.model_completion_with_retry(client, config, "prompt", "scoring")
+
+        sleep.assert_not_called()
+
     def test_extract_diff_evidence_batch_falls_back_when_response_has_no_choices(self) -> None:
         profile = demo_profile()
         items = [

@@ -120,6 +120,8 @@ MODEL_SCORING_VERSION = "v7-first-bad-risk-guidance"
 TRACE_PROMPT_SIGNATURE_SUFFIX = " [same crash signature repeated "
 DEFAULT_MODEL_SCORING_BATCH_SIZE = 12
 DEFAULT_MODEL_REQUEST_TIMEOUT = 120.0
+DEFAULT_MODEL_REQUEST_RETRIES = 3
+DEFAULT_MODEL_RETRY_BACKOFF_SECONDS = 5.0
 DEFAULT_MODEL_RANK_BONUS = 0.35
 DEFAULT_MODEL_PRIOR_SOFTMAX_TEMPERATURE = 4.0
 DEFAULT_MODEL_DIRECT_HIT_BONUS = 2.5
@@ -1246,10 +1248,10 @@ def parse_model_json_payload(content: str) -> list[dict]:
 
 def build_diff_extraction_prompt(profile: IssueProfile, item: dict) -> str:
     raw_diff = str(item.get("diff", ""))
-    truncated = len(raw_diff) > DIFF_EXTRACTION_MAX_INPUT_CHARS
-    diff_excerpt = raw_diff[:DIFF_EXTRACTION_MAX_INPUT_CHARS]
-    changed_files = "\n".join(str(path) for path in item.get("files", [])[:30])
-    return f"""
+
+    def render(diff_excerpt: str, truncated: bool) -> str:
+        changed_files = "\n".join(str(path) for path in item.get("files", [])[:30])
+        return f"""
 You are compressing Git diff evidence for a later LLVM bug-bisect scoring model.
 
 Task:
@@ -1290,16 +1292,23 @@ Return strict JSON with this schema:
 Only output JSON.
 """.strip()
 
+    diff_excerpt = raw_diff[:DIFF_EXTRACTION_MAX_INPUT_CHARS]
+    prompt = render(diff_excerpt, len(raw_diff) > len(diff_excerpt))
+    if len(prompt) <= DEFAULT_DIFF_EXTRACTION_MAX_PROMPT_CHARS:
+        return prompt
+
+    # A 600k raw-diff allowance is useful for extraction, but the provider has
+    # a smaller request limit. Keep an individual fallback prompt below the
+    # same budget used by batch planning instead of sending an oversized call.
+    empty_prompt = render("", bool(raw_diff))
+    available_diff_chars = max(0, DEFAULT_DIFF_EXTRACTION_MAX_PROMPT_CHARS - len(empty_prompt))
+    return render(raw_diff[:available_diff_chars], len(raw_diff) > available_diff_chars)
+
 
 def build_diff_extraction_batch_prompt(profile: IssueProfile, items: list[dict]) -> str:
-    commit_blocks = []
-    for item in items:
-        raw_diff = str(item.get("diff", ""))
-        truncated = len(raw_diff) > DIFF_EXTRACTION_MAX_INPUT_CHARS
-        diff_excerpt = raw_diff[:DIFF_EXTRACTION_MAX_INPUT_CHARS]
+    def build_commit_block(item: dict, diff_excerpt: str, truncated: bool) -> str:
         changed_files = "\n".join(str(path) for path in item.get("files", [])[:30])
-        commit_blocks.append(
-            f"""
+        return f"""
 Commit:
 - sha: {item.get('sha', '')}
 - subject: {item.get('subject', '')}
@@ -1314,8 +1323,17 @@ Changed files:
 Diff excerpt:
 {diff_excerpt or '<empty diff>'}
 """.strip()
+
+    commit_blocks = []
+    for item in items:
+        raw_diff = str(item.get("diff", ""))
+        diff_excerpt = raw_diff[:DIFF_EXTRACTION_MAX_INPUT_CHARS]
+        commit_blocks.append(
+            build_commit_block(item, diff_excerpt, len(raw_diff) > len(diff_excerpt))
         )
-    return f"""
+
+    def render(commit_blocks: list[str]) -> str:
+        return f"""
 You are compressing Git diff evidence for a later LLVM bug-bisect scoring model.
 
 Task:
@@ -1349,6 +1367,27 @@ Return strict JSON as an array. One object per commit, with this schema:
 ]
 Only output JSON.
 """.strip()
+
+    prompt = render(commit_blocks)
+    if len(items) != 1 or len(prompt) <= DEFAULT_DIFF_EXTRACTION_MAX_PROMPT_CHARS:
+        return prompt
+
+    # `plan_diff_extraction_batches()` can split multi-item prompts, but it
+    # cannot split one large diff. Preserve the batch JSON-array schema while
+    # shrinking the individual excerpt to the same provider request budget.
+    item = items[0]
+    raw_diff = str(item.get("diff", ""))
+    empty_prompt = render([build_commit_block(item, "", bool(raw_diff))])
+    available_diff_chars = max(0, DEFAULT_DIFF_EXTRACTION_MAX_PROMPT_CHARS - len(empty_prompt))
+    return render(
+        [
+            build_commit_block(
+                item,
+                raw_diff[:available_diff_chars],
+                len(raw_diff) > available_diff_chars,
+            )
+        ]
+    )
 
 
 def plan_diff_extraction_batches(
@@ -1449,6 +1488,31 @@ def record_model_usage(summary: dict[str, object], kind: str, response_or_usage:
         kind_summary[key] = int(kind_summary.get(key, 0)) + usage[key]
 
 
+def is_transient_model_error(exc: Exception) -> bool:
+    status_code = getattr(exc, "status_code", None)
+    if status_code in {408, 409, 425, 429, 500, 502, 503, 504}:
+        return True
+    return isinstance(exc, (ConnectionError, TimeoutError))
+
+
+def model_completion_with_retry(client, config: ModelConfig, prompt: str, request_kind: str):
+    for attempt in range(1, DEFAULT_MODEL_REQUEST_RETRIES + 1):
+        try:
+            return client.chat.completions.create(
+                model=config.model_name,
+                messages=[{"role": "user", "content": prompt}],
+                temperature=0,
+            )
+        except Exception as exc:
+            if not is_transient_model_error(exc) or attempt == DEFAULT_MODEL_REQUEST_RETRIES:
+                raise
+            delay = DEFAULT_MODEL_RETRY_BACKOFF_SECONDS * attempt
+            log_progress(
+                f"{request_kind} request failed ({exc}); retry {attempt}/{DEFAULT_MODEL_REQUEST_RETRIES - 1} in {delay:.0f}s"
+            )
+            time.sleep(delay)
+
+
 def extract_diff_evidence_with_model(
     profile: IssueProfile,
     item: dict,
@@ -1461,10 +1525,11 @@ def extract_diff_evidence_with_model(
         raise RuntimeError("openai package is not available; install it in the local venv") from exc
 
     client = OpenAI(api_key=config.api_key, base_url=config.base_url, timeout=DEFAULT_MODEL_REQUEST_TIMEOUT)
-    response = client.chat.completions.create(
-        model=config.model_name,
-        messages=[{"role": "user", "content": build_diff_extraction_prompt(profile, item)}],
-        temperature=0,
+    response = model_completion_with_retry(
+        client,
+        config,
+        build_diff_extraction_prompt(profile, item),
+        "diff extraction",
     )
     if usage_summary is not None:
         record_model_usage(usage_summary, "diff_extraction", response)
@@ -1508,10 +1573,11 @@ def extract_diff_evidence_batch_with_model(
             f"diff extraction batch {batch_index}/{total_batches} size={len(batch)}"
         )
         try:
-            response = client.chat.completions.create(
-                model=config.model_name,
-                messages=[{"role": "user", "content": build_diff_extraction_batch_prompt(profile, batch)}],
-                temperature=0,
+            response = model_completion_with_retry(
+                client,
+                config,
+                build_diff_extraction_batch_prompt(profile, batch),
+                "diff extraction batch",
             )
             if usage_summary is not None:
                 record_model_usage(usage_summary, "diff_extraction", response)
@@ -1573,11 +1639,7 @@ def model_score_commits(
         observation_prompt_mode=observation_prompt_mode,
     )
 
-    response = client.chat.completions.create(
-        model=config.model_name,
-        messages=[{"role": "user", "content": prompt}],
-        temperature=0,
-    )
+    response = model_completion_with_retry(client, config, prompt, "scoring")
     if usage_summary is not None:
         record_model_usage(usage_summary, "scoring", response)
     content = response.choices[0].message.content or ""
