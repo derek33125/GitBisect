@@ -232,10 +232,6 @@ function renderTopkComparison(topk) {
     { label: "LLM top-k10", metrics: topk.aggregate.topk10 },
     { label: "LLM top-k20", metrics: topk.aggregate.topk20 },
   ]);
-  $("#topk-note").innerHTML =
-    "<strong>Interpretation:</strong> " +
-    esc(topk.comparison_note) +
-    " The asterisk marks the one top-k10 history with a build skip; it nevertheless converged to the canonical first-bad commit.";
   $("#topk-body").innerHTML = topk.rows
     .map((row) => {
       const candidates = [row.topk3, row.topk10, row.topk20];

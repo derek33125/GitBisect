@@ -236,9 +236,9 @@ function buildTopkSensitivity(topkRows) {
   return {
     evidence_scope:
       "The controlled frontier-size comparison is top-k10 versus top-k20: both use parent diffs, LLM extraction, trace-only observations, calibrated-posterior selection, and the 600k raw-diff cap. Top-k3 is shown separately because it used the earlier extraction revision.",
-    operational_default: "topk10",
+    operational_default: "topk3",
     recommendation:
-      "Use top-k10 as the present operational default. It fits one 12-candidate scoring prompt, preserves canonical first-bad agreement on all 10 scoped cases, and is materially cheaper. Top-k20 is the fastest observed 600k setting, but it crosses the 12-item scoring-batch boundary and has one alternate apply/reapply boundary; treat it as a promising experimental setting, not a settled default.",
+      "Use top-k3 as the provisional operational default. Its archived run has the lowest mean build count, reaches the canonical boundary on all 10 scoped cases, and fits one scoring prompt. A fresh 600k-extraction, cache-isolated top-k3 rerun is queued to confirm this choice; leave the existing top-k10/top-k20 rows as historical 600k comparisons.",
     limitations: [
       "Top-k3 is included as an archived pre-600k reference, not as a controlled frontier-size comparison with top-k10/top-k20.",
       "Each top-k value changes the model-scored subset before calibrated-posterior selection; it is not only a context-budget parameter.",

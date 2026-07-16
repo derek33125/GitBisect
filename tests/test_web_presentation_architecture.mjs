@@ -15,6 +15,7 @@ assert.match(html, /href="\.\/focused-results\.html"/, "overview must link to fo
 assert.match(focusedResults, /Top-k sensitivity/, "focused page must show top-k sensitivity");
 assert.match(focusedResults, /Keyword robustness/, "focused page must show keyword robustness");
 assert.match(focusedResults, /id="topk-body"/, "focused page needs a top-k result table");
+assert.doesNotMatch(focusedResults, /id="topk-note"/, "focused page must not include a top-k interpretation callout");
 assert.match(focusedResults, /id="topk-sensitivity"/, "focused page needs a top-k sensitivity summary");
 assert.match(focusedResults, /id="topk-trajectory-body"/, "focused page needs a middle-trajectory table");
 assert.match(focusedResults, /id="keyword-body"/, "focused page needs a keyword result table");
@@ -60,7 +61,7 @@ assert.equal(site.focused_comparisons.topk.aggregate.topk10.avg_steps, 12.2);
 assert.equal(site.focused_comparisons.topk.aggregate.topk20.avg_steps, 11.4);
 assert.equal(site.focused_comparisons.topk.aggregate.topk20.first_bad_matches, 9);
 assert.equal(site.focused_comparisons.topk.aggregate.topk10.skip_rows, 1);
-assert.equal(site.focused_comparisons.topk.sensitivity.operational_default, "topk10");
+assert.equal(site.focused_comparisons.topk.sensitivity.operational_default, "topk3");
 assert.equal(site.focused_comparisons.topk.sensitivity.pre600k_reference.key, "topk3");
 assert.equal(site.focused_comparisons.topk.sensitivity.pre600k_reference.avg_steps, 11);
 assert.equal(site.focused_comparisons.topk.sensitivity.comparable_pair.topk20_step_wins, 6);
