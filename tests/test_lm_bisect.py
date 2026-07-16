@@ -347,6 +347,61 @@ class ScoringTests(unittest.TestCase):
         self.assertTrue(any("high-risk paths" in item for item in evidence))
         self.assertFalse(any("keyword hits" in item for item in evidence))
 
+    def test_neutral_heuristic_removes_profile_scoring_signals(self) -> None:
+        profile = demo_profile(
+            keywords=["highly-specialized-trigger"],
+            relevant_paths=["llvm/lib/Transforms/Vectorize"],
+            high_risk_paths=["llvm/lib/Transforms"],
+        )
+
+        score, evidence = lm_bisect.score_semantics(
+            profile,
+            subject="Fix highly-specialized-trigger vectorizer crash",
+            body="",
+            files=["llvm/lib/Transforms/Vectorize/LoopVectorize.cpp"],
+            diff="risky assert crash fix",
+            heuristic_version="neutral",
+        )
+
+        self.assertEqual(score, 0.05)
+        self.assertEqual(evidence, ["neutral heuristic: no semantic guidance"])
+
+        selection_profile = lm_bisect.heuristic_selection_profile(profile, "neutral")
+        self.assertEqual(selection_profile.keywords, [])
+        self.assertEqual(selection_profile.relevant_paths, [])
+        self.assertEqual(selection_profile.high_risk_paths, [])
+
+    def test_neutral_heuristic_disables_observation_feedback(self) -> None:
+        profile = demo_profile(relevant_paths=[], high_risk_paths=[])
+        record = lm_bisect.CommitRecord(
+            index=1,
+            sha="a" * 40,
+            subject="unrelated change",
+            body="",
+            changed_files=["llvm/lib/Analysis/LoopInfo.cpp"],
+            diff_text="loop analysis",
+            semantic_score=0.05,
+            build_success_prob=0.92,
+            suspicion_weight=0.0,
+            evidence=[],
+            features=["path:llvm/lib/Analysis", "term:loop"],
+        )
+        observations = [
+            lm_bisect.CommitObservation(
+                sha="b" * 40,
+                verdict="bad",
+                summary="bad",
+                features=["path:llvm/lib/Analysis", "term:loop"],
+                evidence=[],
+                log_excerpt="",
+            )
+        ]
+
+        lm_bisect.apply_feedback_bias(profile, [record], observations, enabled=False)
+
+        self.assertEqual(record.semantic_score, 0.05)
+        self.assertEqual(record.feedback_bias, 0.0)
+
     def test_parser_accepts_general_keyword_heuristic_version(self) -> None:
         args = lm_bisect.build_parser().parse_args(
             ["suggest", "--issue", "demo", "--heuristic-version", "general"]
@@ -360,6 +415,13 @@ class ScoringTests(unittest.TestCase):
         )
 
         self.assertEqual(args.heuristic_version, "none")
+
+    def test_parser_accepts_neutral_heuristic_version(self) -> None:
+        args = lm_bisect.build_parser().parse_args(
+            ["suggest", "--issue", "demo", "--heuristic-version", "neutral"]
+        )
+
+        self.assertEqual(args.heuristic_version, "neutral")
 
     def test_build_probability_drops_for_build_system_touch(self) -> None:
         score, evidence = lm_bisect.score_build_probability(

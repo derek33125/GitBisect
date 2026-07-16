@@ -867,6 +867,9 @@ def score_semantics(
         return score_semantics_v1(profile, subject, body, files, diff)
     if heuristic_version == "tuned":
         return score_semantics_tuned(profile, subject, body, files, diff)
+    if heuristic_version == "neutral":
+        # This control intentionally provides no semantic ranking signal.
+        return 0.05, ["neutral heuristic: no semantic guidance"]
     if heuristic_version in {"general", "none"}:
         return score_semantics_tuned(
             replace(profile, keywords=effective_heuristic_keywords(profile, heuristic_version)),
@@ -881,9 +884,16 @@ def score_semantics(
 def effective_heuristic_keywords(profile: IssueProfile, heuristic_version: str) -> list[str]:
     if heuristic_version == "general":
         return list(GENERAL_KEYWORDS)
-    if heuristic_version == "none":
+    if heuristic_version in {"none", "neutral"}:
         return []
     return list(profile.keywords)
+
+
+def heuristic_selection_profile(profile: IssueProfile, heuristic_version: str) -> IssueProfile:
+    """Remove manually authored issue signals for the profile-free control."""
+    if heuristic_version == "neutral":
+        return replace(profile, keywords=[], relevant_paths=[], high_risk_paths=[])
+    return profile
 
 
 def score_build_probability(subject: str, body: str, files: list[str], diff: str) -> tuple[float, list[str]]:
@@ -2624,8 +2634,10 @@ def apply_feedback_bias(
     profile: IssueProfile,
     records: list[CommitRecord],
     observations: list[CommitObservation],
+    *,
+    enabled: bool = True,
 ) -> None:
-    if not observations:
+    if not enabled or not observations:
         return
 
     bad_observations = [obs for obs in observations if obs.verdict == "bad"]
@@ -3384,6 +3396,11 @@ def command_suggest(args: argparse.Namespace) -> int:
 
     profiles = load_profiles()
     profile = load_issue_profile(profiles, args.issue)
+    selection_profile = (
+        heuristic_selection_profile(profile, args.heuristic_version)
+        if args.scorer == "heuristic"
+        else profile
+    )
     model_config = None
     if args.scorer == "model":
         model_config = load_model_config(
@@ -3398,7 +3415,7 @@ def command_suggest(args: argparse.Namespace) -> int:
     metadata_cache: dict[str, CommitMetadata] = {}
     records, pruning_summary = make_records(
         repo,
-        profile,
+        selection_profile,
         max_candidates=args.max_candidates,
         scorer=args.scorer,
         model_config=model_config,
@@ -3412,9 +3429,14 @@ def command_suggest(args: argparse.Namespace) -> int:
         model_diff_mode=args.model_diff_mode,
         model_diff_extraction=args.model_diff_extraction,
     )
-    apply_feedback_bias(profile, records, observations)
+    apply_feedback_bias(
+        selection_profile,
+        records,
+        observations,
+        enabled=args.scorer != "heuristic" or args.heuristic_version != "neutral",
+    )
     decision = select_next_commit(
-        profile,
+        selection_profile,
         records,
         lambda_weight=args.lambda_weight,
         build_success_power=args.build_success_power,
@@ -3793,6 +3815,11 @@ def command_eval_email_case(args: argparse.Namespace) -> int:
 
     results = []
     for scorer_name in ("heuristic", "model"):
+        selection_profile = (
+            heuristic_selection_profile(profile, args.heuristic_version)
+            if scorer_name == "heuristic"
+            else profile
+        )
         model_config = (
             load_model_config(
                 model_name=args.model_name,
@@ -3803,7 +3830,7 @@ def command_eval_email_case(args: argparse.Namespace) -> int:
         )
         records, pruning_summary = make_records(
             repo,
-            profile,
+            selection_profile,
             max_candidates=args.max_candidates,
             scorer=scorer_name,
             model_config=model_config,
@@ -3812,7 +3839,12 @@ def command_eval_email_case(args: argparse.Namespace) -> int:
             heuristic_version=args.heuristic_version,
             observations=observations,
         )
-        apply_feedback_bias(profile, records, observations)
+        apply_feedback_bias(
+            selection_profile,
+            records,
+            observations,
+            enabled=scorer_name != "heuristic" or args.heuristic_version != "neutral",
+        )
         compute_selection(
             records,
             lambda_weight=args.lambda_weight,
@@ -3854,6 +3886,11 @@ def command_simulate_online(args: argparse.Namespace) -> int:
 
     profiles = load_profiles()
     profile = load_issue_profile(profiles, args.issue)
+    selection_profile = (
+        heuristic_selection_profile(profile, args.heuristic_version)
+        if args.scorer == "heuristic"
+        else profile
+    )
     first_bad_sha = args.first_bad_sha
     if first_bad_sha is None and args.oracle_file:
         first_bad_sha = first_bad_from_candidate_file(Path(args.oracle_file))
@@ -3893,7 +3930,7 @@ def command_simulate_online(args: argparse.Namespace) -> int:
         step += 1
         records, pruning_summary = make_records(
             repo,
-            profile,
+            selection_profile,
             scorer=args.scorer,
             model_config=model_config,
             candidate_shas=unresolved,
@@ -3909,7 +3946,7 @@ def command_simulate_online(args: argparse.Namespace) -> int:
             last_tested_sha=tested[-1]["sha"] if tested else None,
         )
         decision = select_next_commit(
-            profile,
+            selection_profile,
             records,
             lambda_weight=args.lambda_weight,
             build_success_power=args.build_success_power,
@@ -3931,7 +3968,7 @@ def command_simulate_online(args: argparse.Namespace) -> int:
                 raise
             records, fallback_pruning_summary = make_records(
                 repo,
-                profile,
+                selection_profile,
                 scorer=args.scorer,
                 model_config=model_config,
                 candidate_shas=unresolved,
@@ -3947,7 +3984,7 @@ def command_simulate_online(args: argparse.Namespace) -> int:
                 last_tested_sha=tested[-1]["sha"] if tested else None,
             )
             decision = select_next_commit(
-                profile,
+                selection_profile,
                 records,
                 lambda_weight=args.lambda_weight,
                 build_success_power=args.build_success_power,
@@ -4033,6 +4070,11 @@ def command_run_online(args: argparse.Namespace) -> int:
     log_progress(f"start issue={args.issue} scorer={args.scorer} run_label={args.run_label or '<none>'}")
     profiles = load_profiles()
     profile = load_issue_profile(profiles, args.issue)
+    selection_profile = (
+        heuristic_selection_profile(profile, args.heuristic_version)
+        if args.scorer == "heuristic"
+        else profile
+    )
     log_progress("loading candidate window")
     unresolved = (
         load_candidate_commits_from_file(Path(args.candidate_file))
@@ -4188,7 +4230,7 @@ def command_run_online(args: argparse.Namespace) -> int:
             log_progress(f"step {step}: make_records start unresolved={unresolved_before}")
             records, pruning_summary = make_records(
                 repo,
-                profile,
+                selection_profile,
                 scorer=args.scorer,
                 model_config=model_config,
                 candidate_shas=unresolved,
@@ -4208,10 +4250,15 @@ def command_run_online(args: argparse.Namespace) -> int:
                 run_history["model_usage"] = model_usage_summary
                 save_run_history(run_history_path, run_history)
             log_progress(f"step {step}: make_records done records={len(records)}")
-            apply_feedback_bias(profile, records, observations)
+            apply_feedback_bias(
+                selection_profile,
+                records,
+                observations,
+                enabled=args.scorer != "heuristic" or args.heuristic_version != "neutral",
+            )
             log_progress(f"step {step}: select_next_commit start")
             decision = select_next_commit(
-                profile,
+                selection_profile,
                 records,
                 lambda_weight=args.lambda_weight,
                 build_success_power=args.build_success_power,
@@ -4235,7 +4282,7 @@ def command_run_online(args: argparse.Namespace) -> int:
                 log_progress(f"step {step}: pruning produced no progress ({exc}); retrying with pruning disabled")
                 records, fallback_pruning_summary = make_records(
                     repo,
-                    profile,
+                    selection_profile,
                     scorer=args.scorer,
                     model_config=model_config,
                     candidate_shas=unresolved,
@@ -4251,9 +4298,14 @@ def command_run_online(args: argparse.Namespace) -> int:
                     last_tested_sha=last_tested_sha,
                 )
                 log_progress(f"step {step}: fallback make_records done records={len(records)}")
-                apply_feedback_bias(profile, records, observations)
+                apply_feedback_bias(
+                    selection_profile,
+                    records,
+                    observations,
+                    enabled=args.scorer != "heuristic" or args.heuristic_version != "neutral",
+                )
                 decision = select_next_commit(
-                    profile,
+                    selection_profile,
                     records,
                     lambda_weight=args.lambda_weight,
                     build_success_power=args.build_success_power,
@@ -4463,7 +4515,7 @@ def build_parser() -> argparse.ArgumentParser:
     suggest.add_argument("--candidate-file", default=None, help="optional JSON file listing the candidate commit set to rank")
     suggest.add_argument("--observations", default=None, help="optional path to tested-commit observation JSON")
     suggest.add_argument("--scorer", choices=("heuristic", "model"), default="heuristic", help="scoring backend")
-    suggest.add_argument("--heuristic-version", choices=("v1", "tuned", "general", "none"), default="tuned", help="heuristic scoring version to use for baseline vs tuned/general/no-keyword comparisons")
+    suggest.add_argument("--heuristic-version", choices=("v1", "tuned", "general", "none", "neutral"), default="tuned", help="heuristic scoring version to use for baseline vs tuned/general/no-keyword/neutral comparisons")
     suggest.add_argument("--model-name", default=None, help="optional model override for scorer=model")
     suggest.add_argument("--model-top-k", type=int, default=3, help="number of heuristic-prefiltered commits to rescore with the model")
     suggest.add_argument("--model-frontier", choices=("topk", "diverse", "all"), default="topk", help="how to choose the model rescoring frontier")
@@ -4515,7 +4567,7 @@ def build_parser() -> argparse.ArgumentParser:
     eval_email.add_argument("--max-candidates", type=int, default=None, help="optional cap for candidate enumeration")
     eval_email.add_argument("--candidate-file", default=None, help="optional JSON file listing the candidate commit set to rank")
     eval_email.add_argument("--observations", default=None, help="optional path to tested-commit observation JSON")
-    eval_email.add_argument("--heuristic-version", choices=("v1", "tuned", "general", "none"), default="tuned", help="heuristic scoring version to use for baseline vs tuned/general/no-keyword comparisons")
+    eval_email.add_argument("--heuristic-version", choices=("v1", "tuned", "general", "none", "neutral"), default="tuned", help="heuristic scoring version to use for baseline vs tuned/general/no-keyword/neutral comparisons")
     eval_email.add_argument("--model-name", default=None, help="optional model override for scorer=model")
     eval_email.add_argument("--observation-prompt-mode", choices=("legacy", "trace-only"), default="legacy", help="how runner-backed crash observations are formatted when scorer=model")
     eval_email.add_argument("--candidate-pruning", choices=("off", "conservative"), default="off", help="prune obviously irrelevant commits before scoring")
@@ -4533,7 +4585,7 @@ def build_parser() -> argparse.ArgumentParser:
         help="path to llvm-project checkout",
     )
     simulate.add_argument("--scorer", choices=("heuristic", "model"), default="heuristic", help="scoring backend")
-    simulate.add_argument("--heuristic-version", choices=("v1", "tuned", "general", "none"), default="tuned", help="heuristic scoring version to use for baseline vs tuned/general/no-keyword comparisons")
+    simulate.add_argument("--heuristic-version", choices=("v1", "tuned", "general", "none", "neutral"), default="tuned", help="heuristic scoring version to use for baseline vs tuned/general/no-keyword/neutral comparisons")
     simulate.add_argument("--model-name", default=None, help="optional model override for scorer=model")
     simulate.add_argument("--model-top-k", type=int, default=3, help="number of heuristic-prefiltered commits to rescore with the model")
     simulate.add_argument("--model-frontier", choices=("topk", "diverse", "all"), default="topk", help="how to choose the model rescoring frontier")
@@ -4560,7 +4612,7 @@ def build_parser() -> argparse.ArgumentParser:
         help="path to llvm-project checkout",
     )
     run_online.add_argument("--scorer", choices=("heuristic", "model"), default="heuristic", help="scoring backend")
-    run_online.add_argument("--heuristic-version", choices=("v1", "tuned", "general", "none"), default="tuned", help="heuristic scoring version to use for baseline vs tuned/general/no-keyword comparisons")
+    run_online.add_argument("--heuristic-version", choices=("v1", "tuned", "general", "none", "neutral"), default="tuned", help="heuristic scoring version to use for baseline vs tuned/general/no-keyword/neutral comparisons")
     run_online.add_argument("--heuristic-top-k", type=int, default=None, help=argparse.SUPPRESS)
     run_online.add_argument("--model-name", default=None, help="optional model override for scorer=model")
     run_online.add_argument("--model-top-k", type=int, default=3, help="number of heuristic-prefiltered commits to rescore with the model")
