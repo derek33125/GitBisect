@@ -867,7 +867,7 @@ def score_semantics(
         return score_semantics_v1(profile, subject, body, files, diff)
     if heuristic_version == "tuned":
         return score_semantics_tuned(profile, subject, body, files, diff)
-    if heuristic_version == "general":
+    if heuristic_version in {"general", "none"}:
         return score_semantics_tuned(
             replace(profile, keywords=effective_heuristic_keywords(profile, heuristic_version)),
             subject,
@@ -881,6 +881,8 @@ def score_semantics(
 def effective_heuristic_keywords(profile: IssueProfile, heuristic_version: str) -> list[str]:
     if heuristic_version == "general":
         return list(GENERAL_KEYWORDS)
+    if heuristic_version == "none":
+        return []
     return list(profile.keywords)
 
 
@@ -4461,7 +4463,7 @@ def build_parser() -> argparse.ArgumentParser:
     suggest.add_argument("--candidate-file", default=None, help="optional JSON file listing the candidate commit set to rank")
     suggest.add_argument("--observations", default=None, help="optional path to tested-commit observation JSON")
     suggest.add_argument("--scorer", choices=("heuristic", "model"), default="heuristic", help="scoring backend")
-    suggest.add_argument("--heuristic-version", choices=("v1", "tuned", "general"), default="tuned", help="heuristic scoring version to use for baseline vs tuned/general-keyword comparisons")
+    suggest.add_argument("--heuristic-version", choices=("v1", "tuned", "general", "none"), default="tuned", help="heuristic scoring version to use for baseline vs tuned/general/no-keyword comparisons")
     suggest.add_argument("--model-name", default=None, help="optional model override for scorer=model")
     suggest.add_argument("--model-top-k", type=int, default=3, help="number of heuristic-prefiltered commits to rescore with the model")
     suggest.add_argument("--model-frontier", choices=("topk", "diverse", "all"), default="topk", help="how to choose the model rescoring frontier")
@@ -4513,7 +4515,7 @@ def build_parser() -> argparse.ArgumentParser:
     eval_email.add_argument("--max-candidates", type=int, default=None, help="optional cap for candidate enumeration")
     eval_email.add_argument("--candidate-file", default=None, help="optional JSON file listing the candidate commit set to rank")
     eval_email.add_argument("--observations", default=None, help="optional path to tested-commit observation JSON")
-    eval_email.add_argument("--heuristic-version", choices=("v1", "tuned", "general"), default="tuned", help="heuristic scoring version to use for baseline vs tuned/general-keyword comparisons")
+    eval_email.add_argument("--heuristic-version", choices=("v1", "tuned", "general", "none"), default="tuned", help="heuristic scoring version to use for baseline vs tuned/general/no-keyword comparisons")
     eval_email.add_argument("--model-name", default=None, help="optional model override for scorer=model")
     eval_email.add_argument("--observation-prompt-mode", choices=("legacy", "trace-only"), default="legacy", help="how runner-backed crash observations are formatted when scorer=model")
     eval_email.add_argument("--candidate-pruning", choices=("off", "conservative"), default="off", help="prune obviously irrelevant commits before scoring")
@@ -4531,7 +4533,7 @@ def build_parser() -> argparse.ArgumentParser:
         help="path to llvm-project checkout",
     )
     simulate.add_argument("--scorer", choices=("heuristic", "model"), default="heuristic", help="scoring backend")
-    simulate.add_argument("--heuristic-version", choices=("v1", "tuned", "general"), default="tuned", help="heuristic scoring version to use for baseline vs tuned/general-keyword comparisons")
+    simulate.add_argument("--heuristic-version", choices=("v1", "tuned", "general", "none"), default="tuned", help="heuristic scoring version to use for baseline vs tuned/general/no-keyword comparisons")
     simulate.add_argument("--model-name", default=None, help="optional model override for scorer=model")
     simulate.add_argument("--model-top-k", type=int, default=3, help="number of heuristic-prefiltered commits to rescore with the model")
     simulate.add_argument("--model-frontier", choices=("topk", "diverse", "all"), default="topk", help="how to choose the model rescoring frontier")
@@ -4558,7 +4560,7 @@ def build_parser() -> argparse.ArgumentParser:
         help="path to llvm-project checkout",
     )
     run_online.add_argument("--scorer", choices=("heuristic", "model"), default="heuristic", help="scoring backend")
-    run_online.add_argument("--heuristic-version", choices=("v1", "tuned", "general"), default="tuned", help="heuristic scoring version to use for baseline vs tuned/general-keyword comparisons")
+    run_online.add_argument("--heuristic-version", choices=("v1", "tuned", "general", "none"), default="tuned", help="heuristic scoring version to use for baseline vs tuned/general/no-keyword comparisons")
     run_online.add_argument("--heuristic-top-k", type=int, default=None, help=argparse.SUPPRESS)
     run_online.add_argument("--model-name", default=None, help="optional model override for scorer=model")
     run_online.add_argument("--model-top-k", type=int, default=3, help="number of heuristic-prefiltered commits to rescore with the model")

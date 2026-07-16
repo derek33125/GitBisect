@@ -325,12 +325,41 @@ class ScoringTests(unittest.TestCase):
             ["highly-specialized-trigger"],
         )
 
+    def test_no_keyword_version_keeps_nonkeyword_semantic_signals(self) -> None:
+        profile = demo_profile(
+            keywords=["highly-specialized-trigger"],
+            relevant_paths=["llvm/lib/Transforms/Vectorize"],
+            high_risk_paths=["llvm/lib/Transforms"],
+        )
+
+        score, evidence = lm_bisect.score_semantics(
+            profile,
+            subject="Fix highly-specialized-trigger vectorizer crash",
+            body="",
+            files=["llvm/lib/Transforms/Vectorize/LoopVectorize.cpp"],
+            diff="",
+            heuristic_version="none",
+        )
+
+        self.assertEqual(lm_bisect.effective_heuristic_keywords(profile, "none"), [])
+        self.assertGreater(score, 0.05)
+        self.assertTrue(any("relevant paths" in item for item in evidence))
+        self.assertTrue(any("high-risk paths" in item for item in evidence))
+        self.assertFalse(any("keyword hits" in item for item in evidence))
+
     def test_parser_accepts_general_keyword_heuristic_version(self) -> None:
         args = lm_bisect.build_parser().parse_args(
             ["suggest", "--issue", "demo", "--heuristic-version", "general"]
         )
 
         self.assertEqual(args.heuristic_version, "general")
+
+    def test_parser_accepts_no_keyword_heuristic_version(self) -> None:
+        args = lm_bisect.build_parser().parse_args(
+            ["suggest", "--issue", "demo", "--heuristic-version", "none"]
+        )
+
+        self.assertEqual(args.heuristic_version, "none")
 
     def test_build_probability_drops_for_build_system_touch(self) -> None:
         score, evidence = lm_bisect.score_build_probability(

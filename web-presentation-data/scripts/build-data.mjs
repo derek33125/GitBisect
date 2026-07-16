@@ -77,10 +77,10 @@ const TOPK_RUN_LABELS = {
     pr200987: "aws10-parent-llm600k-topk10-final-c-20260715c",
   },
   topk20: {
-    pr204559: "edu10-parent-llm600k-topk20-dirfix2-d-20260710b",
+    pr204559: "edu10-parent-llm600k-topk20-ratio4-20260711a",
     pr204589: "edu10-parent-llm600k-topk20-hardened-a-20260715d",
     pr201444: "edu10-parent-llm600k-topk20-hardened-b-20260715d",
-    pr193164: "edu10-parent-llm600k-topk20-dirfix2-b-20260710b",
+    pr193164: "edu10-parent-llm600k-topk20-retry-c-20260713a",
     pr50304: "aws10-parent-llm600k-topk20-dirfix2-c-20260710b",
     pr50585: "aws10-parent-llm600k-topk20-dirfix2-c-20260710b",
     pr48154: "edu10-parent-llm600k-topk20-dirfix2-d-20260710b",
@@ -372,6 +372,17 @@ function loadFocusedRun(rawIdx, issue, runLabel) {
     skips: raw.steps.filter((step) => step.verdict === "skip").length,
     source: rawPath.includes("/edu/") ? "edu-server" : "aws-server",
     run_label: raw.run_label,
+    curve: {
+      initial_unresolved: raw.initial_unresolved,
+      points: [
+        { step: 0, remaining: raw.initial_unresolved, verdict: "start" },
+        ...raw.steps.map((step) => ({
+          step: step.step,
+          remaining: step.unresolved_after,
+          verdict: step.verdict,
+        })),
+      ],
+    },
   };
 }
 
@@ -385,23 +396,19 @@ function buildFocusedComparisons(preferred, keywordAblation, weakControl, liveLa
   );
 
   const topkRows = preferred.map((base) => {
-    const topk3 = {
-      steps: base["parent-llm-topk3_steps"],
-      first_bad: shortSha(base["parent-llm-topk3_first_bad"]),
-      skips: 0,
-      source: base["parent-llm-topk3_source"],
-      run_label: base["parent-llm-topk3_run_label"],
-    };
+    const topk3 = loadFocusedRun(rawIdx, base.issue, base["parent-llm-topk3_run_label"]);
+    if (topk3.steps !== base["parent-llm-topk3_steps"]) {
+      throw new Error(`top-k3 step mismatch for ${base.issue}`);
+    }
+    topk3.source = base["parent-llm-topk3_source"];
     const topk10 = loadFocusedRun(rawIdx, base.issue, TOPK_RUN_LABELS.topk10[base.issue]);
     const topk20Snapshot = topk20ByIssue.get(base.issue);
     if (!topk20Snapshot) throw new Error(`missing top-k20 snapshot row for ${base.issue}`);
-    const topk20 = {
-      steps: topk20Snapshot.steps,
-      first_bad: shortSha(topk20Snapshot.first_bad),
-      skips: 0,
-      source: topk20Snapshot.source,
-      run_label: null,
-    };
+    const topk20 = loadFocusedRun(rawIdx, base.issue, TOPK_RUN_LABELS.topk20[base.issue]);
+    if (topk20.steps !== topk20Snapshot.steps) {
+      throw new Error(`top-k20 step mismatch for ${base.issue}`);
+    }
+    topk20.source = topk20Snapshot.source;
     const canonical = canonicalFirstBad.get(base.issue);
     return {
       issue: base.issue,
@@ -478,6 +485,20 @@ function buildFocusedComparisons(preferred, keywordAblation, weakControl, liveLa
       "All rows are completed parent-diff + LLM-extraction runs. Top-k3 is a pre-600k reference; top-k10 and top-k20 use the 600k raw-diff cap, so frontier size and extraction revision both differ. The top-k20 rows use the canonical completed live snapshot because it records the preferred successful retry for each issue.",
       rows: topkRows,
       aggregate: topkAggregate,
+    },
+    convergence: {
+      label: "Parent-diff + LLM extraction remaining candidate window",
+      y_axis: "unresolved commits remaining (log scale)",
+      note: "The line charts use the exact completed run history selected for each top-k row. Git bisect is omitted because the scoped archive retains only its final build-step total, not a comparable per-step unresolved-window history.",
+      rows: topkRows.map((row) => ({
+        issue: row.issue,
+        title: row.title,
+        curves: {
+          topk3: row.topk3.curve,
+          topk10: row.topk10.curve,
+          topk20: row.topk20.curve,
+        },
+      })),
     },
     keywords: {
       best_parent_configuration: "parent-diff + LLM extraction top-k3",

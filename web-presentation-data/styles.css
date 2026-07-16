@@ -630,6 +630,18 @@ pre.formula .hl { color: var(--good); font-weight: 700; }
 }
 .issue-vocab { margin: 0 0 9px; line-height: 1.75; font-size: 0.75rem; }
 .issue-vocab strong { display: inline-block; width: 70px; color: #a8d9f0; }
+.convergence-legend { display: flex; flex-wrap: wrap; gap: 14px; margin: 16px 0 12px; color: var(--muted); font-family: var(--mono); font-size: 0.76rem; }
+.convergence-legend span { display: inline-flex; align-items: center; gap: 6px; }
+.convergence-legend i { display: inline-block; width: 18px; height: 3px; border-radius: 2px; }
+.convergence-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+.convergence-card { padding: 14px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--panel); overflow: hidden; }
+.convergence-card h3 { margin: 0; color: #a8d9f0; font-family: var(--mono); font-size: 0.88rem; }
+.convergence-card p { min-height: 2.5em; margin: 5px 0 8px; color: var(--muted); font-size: 0.75rem; line-height: 1.35; }
+.convergence-card svg { display: block; width: 100%; height: auto; overflow: visible; }
+.conv-grid { stroke: rgba(130, 151, 178, 0.22); stroke-dasharray: 3 4; }
+.conv-axis-line { stroke: rgba(151, 178, 207, 0.55); }
+.conv-axis { fill: var(--muted); font-family: var(--mono); font-size: 8px; }
+.conv-line { fill: none; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
 .mini-table { width: 100%; border-collapse: collapse; font-size: 0.78rem; }
 .mini-table th, .mini-table td { padding: 9px 10px; border-bottom: 1px solid var(--border); text-align: left; vertical-align: top; }
 .mini-table th { color: var(--muted); font-size: 0.69rem; letter-spacing: 0.05em; text-transform: uppercase; background: var(--panel-2); }
@@ -930,6 +942,7 @@ details[open] summary::before { transform: rotate(90deg); }
   .artifact-list { grid-template-columns: 1fr 1fr; }
   .live-grid, .runtime-flow-grid { grid-template-columns: 1fr; }
   .focused-cards, .keyword-vocab-grid { grid-template-columns: 1fr 1fr; }
+  .convergence-grid { grid-template-columns: 1fr; }
   .runtime-artifact-grid { grid-template-columns: 1fr; }
   .page-links { grid-template-columns: 1fr; }
 }

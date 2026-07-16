@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-07-16T04:36:13.052Z",
+  "generated_at": "2026-07-16T05:28:45.609Z",
   "scope": "Shared 10-case comparison set. Numbers are for apples-to-apples method comparison on a fixed set, not a benchmark-wide claim.",
   "aggregate": {
     "git": {
@@ -406,24 +406,219 @@
           },
           "topk3": {
             "steps": 10,
-            "first_bad": "5a5d0fb1e471",
+            "first_bad": "5a5d0fb1e471b3a1e842aee1f993e885c8d19713",
             "skips": 0,
             "source": "aws",
-            "run_label": "aws-scoped10-parent-extract-topk3-rerun-a-20260707a"
+            "run_label": "aws-scoped10-parent-extract-topk3-rerun-a-20260707a",
+            "curve": {
+              "initial_unresolved": 19791,
+              "points": [
+                {
+                  "step": 0,
+                  "remaining": 19791,
+                  "verdict": "start"
+                },
+                {
+                  "step": 1,
+                  "remaining": 11435,
+                  "verdict": "good"
+                },
+                {
+                  "step": 2,
+                  "remaining": 6173,
+                  "verdict": "good"
+                },
+                {
+                  "step": 3,
+                  "remaining": 2202,
+                  "verdict": "good"
+                },
+                {
+                  "step": 4,
+                  "remaining": 1282,
+                  "verdict": "good"
+                },
+                {
+                  "step": 5,
+                  "remaining": 446,
+                  "verdict": "good"
+                },
+                {
+                  "step": 6,
+                  "remaining": 138,
+                  "verdict": "good"
+                },
+                {
+                  "step": 7,
+                  "remaining": 41,
+                  "verdict": "bad"
+                },
+                {
+                  "step": 8,
+                  "remaining": 38,
+                  "verdict": "good"
+                },
+                {
+                  "step": 9,
+                  "remaining": 5,
+                  "verdict": "good"
+                },
+                {
+                  "step": 10,
+                  "remaining": 1,
+                  "verdict": "good"
+                }
+              ]
+            }
           },
           "topk10": {
             "steps": 13,
             "first_bad": "5a5d0fb1e471b3a1e842aee1f993e885c8d19713",
             "skips": 0,
             "source": "aws-server",
-            "run_label": "aws10-parent-llm600k-topk10-a-20260715a"
+            "run_label": "aws10-parent-llm600k-topk10-a-20260715a",
+            "curve": {
+              "initial_unresolved": 19791,
+              "points": [
+                {
+                  "step": 0,
+                  "remaining": 19791,
+                  "verdict": "start"
+                },
+                {
+                  "step": 1,
+                  "remaining": 12054,
+                  "verdict": "good"
+                },
+                {
+                  "step": 2,
+                  "remaining": 6273,
+                  "verdict": "good"
+                },
+                {
+                  "step": 3,
+                  "remaining": 2202,
+                  "verdict": "good"
+                },
+                {
+                  "step": 4,
+                  "remaining": 1543,
+                  "verdict": "good"
+                },
+                {
+                  "step": 5,
+                  "remaining": 845,
+                  "verdict": "good"
+                },
+                {
+                  "step": 6,
+                  "remaining": 439,
+                  "verdict": "good"
+                },
+                {
+                  "step": 7,
+                  "remaining": 138,
+                  "verdict": "good"
+                },
+                {
+                  "step": 8,
+                  "remaining": 102,
+                  "verdict": "good"
+                },
+                {
+                  "step": 9,
+                  "remaining": 36,
+                  "verdict": "bad"
+                },
+                {
+                  "step": 10,
+                  "remaining": 18,
+                  "verdict": "bad"
+                },
+                {
+                  "step": 11,
+                  "remaining": 5,
+                  "verdict": "bad"
+                },
+                {
+                  "step": 12,
+                  "remaining": 3,
+                  "verdict": "good"
+                },
+                {
+                  "step": 13,
+                  "remaining": 1,
+                  "verdict": "good"
+                }
+              ]
+            }
           },
           "topk20": {
             "steps": 10,
-            "first_bad": "5a5d0fb1e471",
+            "first_bad": "5a5d0fb1e471b3a1e842aee1f993e885c8d19713",
             "skips": 0,
             "source": "edu-server",
-            "run_label": null
+            "run_label": "edu10-parent-llm600k-topk20-ratio4-20260711a",
+            "curve": {
+              "initial_unresolved": 19791,
+              "points": [
+                {
+                  "step": 0,
+                  "remaining": 19791,
+                  "verdict": "start"
+                },
+                {
+                  "step": 1,
+                  "remaining": 11515,
+                  "verdict": "good"
+                },
+                {
+                  "step": 2,
+                  "remaining": 5986,
+                  "verdict": "good"
+                },
+                {
+                  "step": 3,
+                  "remaining": 2150,
+                  "verdict": "good"
+                },
+                {
+                  "step": 4,
+                  "remaining": 1282,
+                  "verdict": "good"
+                },
+                {
+                  "step": 5,
+                  "remaining": 620,
+                  "verdict": "good"
+                },
+                {
+                  "step": 6,
+                  "remaining": 258,
+                  "verdict": "good"
+                },
+                {
+                  "step": 7,
+                  "remaining": 102,
+                  "verdict": "good"
+                },
+                {
+                  "step": 8,
+                  "remaining": 5,
+                  "verdict": "bad"
+                },
+                {
+                  "step": 9,
+                  "remaining": 2,
+                  "verdict": "good"
+                },
+                {
+                  "step": 10,
+                  "remaining": 1,
+                  "verdict": "good"
+                }
+              ]
+            }
           },
           "canonical_first_bad": "5a5d0fb1e471",
           "topk3_matches": true,
@@ -438,24 +633,214 @@
           },
           "topk3": {
             "steps": 11,
-            "first_bad": "5a5d0fb1e471",
+            "first_bad": "5a5d0fb1e471b3a1e842aee1f993e885c8d19713",
             "skips": 0,
             "source": "aws",
-            "run_label": "aws-scoped10-parent-extract-topk3-rerun-a-20260707a"
+            "run_label": "aws-scoped10-parent-extract-topk3-rerun-a-20260707a",
+            "curve": {
+              "initial_unresolved": 19791,
+              "points": [
+                {
+                  "step": 0,
+                  "remaining": 19791,
+                  "verdict": "start"
+                },
+                {
+                  "step": 1,
+                  "remaining": 6173,
+                  "verdict": "good"
+                },
+                {
+                  "step": 2,
+                  "remaining": 2360,
+                  "verdict": "good"
+                },
+                {
+                  "step": 3,
+                  "remaining": 1295,
+                  "verdict": "good"
+                },
+                {
+                  "step": 4,
+                  "remaining": 815,
+                  "verdict": "good"
+                },
+                {
+                  "step": 5,
+                  "remaining": 462,
+                  "verdict": "good"
+                },
+                {
+                  "step": 6,
+                  "remaining": 161,
+                  "verdict": "good"
+                },
+                {
+                  "step": 7,
+                  "remaining": 64,
+                  "verdict": "bad"
+                },
+                {
+                  "step": 8,
+                  "remaining": 41,
+                  "verdict": "good"
+                },
+                {
+                  "step": 9,
+                  "remaining": 5,
+                  "verdict": "good"
+                },
+                {
+                  "step": 10,
+                  "remaining": 3,
+                  "verdict": "good"
+                },
+                {
+                  "step": 11,
+                  "remaining": 1,
+                  "verdict": "good"
+                }
+              ]
+            }
           },
           "topk10": {
             "steps": 11,
             "first_bad": "5a5d0fb1e471b3a1e842aee1f993e885c8d19713",
             "skips": 0,
             "source": "aws-server",
-            "run_label": "aws10-parent-llm600k-topk10-retry-pr204589-20260715b"
+            "run_label": "aws10-parent-llm600k-topk10-retry-pr204589-20260715b",
+            "curve": {
+              "initial_unresolved": 19791,
+              "points": [
+                {
+                  "step": 0,
+                  "remaining": 19791,
+                  "verdict": "start"
+                },
+                {
+                  "step": 1,
+                  "remaining": 6173,
+                  "verdict": "good"
+                },
+                {
+                  "step": 2,
+                  "remaining": 2719,
+                  "verdict": "good"
+                },
+                {
+                  "step": 3,
+                  "remaining": 1543,
+                  "verdict": "good"
+                },
+                {
+                  "step": 4,
+                  "remaining": 845,
+                  "verdict": "good"
+                },
+                {
+                  "step": 5,
+                  "remaining": 462,
+                  "verdict": "good"
+                },
+                {
+                  "step": 6,
+                  "remaining": 135,
+                  "verdict": "good"
+                },
+                {
+                  "step": 7,
+                  "remaining": 38,
+                  "verdict": "bad"
+                },
+                {
+                  "step": 8,
+                  "remaining": 12,
+                  "verdict": "good"
+                },
+                {
+                  "step": 9,
+                  "remaining": 5,
+                  "verdict": "good"
+                },
+                {
+                  "step": 10,
+                  "remaining": 2,
+                  "verdict": "good"
+                },
+                {
+                  "step": 11,
+                  "remaining": 1,
+                  "verdict": "good"
+                }
+              ]
+            }
           },
           "topk20": {
             "steps": 10,
-            "first_bad": "5a5d0fb1e471",
+            "first_bad": "5a5d0fb1e471b3a1e842aee1f993e885c8d19713",
             "skips": 0,
             "source": "edu-server hardened retry",
-            "run_label": null
+            "run_label": "edu10-parent-llm600k-topk20-hardened-a-20260715d",
+            "curve": {
+              "initial_unresolved": 19791,
+              "points": [
+                {
+                  "step": 0,
+                  "remaining": 19791,
+                  "verdict": "start"
+                },
+                {
+                  "step": 1,
+                  "remaining": 8458,
+                  "verdict": "good"
+                },
+                {
+                  "step": 2,
+                  "remaining": 4210,
+                  "verdict": "good"
+                },
+                {
+                  "step": 3,
+                  "remaining": 2501,
+                  "verdict": "good"
+                },
+                {
+                  "step": 4,
+                  "remaining": 1106,
+                  "verdict": "good"
+                },
+                {
+                  "step": 5,
+                  "remaining": 462,
+                  "verdict": "good"
+                },
+                {
+                  "step": 6,
+                  "remaining": 161,
+                  "verdict": "good"
+                },
+                {
+                  "step": 7,
+                  "remaining": 64,
+                  "verdict": "bad"
+                },
+                {
+                  "step": 8,
+                  "remaining": 38,
+                  "verdict": "good"
+                },
+                {
+                  "step": 9,
+                  "remaining": 5,
+                  "verdict": "good"
+                },
+                {
+                  "step": 10,
+                  "remaining": 1,
+                  "verdict": "good"
+                }
+              ]
+            }
           },
           "canonical_first_bad": "5a5d0fb1e471",
           "topk3_matches": true,
@@ -470,24 +855,204 @@
           },
           "topk3": {
             "steps": 11,
-            "first_bad": "6bcdd843e302",
+            "first_bad": "6bcdd843e302063c4f0d36204686155149a6bb0a",
             "skips": 0,
             "source": "aws",
-            "run_label": "aws-scoped10-parent-extract-topk3-rerun-a-20260707a"
+            "run_label": "aws-scoped10-parent-extract-topk3-rerun-a-20260707a",
+            "curve": {
+              "initial_unresolved": 17742,
+              "points": [
+                {
+                  "step": 0,
+                  "remaining": 17742,
+                  "verdict": "start"
+                },
+                {
+                  "step": 1,
+                  "remaining": 11069,
+                  "verdict": "good"
+                },
+                {
+                  "step": 2,
+                  "remaining": 8428,
+                  "verdict": "good"
+                },
+                {
+                  "step": 3,
+                  "remaining": 3263,
+                  "verdict": "good"
+                },
+                {
+                  "step": 4,
+                  "remaining": 2044,
+                  "verdict": "good"
+                },
+                {
+                  "step": 5,
+                  "remaining": 1118,
+                  "verdict": "good"
+                },
+                {
+                  "step": 6,
+                  "remaining": 257,
+                  "verdict": "good"
+                },
+                {
+                  "step": 7,
+                  "remaining": 135,
+                  "verdict": "good"
+                },
+                {
+                  "step": 8,
+                  "remaining": 18,
+                  "verdict": "bad"
+                },
+                {
+                  "step": 9,
+                  "remaining": 8,
+                  "verdict": "good"
+                },
+                {
+                  "step": 10,
+                  "remaining": 3,
+                  "verdict": "good"
+                },
+                {
+                  "step": 11,
+                  "remaining": 1,
+                  "verdict": "good"
+                }
+              ]
+            }
           },
           "topk10": {
             "steps": 10,
             "first_bad": "6bcdd843e302063c4f0d36204686155149a6bb0a",
             "skips": 0,
             "source": "aws-server",
-            "run_label": "aws10-parent-llm600k-topk10-final-a-20260715c"
+            "run_label": "aws10-parent-llm600k-topk10-final-a-20260715c",
+            "curve": {
+              "initial_unresolved": 17742,
+              "points": [
+                {
+                  "step": 0,
+                  "remaining": 17742,
+                  "verdict": "start"
+                },
+                {
+                  "step": 1,
+                  "remaining": 11069,
+                  "verdict": "good"
+                },
+                {
+                  "step": 2,
+                  "remaining": 3263,
+                  "verdict": "good"
+                },
+                {
+                  "step": 3,
+                  "remaining": 1214,
+                  "verdict": "good"
+                },
+                {
+                  "step": 4,
+                  "remaining": 352,
+                  "verdict": "good"
+                },
+                {
+                  "step": 5,
+                  "remaining": 195,
+                  "verdict": "good"
+                },
+                {
+                  "step": 6,
+                  "remaining": 113,
+                  "verdict": "bad"
+                },
+                {
+                  "step": 7,
+                  "remaining": 53,
+                  "verdict": "good"
+                },
+                {
+                  "step": 8,
+                  "remaining": 18,
+                  "verdict": "bad"
+                },
+                {
+                  "step": 9,
+                  "remaining": 3,
+                  "verdict": "good"
+                },
+                {
+                  "step": 10,
+                  "remaining": 1,
+                  "verdict": "good"
+                }
+              ]
+            }
           },
           "topk20": {
             "steps": 9,
-            "first_bad": "6bcdd843e302",
+            "first_bad": "6bcdd843e302063c4f0d36204686155149a6bb0a",
             "skips": 0,
             "source": "edu-server hardened retry; AWS confirmation in 11 steps",
-            "run_label": null
+            "run_label": "edu10-parent-llm600k-topk20-hardened-b-20260715d",
+            "curve": {
+              "initial_unresolved": 17742,
+              "points": [
+                {
+                  "step": 0,
+                  "remaining": 17742,
+                  "verdict": "start"
+                },
+                {
+                  "step": 1,
+                  "remaining": 8040,
+                  "verdict": "good"
+                },
+                {
+                  "step": 2,
+                  "remaining": 3911,
+                  "verdict": "good"
+                },
+                {
+                  "step": 3,
+                  "remaining": 2285,
+                  "verdict": "good"
+                },
+                {
+                  "step": 4,
+                  "remaining": 786,
+                  "verdict": "good"
+                },
+                {
+                  "step": 5,
+                  "remaining": 304,
+                  "verdict": "good"
+                },
+                {
+                  "step": 6,
+                  "remaining": 135,
+                  "verdict": "good"
+                },
+                {
+                  "step": 7,
+                  "remaining": 68,
+                  "verdict": "bad"
+                },
+                {
+                  "step": 8,
+                  "remaining": 18,
+                  "verdict": "bad"
+                },
+                {
+                  "step": 9,
+                  "remaining": 1,
+                  "verdict": "good"
+                }
+              ]
+            }
           },
           "canonical_first_bad": "6bcdd843e302",
           "topk3_matches": true,
@@ -502,24 +1067,259 @@
           },
           "topk3": {
             "steps": 13,
-            "first_bad": "cac7fe50e0fb",
+            "first_bad": "cac7fe50e0fbedfb14028c170d83386efeb1265b",
             "skips": 0,
             "source": "aws",
-            "run_label": "aws-scoped10-parent-extract-topk3-rerun-a-20260707a"
+            "run_label": "aws-scoped10-parent-extract-topk3-rerun-a-20260707a",
+            "curve": {
+              "initial_unresolved": 12559,
+              "points": [
+                {
+                  "step": 0,
+                  "remaining": 12559,
+                  "verdict": "start"
+                },
+                {
+                  "step": 1,
+                  "remaining": 8747,
+                  "verdict": "good"
+                },
+                {
+                  "step": 2,
+                  "remaining": 4261,
+                  "verdict": "good"
+                },
+                {
+                  "step": 3,
+                  "remaining": 2007,
+                  "verdict": "good"
+                },
+                {
+                  "step": 4,
+                  "remaining": 1015,
+                  "verdict": "good"
+                },
+                {
+                  "step": 5,
+                  "remaining": 798,
+                  "verdict": "good"
+                },
+                {
+                  "step": 6,
+                  "remaining": 542,
+                  "verdict": "good"
+                },
+                {
+                  "step": 7,
+                  "remaining": 197,
+                  "verdict": "bad"
+                },
+                {
+                  "step": 8,
+                  "remaining": 86,
+                  "verdict": "bad"
+                },
+                {
+                  "step": 9,
+                  "remaining": 40,
+                  "verdict": "bad"
+                },
+                {
+                  "step": 10,
+                  "remaining": 13,
+                  "verdict": "bad"
+                },
+                {
+                  "step": 11,
+                  "remaining": 5,
+                  "verdict": "good"
+                },
+                {
+                  "step": 12,
+                  "remaining": 3,
+                  "verdict": "good"
+                },
+                {
+                  "step": 13,
+                  "remaining": 1,
+                  "verdict": "good"
+                }
+              ]
+            }
           },
           "topk10": {
             "steps": 14,
             "first_bad": "cac7fe50e0fbedfb14028c170d83386efeb1265b",
             "skips": 1,
             "source": "aws-server",
-            "run_label": "aws10-parent-llm600k-topk10-final-b-20260715c"
+            "run_label": "aws10-parent-llm600k-topk10-final-b-20260715c",
+            "curve": {
+              "initial_unresolved": 12559,
+              "points": [
+                {
+                  "step": 0,
+                  "remaining": 12559,
+                  "verdict": "start"
+                },
+                {
+                  "step": 1,
+                  "remaining": 8747,
+                  "verdict": "good"
+                },
+                {
+                  "step": 2,
+                  "remaining": 8746,
+                  "verdict": "skip"
+                },
+                {
+                  "step": 3,
+                  "remaining": 3267,
+                  "verdict": "good"
+                },
+                {
+                  "step": 4,
+                  "remaining": 2007,
+                  "verdict": "good"
+                },
+                {
+                  "step": 5,
+                  "remaining": 1015,
+                  "verdict": "good"
+                },
+                {
+                  "step": 6,
+                  "remaining": 623,
+                  "verdict": "good"
+                },
+                {
+                  "step": 7,
+                  "remaining": 302,
+                  "verdict": "bad"
+                },
+                {
+                  "step": 8,
+                  "remaining": 167,
+                  "verdict": "bad"
+                },
+                {
+                  "step": 9,
+                  "remaining": 94,
+                  "verdict": "good"
+                },
+                {
+                  "step": 10,
+                  "remaining": 23,
+                  "verdict": "bad"
+                },
+                {
+                  "step": 11,
+                  "remaining": 8,
+                  "verdict": "good"
+                },
+                {
+                  "step": 12,
+                  "remaining": 6,
+                  "verdict": "bad"
+                },
+                {
+                  "step": 13,
+                  "remaining": 3,
+                  "verdict": "good"
+                },
+                {
+                  "step": 14,
+                  "remaining": 1,
+                  "verdict": "good"
+                }
+              ]
+            }
           },
           "topk20": {
             "steps": 14,
-            "first_bad": "cac7fe50e0fb",
+            "first_bad": "cac7fe50e0fbedfb14028c170d83386efeb1265b",
             "skips": 0,
             "source": "edu-server retry",
-            "run_label": null
+            "run_label": "edu10-parent-llm600k-topk20-retry-c-20260713a",
+            "curve": {
+              "initial_unresolved": 12559,
+              "points": [
+                {
+                  "step": 0,
+                  "remaining": 12559,
+                  "verdict": "start"
+                },
+                {
+                  "step": 1,
+                  "remaining": 8747,
+                  "verdict": "good"
+                },
+                {
+                  "step": 2,
+                  "remaining": 4261,
+                  "verdict": "good"
+                },
+                {
+                  "step": 3,
+                  "remaining": 1915,
+                  "verdict": "good"
+                },
+                {
+                  "step": 4,
+                  "remaining": 1015,
+                  "verdict": "good"
+                },
+                {
+                  "step": 5,
+                  "remaining": 559,
+                  "verdict": "bad"
+                },
+                {
+                  "step": 6,
+                  "remaining": 218,
+                  "verdict": "good"
+                },
+                {
+                  "step": 7,
+                  "remaining": 94,
+                  "verdict": "good"
+                },
+                {
+                  "step": 8,
+                  "remaining": 29,
+                  "verdict": "bad"
+                },
+                {
+                  "step": 9,
+                  "remaining": 22,
+                  "verdict": "bad"
+                },
+                {
+                  "step": 10,
+                  "remaining": 14,
+                  "verdict": "good"
+                },
+                {
+                  "step": 11,
+                  "remaining": 13,
+                  "verdict": "bad"
+                },
+                {
+                  "step": 12,
+                  "remaining": 5,
+                  "verdict": "good"
+                },
+                {
+                  "step": 13,
+                  "remaining": 3,
+                  "verdict": "good"
+                },
+                {
+                  "step": 14,
+                  "remaining": 1,
+                  "verdict": "good"
+                }
+              ]
+            }
           },
           "canonical_first_bad": "cac7fe50e0fb",
           "topk3_matches": true,
@@ -534,24 +1334,194 @@
           },
           "topk3": {
             "steps": 8,
-            "first_bad": "c9c05a91c484",
+            "first_bad": "c9c05a91c4843c243d508c39bdfbc5e26f311af2",
             "skips": 0,
             "source": "aws",
-            "run_label": "aws-scoped10-parent-extract-topk3-rerun-a-20260707a"
+            "run_label": "aws-scoped10-parent-extract-topk3-rerun-a-20260707a",
+            "curve": {
+              "initial_unresolved": 14311,
+              "points": [
+                {
+                  "step": 0,
+                  "remaining": 14311,
+                  "verdict": "start"
+                },
+                {
+                  "step": 1,
+                  "remaining": 4262,
+                  "verdict": "good"
+                },
+                {
+                  "step": 2,
+                  "remaining": 2422,
+                  "verdict": "bad"
+                },
+                {
+                  "step": 3,
+                  "remaining": 1636,
+                  "verdict": "good"
+                },
+                {
+                  "step": 4,
+                  "remaining": 355,
+                  "verdict": "bad"
+                },
+                {
+                  "step": 5,
+                  "remaining": 202,
+                  "verdict": "bad"
+                },
+                {
+                  "step": 6,
+                  "remaining": 103,
+                  "verdict": "bad"
+                },
+                {
+                  "step": 7,
+                  "remaining": 26,
+                  "verdict": "good"
+                },
+                {
+                  "step": 8,
+                  "remaining": 1,
+                  "verdict": "good"
+                }
+              ]
+            }
           },
           "topk10": {
             "steps": 10,
             "first_bad": "c9c05a91c4843c243d508c39bdfbc5e26f311af2",
             "skips": 0,
             "source": "aws-server",
-            "run_label": "aws10-parent-llm600k-topk10-b-20260715a"
+            "run_label": "aws10-parent-llm600k-topk10-b-20260715a",
+            "curve": {
+              "initial_unresolved": 14311,
+              "points": [
+                {
+                  "step": 0,
+                  "remaining": 14311,
+                  "verdict": "start"
+                },
+                {
+                  "step": 1,
+                  "remaining": 6569,
+                  "verdict": "good"
+                },
+                {
+                  "step": 2,
+                  "remaining": 3448,
+                  "verdict": "bad"
+                },
+                {
+                  "step": 3,
+                  "remaining": 1439,
+                  "verdict": "good"
+                },
+                {
+                  "step": 4,
+                  "remaining": 329,
+                  "verdict": "good"
+                },
+                {
+                  "step": 5,
+                  "remaining": 176,
+                  "verdict": "bad"
+                },
+                {
+                  "step": 6,
+                  "remaining": 77,
+                  "verdict": "bad"
+                },
+                {
+                  "step": 7,
+                  "remaining": 26,
+                  "verdict": "good"
+                },
+                {
+                  "step": 8,
+                  "remaining": 6,
+                  "verdict": "good"
+                },
+                {
+                  "step": 9,
+                  "remaining": 2,
+                  "verdict": "good"
+                },
+                {
+                  "step": 10,
+                  "remaining": 1,
+                  "verdict": "good"
+                }
+              ]
+            }
           },
           "topk20": {
             "steps": 10,
-            "first_bad": "c9c05a91c484",
+            "first_bad": "c9c05a91c4843c243d508c39bdfbc5e26f311af2",
             "skips": 0,
             "source": "aws-server",
-            "run_label": null
+            "run_label": "aws10-parent-llm600k-topk20-dirfix2-c-20260710b",
+            "curve": {
+              "initial_unresolved": 14311,
+              "points": [
+                {
+                  "step": 0,
+                  "remaining": 14311,
+                  "verdict": "start"
+                },
+                {
+                  "step": 1,
+                  "remaining": 6569,
+                  "verdict": "good"
+                },
+                {
+                  "step": 2,
+                  "remaining": 3448,
+                  "verdict": "bad"
+                },
+                {
+                  "step": 3,
+                  "remaining": 1439,
+                  "verdict": "good"
+                },
+                {
+                  "step": 4,
+                  "remaining": 329,
+                  "verdict": "good"
+                },
+                {
+                  "step": 5,
+                  "remaining": 145,
+                  "verdict": "bad"
+                },
+                {
+                  "step": 6,
+                  "remaining": 77,
+                  "verdict": "bad"
+                },
+                {
+                  "step": 7,
+                  "remaining": 26,
+                  "verdict": "good"
+                },
+                {
+                  "step": 8,
+                  "remaining": 6,
+                  "verdict": "good"
+                },
+                {
+                  "step": 9,
+                  "remaining": 2,
+                  "verdict": "good"
+                },
+                {
+                  "step": 10,
+                  "remaining": 1,
+                  "verdict": "good"
+                }
+              ]
+            }
           },
           "canonical_first_bad": "c9c05a91c484",
           "topk3_matches": true,
@@ -566,24 +1536,239 @@
           },
           "topk3": {
             "steps": 11,
-            "first_bad": "e38b7e894808",
+            "first_bad": "e38b7e894808ec2a0c976ab01e44364f167508d3",
             "skips": 0,
             "source": "aws",
-            "run_label": "aws-scoped10-parent-extract-topk3-rerun-b-20260707a"
+            "run_label": "aws-scoped10-parent-extract-topk3-rerun-b-20260707a",
+            "curve": {
+              "initial_unresolved": 16855,
+              "points": [
+                {
+                  "step": 0,
+                  "remaining": 16855,
+                  "verdict": "start"
+                },
+                {
+                  "step": 1,
+                  "remaining": 8882,
+                  "verdict": "good"
+                },
+                {
+                  "step": 2,
+                  "remaining": 3254,
+                  "verdict": "good"
+                },
+                {
+                  "step": 3,
+                  "remaining": 1582,
+                  "verdict": "bad"
+                },
+                {
+                  "step": 4,
+                  "remaining": 352,
+                  "verdict": "good"
+                },
+                {
+                  "step": 5,
+                  "remaining": 195,
+                  "verdict": "good"
+                },
+                {
+                  "step": 6,
+                  "remaining": 170,
+                  "verdict": "good"
+                },
+                {
+                  "step": 7,
+                  "remaining": 127,
+                  "verdict": "bad"
+                },
+                {
+                  "step": 8,
+                  "remaining": 25,
+                  "verdict": "bad"
+                },
+                {
+                  "step": 9,
+                  "remaining": 13,
+                  "verdict": "good"
+                },
+                {
+                  "step": 10,
+                  "remaining": 3,
+                  "verdict": "good"
+                },
+                {
+                  "step": 11,
+                  "remaining": 1,
+                  "verdict": "good"
+                }
+              ]
+            }
           },
           "topk10": {
             "steps": 14,
             "first_bad": "e38b7e894808ec2a0c976ab01e44364f167508d3",
             "skips": 0,
             "source": "aws-server",
-            "run_label": "aws10-parent-llm600k-topk10-b-20260715a"
+            "run_label": "aws10-parent-llm600k-topk10-b-20260715a",
+            "curve": {
+              "initial_unresolved": 16855,
+              "points": [
+                {
+                  "step": 0,
+                  "remaining": 16855,
+                  "verdict": "start"
+                },
+                {
+                  "step": 1,
+                  "remaining": 8222,
+                  "verdict": "good"
+                },
+                {
+                  "step": 2,
+                  "remaining": 3252,
+                  "verdict": "good"
+                },
+                {
+                  "step": 3,
+                  "remaining": 1580,
+                  "verdict": "bad"
+                },
+                {
+                  "step": 4,
+                  "remaining": 611,
+                  "verdict": "good"
+                },
+                {
+                  "step": 5,
+                  "remaining": 316,
+                  "verdict": "good"
+                },
+                {
+                  "step": 6,
+                  "remaining": 188,
+                  "verdict": "good"
+                },
+                {
+                  "step": 7,
+                  "remaining": 176,
+                  "verdict": "good"
+                },
+                {
+                  "step": 8,
+                  "remaining": 31,
+                  "verdict": "bad"
+                },
+                {
+                  "step": 9,
+                  "remaining": 27,
+                  "verdict": "good"
+                },
+                {
+                  "step": 10,
+                  "remaining": 16,
+                  "verdict": "good"
+                },
+                {
+                  "step": 11,
+                  "remaining": 13,
+                  "verdict": "good"
+                },
+                {
+                  "step": 12,
+                  "remaining": 5,
+                  "verdict": "good"
+                },
+                {
+                  "step": 13,
+                  "remaining": 2,
+                  "verdict": "good"
+                },
+                {
+                  "step": 14,
+                  "remaining": 1,
+                  "verdict": "good"
+                }
+              ]
+            }
           },
           "topk20": {
             "steps": 12,
-            "first_bad": "e38b7e894808",
+            "first_bad": "e38b7e894808ec2a0c976ab01e44364f167508d3",
             "skips": 0,
             "source": "aws-server",
-            "run_label": null
+            "run_label": "aws10-parent-llm600k-topk20-dirfix2-c-20260710b",
+            "curve": {
+              "initial_unresolved": 16855,
+              "points": [
+                {
+                  "step": 0,
+                  "remaining": 16855,
+                  "verdict": "start"
+                },
+                {
+                  "step": 1,
+                  "remaining": 8222,
+                  "verdict": "good"
+                },
+                {
+                  "step": 2,
+                  "remaining": 3252,
+                  "verdict": "good"
+                },
+                {
+                  "step": 3,
+                  "remaining": 1852,
+                  "verdict": "good"
+                },
+                {
+                  "step": 4,
+                  "remaining": 1261,
+                  "verdict": "bad"
+                },
+                {
+                  "step": 5,
+                  "remaining": 520,
+                  "verdict": "bad"
+                },
+                {
+                  "step": 6,
+                  "remaining": 137,
+                  "verdict": "bad"
+                },
+                {
+                  "step": 7,
+                  "remaining": 118,
+                  "verdict": "good"
+                },
+                {
+                  "step": 8,
+                  "remaining": 66,
+                  "verdict": "bad"
+                },
+                {
+                  "step": 9,
+                  "remaining": 16,
+                  "verdict": "bad"
+                },
+                {
+                  "step": 10,
+                  "remaining": 5,
+                  "verdict": "good"
+                },
+                {
+                  "step": 11,
+                  "remaining": 2,
+                  "verdict": "good"
+                },
+                {
+                  "step": 12,
+                  "remaining": 1,
+                  "verdict": "good"
+                }
+              ]
+            }
           },
           "canonical_first_bad": "e38b7e894808",
           "topk3_matches": true,
@@ -598,24 +1783,274 @@
           },
           "topk3": {
             "steps": 15,
-            "first_bad": "20e989e9de6a",
+            "first_bad": "20e989e9de6abcf9a684978a2688acc4ea01036f",
             "skips": 0,
             "source": "aws",
-            "run_label": "aws-scoped10-parent-extract-topk3-rerun-b-20260707a"
+            "run_label": "aws-scoped10-parent-extract-topk3-rerun-b-20260707a",
+            "curve": {
+              "initial_unresolved": 17273,
+              "points": [
+                {
+                  "step": 0,
+                  "remaining": 17273,
+                  "verdict": "start"
+                },
+                {
+                  "step": 1,
+                  "remaining": 4540,
+                  "verdict": "bad"
+                },
+                {
+                  "step": 2,
+                  "remaining": 1094,
+                  "verdict": "good"
+                },
+                {
+                  "step": 3,
+                  "remaining": 710,
+                  "verdict": "good"
+                },
+                {
+                  "step": 4,
+                  "remaining": 413,
+                  "verdict": "good"
+                },
+                {
+                  "step": 5,
+                  "remaining": 147,
+                  "verdict": "good"
+                },
+                {
+                  "step": 6,
+                  "remaining": 125,
+                  "verdict": "bad"
+                },
+                {
+                  "step": 7,
+                  "remaining": 88,
+                  "verdict": "bad"
+                },
+                {
+                  "step": 8,
+                  "remaining": 62,
+                  "verdict": "bad"
+                },
+                {
+                  "step": 9,
+                  "remaining": 33,
+                  "verdict": "good"
+                },
+                {
+                  "step": 10,
+                  "remaining": 18,
+                  "verdict": "bad"
+                },
+                {
+                  "step": 11,
+                  "remaining": 11,
+                  "verdict": "bad"
+                },
+                {
+                  "step": 12,
+                  "remaining": 8,
+                  "verdict": "bad"
+                },
+                {
+                  "step": 13,
+                  "remaining": 4,
+                  "verdict": "good"
+                },
+                {
+                  "step": 14,
+                  "remaining": 2,
+                  "verdict": "good"
+                },
+                {
+                  "step": 15,
+                  "remaining": 1,
+                  "verdict": "good"
+                }
+              ]
+            }
           },
           "topk10": {
             "steps": 15,
             "first_bad": "20e989e9de6abcf9a684978a2688acc4ea01036f",
             "skips": 0,
             "source": "aws-server",
-            "run_label": "aws10-parent-llm600k-topk10-b-20260715a"
+            "run_label": "aws10-parent-llm600k-topk10-b-20260715a",
+            "curve": {
+              "initial_unresolved": 17273,
+              "points": [
+                {
+                  "step": 0,
+                  "remaining": 17273,
+                  "verdict": "start"
+                },
+                {
+                  "step": 1,
+                  "remaining": 4540,
+                  "verdict": "bad"
+                },
+                {
+                  "step": 2,
+                  "remaining": 2456,
+                  "verdict": "good"
+                },
+                {
+                  "step": 3,
+                  "remaining": 1094,
+                  "verdict": "good"
+                },
+                {
+                  "step": 4,
+                  "remaining": 680,
+                  "verdict": "good"
+                },
+                {
+                  "step": 5,
+                  "remaining": 261,
+                  "verdict": "good"
+                },
+                {
+                  "step": 6,
+                  "remaining": 202,
+                  "verdict": "bad"
+                },
+                {
+                  "step": 7,
+                  "remaining": 134,
+                  "verdict": "good"
+                },
+                {
+                  "step": 8,
+                  "remaining": 110,
+                  "verdict": "good"
+                },
+                {
+                  "step": 9,
+                  "remaining": 88,
+                  "verdict": "good"
+                },
+                {
+                  "step": 10,
+                  "remaining": 54,
+                  "verdict": "bad"
+                },
+                {
+                  "step": 11,
+                  "remaining": 37,
+                  "verdict": "bad"
+                },
+                {
+                  "step": 12,
+                  "remaining": 28,
+                  "verdict": "good"
+                },
+                {
+                  "step": 13,
+                  "remaining": 8,
+                  "verdict": "good"
+                },
+                {
+                  "step": 14,
+                  "remaining": 4,
+                  "verdict": "good"
+                },
+                {
+                  "step": 15,
+                  "remaining": 1,
+                  "verdict": "good"
+                }
+              ]
+            }
           },
           "topk20": {
             "steps": 14,
-            "first_bad": "20e989e9de6a",
+            "first_bad": "20e989e9de6abcf9a684978a2688acc4ea01036f",
             "skips": 0,
             "source": "edu-server",
-            "run_label": null
+            "run_label": "edu10-parent-llm600k-topk20-dirfix2-d-20260710b",
+            "curve": {
+              "initial_unresolved": 17273,
+              "points": [
+                {
+                  "step": 0,
+                  "remaining": 17273,
+                  "verdict": "start"
+                },
+                {
+                  "step": 1,
+                  "remaining": 7878,
+                  "verdict": "bad"
+                },
+                {
+                  "step": 2,
+                  "remaining": 4540,
+                  "verdict": "bad"
+                },
+                {
+                  "step": 3,
+                  "remaining": 1646,
+                  "verdict": "good"
+                },
+                {
+                  "step": 4,
+                  "remaining": 880,
+                  "verdict": "good"
+                },
+                {
+                  "step": 5,
+                  "remaining": 413,
+                  "verdict": "good"
+                },
+                {
+                  "step": 6,
+                  "remaining": 221,
+                  "verdict": "good"
+                },
+                {
+                  "step": 7,
+                  "remaining": 147,
+                  "verdict": "good"
+                },
+                {
+                  "step": 8,
+                  "remaining": 105,
+                  "verdict": "bad"
+                },
+                {
+                  "step": 9,
+                  "remaining": 83,
+                  "verdict": "bad"
+                },
+                {
+                  "step": 10,
+                  "remaining": 42,
+                  "verdict": "bad"
+                },
+                {
+                  "step": 11,
+                  "remaining": 37,
+                  "verdict": "bad"
+                },
+                {
+                  "step": 12,
+                  "remaining": 8,
+                  "verdict": "good"
+                },
+                {
+                  "step": 13,
+                  "remaining": 4,
+                  "verdict": "good"
+                },
+                {
+                  "step": 14,
+                  "remaining": 1,
+                  "verdict": "good"
+                }
+              ]
+            }
           },
           "canonical_first_bad": "20e989e9de6a",
           "topk3_matches": true,
@@ -630,24 +2065,224 @@
           },
           "topk3": {
             "steps": 11,
-            "first_bad": "be20eae25f50",
+            "first_bad": "be20eae25f50f5ef648aeefa1143e1c31e4410fc",
             "skips": 0,
             "source": "aws",
-            "run_label": "aws-scoped10-parent-extract-topk3-rerun-b-20260707a"
+            "run_label": "aws-scoped10-parent-extract-topk3-rerun-b-20260707a",
+            "curve": {
+              "initial_unresolved": 9089,
+              "points": [
+                {
+                  "step": 0,
+                  "remaining": 9089,
+                  "verdict": "start"
+                },
+                {
+                  "step": 1,
+                  "remaining": 3875,
+                  "verdict": "good"
+                },
+                {
+                  "step": 2,
+                  "remaining": 2643,
+                  "verdict": "bad"
+                },
+                {
+                  "step": 3,
+                  "remaining": 1514,
+                  "verdict": "good"
+                },
+                {
+                  "step": 4,
+                  "remaining": 284,
+                  "verdict": "good"
+                },
+                {
+                  "step": 5,
+                  "remaining": 175,
+                  "verdict": "good"
+                },
+                {
+                  "step": 6,
+                  "remaining": 138,
+                  "verdict": "bad"
+                },
+                {
+                  "step": 7,
+                  "remaining": 29,
+                  "verdict": "good"
+                },
+                {
+                  "step": 8,
+                  "remaining": 22,
+                  "verdict": "bad"
+                },
+                {
+                  "step": 9,
+                  "remaining": 5,
+                  "verdict": "good"
+                },
+                {
+                  "step": 10,
+                  "remaining": 2,
+                  "verdict": "good"
+                },
+                {
+                  "step": 11,
+                  "remaining": 1,
+                  "verdict": "good"
+                }
+              ]
+            }
           },
           "topk10": {
             "steps": 12,
             "first_bad": "be20eae25f50f5ef648aeefa1143e1c31e4410fc",
             "skips": 0,
             "source": "aws-server",
-            "run_label": "aws10-parent-llm600k-topk10-c-20260715a"
+            "run_label": "aws10-parent-llm600k-topk10-c-20260715a",
+            "curve": {
+              "initial_unresolved": 9089,
+              "points": [
+                {
+                  "step": 0,
+                  "remaining": 9089,
+                  "verdict": "start"
+                },
+                {
+                  "step": 1,
+                  "remaining": 3875,
+                  "verdict": "good"
+                },
+                {
+                  "step": 2,
+                  "remaining": 1516,
+                  "verdict": "good"
+                },
+                {
+                  "step": 3,
+                  "remaining": 814,
+                  "verdict": "bad"
+                },
+                {
+                  "step": 4,
+                  "remaining": 386,
+                  "verdict": "bad"
+                },
+                {
+                  "step": 5,
+                  "remaining": 247,
+                  "verdict": "bad"
+                },
+                {
+                  "step": 6,
+                  "remaining": 118,
+                  "verdict": "good"
+                },
+                {
+                  "step": 7,
+                  "remaining": 29,
+                  "verdict": "good"
+                },
+                {
+                  "step": 8,
+                  "remaining": 16,
+                  "verdict": "good"
+                },
+                {
+                  "step": 9,
+                  "remaining": 9,
+                  "verdict": "bad"
+                },
+                {
+                  "step": 10,
+                  "remaining": 7,
+                  "verdict": "good"
+                },
+                {
+                  "step": 11,
+                  "remaining": 5,
+                  "verdict": "good"
+                },
+                {
+                  "step": 12,
+                  "remaining": 1,
+                  "verdict": "good"
+                }
+              ]
+            }
           },
           "topk20": {
             "steps": 11,
-            "first_bad": "6792e26c0d0f",
+            "first_bad": "6792e26c0d0f2260f1e12693382e184f5ea1966f",
             "skips": 0,
             "source": "edu-server; known apply/reapply ambiguity",
-            "run_label": null
+            "run_label": "edu10-parent-llm600k-topk20-dirfix2-d-20260710b",
+            "curve": {
+              "initial_unresolved": 9089,
+              "points": [
+                {
+                  "step": 0,
+                  "remaining": 9089,
+                  "verdict": "start"
+                },
+                {
+                  "step": 1,
+                  "remaining": 3875,
+                  "verdict": "good"
+                },
+                {
+                  "step": 2,
+                  "remaining": 2055,
+                  "verdict": "good"
+                },
+                {
+                  "step": 3,
+                  "remaining": 1163,
+                  "verdict": "bad"
+                },
+                {
+                  "step": 4,
+                  "remaining": 515,
+                  "verdict": "good"
+                },
+                {
+                  "step": 5,
+                  "remaining": 373,
+                  "verdict": "good"
+                },
+                {
+                  "step": 6,
+                  "remaining": 135,
+                  "verdict": "bad"
+                },
+                {
+                  "step": 7,
+                  "remaining": 24,
+                  "verdict": "bad"
+                },
+                {
+                  "step": 8,
+                  "remaining": 20,
+                  "verdict": "bad"
+                },
+                {
+                  "step": 9,
+                  "remaining": 10,
+                  "verdict": "bad"
+                },
+                {
+                  "step": 10,
+                  "remaining": 3,
+                  "verdict": "good"
+                },
+                {
+                  "step": 11,
+                  "remaining": 1,
+                  "verdict": "good"
+                }
+              ]
+            }
           },
           "canonical_first_bad": "be20eae25f50",
           "topk3_matches": true,
@@ -662,24 +2297,209 @@
           },
           "topk3": {
             "steps": 9,
-            "first_bad": "10bc12588dac",
+            "first_bad": "10bc12588dac532fad044b2851dde8e7b9121e88",
             "skips": 0,
             "source": "edu",
-            "run_label": "edu-scoped10-parent-extract-topk3-rerun-b-20260707a"
+            "run_label": "edu-scoped10-parent-extract-topk3-rerun-b-20260707a",
+            "curve": {
+              "initial_unresolved": 13008,
+              "points": [
+                {
+                  "step": 0,
+                  "remaining": 13008,
+                  "verdict": "start"
+                },
+                {
+                  "step": 1,
+                  "remaining": 4266,
+                  "verdict": "good"
+                },
+                {
+                  "step": 2,
+                  "remaining": 2673,
+                  "verdict": "good"
+                },
+                {
+                  "step": 3,
+                  "remaining": 1295,
+                  "verdict": "good"
+                },
+                {
+                  "step": 4,
+                  "remaining": 515,
+                  "verdict": "good"
+                },
+                {
+                  "step": 5,
+                  "remaining": 134,
+                  "verdict": "good"
+                },
+                {
+                  "step": 6,
+                  "remaining": 49,
+                  "verdict": "good"
+                },
+                {
+                  "step": 7,
+                  "remaining": 2,
+                  "verdict": "good"
+                },
+                {
+                  "step": 8,
+                  "remaining": 2,
+                  "verdict": "bad"
+                },
+                {
+                  "step": 9,
+                  "remaining": 1,
+                  "verdict": "good"
+                }
+              ]
+            }
           },
           "topk10": {
             "steps": 11,
             "first_bad": "10bc12588dac532fad044b2851dde8e7b9121e88",
             "skips": 0,
             "source": "aws-server",
-            "run_label": "aws10-parent-llm600k-topk10-c-20260715a"
+            "run_label": "aws10-parent-llm600k-topk10-c-20260715a",
+            "curve": {
+              "initial_unresolved": 13008,
+              "points": [
+                {
+                  "step": 0,
+                  "remaining": 13008,
+                  "verdict": "start"
+                },
+                {
+                  "step": 1,
+                  "remaining": 5727,
+                  "verdict": "good"
+                },
+                {
+                  "step": 2,
+                  "remaining": 2673,
+                  "verdict": "good"
+                },
+                {
+                  "step": 3,
+                  "remaining": 992,
+                  "verdict": "good"
+                },
+                {
+                  "step": 4,
+                  "remaining": 540,
+                  "verdict": "good"
+                },
+                {
+                  "step": 5,
+                  "remaining": 246,
+                  "verdict": "good"
+                },
+                {
+                  "step": 6,
+                  "remaining": 60,
+                  "verdict": "good"
+                },
+                {
+                  "step": 7,
+                  "remaining": 47,
+                  "verdict": "good"
+                },
+                {
+                  "step": 8,
+                  "remaining": 4,
+                  "verdict": "good"
+                },
+                {
+                  "step": 9,
+                  "remaining": 2,
+                  "verdict": "good"
+                },
+                {
+                  "step": 10,
+                  "remaining": 2,
+                  "verdict": "bad"
+                },
+                {
+                  "step": 11,
+                  "remaining": 1,
+                  "verdict": "good"
+                }
+              ]
+            }
           },
           "topk20": {
             "steps": 11,
-            "first_bad": "10bc12588dac",
+            "first_bad": "10bc12588dac532fad044b2851dde8e7b9121e88",
             "skips": 0,
             "source": "edu-server",
-            "run_label": null
+            "run_label": "edu10-parent-llm600k-topk20-dirfix2-e-20260710b",
+            "curve": {
+              "initial_unresolved": 13008,
+              "points": [
+                {
+                  "step": 0,
+                  "remaining": 13008,
+                  "verdict": "start"
+                },
+                {
+                  "step": 1,
+                  "remaining": 5727,
+                  "verdict": "good"
+                },
+                {
+                  "step": 2,
+                  "remaining": 2696,
+                  "verdict": "good"
+                },
+                {
+                  "step": 3,
+                  "remaining": 1595,
+                  "verdict": "good"
+                },
+                {
+                  "step": 4,
+                  "remaining": 755,
+                  "verdict": "good"
+                },
+                {
+                  "step": 5,
+                  "remaining": 420,
+                  "verdict": "good"
+                },
+                {
+                  "step": 6,
+                  "remaining": 134,
+                  "verdict": "good"
+                },
+                {
+                  "step": 7,
+                  "remaining": 47,
+                  "verdict": "good"
+                },
+                {
+                  "step": 8,
+                  "remaining": 4,
+                  "verdict": "good"
+                },
+                {
+                  "step": 9,
+                  "remaining": 2,
+                  "verdict": "good"
+                },
+                {
+                  "step": 10,
+                  "remaining": 2,
+                  "verdict": "bad"
+                },
+                {
+                  "step": 11,
+                  "remaining": 1,
+                  "verdict": "good"
+                }
+              ]
+            }
           },
           "canonical_first_bad": "10bc12588dac",
           "topk3_matches": true,
@@ -694,24 +2514,234 @@
           },
           "topk3": {
             "steps": 11,
-            "first_bad": "329ef60f3e21",
+            "first_bad": "329ef60f3e21fd6845e8e8b0da405cae7eb27267",
             "skips": 0,
             "source": "aws",
-            "run_label": "aws-scoped10-parent-extract-topk3-rerun-b-20260707a"
+            "run_label": "aws-scoped10-parent-extract-topk3-rerun-b-20260707a",
+            "curve": {
+              "initial_unresolved": 133662,
+              "points": [
+                {
+                  "step": 0,
+                  "remaining": 133662,
+                  "verdict": "start"
+                },
+                {
+                  "step": 1,
+                  "remaining": 61354,
+                  "verdict": "bad"
+                },
+                {
+                  "step": 2,
+                  "remaining": 30549,
+                  "verdict": "bad"
+                },
+                {
+                  "step": 3,
+                  "remaining": 15028,
+                  "verdict": "bad"
+                },
+                {
+                  "step": 4,
+                  "remaining": 3487,
+                  "verdict": "bad"
+                },
+                {
+                  "step": 5,
+                  "remaining": 1155,
+                  "verdict": "good"
+                },
+                {
+                  "step": 6,
+                  "remaining": 547,
+                  "verdict": "bad"
+                },
+                {
+                  "step": 7,
+                  "remaining": 296,
+                  "verdict": "bad"
+                },
+                {
+                  "step": 8,
+                  "remaining": 235,
+                  "verdict": "good"
+                },
+                {
+                  "step": 9,
+                  "remaining": 109,
+                  "verdict": "bad"
+                },
+                {
+                  "step": 10,
+                  "remaining": 50,
+                  "verdict": "good"
+                },
+                {
+                  "step": 11,
+                  "remaining": 1,
+                  "verdict": "good"
+                }
+              ]
+            }
           },
           "topk10": {
             "steps": 12,
             "first_bad": "329ef60f3e21fd6845e8e8b0da405cae7eb27267",
             "skips": 0,
             "source": "aws-server",
-            "run_label": "aws10-parent-llm600k-topk10-final-c-20260715c"
+            "run_label": "aws10-parent-llm600k-topk10-final-c-20260715c",
+            "curve": {
+              "initial_unresolved": 133662,
+              "points": [
+                {
+                  "step": 0,
+                  "remaining": 133662,
+                  "verdict": "start"
+                },
+                {
+                  "step": 1,
+                  "remaining": 61354,
+                  "verdict": "bad"
+                },
+                {
+                  "step": 2,
+                  "remaining": 30463,
+                  "verdict": "bad"
+                },
+                {
+                  "step": 3,
+                  "remaining": 13549,
+                  "verdict": "bad"
+                },
+                {
+                  "step": 4,
+                  "remaining": 8257,
+                  "verdict": "bad"
+                },
+                {
+                  "step": 5,
+                  "remaining": 4713,
+                  "verdict": "bad"
+                },
+                {
+                  "step": 6,
+                  "remaining": 2381,
+                  "verdict": "good"
+                },
+                {
+                  "step": 7,
+                  "remaining": 1315,
+                  "verdict": "bad"
+                },
+                {
+                  "step": 8,
+                  "remaining": 547,
+                  "verdict": "bad"
+                },
+                {
+                  "step": 9,
+                  "remaining": 170,
+                  "verdict": "bad"
+                },
+                {
+                  "step": 10,
+                  "remaining": 76,
+                  "verdict": "good"
+                },
+                {
+                  "step": 11,
+                  "remaining": 3,
+                  "verdict": "good"
+                },
+                {
+                  "step": 12,
+                  "remaining": 1,
+                  "verdict": "good"
+                }
+              ]
+            }
           },
           "topk20": {
             "steps": 13,
-            "first_bad": "329ef60f3e21",
+            "first_bad": "329ef60f3e21fd6845e8e8b0da405cae7eb27267",
             "skips": 0,
             "source": "aws-server hardened retry",
-            "run_label": null
+            "run_label": "aws10-parent-llm600k-topk20-hardened-b-20260715d",
+            "curve": {
+              "initial_unresolved": 133662,
+              "points": [
+                {
+                  "step": 0,
+                  "remaining": 133662,
+                  "verdict": "start"
+                },
+                {
+                  "step": 1,
+                  "remaining": 61354,
+                  "verdict": "bad"
+                },
+                {
+                  "step": 2,
+                  "remaining": 26075,
+                  "verdict": "bad"
+                },
+                {
+                  "step": 3,
+                  "remaining": 13870,
+                  "verdict": "bad"
+                },
+                {
+                  "step": 4,
+                  "remaining": 8257,
+                  "verdict": "bad"
+                },
+                {
+                  "step": 5,
+                  "remaining": 4768,
+                  "verdict": "bad"
+                },
+                {
+                  "step": 6,
+                  "remaining": 2702,
+                  "verdict": "bad"
+                },
+                {
+                  "step": 7,
+                  "remaining": 1292,
+                  "verdict": "good"
+                },
+                {
+                  "step": 8,
+                  "remaining": 451,
+                  "verdict": "good"
+                },
+                {
+                  "step": 9,
+                  "remaining": 251,
+                  "verdict": "bad"
+                },
+                {
+                  "step": 10,
+                  "remaining": 109,
+                  "verdict": "good"
+                },
+                {
+                  "step": 11,
+                  "remaining": 7,
+                  "verdict": "good"
+                },
+                {
+                  "step": 12,
+                  "remaining": 3,
+                  "verdict": "good"
+                },
+                {
+                  "step": 13,
+                  "remaining": 1,
+                  "verdict": "good"
+                }
+              ]
+            }
           },
           "canonical_first_bad": "329ef60f3e21",
           "topk3_matches": true,
@@ -742,6 +2772,2103 @@
           "first_bad_matches": 9
         }
       }
+    },
+    "convergence": {
+      "label": "Parent-diff + LLM extraction remaining candidate window",
+      "y_axis": "unresolved commits remaining (log scale)",
+      "note": "The line charts use the exact completed run history selected for each top-k row. Git bisect is omitted because the scoped archive retains only its final build-step total, not a comparable per-step unresolved-window history.",
+      "rows": [
+        {
+          "issue": "pr204559",
+          "title": "MemorySSA clobber walker verification assertion at -O1",
+          "curves": {
+            "topk3": {
+              "initial_unresolved": 19791,
+              "points": [
+                {
+                  "step": 0,
+                  "remaining": 19791,
+                  "verdict": "start"
+                },
+                {
+                  "step": 1,
+                  "remaining": 11435,
+                  "verdict": "good"
+                },
+                {
+                  "step": 2,
+                  "remaining": 6173,
+                  "verdict": "good"
+                },
+                {
+                  "step": 3,
+                  "remaining": 2202,
+                  "verdict": "good"
+                },
+                {
+                  "step": 4,
+                  "remaining": 1282,
+                  "verdict": "good"
+                },
+                {
+                  "step": 5,
+                  "remaining": 446,
+                  "verdict": "good"
+                },
+                {
+                  "step": 6,
+                  "remaining": 138,
+                  "verdict": "good"
+                },
+                {
+                  "step": 7,
+                  "remaining": 41,
+                  "verdict": "bad"
+                },
+                {
+                  "step": 8,
+                  "remaining": 38,
+                  "verdict": "good"
+                },
+                {
+                  "step": 9,
+                  "remaining": 5,
+                  "verdict": "good"
+                },
+                {
+                  "step": 10,
+                  "remaining": 1,
+                  "verdict": "good"
+                }
+              ]
+            },
+            "topk10": {
+              "initial_unresolved": 19791,
+              "points": [
+                {
+                  "step": 0,
+                  "remaining": 19791,
+                  "verdict": "start"
+                },
+                {
+                  "step": 1,
+                  "remaining": 12054,
+                  "verdict": "good"
+                },
+                {
+                  "step": 2,
+                  "remaining": 6273,
+                  "verdict": "good"
+                },
+                {
+                  "step": 3,
+                  "remaining": 2202,
+                  "verdict": "good"
+                },
+                {
+                  "step": 4,
+                  "remaining": 1543,
+                  "verdict": "good"
+                },
+                {
+                  "step": 5,
+                  "remaining": 845,
+                  "verdict": "good"
+                },
+                {
+                  "step": 6,
+                  "remaining": 439,
+                  "verdict": "good"
+                },
+                {
+                  "step": 7,
+                  "remaining": 138,
+                  "verdict": "good"
+                },
+                {
+                  "step": 8,
+                  "remaining": 102,
+                  "verdict": "good"
+                },
+                {
+                  "step": 9,
+                  "remaining": 36,
+                  "verdict": "bad"
+                },
+                {
+                  "step": 10,
+                  "remaining": 18,
+                  "verdict": "bad"
+                },
+                {
+                  "step": 11,
+                  "remaining": 5,
+                  "verdict": "bad"
+                },
+                {
+                  "step": 12,
+                  "remaining": 3,
+                  "verdict": "good"
+                },
+                {
+                  "step": 13,
+                  "remaining": 1,
+                  "verdict": "good"
+                }
+              ]
+            },
+            "topk20": {
+              "initial_unresolved": 19791,
+              "points": [
+                {
+                  "step": 0,
+                  "remaining": 19791,
+                  "verdict": "start"
+                },
+                {
+                  "step": 1,
+                  "remaining": 11515,
+                  "verdict": "good"
+                },
+                {
+                  "step": 2,
+                  "remaining": 5986,
+                  "verdict": "good"
+                },
+                {
+                  "step": 3,
+                  "remaining": 2150,
+                  "verdict": "good"
+                },
+                {
+                  "step": 4,
+                  "remaining": 1282,
+                  "verdict": "good"
+                },
+                {
+                  "step": 5,
+                  "remaining": 620,
+                  "verdict": "good"
+                },
+                {
+                  "step": 6,
+                  "remaining": 258,
+                  "verdict": "good"
+                },
+                {
+                  "step": 7,
+                  "remaining": 102,
+                  "verdict": "good"
+                },
+                {
+                  "step": 8,
+                  "remaining": 5,
+                  "verdict": "bad"
+                },
+                {
+                  "step": 9,
+                  "remaining": 2,
+                  "verdict": "good"
+                },
+                {
+                  "step": 10,
+                  "remaining": 1,
+                  "verdict": "good"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "issue": "pr204589",
+          "title": "MemorySSA removeFromLookups assertion at -O3",
+          "curves": {
+            "topk3": {
+              "initial_unresolved": 19791,
+              "points": [
+                {
+                  "step": 0,
+                  "remaining": 19791,
+                  "verdict": "start"
+                },
+                {
+                  "step": 1,
+                  "remaining": 6173,
+                  "verdict": "good"
+                },
+                {
+                  "step": 2,
+                  "remaining": 2360,
+                  "verdict": "good"
+                },
+                {
+                  "step": 3,
+                  "remaining": 1295,
+                  "verdict": "good"
+                },
+                {
+                  "step": 4,
+                  "remaining": 815,
+                  "verdict": "good"
+                },
+                {
+                  "step": 5,
+                  "remaining": 462,
+                  "verdict": "good"
+                },
+                {
+                  "step": 6,
+                  "remaining": 161,
+                  "verdict": "good"
+                },
+                {
+                  "step": 7,
+                  "remaining": 64,
+                  "verdict": "bad"
+                },
+                {
+                  "step": 8,
+                  "remaining": 41,
+                  "verdict": "good"
+                },
+                {
+                  "step": 9,
+                  "remaining": 5,
+                  "verdict": "good"
+                },
+                {
+                  "step": 10,
+                  "remaining": 3,
+                  "verdict": "good"
+                },
+                {
+                  "step": 11,
+                  "remaining": 1,
+                  "verdict": "good"
+                }
+              ]
+            },
+            "topk10": {
+              "initial_unresolved": 19791,
+              "points": [
+                {
+                  "step": 0,
+                  "remaining": 19791,
+                  "verdict": "start"
+                },
+                {
+                  "step": 1,
+                  "remaining": 6173,
+                  "verdict": "good"
+                },
+                {
+                  "step": 2,
+                  "remaining": 2719,
+                  "verdict": "good"
+                },
+                {
+                  "step": 3,
+                  "remaining": 1543,
+                  "verdict": "good"
+                },
+                {
+                  "step": 4,
+                  "remaining": 845,
+                  "verdict": "good"
+                },
+                {
+                  "step": 5,
+                  "remaining": 462,
+                  "verdict": "good"
+                },
+                {
+                  "step": 6,
+                  "remaining": 135,
+                  "verdict": "good"
+                },
+                {
+                  "step": 7,
+                  "remaining": 38,
+                  "verdict": "bad"
+                },
+                {
+                  "step": 8,
+                  "remaining": 12,
+                  "verdict": "good"
+                },
+                {
+                  "step": 9,
+                  "remaining": 5,
+                  "verdict": "good"
+                },
+                {
+                  "step": 10,
+                  "remaining": 2,
+                  "verdict": "good"
+                },
+                {
+                  "step": 11,
+                  "remaining": 1,
+                  "verdict": "good"
+                }
+              ]
+            },
+            "topk20": {
+              "initial_unresolved": 19791,
+              "points": [
+                {
+                  "step": 0,
+                  "remaining": 19791,
+                  "verdict": "start"
+                },
+                {
+                  "step": 1,
+                  "remaining": 8458,
+                  "verdict": "good"
+                },
+                {
+                  "step": 2,
+                  "remaining": 4210,
+                  "verdict": "good"
+                },
+                {
+                  "step": 3,
+                  "remaining": 2501,
+                  "verdict": "good"
+                },
+                {
+                  "step": 4,
+                  "remaining": 1106,
+                  "verdict": "good"
+                },
+                {
+                  "step": 5,
+                  "remaining": 462,
+                  "verdict": "good"
+                },
+                {
+                  "step": 6,
+                  "remaining": 161,
+                  "verdict": "good"
+                },
+                {
+                  "step": 7,
+                  "remaining": 64,
+                  "verdict": "bad"
+                },
+                {
+                  "step": 8,
+                  "remaining": 38,
+                  "verdict": "good"
+                },
+                {
+                  "step": 9,
+                  "remaining": 5,
+                  "verdict": "good"
+                },
+                {
+                  "step": 10,
+                  "remaining": 1,
+                  "verdict": "good"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "issue": "pr201444",
+          "title": "X86 DAG combine low-bits constraint assertion",
+          "curves": {
+            "topk3": {
+              "initial_unresolved": 17742,
+              "points": [
+                {
+                  "step": 0,
+                  "remaining": 17742,
+                  "verdict": "start"
+                },
+                {
+                  "step": 1,
+                  "remaining": 11069,
+                  "verdict": "good"
+                },
+                {
+                  "step": 2,
+                  "remaining": 8428,
+                  "verdict": "good"
+                },
+                {
+                  "step": 3,
+                  "remaining": 3263,
+                  "verdict": "good"
+                },
+                {
+                  "step": 4,
+                  "remaining": 2044,
+                  "verdict": "good"
+                },
+                {
+                  "step": 5,
+                  "remaining": 1118,
+                  "verdict": "good"
+                },
+                {
+                  "step": 6,
+                  "remaining": 257,
+                  "verdict": "good"
+                },
+                {
+                  "step": 7,
+                  "remaining": 135,
+                  "verdict": "good"
+                },
+                {
+                  "step": 8,
+                  "remaining": 18,
+                  "verdict": "bad"
+                },
+                {
+                  "step": 9,
+                  "remaining": 8,
+                  "verdict": "good"
+                },
+                {
+                  "step": 10,
+                  "remaining": 3,
+                  "verdict": "good"
+                },
+                {
+                  "step": 11,
+                  "remaining": 1,
+                  "verdict": "good"
+                }
+              ]
+            },
+            "topk10": {
+              "initial_unresolved": 17742,
+              "points": [
+                {
+                  "step": 0,
+                  "remaining": 17742,
+                  "verdict": "start"
+                },
+                {
+                  "step": 1,
+                  "remaining": 11069,
+                  "verdict": "good"
+                },
+                {
+                  "step": 2,
+                  "remaining": 3263,
+                  "verdict": "good"
+                },
+                {
+                  "step": 3,
+                  "remaining": 1214,
+                  "verdict": "good"
+                },
+                {
+                  "step": 4,
+                  "remaining": 352,
+                  "verdict": "good"
+                },
+                {
+                  "step": 5,
+                  "remaining": 195,
+                  "verdict": "good"
+                },
+                {
+                  "step": 6,
+                  "remaining": 113,
+                  "verdict": "bad"
+                },
+                {
+                  "step": 7,
+                  "remaining": 53,
+                  "verdict": "good"
+                },
+                {
+                  "step": 8,
+                  "remaining": 18,
+                  "verdict": "bad"
+                },
+                {
+                  "step": 9,
+                  "remaining": 3,
+                  "verdict": "good"
+                },
+                {
+                  "step": 10,
+                  "remaining": 1,
+                  "verdict": "good"
+                }
+              ]
+            },
+            "topk20": {
+              "initial_unresolved": 17742,
+              "points": [
+                {
+                  "step": 0,
+                  "remaining": 17742,
+                  "verdict": "start"
+                },
+                {
+                  "step": 1,
+                  "remaining": 8040,
+                  "verdict": "good"
+                },
+                {
+                  "step": 2,
+                  "remaining": 3911,
+                  "verdict": "good"
+                },
+                {
+                  "step": 3,
+                  "remaining": 2285,
+                  "verdict": "good"
+                },
+                {
+                  "step": 4,
+                  "remaining": 786,
+                  "verdict": "good"
+                },
+                {
+                  "step": 5,
+                  "remaining": 304,
+                  "verdict": "good"
+                },
+                {
+                  "step": 6,
+                  "remaining": 135,
+                  "verdict": "good"
+                },
+                {
+                  "step": 7,
+                  "remaining": 68,
+                  "verdict": "bad"
+                },
+                {
+                  "step": 8,
+                  "remaining": 18,
+                  "verdict": "bad"
+                },
+                {
+                  "step": 9,
+                  "remaining": 1,
+                  "verdict": "good"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "issue": "pr193164",
+          "title": "LoopVectorize VPlan phi-like recipe ordering assertion",
+          "curves": {
+            "topk3": {
+              "initial_unresolved": 12559,
+              "points": [
+                {
+                  "step": 0,
+                  "remaining": 12559,
+                  "verdict": "start"
+                },
+                {
+                  "step": 1,
+                  "remaining": 8747,
+                  "verdict": "good"
+                },
+                {
+                  "step": 2,
+                  "remaining": 4261,
+                  "verdict": "good"
+                },
+                {
+                  "step": 3,
+                  "remaining": 2007,
+                  "verdict": "good"
+                },
+                {
+                  "step": 4,
+                  "remaining": 1015,
+                  "verdict": "good"
+                },
+                {
+                  "step": 5,
+                  "remaining": 798,
+                  "verdict": "good"
+                },
+                {
+                  "step": 6,
+                  "remaining": 542,
+                  "verdict": "good"
+                },
+                {
+                  "step": 7,
+                  "remaining": 197,
+                  "verdict": "bad"
+                },
+                {
+                  "step": 8,
+                  "remaining": 86,
+                  "verdict": "bad"
+                },
+                {
+                  "step": 9,
+                  "remaining": 40,
+                  "verdict": "bad"
+                },
+                {
+                  "step": 10,
+                  "remaining": 13,
+                  "verdict": "bad"
+                },
+                {
+                  "step": 11,
+                  "remaining": 5,
+                  "verdict": "good"
+                },
+                {
+                  "step": 12,
+                  "remaining": 3,
+                  "verdict": "good"
+                },
+                {
+                  "step": 13,
+                  "remaining": 1,
+                  "verdict": "good"
+                }
+              ]
+            },
+            "topk10": {
+              "initial_unresolved": 12559,
+              "points": [
+                {
+                  "step": 0,
+                  "remaining": 12559,
+                  "verdict": "start"
+                },
+                {
+                  "step": 1,
+                  "remaining": 8747,
+                  "verdict": "good"
+                },
+                {
+                  "step": 2,
+                  "remaining": 8746,
+                  "verdict": "skip"
+                },
+                {
+                  "step": 3,
+                  "remaining": 3267,
+                  "verdict": "good"
+                },
+                {
+                  "step": 4,
+                  "remaining": 2007,
+                  "verdict": "good"
+                },
+                {
+                  "step": 5,
+                  "remaining": 1015,
+                  "verdict": "good"
+                },
+                {
+                  "step": 6,
+                  "remaining": 623,
+                  "verdict": "good"
+                },
+                {
+                  "step": 7,
+                  "remaining": 302,
+                  "verdict": "bad"
+                },
+                {
+                  "step": 8,
+                  "remaining": 167,
+                  "verdict": "bad"
+                },
+                {
+                  "step": 9,
+                  "remaining": 94,
+                  "verdict": "good"
+                },
+                {
+                  "step": 10,
+                  "remaining": 23,
+                  "verdict": "bad"
+                },
+                {
+                  "step": 11,
+                  "remaining": 8,
+                  "verdict": "good"
+                },
+                {
+                  "step": 12,
+                  "remaining": 6,
+                  "verdict": "bad"
+                },
+                {
+                  "step": 13,
+                  "remaining": 3,
+                  "verdict": "good"
+                },
+                {
+                  "step": 14,
+                  "remaining": 1,
+                  "verdict": "good"
+                }
+              ]
+            },
+            "topk20": {
+              "initial_unresolved": 12559,
+              "points": [
+                {
+                  "step": 0,
+                  "remaining": 12559,
+                  "verdict": "start"
+                },
+                {
+                  "step": 1,
+                  "remaining": 8747,
+                  "verdict": "good"
+                },
+                {
+                  "step": 2,
+                  "remaining": 4261,
+                  "verdict": "good"
+                },
+                {
+                  "step": 3,
+                  "remaining": 1915,
+                  "verdict": "good"
+                },
+                {
+                  "step": 4,
+                  "remaining": 1015,
+                  "verdict": "good"
+                },
+                {
+                  "step": 5,
+                  "remaining": 559,
+                  "verdict": "bad"
+                },
+                {
+                  "step": 6,
+                  "remaining": 218,
+                  "verdict": "good"
+                },
+                {
+                  "step": 7,
+                  "remaining": 94,
+                  "verdict": "good"
+                },
+                {
+                  "step": 8,
+                  "remaining": 29,
+                  "verdict": "bad"
+                },
+                {
+                  "step": 9,
+                  "remaining": 22,
+                  "verdict": "bad"
+                },
+                {
+                  "step": 10,
+                  "remaining": 14,
+                  "verdict": "good"
+                },
+                {
+                  "step": 11,
+                  "remaining": 13,
+                  "verdict": "bad"
+                },
+                {
+                  "step": 12,
+                  "remaining": 5,
+                  "verdict": "good"
+                },
+                {
+                  "step": 13,
+                  "remaining": 3,
+                  "verdict": "good"
+                },
+                {
+                  "step": 14,
+                  "remaining": 1,
+                  "verdict": "good"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "issue": "pr50304",
+          "title": "APFloat/ConstantFold representability assertion",
+          "curves": {
+            "topk3": {
+              "initial_unresolved": 14311,
+              "points": [
+                {
+                  "step": 0,
+                  "remaining": 14311,
+                  "verdict": "start"
+                },
+                {
+                  "step": 1,
+                  "remaining": 4262,
+                  "verdict": "good"
+                },
+                {
+                  "step": 2,
+                  "remaining": 2422,
+                  "verdict": "bad"
+                },
+                {
+                  "step": 3,
+                  "remaining": 1636,
+                  "verdict": "good"
+                },
+                {
+                  "step": 4,
+                  "remaining": 355,
+                  "verdict": "bad"
+                },
+                {
+                  "step": 5,
+                  "remaining": 202,
+                  "verdict": "bad"
+                },
+                {
+                  "step": 6,
+                  "remaining": 103,
+                  "verdict": "bad"
+                },
+                {
+                  "step": 7,
+                  "remaining": 26,
+                  "verdict": "good"
+                },
+                {
+                  "step": 8,
+                  "remaining": 1,
+                  "verdict": "good"
+                }
+              ]
+            },
+            "topk10": {
+              "initial_unresolved": 14311,
+              "points": [
+                {
+                  "step": 0,
+                  "remaining": 14311,
+                  "verdict": "start"
+                },
+                {
+                  "step": 1,
+                  "remaining": 6569,
+                  "verdict": "good"
+                },
+                {
+                  "step": 2,
+                  "remaining": 3448,
+                  "verdict": "bad"
+                },
+                {
+                  "step": 3,
+                  "remaining": 1439,
+                  "verdict": "good"
+                },
+                {
+                  "step": 4,
+                  "remaining": 329,
+                  "verdict": "good"
+                },
+                {
+                  "step": 5,
+                  "remaining": 176,
+                  "verdict": "bad"
+                },
+                {
+                  "step": 6,
+                  "remaining": 77,
+                  "verdict": "bad"
+                },
+                {
+                  "step": 7,
+                  "remaining": 26,
+                  "verdict": "good"
+                },
+                {
+                  "step": 8,
+                  "remaining": 6,
+                  "verdict": "good"
+                },
+                {
+                  "step": 9,
+                  "remaining": 2,
+                  "verdict": "good"
+                },
+                {
+                  "step": 10,
+                  "remaining": 1,
+                  "verdict": "good"
+                }
+              ]
+            },
+            "topk20": {
+              "initial_unresolved": 14311,
+              "points": [
+                {
+                  "step": 0,
+                  "remaining": 14311,
+                  "verdict": "start"
+                },
+                {
+                  "step": 1,
+                  "remaining": 6569,
+                  "verdict": "good"
+                },
+                {
+                  "step": 2,
+                  "remaining": 3448,
+                  "verdict": "bad"
+                },
+                {
+                  "step": 3,
+                  "remaining": 1439,
+                  "verdict": "good"
+                },
+                {
+                  "step": 4,
+                  "remaining": 329,
+                  "verdict": "good"
+                },
+                {
+                  "step": 5,
+                  "remaining": 145,
+                  "verdict": "bad"
+                },
+                {
+                  "step": 6,
+                  "remaining": 77,
+                  "verdict": "bad"
+                },
+                {
+                  "step": 7,
+                  "remaining": 26,
+                  "verdict": "good"
+                },
+                {
+                  "step": 8,
+                  "remaining": 6,
+                  "verdict": "good"
+                },
+                {
+                  "step": 9,
+                  "remaining": 2,
+                  "verdict": "good"
+                },
+                {
+                  "step": 10,
+                  "remaining": 1,
+                  "verdict": "good"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "issue": "pr50585",
+          "title": "Optimizer verifier domination failure",
+          "curves": {
+            "topk3": {
+              "initial_unresolved": 16855,
+              "points": [
+                {
+                  "step": 0,
+                  "remaining": 16855,
+                  "verdict": "start"
+                },
+                {
+                  "step": 1,
+                  "remaining": 8882,
+                  "verdict": "good"
+                },
+                {
+                  "step": 2,
+                  "remaining": 3254,
+                  "verdict": "good"
+                },
+                {
+                  "step": 3,
+                  "remaining": 1582,
+                  "verdict": "bad"
+                },
+                {
+                  "step": 4,
+                  "remaining": 352,
+                  "verdict": "good"
+                },
+                {
+                  "step": 5,
+                  "remaining": 195,
+                  "verdict": "good"
+                },
+                {
+                  "step": 6,
+                  "remaining": 170,
+                  "verdict": "good"
+                },
+                {
+                  "step": 7,
+                  "remaining": 127,
+                  "verdict": "bad"
+                },
+                {
+                  "step": 8,
+                  "remaining": 25,
+                  "verdict": "bad"
+                },
+                {
+                  "step": 9,
+                  "remaining": 13,
+                  "verdict": "good"
+                },
+                {
+                  "step": 10,
+                  "remaining": 3,
+                  "verdict": "good"
+                },
+                {
+                  "step": 11,
+                  "remaining": 1,
+                  "verdict": "good"
+                }
+              ]
+            },
+            "topk10": {
+              "initial_unresolved": 16855,
+              "points": [
+                {
+                  "step": 0,
+                  "remaining": 16855,
+                  "verdict": "start"
+                },
+                {
+                  "step": 1,
+                  "remaining": 8222,
+                  "verdict": "good"
+                },
+                {
+                  "step": 2,
+                  "remaining": 3252,
+                  "verdict": "good"
+                },
+                {
+                  "step": 3,
+                  "remaining": 1580,
+                  "verdict": "bad"
+                },
+                {
+                  "step": 4,
+                  "remaining": 611,
+                  "verdict": "good"
+                },
+                {
+                  "step": 5,
+                  "remaining": 316,
+                  "verdict": "good"
+                },
+                {
+                  "step": 6,
+                  "remaining": 188,
+                  "verdict": "good"
+                },
+                {
+                  "step": 7,
+                  "remaining": 176,
+                  "verdict": "good"
+                },
+                {
+                  "step": 8,
+                  "remaining": 31,
+                  "verdict": "bad"
+                },
+                {
+                  "step": 9,
+                  "remaining": 27,
+                  "verdict": "good"
+                },
+                {
+                  "step": 10,
+                  "remaining": 16,
+                  "verdict": "good"
+                },
+                {
+                  "step": 11,
+                  "remaining": 13,
+                  "verdict": "good"
+                },
+                {
+                  "step": 12,
+                  "remaining": 5,
+                  "verdict": "good"
+                },
+                {
+                  "step": 13,
+                  "remaining": 2,
+                  "verdict": "good"
+                },
+                {
+                  "step": 14,
+                  "remaining": 1,
+                  "verdict": "good"
+                }
+              ]
+            },
+            "topk20": {
+              "initial_unresolved": 16855,
+              "points": [
+                {
+                  "step": 0,
+                  "remaining": 16855,
+                  "verdict": "start"
+                },
+                {
+                  "step": 1,
+                  "remaining": 8222,
+                  "verdict": "good"
+                },
+                {
+                  "step": 2,
+                  "remaining": 3252,
+                  "verdict": "good"
+                },
+                {
+                  "step": 3,
+                  "remaining": 1852,
+                  "verdict": "good"
+                },
+                {
+                  "step": 4,
+                  "remaining": 1261,
+                  "verdict": "bad"
+                },
+                {
+                  "step": 5,
+                  "remaining": 520,
+                  "verdict": "bad"
+                },
+                {
+                  "step": 6,
+                  "remaining": 137,
+                  "verdict": "bad"
+                },
+                {
+                  "step": 7,
+                  "remaining": 118,
+                  "verdict": "good"
+                },
+                {
+                  "step": 8,
+                  "remaining": 66,
+                  "verdict": "bad"
+                },
+                {
+                  "step": 9,
+                  "remaining": 16,
+                  "verdict": "bad"
+                },
+                {
+                  "step": 10,
+                  "remaining": 5,
+                  "verdict": "good"
+                },
+                {
+                  "step": 11,
+                  "remaining": 2,
+                  "verdict": "good"
+                },
+                {
+                  "step": 12,
+                  "remaining": 1,
+                  "verdict": "good"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "issue": "pr48154",
+          "title": "InstCombine/Attributor verifier incompatible attributes crash",
+          "curves": {
+            "topk3": {
+              "initial_unresolved": 17273,
+              "points": [
+                {
+                  "step": 0,
+                  "remaining": 17273,
+                  "verdict": "start"
+                },
+                {
+                  "step": 1,
+                  "remaining": 4540,
+                  "verdict": "bad"
+                },
+                {
+                  "step": 2,
+                  "remaining": 1094,
+                  "verdict": "good"
+                },
+                {
+                  "step": 3,
+                  "remaining": 710,
+                  "verdict": "good"
+                },
+                {
+                  "step": 4,
+                  "remaining": 413,
+                  "verdict": "good"
+                },
+                {
+                  "step": 5,
+                  "remaining": 147,
+                  "verdict": "good"
+                },
+                {
+                  "step": 6,
+                  "remaining": 125,
+                  "verdict": "bad"
+                },
+                {
+                  "step": 7,
+                  "remaining": 88,
+                  "verdict": "bad"
+                },
+                {
+                  "step": 8,
+                  "remaining": 62,
+                  "verdict": "bad"
+                },
+                {
+                  "step": 9,
+                  "remaining": 33,
+                  "verdict": "good"
+                },
+                {
+                  "step": 10,
+                  "remaining": 18,
+                  "verdict": "bad"
+                },
+                {
+                  "step": 11,
+                  "remaining": 11,
+                  "verdict": "bad"
+                },
+                {
+                  "step": 12,
+                  "remaining": 8,
+                  "verdict": "bad"
+                },
+                {
+                  "step": 13,
+                  "remaining": 4,
+                  "verdict": "good"
+                },
+                {
+                  "step": 14,
+                  "remaining": 2,
+                  "verdict": "good"
+                },
+                {
+                  "step": 15,
+                  "remaining": 1,
+                  "verdict": "good"
+                }
+              ]
+            },
+            "topk10": {
+              "initial_unresolved": 17273,
+              "points": [
+                {
+                  "step": 0,
+                  "remaining": 17273,
+                  "verdict": "start"
+                },
+                {
+                  "step": 1,
+                  "remaining": 4540,
+                  "verdict": "bad"
+                },
+                {
+                  "step": 2,
+                  "remaining": 2456,
+                  "verdict": "good"
+                },
+                {
+                  "step": 3,
+                  "remaining": 1094,
+                  "verdict": "good"
+                },
+                {
+                  "step": 4,
+                  "remaining": 680,
+                  "verdict": "good"
+                },
+                {
+                  "step": 5,
+                  "remaining": 261,
+                  "verdict": "good"
+                },
+                {
+                  "step": 6,
+                  "remaining": 202,
+                  "verdict": "bad"
+                },
+                {
+                  "step": 7,
+                  "remaining": 134,
+                  "verdict": "good"
+                },
+                {
+                  "step": 8,
+                  "remaining": 110,
+                  "verdict": "good"
+                },
+                {
+                  "step": 9,
+                  "remaining": 88,
+                  "verdict": "good"
+                },
+                {
+                  "step": 10,
+                  "remaining": 54,
+                  "verdict": "bad"
+                },
+                {
+                  "step": 11,
+                  "remaining": 37,
+                  "verdict": "bad"
+                },
+                {
+                  "step": 12,
+                  "remaining": 28,
+                  "verdict": "good"
+                },
+                {
+                  "step": 13,
+                  "remaining": 8,
+                  "verdict": "good"
+                },
+                {
+                  "step": 14,
+                  "remaining": 4,
+                  "verdict": "good"
+                },
+                {
+                  "step": 15,
+                  "remaining": 1,
+                  "verdict": "good"
+                }
+              ]
+            },
+            "topk20": {
+              "initial_unresolved": 17273,
+              "points": [
+                {
+                  "step": 0,
+                  "remaining": 17273,
+                  "verdict": "start"
+                },
+                {
+                  "step": 1,
+                  "remaining": 7878,
+                  "verdict": "bad"
+                },
+                {
+                  "step": 2,
+                  "remaining": 4540,
+                  "verdict": "bad"
+                },
+                {
+                  "step": 3,
+                  "remaining": 1646,
+                  "verdict": "good"
+                },
+                {
+                  "step": 4,
+                  "remaining": 880,
+                  "verdict": "good"
+                },
+                {
+                  "step": 5,
+                  "remaining": 413,
+                  "verdict": "good"
+                },
+                {
+                  "step": 6,
+                  "remaining": 221,
+                  "verdict": "good"
+                },
+                {
+                  "step": 7,
+                  "remaining": 147,
+                  "verdict": "good"
+                },
+                {
+                  "step": 8,
+                  "remaining": 105,
+                  "verdict": "bad"
+                },
+                {
+                  "step": 9,
+                  "remaining": 83,
+                  "verdict": "bad"
+                },
+                {
+                  "step": 10,
+                  "remaining": 42,
+                  "verdict": "bad"
+                },
+                {
+                  "step": 11,
+                  "remaining": 37,
+                  "verdict": "bad"
+                },
+                {
+                  "step": 12,
+                  "remaining": 8,
+                  "verdict": "good"
+                },
+                {
+                  "step": 13,
+                  "remaining": 4,
+                  "verdict": "good"
+                },
+                {
+                  "step": 14,
+                  "remaining": 1,
+                  "verdict": "good"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "issue": "pr49535",
+          "title": "ValueTracking invertible operand assertion",
+          "curves": {
+            "topk3": {
+              "initial_unresolved": 9089,
+              "points": [
+                {
+                  "step": 0,
+                  "remaining": 9089,
+                  "verdict": "start"
+                },
+                {
+                  "step": 1,
+                  "remaining": 3875,
+                  "verdict": "good"
+                },
+                {
+                  "step": 2,
+                  "remaining": 2643,
+                  "verdict": "bad"
+                },
+                {
+                  "step": 3,
+                  "remaining": 1514,
+                  "verdict": "good"
+                },
+                {
+                  "step": 4,
+                  "remaining": 284,
+                  "verdict": "good"
+                },
+                {
+                  "step": 5,
+                  "remaining": 175,
+                  "verdict": "good"
+                },
+                {
+                  "step": 6,
+                  "remaining": 138,
+                  "verdict": "bad"
+                },
+                {
+                  "step": 7,
+                  "remaining": 29,
+                  "verdict": "good"
+                },
+                {
+                  "step": 8,
+                  "remaining": 22,
+                  "verdict": "bad"
+                },
+                {
+                  "step": 9,
+                  "remaining": 5,
+                  "verdict": "good"
+                },
+                {
+                  "step": 10,
+                  "remaining": 2,
+                  "verdict": "good"
+                },
+                {
+                  "step": 11,
+                  "remaining": 1,
+                  "verdict": "good"
+                }
+              ]
+            },
+            "topk10": {
+              "initial_unresolved": 9089,
+              "points": [
+                {
+                  "step": 0,
+                  "remaining": 9089,
+                  "verdict": "start"
+                },
+                {
+                  "step": 1,
+                  "remaining": 3875,
+                  "verdict": "good"
+                },
+                {
+                  "step": 2,
+                  "remaining": 1516,
+                  "verdict": "good"
+                },
+                {
+                  "step": 3,
+                  "remaining": 814,
+                  "verdict": "bad"
+                },
+                {
+                  "step": 4,
+                  "remaining": 386,
+                  "verdict": "bad"
+                },
+                {
+                  "step": 5,
+                  "remaining": 247,
+                  "verdict": "bad"
+                },
+                {
+                  "step": 6,
+                  "remaining": 118,
+                  "verdict": "good"
+                },
+                {
+                  "step": 7,
+                  "remaining": 29,
+                  "verdict": "good"
+                },
+                {
+                  "step": 8,
+                  "remaining": 16,
+                  "verdict": "good"
+                },
+                {
+                  "step": 9,
+                  "remaining": 9,
+                  "verdict": "bad"
+                },
+                {
+                  "step": 10,
+                  "remaining": 7,
+                  "verdict": "good"
+                },
+                {
+                  "step": 11,
+                  "remaining": 5,
+                  "verdict": "good"
+                },
+                {
+                  "step": 12,
+                  "remaining": 1,
+                  "verdict": "good"
+                }
+              ]
+            },
+            "topk20": {
+              "initial_unresolved": 9089,
+              "points": [
+                {
+                  "step": 0,
+                  "remaining": 9089,
+                  "verdict": "start"
+                },
+                {
+                  "step": 1,
+                  "remaining": 3875,
+                  "verdict": "good"
+                },
+                {
+                  "step": 2,
+                  "remaining": 2055,
+                  "verdict": "good"
+                },
+                {
+                  "step": 3,
+                  "remaining": 1163,
+                  "verdict": "bad"
+                },
+                {
+                  "step": 4,
+                  "remaining": 515,
+                  "verdict": "good"
+                },
+                {
+                  "step": 5,
+                  "remaining": 373,
+                  "verdict": "good"
+                },
+                {
+                  "step": 6,
+                  "remaining": 135,
+                  "verdict": "bad"
+                },
+                {
+                  "step": 7,
+                  "remaining": 24,
+                  "verdict": "bad"
+                },
+                {
+                  "step": 8,
+                  "remaining": 20,
+                  "verdict": "bad"
+                },
+                {
+                  "step": 9,
+                  "remaining": 10,
+                  "verdict": "bad"
+                },
+                {
+                  "step": 10,
+                  "remaining": 3,
+                  "verdict": "good"
+                },
+                {
+                  "step": 11,
+                  "remaining": 1,
+                  "verdict": "good"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "issue": "pr52635",
+          "title": "AArch64 XRay MCSymbolRefExpr assertion",
+          "curves": {
+            "topk3": {
+              "initial_unresolved": 13008,
+              "points": [
+                {
+                  "step": 0,
+                  "remaining": 13008,
+                  "verdict": "start"
+                },
+                {
+                  "step": 1,
+                  "remaining": 4266,
+                  "verdict": "good"
+                },
+                {
+                  "step": 2,
+                  "remaining": 2673,
+                  "verdict": "good"
+                },
+                {
+                  "step": 3,
+                  "remaining": 1295,
+                  "verdict": "good"
+                },
+                {
+                  "step": 4,
+                  "remaining": 515,
+                  "verdict": "good"
+                },
+                {
+                  "step": 5,
+                  "remaining": 134,
+                  "verdict": "good"
+                },
+                {
+                  "step": 6,
+                  "remaining": 49,
+                  "verdict": "good"
+                },
+                {
+                  "step": 7,
+                  "remaining": 2,
+                  "verdict": "good"
+                },
+                {
+                  "step": 8,
+                  "remaining": 2,
+                  "verdict": "bad"
+                },
+                {
+                  "step": 9,
+                  "remaining": 1,
+                  "verdict": "good"
+                }
+              ]
+            },
+            "topk10": {
+              "initial_unresolved": 13008,
+              "points": [
+                {
+                  "step": 0,
+                  "remaining": 13008,
+                  "verdict": "start"
+                },
+                {
+                  "step": 1,
+                  "remaining": 5727,
+                  "verdict": "good"
+                },
+                {
+                  "step": 2,
+                  "remaining": 2673,
+                  "verdict": "good"
+                },
+                {
+                  "step": 3,
+                  "remaining": 992,
+                  "verdict": "good"
+                },
+                {
+                  "step": 4,
+                  "remaining": 540,
+                  "verdict": "good"
+                },
+                {
+                  "step": 5,
+                  "remaining": 246,
+                  "verdict": "good"
+                },
+                {
+                  "step": 6,
+                  "remaining": 60,
+                  "verdict": "good"
+                },
+                {
+                  "step": 7,
+                  "remaining": 47,
+                  "verdict": "good"
+                },
+                {
+                  "step": 8,
+                  "remaining": 4,
+                  "verdict": "good"
+                },
+                {
+                  "step": 9,
+                  "remaining": 2,
+                  "verdict": "good"
+                },
+                {
+                  "step": 10,
+                  "remaining": 2,
+                  "verdict": "bad"
+                },
+                {
+                  "step": 11,
+                  "remaining": 1,
+                  "verdict": "good"
+                }
+              ]
+            },
+            "topk20": {
+              "initial_unresolved": 13008,
+              "points": [
+                {
+                  "step": 0,
+                  "remaining": 13008,
+                  "verdict": "start"
+                },
+                {
+                  "step": 1,
+                  "remaining": 5727,
+                  "verdict": "good"
+                },
+                {
+                  "step": 2,
+                  "remaining": 2696,
+                  "verdict": "good"
+                },
+                {
+                  "step": 3,
+                  "remaining": 1595,
+                  "verdict": "good"
+                },
+                {
+                  "step": 4,
+                  "remaining": 755,
+                  "verdict": "good"
+                },
+                {
+                  "step": 5,
+                  "remaining": 420,
+                  "verdict": "good"
+                },
+                {
+                  "step": 6,
+                  "remaining": 134,
+                  "verdict": "good"
+                },
+                {
+                  "step": 7,
+                  "remaining": 47,
+                  "verdict": "good"
+                },
+                {
+                  "step": 8,
+                  "remaining": 4,
+                  "verdict": "good"
+                },
+                {
+                  "step": 9,
+                  "remaining": 2,
+                  "verdict": "good"
+                },
+                {
+                  "step": 10,
+                  "remaining": 2,
+                  "verdict": "bad"
+                },
+                {
+                  "step": 11,
+                  "remaining": 1,
+                  "verdict": "good"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "issue": "pr200987",
+          "title": "Clang optimizer crash in SCEVExpander for asm goto loop",
+          "curves": {
+            "topk3": {
+              "initial_unresolved": 133662,
+              "points": [
+                {
+                  "step": 0,
+                  "remaining": 133662,
+                  "verdict": "start"
+                },
+                {
+                  "step": 1,
+                  "remaining": 61354,
+                  "verdict": "bad"
+                },
+                {
+                  "step": 2,
+                  "remaining": 30549,
+                  "verdict": "bad"
+                },
+                {
+                  "step": 3,
+                  "remaining": 15028,
+                  "verdict": "bad"
+                },
+                {
+                  "step": 4,
+                  "remaining": 3487,
+                  "verdict": "bad"
+                },
+                {
+                  "step": 5,
+                  "remaining": 1155,
+                  "verdict": "good"
+                },
+                {
+                  "step": 6,
+                  "remaining": 547,
+                  "verdict": "bad"
+                },
+                {
+                  "step": 7,
+                  "remaining": 296,
+                  "verdict": "bad"
+                },
+                {
+                  "step": 8,
+                  "remaining": 235,
+                  "verdict": "good"
+                },
+                {
+                  "step": 9,
+                  "remaining": 109,
+                  "verdict": "bad"
+                },
+                {
+                  "step": 10,
+                  "remaining": 50,
+                  "verdict": "good"
+                },
+                {
+                  "step": 11,
+                  "remaining": 1,
+                  "verdict": "good"
+                }
+              ]
+            },
+            "topk10": {
+              "initial_unresolved": 133662,
+              "points": [
+                {
+                  "step": 0,
+                  "remaining": 133662,
+                  "verdict": "start"
+                },
+                {
+                  "step": 1,
+                  "remaining": 61354,
+                  "verdict": "bad"
+                },
+                {
+                  "step": 2,
+                  "remaining": 30463,
+                  "verdict": "bad"
+                },
+                {
+                  "step": 3,
+                  "remaining": 13549,
+                  "verdict": "bad"
+                },
+                {
+                  "step": 4,
+                  "remaining": 8257,
+                  "verdict": "bad"
+                },
+                {
+                  "step": 5,
+                  "remaining": 4713,
+                  "verdict": "bad"
+                },
+                {
+                  "step": 6,
+                  "remaining": 2381,
+                  "verdict": "good"
+                },
+                {
+                  "step": 7,
+                  "remaining": 1315,
+                  "verdict": "bad"
+                },
+                {
+                  "step": 8,
+                  "remaining": 547,
+                  "verdict": "bad"
+                },
+                {
+                  "step": 9,
+                  "remaining": 170,
+                  "verdict": "bad"
+                },
+                {
+                  "step": 10,
+                  "remaining": 76,
+                  "verdict": "good"
+                },
+                {
+                  "step": 11,
+                  "remaining": 3,
+                  "verdict": "good"
+                },
+                {
+                  "step": 12,
+                  "remaining": 1,
+                  "verdict": "good"
+                }
+              ]
+            },
+            "topk20": {
+              "initial_unresolved": 133662,
+              "points": [
+                {
+                  "step": 0,
+                  "remaining": 133662,
+                  "verdict": "start"
+                },
+                {
+                  "step": 1,
+                  "remaining": 61354,
+                  "verdict": "bad"
+                },
+                {
+                  "step": 2,
+                  "remaining": 26075,
+                  "verdict": "bad"
+                },
+                {
+                  "step": 3,
+                  "remaining": 13870,
+                  "verdict": "bad"
+                },
+                {
+                  "step": 4,
+                  "remaining": 8257,
+                  "verdict": "bad"
+                },
+                {
+                  "step": 5,
+                  "remaining": 4768,
+                  "verdict": "bad"
+                },
+                {
+                  "step": 6,
+                  "remaining": 2702,
+                  "verdict": "bad"
+                },
+                {
+                  "step": 7,
+                  "remaining": 1292,
+                  "verdict": "good"
+                },
+                {
+                  "step": 8,
+                  "remaining": 451,
+                  "verdict": "good"
+                },
+                {
+                  "step": 9,
+                  "remaining": 251,
+                  "verdict": "bad"
+                },
+                {
+                  "step": 10,
+                  "remaining": 109,
+                  "verdict": "good"
+                },
+                {
+                  "step": 11,
+                  "remaining": 7,
+                  "verdict": "good"
+                },
+                {
+                  "step": 12,
+                  "remaining": 3,
+                  "verdict": "good"
+                },
+                {
+                  "step": 13,
+                  "remaining": 1,
+                  "verdict": "good"
+                }
+              ]
+            }
+          }
+        }
+      ]
     },
     "keywords": {
       "best_parent_configuration": "parent-diff + LLM extraction top-k3",

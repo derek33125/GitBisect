@@ -44,6 +44,13 @@
         <div class="keyword-vocab-grid" id="keyword-vocab"></div>
         <div class="table-scroll"><table class="cmp focused-table"><thead><tr><th class="left">Issue</th><th>git bisect</th><th>Parent+LLM top-k3</th><th>Issue-specific</th><th>Shared crash</th><th>Weak maintenance</th></tr></thead><tbody id="keyword-body"></tbody></table></div>
       </section>
+      <section class="section">
+        <div class="page-kicker">03 / Search efficiency</div>
+        <h2>Convergence by issue</h2>
+        <p class="section-sub">Each chart starts at the validated interval size and tracks unresolved commits after every runner-backed step. The y-axis is logarithmic so late-stage differences remain visible. Git bisect is omitted because its per-step histories are not preserved in the scoped archive.</p>
+        <div class="convergence-legend" id="convergence-legend"></div>
+        <div class="convergence-grid" id="convergence-charts"></div>
+      </section>
       <section class="section page-links"><a class="next-page" href="./index.html"><span>Back</span><strong>Overview and primary results</strong><b>&larr;</b></a><a class="next-page" href="./runtime.html"><span>Next</span><strong>Runtime architecture and concrete LLM I/O</strong><b>&rarr;</b></a></section>
     </main>
     <footer class="site-footer"><div class="wrap"><p id="footer-note"></p></div></footer>

@@ -17,6 +17,8 @@ assert.match(focusedResults, /Keyword robustness/, "focused page must show keywo
 assert.match(focusedResults, /id="topk-body"/, "focused page needs a top-k result table");
 assert.match(focusedResults, /id="keyword-body"/, "focused page needs a keyword result table");
 assert.match(focusedResults, /id="keyword-vocab"/, "focused page must show keyword vocabularies");
+assert.match(focusedResults, /Convergence by issue/, "focused page must show per-issue convergence charts");
+assert.match(focusedResults, /id="convergence-charts"/, "focused page needs a convergence chart container");
 assert.match(runtime, /LM-bisect runtime architecture/, "runtime architecture heading is missing");
 assert.match(runtime, /What enters and leaves the LLM/, "agent I\/O heading is missing");
 assert.match(runtime, /semantic_score/, "model score JSON field is missing");
@@ -56,6 +58,16 @@ assert.equal(site.focused_comparisons.topk.aggregate.topk10.avg_steps, 12.2);
 assert.equal(site.focused_comparisons.topk.aggregate.topk20.avg_steps, 11.4);
 assert.equal(site.focused_comparisons.topk.aggregate.topk20.first_bad_matches, 9);
 assert.equal(site.focused_comparisons.topk.aggregate.topk10.skip_rows, 1);
+assert.equal(site.focused_comparisons.convergence.rows.length, 10, "convergence charts must cover scoped 10");
+for (const row of site.focused_comparisons.convergence.rows) {
+  for (const key of ["topk3", "topk10", "topk20"]) {
+    const curve = row.curves[key];
+    assert.ok(curve.points.length >= 2, `${row.issue} ${key} must include start and runner steps`);
+    assert.equal(curve.points[0].step, 0, `${row.issue} ${key} must start at step zero`);
+    assert.ok(curve.points[0].remaining > 1, `${row.issue} ${key} must retain the initial interval size`);
+    assert.equal(curve.points.at(-1).remaining, 1, `${row.issue} ${key} must end at one candidate`);
+  }
+}
 assert.equal(site.focused_comparisons.keywords.rows.length, 10, "keyword comparison must cover scoped 10");
 assert.equal(site.focused_comparisons.keywords.aggregate.best_parent_llm.avg_steps, 11);
 assert.deepEqual(site.focused_comparisons.keywords.weak_maintenance.terms, [

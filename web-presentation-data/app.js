@@ -326,11 +326,87 @@ function renderKeywordComparison(keywords) {
     .join("");
 }
 
+const CONVERGENCE_COLORS = {
+  topk3: "#71c5e8",
+  topk10: "#edb46a",
+  topk20: "#8fd399",
+};
+
+const CONVERGENCE_LABELS = {
+  topk3: "top-k3",
+  topk10: "top-k10",
+  topk20: "top-k20",
+};
+
+function convergencePath(points, xForStep, yForRemaining) {
+  return points.map((point, index) => `${index ? "L" : "M"}${xForStep(point.step).toFixed(1)},${yForRemaining(point.remaining).toFixed(1)}`).join(" ");
+}
+
+function renderConvergenceCharts(convergence) {
+  const legend = $("#convergence-legend");
+  const charts = $("#convergence-charts");
+  if (!legend || !charts) return;
+  const keys = ["topk3", "topk10", "topk20"];
+  legend.innerHTML = keys
+    .map(
+      (key) =>
+        `<span><i style="background:${CONVERGENCE_COLORS[key]}"></i>${esc(CONVERGENCE_LABELS[key])}</span>`
+    )
+    .join("");
+  charts.innerHTML = convergence.rows
+    .map((row) => {
+      const curves = keys.map((key) => row.curves[key]);
+      const maxStep = Math.max(...curves.flatMap((curve) => curve.points.map((point) => point.step)));
+      const maxRemaining = Math.max(...curves.map((curve) => curve.initial_unresolved));
+      const width = 500;
+      const height = 254;
+      const left = 52;
+      const right = 16;
+      const top = 18;
+      const bottom = 34;
+      const plotWidth = width - left - right;
+      const plotHeight = height - top - bottom;
+      const maxLog = Math.max(1, Math.log10(maxRemaining));
+      const xForStep = (step) => left + (step / Math.max(1, maxStep)) * plotWidth;
+      const yForRemaining = (remaining) => top + ((maxLog - Math.log10(Math.max(1, remaining))) / maxLog) * plotHeight;
+      const gridValues = [...new Set([1, 10, 100, 1000, 10000, maxRemaining].filter((value) => value <= maxRemaining))].sort(
+        (a, b) => a - b
+      );
+      const grid = gridValues
+        .map((value) => {
+          const y = yForRemaining(value).toFixed(1);
+          return `<line x1="${left}" y1="${y}" x2="${width - right}" y2="${y}" class="conv-grid" /><text x="${left - 8}" y="${Number(y) + 3}" class="conv-axis" text-anchor="end">${esc(fmtInt(value))}</text>`;
+        })
+        .join("");
+      const xTicks = Array.from(new Set([0, Math.ceil(maxStep / 2), maxStep]));
+      const xAxis = xTicks
+        .map((step) => `<text x="${xForStep(step)}" y="${height - 10}" class="conv-axis" text-anchor="middle">${step}</text>`)
+        .join("");
+      const lines = keys
+        .map((key) => {
+          const curve = row.curves[key];
+          const color = CONVERGENCE_COLORS[key];
+          const path = convergencePath(curve.points, xForStep, yForRemaining);
+          const dots = curve.points
+            .map(
+              (point) =>
+                `<circle cx="${xForStep(point.step).toFixed(1)}" cy="${yForRemaining(point.remaining).toFixed(1)}" r="2.6" fill="${color}"><title>${esc(CONVERGENCE_LABELS[key])}: step ${point.step}, ${fmtInt(point.remaining)} commits remaining${point.verdict === "start" ? "" : `, ${point.verdict}`}</title></circle>`
+            )
+            .join("");
+          return `<path d="${path}" stroke="${color}" class="conv-line" />${dots}`;
+        })
+        .join("");
+      return `<article class="convergence-card"><h3>${esc(row.issue)}</h3><p>${esc(row.title)}</p><svg viewBox="0 0 ${width} ${height}" role="img" aria-label="${esc(row.issue)} unresolved commit window by model top-k"><text x="${left}" y="12" class="conv-axis">commits remaining</text>${grid}<line x1="${left}" y1="${top + plotHeight}" x2="${width - right}" y2="${top + plotHeight}" class="conv-axis-line" />${xAxis}<text x="${left + plotWidth / 2}" y="${height - 1}" class="conv-axis" text-anchor="middle">runner step</text>${lines}</svg></article>`;
+    })
+    .join("");
+}
+
 function renderFocusedComparisons() {
   const focused = state.data.focused_comparisons;
   if (!focused) return;
   renderTopkComparison(focused.topk);
   renderKeywordComparison(focused.keywords);
+  renderConvergenceCharts(focused.convergence);
 }
 
 function renderRuntimeExample() {

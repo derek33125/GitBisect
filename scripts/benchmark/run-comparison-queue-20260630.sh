@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-MODE="${1:?mode required: heuristic|general-heuristic|parent-extract|lastdiff-extract}"
+MODE="${1:?mode required: heuristic|general-heuristic|no-keyword-heuristic|parent-extract|lastdiff-extract}"
 LANE="${2:?lane label required}"
 shift 2
 ISSUES=("$@")
@@ -131,6 +131,17 @@ run_issue() {
         --llvm-dir "${wt}" \
         --scorer heuristic \
         --heuristic-version general \
+        --search-policy calibrated-posterior \
+        --observations "${obs}" \
+        --run-label "${LANE}" \
+        --max-steps 30
+      ;;
+    no-keyword-heuristic)
+      run_bisect_cmd "${PY}" tools/lm_bisect.py run-online \
+        --issue "${issue}" \
+        --llvm-dir "${wt}" \
+        --scorer heuristic \
+        --heuristic-version none \
         --search-policy calibrated-posterior \
         --observations "${obs}" \
         --run-label "${LANE}" \
