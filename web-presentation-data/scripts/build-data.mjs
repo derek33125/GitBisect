@@ -53,16 +53,16 @@ const TRACE_METHODS = [
 
 const TOPK_RUN_LABELS = {
   topk3: {
-    pr204559: "edu-scoped10-parent-extract-topk3-rerun-a-20260707a",
-    pr204589: "aws-scoped10-parent-extract-topk3-rerun-a-20260707a",
-    pr201444: "aws-scoped10-parent-extract-topk3-rerun-a-20260707a",
-    pr193164: "edu-scoped10-parent-extract-topk3-rerun-a-20260707a",
-    pr50304: "aws-scoped10-parent-extract-topk3-rerun-a-20260707a",
-    pr50585: "aws-scoped10-parent-extract-topk3-rerun-b-20260707a",
-    pr48154: "aws-scoped10-parent-extract-topk3-rerun-b-20260707a",
-    pr49535: "aws-scoped10-parent-extract-topk3-rerun-b-20260707a",
-    pr52635: "edu-scoped10-parent-extract-topk3-rerun-b-20260707a",
-    pr200987: "aws-scoped10-parent-extract-topk3-rerun-b-20260707a",
+    pr204559: "aws10-parent-llm600k-topk3-fresh-a-20260716a",
+    pr204589: "aws10-parent-llm600k-topk3-fresh-a-20260716a",
+    pr201444: "aws10-parent-llm600k-topk3-fresh-a-20260716a",
+    pr193164: "aws10-parent-llm600k-topk3-fresh-a-20260716a",
+    pr50304: "aws10-parent-llm600k-topk3-fresh-b-20260716a",
+    pr50585: "aws10-parent-llm600k-topk3-fresh-b-20260716a",
+    pr48154: "aws10-parent-llm600k-topk3-fresh-b-20260716a",
+    pr49535: "aws10-parent-llm600k-topk3-fresh-c-20260716a",
+    pr52635: "aws10-parent-llm600k-topk3-fresh-c-20260716a",
+    pr200987: "aws10-parent-llm600k-topk3-fresh-c-20260716a",
   },
   topk10: {
     pr204559: "aws10-parent-llm600k-topk10-a-20260715a",
@@ -89,6 +89,21 @@ const TOPK_RUN_LABELS = {
     pr200987: "aws10-parent-llm600k-topk20-hardened-b-20260715d",
   },
 };
+
+const TOPK_ISSUE_TYPES = [
+  {
+    label: "Analysis/IR correctness and verification",
+    issues: ["pr204559", "pr204589", "pr50304", "pr50585", "pr49535"],
+  },
+  {
+    label: "Transformation and loop optimization",
+    issues: ["pr193164", "pr48154", "pr200987"],
+  },
+  {
+    label: "Target lowering and MC",
+    issues: ["pr201444", "pr52635"],
+  },
+];
 
 const GENERAL_CRASH_TERMS = [
   "crash",
@@ -154,9 +169,23 @@ function stepAtOrBelow(run, threshold) {
   return point ? point.step : null;
 }
 
+function tailStepsAfter(run, threshold) {
+  const entryStep = stepAtOrBelow(run, threshold);
+  return entryStep === null ? null : run.steps - entryStep;
+}
+
+function phaseContractionRatio(run, threshold) {
+  const ratios = [];
+  for (const point of run.curve.points.slice(1)) {
+    if (point.verdict === "skip") continue;
+    const previous = run.curve.points[point.step - 1];
+    if (previous.remaining <= threshold) ratios.push(point.remaining / previous.remaining);
+  }
+  return ratios.length ? round(geometricMean(ratios)) : null;
+}
+
 function buildTopkSensitivity(topkRows) {
-  const referenceKey = "topk3";
-  const comparableKeys = ["topk10", "topk20"];
+  const keys = ["topk3", "topk10", "topk20"];
   const pairRows = topkRows.map((row) => {
     const topk3 = row.topk3;
     const topk10 = row.topk10;
@@ -195,7 +224,7 @@ function buildTopkSensitivity(topkRows) {
   const firstRatios = {};
   const perStepRatios = {};
   const lateStepRatios = {};
-  for (const key of comparableKeys) {
+  for (const key of keys) {
     const runs = topkRows.map((row) => row[key]);
     firstRatios[key] = average(
       runs.map((run) => run.curve.points[1].remaining / run.curve.initial_unresolved)
@@ -219,45 +248,82 @@ function buildTopkSensitivity(topkRows) {
   const topk20StepWins = pairStepDeltas.filter((value) => value < 0).length;
   const topk10StepWins = pairStepDeltas.filter((value) => value > 0).length;
   const stepTies = pairStepDeltas.filter((value) => value === 0).length;
-  const referenceRuns = topkRows.map((row) => row[referenceKey]);
-  const referenceRatios = [];
-  const referenceLateRatios = [];
-  for (const run of referenceRuns) {
-    const runnerPoints = run.curve.points.slice(1);
-    for (const point of runnerPoints) {
-      const previous = run.curve.points[point.step - 1];
-      if (point.verdict !== "skip") referenceRatios.push(point.remaining / previous.remaining);
-    }
-    for (const point of runnerPoints.slice(-4)) {
-      const previous = run.curve.points[point.step - 1];
-      if (point.verdict !== "skip") referenceLateRatios.push(point.remaining / previous.remaining);
-    }
-  }
+  const controlledRuns = topkRows.map((row) => row.topk3);
+  const thresholds = [1024, 256, 128, 32, 8].map((threshold) => {
+    const methods = Object.fromEntries(
+      keys.map((key) => {
+        const runs = topkRows.map((row) => row[key]);
+        return [key, {
+          mean_entry_step: average(runs.map((run) => stepAtOrBelow(run, threshold))),
+          mean_tail_steps: average(runs.map((run) => tailStepsAfter(run, threshold))),
+          mean_tail_ratio: average(
+            runs
+              .map((run) => phaseContractionRatio(run, threshold))
+              .filter((ratio) => ratio !== null)
+          ),
+        }];
+      })
+    );
+    const compareK3 = (otherKey) => {
+      const deltas = topkRows.map(
+        (row) => tailStepsAfter(row.topk3, threshold) - tailStepsAfter(row[otherKey], threshold)
+      );
+      return {
+        wins: deltas.filter((delta) => delta < 0).length,
+        ties: deltas.filter((delta) => delta === 0).length,
+        losses: deltas.filter((delta) => delta > 0).length,
+        mean_delta: average(deltas),
+      };
+    };
+    return {
+      threshold,
+      methods,
+      k3_vs_k10: compareK3("topk10"),
+      k3_vs_k20: compareK3("topk20"),
+    };
+  });
+  const issueTypeSummary = TOPK_ISSUE_TYPES.map((group) => {
+    const rows = topkRows.filter((row) => group.issues.includes(row.issue));
+    return {
+      label: group.label,
+      issues: group.issues,
+      count: rows.length,
+      methods: Object.fromEntries(
+        keys.map((key) => [key, {
+          mean_steps: average(rows.map((row) => row[key].steps)),
+          mean_first_ratio: average(
+            rows.map((row) => row[key].curve.points[1].remaining / row[key].curve.initial_unresolved)
+          ),
+          mean_tail_steps_at_128: average(rows.map((row) => tailStepsAfter(row[key], 128))),
+        }])
+      ),
+    };
+  });
   return {
     evidence_scope:
-      "The controlled frontier-size comparison is top-k10 versus top-k20: both use parent diffs, LLM extraction, trace-only observations, calibrated-posterior selection, and the 600k raw-diff cap. Top-k3 is shown separately because it used the earlier extraction revision.",
+      "All three rows use parent diffs, LLM extraction, trace-only observations, calibrated-posterior selection, and the 600k raw-diff cap. Fresh top-k3 runs use an empty AWS model-cache namespace; top-k10/top-k20 are selected completed earlier histories.",
     operational_default: "topk3",
     recommendation:
-      "Use top-k3 as the provisional operational default. Its archived run has the lowest mean build count, reaches the canonical boundary on all 10 scoped cases, and fits one scoring prompt. A fresh 600k-extraction, cache-isolated top-k3 rerun is queued to confirm this choice; leave the existing top-k10/top-k20 rows as historical 600k comparisons.",
+      "Use top-k3 as the provisional operational default. The fresh 600k run has the lowest observed mean build count, reaches the canonical boundary on all 10 scoped cases, and fits one scoring prompt. The three-way result remains exploratory until same-time replicated arms control provider/cache state.",
     limitations: [
-      "Top-k3 is included as an archived pre-600k reference, not as a controlled frontier-size comparison with top-k10/top-k20.",
+      "The fresh top-k3 arm removes the old 12k extraction-cap mismatch, but top-k10/top-k20 are earlier selected histories rather than same-time replications.",
       "Each top-k value changes the model-scored subset before calibrated-posterior selection; it is not only a context-budget parameter.",
       "Top-k20 uses two independent scoring prompts because the scorer batches at 12 candidates. Scores from separate prompts are not guaranteed to share a calibrated scale.",
       "The cache key is per candidate and diff mode, not per frontier cohort or observation state. Recorded token usage is therefore a lower bound when prior runs populate the cache.",
       "This is a fixed 10-issue exploratory set. The observed 0.8-step top-k20 advantage is directional, not statistically conclusive.",
     ],
-    pre600k_reference: {
-      key: referenceKey,
-      label: "top-k3 (pre-600k reference)",
-      extraction_revision: "12k raw-diff cap",
-      avg_steps: average(referenceRuns.map((run) => run.steps)),
-      median_steps: median(referenceRuns.map((run) => run.steps)),
+    controlled_topk3: {
+      key: "topk3",
+      label: "top-k3 (fresh 600k)",
+      extraction_revision: "600k raw-diff cap",
+      avg_steps: average(controlledRuns.map((run) => run.steps)),
+      median_steps: median(controlledRuns.map((run) => run.steps)),
       first_bad_matches: pairRows.filter((row) => row.topk3_matches_canonical).length,
       mean_first_step_remaining_ratio: average(
-        referenceRuns.map((run) => run.curve.points[1].remaining / run.curve.initial_unresolved)
+        controlledRuns.map((run) => run.curve.points[1].remaining / run.curve.initial_unresolved)
       ),
-      geometric_mean_per_step_remaining_ratio: round(geometricMean(referenceRatios)),
-      geometric_mean_last_four_step_remaining_ratio: round(geometricMean(referenceLateRatios)),
+      geometric_mean_per_step_remaining_ratio: perStepRatios.topk3,
+      geometric_mean_last_four_step_remaining_ratio: lateStepRatios.topk3,
     },
     comparable_pair: {
       left: "topk10",
@@ -275,6 +341,8 @@ function buildTopkSensitivity(topkRows) {
       topk10_scoring_batches_per_step: 1,
       topk20_scoring_batches_per_step: 2,
     },
+    phase_analysis: { thresholds },
+    issue_type_summary: issueTypeSummary,
     rows: pairRows,
   };
 }

@@ -56,18 +56,21 @@ assert.ok(
 );
 assert.equal(site.live_lanes.parent_llm_topk20.clean.length, 10, "latest top-k20 clean result count is stale");
 assert.equal(site.focused_comparisons.topk.rows.length, 10, "top-k comparison must cover scoped 10");
-assert.equal(site.focused_comparisons.topk.aggregate.topk3.avg_steps, 11);
+assert.equal(site.focused_comparisons.topk.aggregate.topk3.avg_steps, 11.1);
 assert.equal(site.focused_comparisons.topk.aggregate.topk10.avg_steps, 12.2);
 assert.equal(site.focused_comparisons.topk.aggregate.topk20.avg_steps, 11.4);
 assert.equal(site.focused_comparisons.topk.aggregate.topk20.first_bad_matches, 9);
 assert.equal(site.focused_comparisons.topk.aggregate.topk10.skip_rows, 1);
 assert.equal(site.focused_comparisons.topk.sensitivity.operational_default, "topk3");
-assert.equal(site.focused_comparisons.topk.sensitivity.pre600k_reference.key, "topk3");
-assert.equal(site.focused_comparisons.topk.sensitivity.pre600k_reference.avg_steps, 11);
+assert.equal(site.focused_comparisons.topk.sensitivity.controlled_topk3.key, "topk3");
+assert.equal(site.focused_comparisons.topk.sensitivity.controlled_topk3.extraction_revision, "600k raw-diff cap");
+assert.equal(site.focused_comparisons.topk.sensitivity.controlled_topk3.avg_steps, 11.1);
+assert.equal(site.focused_comparisons.topk.sensitivity.phase_analysis.thresholds.length, 5);
+assert.equal(site.focused_comparisons.topk.sensitivity.issue_type_summary.length, 3);
 assert.equal(site.focused_comparisons.topk.sensitivity.comparable_pair.topk20_step_wins, 6);
 assert.equal(site.focused_comparisons.topk.sensitivity.comparable_pair.topk10_step_wins, 1);
 assert.equal(site.focused_comparisons.topk.sensitivity.rows.length, 10);
-assert.equal(site.focused_comparisons.topk.sensitivity.rows[0].topk3_to_32, 9);
+assert.equal(site.focused_comparisons.topk.sensitivity.rows[0].topk3_to_32, 7);
 assert.equal(site.focused_comparisons.convergence.rows.length, 10, "convergence charts must cover scoped 10");
 for (const row of site.focused_comparisons.convergence.rows) {
   for (const key of ["topk3", "topk10", "topk20"]) {
@@ -79,7 +82,7 @@ for (const row of site.focused_comparisons.convergence.rows) {
   }
 }
 assert.equal(site.focused_comparisons.keywords.rows.length, 10, "keyword comparison must cover scoped 10");
-assert.equal(site.focused_comparisons.keywords.aggregate.best_parent_llm.avg_steps, 11);
+assert.equal(site.focused_comparisons.keywords.aggregate.best_parent_llm.avg_steps, 11.1);
 assert.deepEqual(site.focused_comparisons.keywords.weak_maintenance.terms, [
   "add",
   "update",

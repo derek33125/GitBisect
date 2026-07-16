@@ -260,12 +260,14 @@ function signedNumber(value) {
 function renderTopkSensitivity(sensitivity) {
   const summary = $("#topk-sensitivity");
   const body = $("#topk-trajectory-body");
-  if (!summary || !body || !sensitivity) return;
+  const phaseBody = $("#topk-phase-body");
+  const typeBody = $("#topk-type-body");
+  if (!summary || !body || !phaseBody || !typeBody || !sensitivity) return;
   const pair = sensitivity.comparable_pair;
-  const reference = sensitivity.pre600k_reference;
+  const controlled = sensitivity.controlled_topk3;
   summary.innerHTML =
     '<article class="topk-decision">' +
-    '<div class="page-kicker">Decision / comparable 600k rows only</div>' +
+    '<div class="page-kicker">Decision / 600k selected histories</div>' +
     "<h3>Operational default: " +
     esc(sensitivity.operational_default.replace("topk", "top-k")) +
     "</h3>" +
@@ -274,10 +276,10 @@ function renderTopkSensitivity(sensitivity) {
     "</p>" +
     '<div class="topk-metrics">' +
     "<span><b>" +
-    esc(reference.avg_steps) +
-    "</b> k3 avg pre-600k</span>" +
+    esc(controlled.avg_steps) +
+    "</b> k3 avg fresh 600k</span>" +
     "<span><b>" +
-    esc(reference.first_bad_matches + "/10") +
+    esc(controlled.first_bad_matches + "/10") +
     "</b> k3 boundaries</span>" +
     "<span><b>" +
     esc(pair.topk20_step_wins) +
@@ -321,6 +323,39 @@ function renderTopkSensitivity(sensitivity) {
         "</td>" +
         boundary +
         "</tr>"
+      );
+    })
+    .join("");
+  phaseBody.innerHTML = sensitivity.phase_analysis.thresholds
+    .map((row) => {
+      const tail = (key) => row.methods[key].mean_tail_steps;
+      const record = (comparison) => {
+        const value = row[comparison];
+        return value.wins + "/" + value.ties + "/" + value.losses;
+      };
+      return (
+        "<tr><td class=\"num\">&le;" + esc(row.threshold) + "</td>" +
+        '<td class="num">' + esc(tail("topk3")) + "</td>" +
+        '<td class="num">' + esc(tail("topk10")) + "</td>" +
+        '<td class="num">' + esc(tail("topk20")) + "</td>" +
+        '<td class="num">' + esc(record("k3_vs_k10")) + "</td>" +
+        '<td class="num">' + esc(record("k3_vs_k20")) + "</td></tr>"
+      );
+    })
+    .join("");
+  typeBody.innerHTML = sensitivity.issue_type_summary
+    .map((row) => {
+      const method = (key, metric) => row.methods[key][metric];
+      return (
+        '<tr><td class="left"><strong>' + esc(row.label) + "</strong><span class=\"issue-title\">" +
+        esc(row.issues.join(", ")) + "</span></td>" +
+        '<td class="num">' + esc(row.count) + "</td>" +
+        '<td class="num">' + esc(method("topk3", "mean_steps")) + "</td>" +
+        '<td class="num">' + esc(method("topk10", "mean_steps")) + "</td>" +
+        '<td class="num">' + esc(method("topk20", "mean_steps")) + "</td>" +
+        '<td class="num">' + esc(method("topk3", "mean_tail_steps_at_128")) + "</td>" +
+        '<td class="num">' + esc(method("topk10", "mean_tail_steps_at_128")) + "</td>" +
+        '<td class="num">' + esc(method("topk20", "mean_tail_steps_at_128")) + "</td></tr>"
       );
     })
     .join("");
