@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>LLM-Guided Git Bisect - Runtime and LLM I/O</title>
+    <meta name="description" content="Detailed LM-bisect runtime architecture, model boundary, and concrete per-step artifact example." />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <header class="site-header compact-header"><div class="wrap"><div class="eyebrow">Runtime architecture / model boundary</div><h1>What the LM-bisect agent actually does</h1><p class="lede">The model is a bounded evidence service inside a deterministic search-and-build loop. This page traces the data boundary and the artifacts produced at every step.</p></div></header>
+    <nav class="tabbar" aria-label="Presentation pages"><div class="wrap tabbar-inner"><a href="./index.html" class="tab">Overview &amp; results</a><a href="./focused-results.html" class="tab">Focused comparisons</a><a href="./runtime.html" class="tab active">Runtime &amp; LLM I/O</a><a href="./explorer.html" class="tab">Trace explorer</a></div></nav>
+    <main class="wrap">
+      <section class="section" id="architecture">
+        <div class="page-kicker">01 / Control flow</div>
+        <div class="architecture-heading"><div><h2>LM-bisect runtime architecture</h2></div><p class="section-sub">Implemented by <code>command_run_online</code>. Every arrow that changes the search interval originates from a recorded runner verdict, never from an LLM response.</p></div>
+        <div class="architecture-legend"><span><i class="legend-dot source-dot"></i> repository and issue state</span><span><i class="legend-dot model-dot"></i> bounded model work</span><span><i class="legend-dot runner-dot"></i> build-grounded evidence</span><span><i class="legend-dot artifact-dot"></i> persisted state</span></div>
+        <figure class="architecture-canvas paper-architecture detailed-architecture" aria-labelledby="architecture-caption">
+          <div class="paper-lane-label paper-lane-input">Repository and issue state</div>
+          <div class="paper-lane-label paper-lane-model">Bounded LLM frontier</div>
+          <div class="paper-lane-label paper-lane-evidence">Build-grounded evidence</div>
+          <article class="arch-node arch-source paper-input"><div class="arch-kicker">1. Immutable inputs</div><h3>Issue profile + interval</h3><ul><li>title, crash summary, keywords, paths</li><li>validated good and bad endpoints</li><li>issue-specific runner and build settings</li></ul><div class="arch-code">load_issue_profile()</div></article>
+          <div class="arch-arrow paper-arrow-input">&rarr;</div>
+          <article class="arch-node arch-heuristic paper-records"><div class="arch-kicker">2. Whole window</div><h3>Cheap candidate records</h3><ul><li>SHA, subject, body, changed files</li><li>heuristic relevance and build probability</li><li>full unresolved window is ranked</li></ul><div class="arch-code">make_records()</div></article>
+          <div class="arch-arrow paper-arrow-records">&rarr;</div>
+          <section class="paper-model-boundary" aria-label="LLM frontier only">
+            <div class="paper-boundary-label">LLM frontier only: top-k candidates</div>
+            <article class="arch-node arch-model paper-extract"><div class="arch-kicker">3. LLM call A</div><h3>Diff extraction</h3><ul><li>parent diff up to 600k chars</li><li>structured evidence keyed by SHA + diff mode</li><li>raw diff does not reach the scorer</li></ul><div class="arch-code">extract_diff_evidence_*()</div></article>
+            <div class="arch-arrow paper-arrow-extract">&rarr;</div>
+            <article class="arch-node arch-model paper-score"><div class="arch-kicker">4. LLM call B</div><h3>Contrastive scoring</h3><ul><li>issue profile + prior crash/skip evidence</li><li>semantic score and build-success probability</li><li>evidence and reusable features</li></ul><div class="arch-code">model_score_commits()</div></article>
+          </section>
+          <div class="arch-arrow paper-arrow-select">&rarr;</div>
+          <article class="arch-node arch-select paper-select"><div class="arch-kicker">5. Deterministic policy</div><h3>Select one SHA</h3><ul><li>merge heuristic and model records</li><li>balance bad-mass, information gain, buildability</li><li>reject cached no-progress candidates</li></ul><div class="arch-code">select_next_commit()</div></article>
+          <div class="paper-turn-arrow" aria-hidden="true">&darr;</div>
+          <article class="arch-node arch-runner paper-runner"><div class="arch-kicker">6. Ground truth</div><h3>Checkout, build, reproduce</h3><ul><li>runner returns good, bad, or skip</li><li>exit/traces are captured as evidence</li><li>only this verdict partitions commits</li></ul><div class="arch-code">validated-bisect-runner.sh</div></article>
+          <div class="arch-arrow paper-arrow-persist">&larr;</div>
+          <article class="paper-persist"><div class="arch-kicker">7. Persisted evidence</div><h3>Artifacts + updated window</h3><ul><li>observations, history, unresolved window</li><li>model cache and runner trace</li><li>resume safely from recorded state</li></ul><div class="arch-code">save_*() + artifact bundle</div></article>
+          <div class="paper-feedback"><span>&larr;</span><strong>feedback to the next selection</strong><small>good/bad partitions the interval; skip adds build-risk evidence without partitioning it</small></div>
+          <figcaption id="architecture-caption">Paper-style runtime view. The LLM produces bounded evidence and scores only; a reproducer-backed runner supplies the verdict that changes the search interval.</figcaption>
+        </figure>
+        <p class="note architecture-note">A <strong>good</strong> verdict removes the older side, a <strong>bad</strong> verdict removes the newer side, and a <strong>skip</strong> preserves the interval while recording build-risk evidence. Skip evidence raises bug suspicion only if it itself matches the issue mechanism.</p>
+      </section>
+      <section class="section" id="agent-io">
+        <div class="page-kicker">02 / Agent boundary</div>
+        <h2>What enters and leaves the LLM</h2>
+        <p class="section-sub">Extraction and scoring are separate calls. The raw diff is consumed by the extractor; scoring receives the compacted evidence rather than the raw diff.</p>
+        <div class="agent-io-grid">
+          <article class="agent-call extraction-call"><div class="agent-call-head"><span class="agent-step">A</span><div><div class="agent-label">LLM call 1</div><h3>Diff evidence extraction</h3></div></div><div class="agent-schema"><div class="agent-pane agent-input"><h4>Input</h4><pre>Issue context
+crash summary, paths, keywords
+
+Candidate context
+SHA, subject, changed files
+diff mode and base SHA
+changed-line diff, up to 600k chars</pre></div><div class="agent-io-arrow">&rarr;</div><div class="agent-pane agent-output"><h4>JSON output</h4><pre>{
+  "summary": "...",
+  "mechanisms": ["..."],
+  "touched_symbols": ["..."],
+  "risk_relevance": ["..."],
+  "build_risk": ["..."],
+  "raw_diff_truncated": false
+}</pre></div></div><p class="agent-foot">Batch extraction is prompt-budgeted. If a batch response fails, the implementation retries its candidates individually before the score phase.</p></article>
+          <article class="agent-call scoring-call"><div class="agent-call-head"><span class="agent-step">B</span><div><div class="agent-label">LLM call 2</div><h3>Contrastive candidate scoring</h3></div></div><div class="agent-schema"><div class="agent-pane agent-input"><h4>Input</h4><pre>Issue profile
+
+Observed evidence
+prior bad crash traces
+prior skip/build failures
+
+Top-k candidates
+message, files, extracted diff evidence
+not the raw diff</pre></div><div class="agent-io-arrow">&rarr;</div><div class="agent-pane agent-output"><h4>JSON output per SHA</h4><pre>{
+  "sha": "...",
+  "semantic_score": 0.1..8.0,
+  "build_success_prob": 0.05..0.99,
+  "evidence": ["..."],
+  "features": ["..."]
+}</pre></div></div><p class="agent-foot"><code>semantic_score</code> estimates relevance; <code>build_success_prob</code> estimates testability. The model does not return <code>good</code>, <code>bad</code>, or <code>skip</code>.</p></article>
+        </div>
+      </section>
+      <section class="section" id="runtime-example"><div class="page-kicker">03 / Concrete trace</div><h2>One real step, from prompt inputs to files on disk</h2><p class="section-sub">Rendered from a completed parent-diff + LLM extraction run. This is not a synthetic example.</p><div id="runtime-example-content" class="runtime-example"></div></section>
+      <section class="section" id="artifacts"><div class="page-kicker">04 / Reproducibility</div><h2>Per-step artifacts written by the pipeline</h2><p class="section-sub">The canonical global JSON files are copied into an issue-local artifact bundle so remote result collection does not lose model context or the search path.</p><div class="runtime-artifact-grid"><article><code>observations.json</code><p>Runner verdict, trace excerpt, and skip/build-failure evidence for each tested commit.</p></article><article><code>run-history.json</code><p>Selection payload, ranked frontier, model summary, runner timing, and the tested path.</p></article><article><code>unresolved-window.json</code><p>The remaining ordered commit interval after each verdict, used for a safe resume.</p></article><article><code>model-cache.json</code><p>LLM extraction and score output keyed by candidate SHA and diff mode so evidence is not reread.</p></article><article><code>artifact-bundle-manifest.json</code><p>Issue-local manifest that mirrors canonical files under the portable report-trace bundle.</p></article></div></section>
+      <section class="section page-links"><a class="next-page" href="./explorer.html"><span>Inspect</span><strong>Replay a complete per-issue trace</strong><b>&rarr;</b></a><a class="next-page" href="./index.html"><span>Return</span><strong>Scoped method comparison results</strong><b>&rarr;</b></a></section>
+    </main>
+    <footer class="site-footer"><div class="wrap"><p id="footer-note"></p></div></footer>
+    <script src="./app.js"></script>
+  </body>
+</html>

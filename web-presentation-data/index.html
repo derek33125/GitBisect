@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>LLM-Guided Git Bisect - Overview and Results</title>
+    <meta name="description" content="A scoped comparison of git bisect, heuristic ranking, and LLM-guided LLVM crash localization." />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <header class="site-header">
+      <div class="wrap">
+        <div class="eyebrow">LLVM crash localization / scoped-10 evaluation</div>
+        <h1>LLM-Guided Git Bisect</h1>
+        <p class="lede">A build-grounded search pipeline for narrowing a validated LLVM crash interval to its first-bad commit. The model supplies bounded code evidence and ranking; the build runner remains the source of truth.</p>
+        <p class="scope" id="scope-note"></p>
+      </div>
+    </header>
+    <nav class="tabbar" aria-label="Presentation pages">
+      <div class="wrap tabbar-inner">
+        <a href="./index.html" class="tab active">Overview &amp; results</a>
+        <a href="./focused-results.html" class="tab">Focused comparisons</a>
+        <a href="./runtime.html" class="tab">Runtime &amp; LLM I/O</a>
+        <a href="./explorer.html" class="tab">Trace explorer</a>
+      </div>
+    </nav>
+    <main class="wrap">
+      <section class="section">
+        <div class="page-kicker">01 / Search policy</div>
+        <h2>The three methods share the same oracle</h2>
+        <p class="section-sub">Each method starts from the same validated good-to-bad commit interval and calls the same issue-specific build/reproducer script. They differ only in how they select the next commit to build.</p>
+        <div class="pipeline-grid">
+          <article class="pcard"><div class="pcard-tag tag-git">Baseline</div><h3>git bisect</h3><p>Pure binary search: select the midpoint, build it, classify the reproducer result, and halve the interval.</p><ul class="mini"><li>No crash semantics or commit content</li><li>Build result decides each partition</li><li>Predictable logarithmic search</li></ul></article>
+          <article class="pcard"><div class="pcard-tag tag-heur">Cheap prior</div><h3>Heuristic-only</h3><p>Score the full unresolved window using crash-derived keywords, relevant paths, risky terms, and estimated buildability.</p><ul class="mini"><li>Scores every unresolved commit</li><li>No LLM frontier or top-k parameter</li><li>Calibrated posterior selects a build</li></ul></article>
+          <article class="pcard highlight"><div class="pcard-tag tag-llm">Model-guided</div><h3>Parent diff + LLM extraction</h3><p>The heuristic creates a bounded frontier. The model extracts semantic diff evidence and contrastively scores only those candidates.</p><ul class="mini"><li>Parent diff: <code>parent(candidate) -> candidate</code></li><li>Structured extraction, then scoring</li><li>Runner verdict, not the LLM, updates the interval</li></ul></article>
+        </div>
+        <div class="loop-box"><h3>Shared build-grounded loop</h3><ol class="loop"><li><span class="ln">1</span>Load unresolved commits</li><li><span class="ln">2</span>Rank candidates</li><li><span class="ln">3</span>Choose one SHA</li><li><span class="ln">4</span>Build and reproduce</li><li><span class="ln">5</span>Persist verdict and narrow</li></ol><p class="note">Fewer build steps are better, but a result is counted only when the remaining window is one commit and the runner did not produce a confounding skip.</p></div>
+      </section>
+      <section class="section" id="results">
+        <div class="page-kicker">02 / Fixed comparison set</div>
+        <h2>Results - build steps to first bad</h2>
+        <p class="section-sub">Lower is better. Warning cells are partial, skip-confounded, or missing and are excluded from clean aggregate claims.</p>
+        <div class="agg-cards" id="agg-cards"></div>
+        <div class="ablation-summary" id="ablation-summary"></div>
+        <div class="ablation-summary pending-control" id="weak-maintenance-summary"></div>
+        <div class="table-scroll"><table class="cmp" id="cmp-table"><thead><tr><th class="left">Issue</th><th>git bisect</th><th>Old model-guided</th><th>Issue-specific heuristic</th><th>Fixed-vocabulary heuristic</th><th>Parent diff + LLM top-k3</th></tr></thead><tbody id="cmp-body"></tbody></table></div>
+        <p class="note">The table intentionally keeps heuristic-only as one method: its historical top-k labels were invalid diagnostic configurations, while model top-k is a real LLM read frontier.</p>
+      </section>
+      <section class="section" id="live-results">
+        <div class="page-kicker">03 / Live experiment snapshot</div>
+        <h2>Parent-diff + LLM extraction top-k20</h2>
+        <p class="section-sub">This separate 600k-diff-cap experiment has incomplete provider-interrupted rows. The latest snapshot is shown for transparency, not mixed into the completed top-k3 comparison table.</p>
+        <div id="live-topk20" class="live-results"></div>
+      </section>
+      <section class="section page-links"><a class="next-page" href="./focused-results.html"><span>Compare</span><strong>Top-k sensitivity and keyword robustness</strong><b>&rarr;</b></a><a class="next-page" href="./runtime.html"><span>Next</span><strong>Runtime architecture and concrete LLM I/O</strong><b>&rarr;</b></a><a class="next-page" href="./explorer.html"><span>Inspect</span><strong>Per-issue build and selection traces</strong><b>&rarr;</b></a></section>
+    </main>
+    <footer class="site-footer"><div class="wrap"><p id="footer-note"></p></div></footer>
+    <script src="./app.js"></script>
+  </body>
+</html>

@@ -1,0 +1,66 @@
+{
+  "status": "complete",
+  "scope": "Shared 10-case comparison. This pending control changes only the fixed keyword list; issue summaries, paths, endpoints, runners, search policy, and build settings remain the same as the completed keyword ablation.",
+  "label": "Maintenance-keyword control",
+  "definition": "One fixed ten-term maintenance vocabulary, deliberately broad and non-diagnostic.",
+  "keywords": [
+    "add",
+    "update",
+    "change",
+    "test",
+    "support",
+    "cleanup",
+    "refactor",
+    "rename",
+    "remove",
+    "document"
+  ],
+  "source_commit": "8972ea48eb7e42a9d1a95093ee2e37ce787facff",
+  "host": "aws-server",
+  "completed_clean_issues": [
+    { "issue": "pr204559", "steps": 12, "skips": 0, "first_bad": "5a5d0fb1e471b3a1e842aee1f993e885c8d19713" },
+    { "issue": "pr204589", "steps": 12, "skips": 0, "first_bad": "5a5d0fb1e471b3a1e842aee1f993e885c8d19713" },
+    { "issue": "pr201444", "steps": 12, "skips": 0, "first_bad": "6bcdd843e302063c4f0d36204686155149a6bb0a" },
+    { "issue": "pr193164", "steps": 12, "skips": 0, "first_bad": "cac7fe50e0fbedfb14028c170d83386efeb1265b" },
+    { "issue": "pr50304", "steps": 15, "skips": 0, "first_bad": "c9c05a91c4843c243d508c39bdfbc5e26f311af2" },
+    { "issue": "pr50585", "steps": 11, "skips": 0, "first_bad": "e38b7e894808ec2a0c976ab01e44364f167508d3" },
+    { "issue": "pr48154", "steps": 15, "skips": 0, "first_bad": "20e989e9de6abcf9a684978a2688acc4ea01036f" },
+    { "issue": "pr49535", "steps": 12, "skips": 0, "first_bad": "6792e26c0d0f2260f1e12693382e184f5ea1966f" },
+    { "issue": "pr52635", "steps": 11, "skips": 0, "first_bad": "10bc12588dac532fad044b2851dde8e7b9121e88" },
+    { "issue": "pr200987", "steps": 14, "skips": 0, "first_bad": "329ef60f3e21fd6845e8e8b0da405cae7eb27267" }
+  ],
+  "build_settings": {
+    "jobs": 4,
+    "extra_cmake_args": "-DCMAKE_POLICY_VERSION_MINIMUM=3.5",
+    "extra_cmake_cxx_flags": "-include cstdint -include cstdlib -include cstdio -include string"
+  },
+  "invalid_setup": {
+    "labels": [
+      "aws10-weak-maint-keyword-a-20260713b",
+      "aws10-weak-maint-keyword-b-20260713b",
+      "aws10-weak-maint-keyword-c-20260713b"
+    ],
+    "reason": "Missing forced standard headers caused old LLVM Signals.h uintptr_t build failures before the reproducer ran. These histories are excluded from comparison."
+  },
+  "superseded_remote_runs": {
+    "reason": "The AWS checkout used the archived 18-term compiler-crash vocabulary and did not store the effective keyword list. Those histories cannot support the ten-term maintenance-keyword control."
+  },
+  "queues": [
+    {
+      "label": "aws10-weak-maint-v2-a-20260714a",
+      "issues": ["pr204559", "pr204589", "pr201444", "pr193164"],
+      "status": "completed"
+    },
+    {
+      "label": "aws10-weak-maint-v2-b-20260714a",
+      "issues": ["pr50304", "pr50585", "pr48154"],
+      "status": "completed"
+    },
+    {
+      "label": "aws10-weak-maint-v2-c-20260714a",
+      "issues": ["pr49535", "pr52635", "pr200987"],
+      "status": "completed"
+    }
+  ],
+  "updated_at": "2026-07-15T08:01:13Z"
+}

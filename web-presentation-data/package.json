@@ -1,0 +1,12 @@
+{
+  "name": "gitbisect-presentation",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Static presentation site for LLM-guided git bisect: how it works + method comparison with step-by-step traces.",
+  "type": "module",
+  "scripts": {
+    "build-data": "node scripts/build-data.mjs",
+    "dev": "node --version >/dev/null && npx --yes serve@14 . -l 5173",
+    "start": "npx --yes serve@14 . -l 5173"
+  }
+}

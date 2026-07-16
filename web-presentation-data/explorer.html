@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>LLM-Guided Git Bisect - Trace Explorer</title>
+    <meta name="description" content="Interactive per-step traces for heuristic and LLM-guided Git bisect runs." />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <header class="site-header compact-header"><div class="wrap"><div class="eyebrow">Interactive evidence replay</div><h1>Step-by-step trace explorer</h1><p class="lede">Inspect which commit was selected, the extracted diff evidence, the runner verdict, and the shrinking interval for each stored scoped-case run.</p></div></header>
+    <nav class="tabbar" aria-label="Presentation pages"><div class="wrap tabbar-inner"><a href="./index.html" class="tab">Overview &amp; results</a><a href="./focused-results.html" class="tab">Focused comparisons</a><a href="./runtime.html" class="tab">Runtime &amp; LLM I/O</a><a href="./explorer.html" class="tab active">Trace explorer</a></div></nav>
+    <main class="wrap">
+      <section class="section" id="explorer">
+        <div class="page-kicker">Stored run history</div>
+        <h2>Replay a build-grounded search path</h2>
+        <p class="section-sub">The explorer uses the compacted run-history JSON exported with the presentation. It shows a completed selected method trace, not a reconstructed approximation.</p>
+        <div class="controls"><div class="control"><label for="issue-select">Issue</label><select id="issue-select"></select></div><div class="control"><label>Method</label><div class="seg" id="method-seg"></div></div></div>
+        <div id="issue-context" class="issue-context"></div>
+        <div id="run-header" class="run-header"></div>
+        <div id="window-viz" class="window-viz"></div>
+        <div id="steps" class="steps"></div>
+      </section>
+      <section class="section page-links"><a class="next-page" href="./runtime.html"><span>Understand</span><strong>Architecture, model boundary, and artifacts</strong><b>&rarr;</b></a><a class="next-page" href="./index.html"><span>Compare</span><strong>Return to the scoped result table</strong><b>&rarr;</b></a></section>
+    </main>
+    <footer class="site-footer"><div class="wrap"><p id="footer-note"></p></div></footer>
+    <script src="./app.js"></script>
+  </body>
+</html>

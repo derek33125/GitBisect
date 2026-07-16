@@ -1,0 +1,7 @@
+{
+  "name": "scoped10-bisect-presentation-data",
+  "private": true,
+  "version": "0.0.0",
+  "description": "Isolated data bundle for the scoped 10-case bisect presentation web UI.",
+  "type": "module"
+}
