@@ -254,6 +254,71 @@ function renderTopkComparison(topk) {
       );
     })
     .join("");
+  renderTopkSensitivity(topk.sensitivity);
+}
+
+function signedNumber(value) {
+  return value > 0 ? "+" + value : String(value);
+}
+
+function renderTopkSensitivity(sensitivity) {
+  const summary = $("#topk-sensitivity");
+  const body = $("#topk-trajectory-body");
+  if (!summary || !body || !sensitivity) return;
+  const pair = sensitivity.comparable_pair;
+  summary.innerHTML =
+    '<article class="topk-decision">' +
+    '<div class="page-kicker">Decision / comparable 600k rows only</div>' +
+    "<h3>Operational default: " +
+    esc(sensitivity.operational_default.replace("topk", "top-k")) +
+    "</h3>" +
+    "<p>" +
+    esc(sensitivity.recommendation) +
+    "</p>" +
+    '<div class="topk-metrics">' +
+    "<span><b>" +
+    esc(pair.topk20_step_wins) +
+    "</b> k20 wins</span>" +
+    "<span><b>" +
+    esc(pair.topk10_step_wins) +
+    "</b> k10 wins</span>" +
+    "<span><b>" +
+    esc(pair.step_ties) +
+    "</b> ties</span>" +
+    "<span><b>" +
+    esc(pair.average_step_delta_topk20_minus_topk10) +
+    "</b> avg k20-k10 steps</span>" +
+    "<span><b>" +
+    esc(pair.same_first_bad + "/10") +
+    "</b> same boundary</span>" +
+    "<span><b>" +
+    esc(pair.topk10_scoring_batches_per_step + "/" + pair.topk20_scoring_batches_per_step) +
+    "</b> prompt batches k10/k20</span>" +
+    "</div>" +
+    "</article>" +
+    '<div class="topk-caveats"><strong>Why the curves split:</strong><ul>' +
+    sensitivity.limitations.map((item) => "<li>" + esc(item) + "</li>").join("") +
+    "</ul></div>";
+  body.innerHTML = sensitivity.rows
+    .map((row) => {
+      const deltaClass = row.step_delta_topk20_minus_topk10 < 0 ? "cell-good" : row.step_delta_topk20_minus_topk10 > 0 ? "cell-warn" : "";
+      const boundary = row.first_bad_agrees ? '<td class="cell-good">same</td>' : '<td class="cell-warn">alternate</td>';
+      return (
+        '<tr><td class="left"><strong>' +
+        esc(row.issue) +
+        "</strong></td>" +
+        '<td class="num">' + esc(row.topk10_to_ten_percent) + "</td>" +
+        '<td class="num">' + esc(row.topk20_to_ten_percent) + "</td>" +
+        '<td class="num">' + esc(row.topk10_to_32) + "</td>" +
+        '<td class="num">' + esc(row.topk20_to_32) + "</td>" +
+        '<td class="num ' + deltaClass + '">' +
+        esc(signedNumber(row.step_delta_topk20_minus_topk10)) +
+        "</td>" +
+        boundary +
+        "</tr>"
+      );
+    })
+    .join("");
 }
 
 function renderKeywordVocabulary(keywords) {

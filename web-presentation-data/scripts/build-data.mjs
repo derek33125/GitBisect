@@ -119,6 +119,10 @@ function shortSha(sha) {
   return typeof sha === "string" ? sha.slice(0, 12) : sha;
 }
 
+function sameCommit(left, right) {
+  return shortSha(left) === shortSha(right);
+}
+
 function isCompletedFirstBadRun(raw) {
   return (
     raw &&
@@ -138,6 +142,103 @@ function median(values) {
   const ordered = [...values].sort((a, b) => a - b);
   const middle = Math.floor(ordered.length / 2);
   return ordered.length % 2 ? ordered[middle] : (ordered[middle - 1] + ordered[middle]) / 2;
+}
+
+function geometricMean(values) {
+  if (!values.length) return null;
+  return Math.exp(values.reduce((sum, value) => sum + Math.log(value), 0) / values.length);
+}
+
+function stepAtOrBelow(run, threshold) {
+  const point = run.curve.points.find((entry) => entry.step > 0 && entry.remaining <= threshold);
+  return point ? point.step : null;
+}
+
+function buildTopkSensitivity(topkRows) {
+  const comparableKeys = ["topk10", "topk20"];
+  const pairRows = topkRows.map((row) => {
+    const topk10 = row.topk10;
+    const topk20 = row.topk20;
+    const initial = topk10.curve.initial_unresolved;
+    const first10 = topk10.curve.points[1].remaining / initial;
+    const first20 = topk20.curve.points[1].remaining / initial;
+    const toTenPercent10 = stepAtOrBelow(topk10, initial * 0.1);
+    const toTenPercent20 = stepAtOrBelow(topk20, initial * 0.1);
+    const to32_10 = stepAtOrBelow(topk10, 32);
+    const to32_20 = stepAtOrBelow(topk20, 32);
+    return {
+      issue: row.issue,
+      topk10_steps: topk10.steps,
+      topk20_steps: topk20.steps,
+      step_delta_topk20_minus_topk10: topk20.steps - topk10.steps,
+      topk10_first_remaining_ratio: round(first10),
+      topk20_first_remaining_ratio: round(first20),
+      first_step_ratio_delta_topk20_minus_topk10: round(first20 - first10),
+      topk10_to_ten_percent: toTenPercent10,
+      topk20_to_ten_percent: toTenPercent20,
+      topk10_to_32: to32_10,
+      topk20_to_32: to32_20,
+      first_bad_agrees: sameCommit(topk10.first_bad, topk20.first_bad),
+    };
+  });
+  const pairStepDeltas = pairRows.map((row) => row.step_delta_topk20_minus_topk10);
+  const firstRatios = {};
+  const perStepRatios = {};
+  const lateStepRatios = {};
+  for (const key of comparableKeys) {
+    const runs = topkRows.map((row) => row[key]);
+    firstRatios[key] = average(
+      runs.map((run) => run.curve.points[1].remaining / run.curve.initial_unresolved)
+    );
+    const allRatios = [];
+    const lateRatios = [];
+    for (const run of runs) {
+      const runnerPoints = run.curve.points.slice(1);
+      for (const point of runnerPoints) {
+        const previous = run.curve.points[point.step - 1];
+        if (point.verdict !== "skip") allRatios.push(point.remaining / previous.remaining);
+      }
+      for (const point of runnerPoints.slice(-4)) {
+        const previous = run.curve.points[point.step - 1];
+        if (point.verdict !== "skip") lateRatios.push(point.remaining / previous.remaining);
+      }
+    }
+    perStepRatios[key] = round(geometricMean(allRatios));
+    lateStepRatios[key] = round(geometricMean(lateRatios));
+  }
+  const topk20StepWins = pairStepDeltas.filter((value) => value < 0).length;
+  const topk10StepWins = pairStepDeltas.filter((value) => value > 0).length;
+  const stepTies = pairStepDeltas.filter((value) => value === 0).length;
+  return {
+    evidence_scope:
+      "The controlled frontier-size comparison is top-k10 versus top-k20: both use parent diffs, LLM extraction, trace-only observations, calibrated-posterior selection, and the 600k raw-diff cap. Top-k3 is shown separately because it used the earlier extraction revision.",
+    operational_default: "topk10",
+    recommendation:
+      "Use top-k10 as the present operational default. It fits one 12-candidate scoring prompt, preserves canonical first-bad agreement on all 10 scoped cases, and is materially cheaper. Top-k20 is the fastest observed 600k setting, but it crosses the 12-item scoring-batch boundary and has one alternate apply/reapply boundary; treat it as a promising experimental setting, not a settled default.",
+    limitations: [
+      "Each top-k value changes the model-scored subset before calibrated-posterior selection; it is not only a context-budget parameter.",
+      "Top-k20 uses two independent scoring prompts because the scorer batches at 12 candidates. Scores from separate prompts are not guaranteed to share a calibrated scale.",
+      "The cache key is per candidate and diff mode, not per frontier cohort or observation state. Recorded token usage is therefore a lower bound when prior runs populate the cache.",
+      "This is a fixed 10-issue exploratory set. The observed 0.8-step top-k20 advantage is directional, not statistically conclusive.",
+    ],
+    comparable_pair: {
+      left: "topk10",
+      right: "topk20",
+      same_600k_extraction: true,
+      same_first_bad: pairRows.filter((row) => row.first_bad_agrees).length,
+      topk20_step_wins: topk20StepWins,
+      topk10_step_wins: topk10StepWins,
+      step_ties: stepTies,
+      average_step_delta_topk20_minus_topk10: average(pairStepDeltas),
+      mean_first_step_remaining_ratio: firstRatios,
+      geometric_mean_per_step_remaining_ratio: perStepRatios,
+      geometric_mean_last_four_step_remaining_ratio: lateStepRatios,
+      scoring_batch_size: 12,
+      topk10_scoring_batches_per_step: 1,
+      topk20_scoring_batches_per_step: 2,
+    },
+    rows: pairRows,
+  };
 }
 
 // Index every raw file by basename so we can resolve run labels quickly.
@@ -480,11 +581,12 @@ function buildFocusedComparisons(preferred, keywordAblation, weakControl, liveLa
 
   return {
     topk: {
-      best_configuration: "top-k3",
+      best_configuration: "top-k3 (pre-600k reference)",
       comparison_note:
       "All rows are completed parent-diff + LLM-extraction runs. Top-k3 is a pre-600k reference; top-k10 and top-k20 use the 600k raw-diff cap, so frontier size and extraction revision both differ. The top-k20 rows use the canonical completed live snapshot because it records the preferred successful retry for each issue.",
       rows: topkRows,
       aggregate: topkAggregate,
+      sensitivity: buildTopkSensitivity(topkRows),
     },
     convergence: {
       label: "Parent-diff + LLM extraction remaining candidate window",

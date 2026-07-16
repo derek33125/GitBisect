@@ -34,6 +34,8 @@
         <div class="focused-cards" id="topk-cards"></div>
         <div class="focused-note" id="topk-note"></div>
         <div class="table-scroll"><table class="cmp focused-table"><thead><tr><th class="left">Issue</th><th>git bisect</th><th>LLM top-k3</th><th>LLM top-k10</th><th>LLM top-k20</th><th>First-bad agreement</th></tr></thead><tbody id="topk-body"></tbody></table></div>
+        <div class="topk-sensitivity" id="topk-sensitivity"></div>
+        <div class="table-scroll"><table class="cmp focused-table topk-trajectory-table"><thead><tr><th class="left">Issue</th><th>k10 to 10%</th><th>k20 to 10%</th><th>k10 to 32</th><th>k20 to 32</th><th>k20-k10 steps</th><th>Boundary</th></tr></thead><tbody id="topk-trajectory-body"></tbody></table></div>
       </section>
       <section class="section">
         <div class="page-kicker">02 / Keyword robustness</div>

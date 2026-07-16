@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-07-16T05:28:45.609Z",
+  "generated_at": "2026-07-16T08:23:51.586Z",
   "scope": "Shared 10-case comparison set. Numbers are for apples-to-apples method comparison on a fixed set, not a benchmark-wide claim.",
   "aggregate": {
     "git": {
@@ -395,7 +395,7 @@
   },
   "focused_comparisons": {
     "topk": {
-      "best_configuration": "top-k3",
+      "best_configuration": "top-k3 (pre-600k reference)",
       "comparison_note": "All rows are completed parent-diff + LLM-extraction runs. Top-k3 is a pre-600k reference; top-k10 and top-k20 use the 600k raw-diff cap, so frontier size and extraction revision both differ. The top-k20 rows use the canonical completed live snapshot because it records the preferred successful retry for each issue.",
       "rows": [
         {
@@ -2771,6 +2771,184 @@
           "skip_rows": 0,
           "first_bad_matches": 9
         }
+      },
+      "sensitivity": {
+        "evidence_scope": "The controlled frontier-size comparison is top-k10 versus top-k20: both use parent diffs, LLM extraction, trace-only observations, calibrated-posterior selection, and the 600k raw-diff cap. Top-k3 is shown separately because it used the earlier extraction revision.",
+        "operational_default": "topk10",
+        "recommendation": "Use top-k10 as the present operational default. It fits one 12-candidate scoring prompt, preserves canonical first-bad agreement on all 10 scoped cases, and is materially cheaper. Top-k20 is the fastest observed 600k setting, but it crosses the 12-item scoring-batch boundary and has one alternate apply/reapply boundary; treat it as a promising experimental setting, not a settled default.",
+        "limitations": [
+          "Each top-k value changes the model-scored subset before calibrated-posterior selection; it is not only a context-budget parameter.",
+          "Top-k20 uses two independent scoring prompts because the scorer batches at 12 candidates. Scores from separate prompts are not guaranteed to share a calibrated scale.",
+          "The cache key is per candidate and diff mode, not per frontier cohort or observation state. Recorded token usage is therefore a lower bound when prior runs populate the cache.",
+          "This is a fixed 10-issue exploratory set. The observed 0.8-step top-k20 advantage is directional, not statistically conclusive."
+        ],
+        "comparable_pair": {
+          "left": "topk10",
+          "right": "topk20",
+          "same_600k_extraction": true,
+          "same_first_bad": 9,
+          "topk20_step_wins": 6,
+          "topk10_step_wins": 1,
+          "step_ties": 3,
+          "average_step_delta_topk20_minus_topk10": -0.8,
+          "mean_first_step_remaining_ratio": {
+            "topk10": 0.48,
+            "topk20": 0.49
+          },
+          "geometric_mean_per_step_remaining_ratio": {
+            "topk10": 0.443,
+            "topk20": 0.422
+          },
+          "geometric_mean_last_four_step_remaining_ratio": {
+            "topk10": 0.38,
+            "topk20": 0.334
+          },
+          "scoring_batch_size": 12,
+          "topk10_scoring_batches_per_step": 1,
+          "topk20_scoring_batches_per_step": 2
+        },
+        "rows": [
+          {
+            "issue": "pr204559",
+            "topk10_steps": 13,
+            "topk20_steps": 10,
+            "step_delta_topk20_minus_topk10": -3,
+            "topk10_first_remaining_ratio": 0.609,
+            "topk20_first_remaining_ratio": 0.582,
+            "first_step_ratio_delta_topk20_minus_topk10": -0.027,
+            "topk10_to_ten_percent": 4,
+            "topk20_to_ten_percent": 4,
+            "topk10_to_32": 10,
+            "topk20_to_32": 8,
+            "first_bad_agrees": true
+          },
+          {
+            "issue": "pr204589",
+            "topk10_steps": 11,
+            "topk20_steps": 10,
+            "step_delta_topk20_minus_topk10": -1,
+            "topk10_first_remaining_ratio": 0.312,
+            "topk20_first_remaining_ratio": 0.427,
+            "first_step_ratio_delta_topk20_minus_topk10": 0.115,
+            "topk10_to_ten_percent": 3,
+            "topk20_to_ten_percent": 4,
+            "topk10_to_32": 8,
+            "topk20_to_32": 9,
+            "first_bad_agrees": true
+          },
+          {
+            "issue": "pr201444",
+            "topk10_steps": 10,
+            "topk20_steps": 9,
+            "step_delta_topk20_minus_topk10": -1,
+            "topk10_first_remaining_ratio": 0.624,
+            "topk20_first_remaining_ratio": 0.453,
+            "first_step_ratio_delta_topk20_minus_topk10": -0.171,
+            "topk10_to_ten_percent": 3,
+            "topk20_to_ten_percent": 4,
+            "topk10_to_32": 8,
+            "topk20_to_32": 8,
+            "first_bad_agrees": true
+          },
+          {
+            "issue": "pr193164",
+            "topk10_steps": 14,
+            "topk20_steps": 14,
+            "step_delta_topk20_minus_topk10": 0,
+            "topk10_first_remaining_ratio": 0.696,
+            "topk20_first_remaining_ratio": 0.696,
+            "first_step_ratio_delta_topk20_minus_topk10": 0,
+            "topk10_to_ten_percent": 5,
+            "topk20_to_ten_percent": 4,
+            "topk10_to_32": 10,
+            "topk20_to_32": 8,
+            "first_bad_agrees": true
+          },
+          {
+            "issue": "pr50304",
+            "topk10_steps": 10,
+            "topk20_steps": 10,
+            "step_delta_topk20_minus_topk10": 0,
+            "topk10_first_remaining_ratio": 0.459,
+            "topk20_first_remaining_ratio": 0.459,
+            "first_step_ratio_delta_topk20_minus_topk10": 0,
+            "topk10_to_ten_percent": 4,
+            "topk20_to_ten_percent": 4,
+            "topk10_to_32": 7,
+            "topk20_to_32": 7,
+            "first_bad_agrees": true
+          },
+          {
+            "issue": "pr50585",
+            "topk10_steps": 14,
+            "topk20_steps": 12,
+            "step_delta_topk20_minus_topk10": -2,
+            "topk10_first_remaining_ratio": 0.488,
+            "topk20_first_remaining_ratio": 0.488,
+            "first_step_ratio_delta_topk20_minus_topk10": 0,
+            "topk10_to_ten_percent": 3,
+            "topk20_to_ten_percent": 4,
+            "topk10_to_32": 8,
+            "topk20_to_32": 9,
+            "first_bad_agrees": true
+          },
+          {
+            "issue": "pr48154",
+            "topk10_steps": 15,
+            "topk20_steps": 14,
+            "step_delta_topk20_minus_topk10": -1,
+            "topk10_first_remaining_ratio": 0.263,
+            "topk20_first_remaining_ratio": 0.456,
+            "first_step_ratio_delta_topk20_minus_topk10": 0.193,
+            "topk10_to_ten_percent": 3,
+            "topk20_to_ten_percent": 3,
+            "topk10_to_32": 12,
+            "topk20_to_32": 12,
+            "first_bad_agrees": true
+          },
+          {
+            "issue": "pr49535",
+            "topk10_steps": 12,
+            "topk20_steps": 11,
+            "step_delta_topk20_minus_topk10": -1,
+            "topk10_first_remaining_ratio": 0.426,
+            "topk20_first_remaining_ratio": 0.426,
+            "first_step_ratio_delta_topk20_minus_topk10": 0,
+            "topk10_to_ten_percent": 3,
+            "topk20_to_ten_percent": 4,
+            "topk10_to_32": 7,
+            "topk20_to_32": 7,
+            "first_bad_agrees": false
+          },
+          {
+            "issue": "pr52635",
+            "topk10_steps": 11,
+            "topk20_steps": 11,
+            "step_delta_topk20_minus_topk10": 0,
+            "topk10_first_remaining_ratio": 0.44,
+            "topk20_first_remaining_ratio": 0.44,
+            "first_step_ratio_delta_topk20_minus_topk10": 0,
+            "topk10_to_ten_percent": 3,
+            "topk20_to_ten_percent": 4,
+            "topk10_to_32": 8,
+            "topk20_to_32": 8,
+            "first_bad_agrees": true
+          },
+          {
+            "issue": "pr200987",
+            "topk10_steps": 12,
+            "topk20_steps": 13,
+            "step_delta_topk20_minus_topk10": 1,
+            "topk10_first_remaining_ratio": 0.459,
+            "topk20_first_remaining_ratio": 0.459,
+            "first_step_ratio_delta_topk20_minus_topk10": 0,
+            "topk10_to_ten_percent": 4,
+            "topk20_to_ten_percent": 4,
+            "topk10_to_32": 11,
+            "topk20_to_32": 11,
+            "first_bad_agrees": true
+          }
+        ]
       }
     },
     "convergence": {
