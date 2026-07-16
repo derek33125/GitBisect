@@ -155,29 +155,39 @@ function stepAtOrBelow(run, threshold) {
 }
 
 function buildTopkSensitivity(topkRows) {
+  const referenceKey = "topk3";
   const comparableKeys = ["topk10", "topk20"];
   const pairRows = topkRows.map((row) => {
+    const topk3 = row.topk3;
     const topk10 = row.topk10;
     const topk20 = row.topk20;
     const initial = topk10.curve.initial_unresolved;
+    const first3 = topk3.curve.points[1].remaining / initial;
     const first10 = topk10.curve.points[1].remaining / initial;
     const first20 = topk20.curve.points[1].remaining / initial;
+    const toTenPercent3 = stepAtOrBelow(topk3, initial * 0.1);
     const toTenPercent10 = stepAtOrBelow(topk10, initial * 0.1);
     const toTenPercent20 = stepAtOrBelow(topk20, initial * 0.1);
+    const to32_3 = stepAtOrBelow(topk3, 32);
     const to32_10 = stepAtOrBelow(topk10, 32);
     const to32_20 = stepAtOrBelow(topk20, 32);
     return {
       issue: row.issue,
+      topk3_steps: topk3.steps,
       topk10_steps: topk10.steps,
       topk20_steps: topk20.steps,
       step_delta_topk20_minus_topk10: topk20.steps - topk10.steps,
+      topk3_first_remaining_ratio: round(first3),
       topk10_first_remaining_ratio: round(first10),
       topk20_first_remaining_ratio: round(first20),
       first_step_ratio_delta_topk20_minus_topk10: round(first20 - first10),
+      topk3_to_ten_percent: toTenPercent3,
       topk10_to_ten_percent: toTenPercent10,
       topk20_to_ten_percent: toTenPercent20,
+      topk3_to_32: to32_3,
       topk10_to_32: to32_10,
       topk20_to_32: to32_20,
+      topk3_matches_canonical: sameCommit(topk3.first_bad, row.canonical_first_bad),
       first_bad_agrees: sameCommit(topk10.first_bad, topk20.first_bad),
     };
   });
@@ -209,6 +219,20 @@ function buildTopkSensitivity(topkRows) {
   const topk20StepWins = pairStepDeltas.filter((value) => value < 0).length;
   const topk10StepWins = pairStepDeltas.filter((value) => value > 0).length;
   const stepTies = pairStepDeltas.filter((value) => value === 0).length;
+  const referenceRuns = topkRows.map((row) => row[referenceKey]);
+  const referenceRatios = [];
+  const referenceLateRatios = [];
+  for (const run of referenceRuns) {
+    const runnerPoints = run.curve.points.slice(1);
+    for (const point of runnerPoints) {
+      const previous = run.curve.points[point.step - 1];
+      if (point.verdict !== "skip") referenceRatios.push(point.remaining / previous.remaining);
+    }
+    for (const point of runnerPoints.slice(-4)) {
+      const previous = run.curve.points[point.step - 1];
+      if (point.verdict !== "skip") referenceLateRatios.push(point.remaining / previous.remaining);
+    }
+  }
   return {
     evidence_scope:
       "The controlled frontier-size comparison is top-k10 versus top-k20: both use parent diffs, LLM extraction, trace-only observations, calibrated-posterior selection, and the 600k raw-diff cap. Top-k3 is shown separately because it used the earlier extraction revision.",
@@ -216,11 +240,25 @@ function buildTopkSensitivity(topkRows) {
     recommendation:
       "Use top-k10 as the present operational default. It fits one 12-candidate scoring prompt, preserves canonical first-bad agreement on all 10 scoped cases, and is materially cheaper. Top-k20 is the fastest observed 600k setting, but it crosses the 12-item scoring-batch boundary and has one alternate apply/reapply boundary; treat it as a promising experimental setting, not a settled default.",
     limitations: [
+      "Top-k3 is included as an archived pre-600k reference, not as a controlled frontier-size comparison with top-k10/top-k20.",
       "Each top-k value changes the model-scored subset before calibrated-posterior selection; it is not only a context-budget parameter.",
       "Top-k20 uses two independent scoring prompts because the scorer batches at 12 candidates. Scores from separate prompts are not guaranteed to share a calibrated scale.",
       "The cache key is per candidate and diff mode, not per frontier cohort or observation state. Recorded token usage is therefore a lower bound when prior runs populate the cache.",
       "This is a fixed 10-issue exploratory set. The observed 0.8-step top-k20 advantage is directional, not statistically conclusive.",
     ],
+    pre600k_reference: {
+      key: referenceKey,
+      label: "top-k3 (pre-600k reference)",
+      extraction_revision: "12k raw-diff cap",
+      avg_steps: average(referenceRuns.map((run) => run.steps)),
+      median_steps: median(referenceRuns.map((run) => run.steps)),
+      first_bad_matches: pairRows.filter((row) => row.topk3_matches_canonical).length,
+      mean_first_step_remaining_ratio: average(
+        referenceRuns.map((run) => run.curve.points[1].remaining / run.curve.initial_unresolved)
+      ),
+      geometric_mean_per_step_remaining_ratio: round(geometricMean(referenceRatios)),
+      geometric_mean_last_four_step_remaining_ratio: round(geometricMean(referenceLateRatios)),
+    },
     comparable_pair: {
       left: "topk10",
       right: "topk20",

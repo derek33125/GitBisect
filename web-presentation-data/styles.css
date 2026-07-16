@@ -611,6 +611,7 @@ pre.formula .hl { color: var(--good); font-weight: 700; }
 .topk-caveats ul { margin: 8px 0 0; padding-left: 17px; }
 .topk-caveats li + li { margin-top: 6px; }
 .topk-trajectory-table { margin-bottom: 4px; }
+.table-footnote { margin: 8px 0 0; color: var(--muted); font-size: 0.74rem; line-height: 1.4; }
 .table-caveat {
   display: inline-block;
   margin-left: 7px;

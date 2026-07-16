@@ -266,6 +266,7 @@ function renderTopkSensitivity(sensitivity) {
   const body = $("#topk-trajectory-body");
   if (!summary || !body || !sensitivity) return;
   const pair = sensitivity.comparable_pair;
+  const reference = sensitivity.pre600k_reference;
   summary.innerHTML =
     '<article class="topk-decision">' +
     '<div class="page-kicker">Decision / comparable 600k rows only</div>' +
@@ -276,6 +277,12 @@ function renderTopkSensitivity(sensitivity) {
     esc(sensitivity.recommendation) +
     "</p>" +
     '<div class="topk-metrics">' +
+    "<span><b>" +
+    esc(reference.avg_steps) +
+    "</b> k3 avg pre-600k</span>" +
+    "<span><b>" +
+    esc(reference.first_bad_matches + "/10") +
+    "</b> k3 boundaries</span>" +
     "<span><b>" +
     esc(pair.topk20_step_wins) +
     "</b> k20 wins</span>" +
@@ -307,8 +314,10 @@ function renderTopkSensitivity(sensitivity) {
         '<tr><td class="left"><strong>' +
         esc(row.issue) +
         "</strong></td>" +
+        '<td class="num">' + esc(row.topk3_to_ten_percent) + "</td>" +
         '<td class="num">' + esc(row.topk10_to_ten_percent) + "</td>" +
         '<td class="num">' + esc(row.topk20_to_ten_percent) + "</td>" +
+        '<td class="num">' + esc(row.topk3_to_32) + "</td>" +
         '<td class="num">' + esc(row.topk10_to_32) + "</td>" +
         '<td class="num">' + esc(row.topk20_to_32) + "</td>" +
         '<td class="num ' + deltaClass + '">' +

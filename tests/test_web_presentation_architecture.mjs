@@ -61,9 +61,12 @@ assert.equal(site.focused_comparisons.topk.aggregate.topk20.avg_steps, 11.4);
 assert.equal(site.focused_comparisons.topk.aggregate.topk20.first_bad_matches, 9);
 assert.equal(site.focused_comparisons.topk.aggregate.topk10.skip_rows, 1);
 assert.equal(site.focused_comparisons.topk.sensitivity.operational_default, "topk10");
+assert.equal(site.focused_comparisons.topk.sensitivity.pre600k_reference.key, "topk3");
+assert.equal(site.focused_comparisons.topk.sensitivity.pre600k_reference.avg_steps, 11);
 assert.equal(site.focused_comparisons.topk.sensitivity.comparable_pair.topk20_step_wins, 6);
 assert.equal(site.focused_comparisons.topk.sensitivity.comparable_pair.topk10_step_wins, 1);
 assert.equal(site.focused_comparisons.topk.sensitivity.rows.length, 10);
+assert.equal(site.focused_comparisons.topk.sensitivity.rows[0].topk3_to_32, 9);
 assert.equal(site.focused_comparisons.convergence.rows.length, 10, "convergence charts must cover scoped 10");
 for (const row of site.focused_comparisons.convergence.rows) {
   for (const key of ["topk3", "topk10", "topk20"]) {
