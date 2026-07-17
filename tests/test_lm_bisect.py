@@ -411,13 +411,14 @@ class ScoringTests(unittest.TestCase):
         ), mock.patch.object(
             lm_bisect,
             "commit_diff_text",
-            return_value="+static void repairMagicVectorThing() {\n+  TightLoopState State;\n+  return;\n+}\n",
+            return_value="+static void repairMagicVectorThing() {\n+  TightLoopState State;\n+  general prose should not become a keyword;\n+  return;\n+}\n",
         ):
             keywords = lm_bisect.oracle_first_bad_keywords(Path("/tmp/repo"), "a" * 40)
 
         self.assertIn("MagicVectorThing", keywords)
         self.assertIn("repairMagicVectorThing", keywords)
         self.assertNotIn("return", keywords)
+        self.assertNotIn("general", keywords)
 
     def test_oracle_first_bad_profile_replaces_only_authored_keywords(self) -> None:
         profile = demo_profile(

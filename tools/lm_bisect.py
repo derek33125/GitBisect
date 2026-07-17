@@ -135,6 +135,7 @@ ORACLE_KEYWORD_STOPWORDS = frozenset(
     }
 )
 ORACLE_IDENTIFIER_RE = re.compile(r"\b[A-Za-z_][A-Za-z0-9_:]{3,}\b")
+ORACLE_SUBJECT_TAG_RE = re.compile(r"\[([^\]]+)\]")
 ORACLE_KEYWORD_LIMIT = 16
 
 BUILD_RISK_WORDS = (
@@ -286,6 +287,13 @@ def oracle_keyword_term(value: str) -> str | None:
     normalized = compact_alnum(candidate)
     if len(normalized) < 5 or normalized in ORACLE_KEYWORD_STOPWORDS or normalized.isdigit():
         return None
+    if not (
+        any(char.isupper() for char in candidate)
+        or "_" in candidate
+        or "::" in candidate
+        or "-" in candidate
+    ):
+        return None
     return candidate
 
 
@@ -295,7 +303,7 @@ def oracle_first_bad_keyword_derivation(repo: Path, first_bad_sha: str) -> dict[
     body = commit_body(repo, first_bad_sha)
     changed_files = commit_changed_files(repo, first_bad_sha)
     diff_text = commit_diff_text(repo, first_bad_sha, max_chars=DIFF_EXTRACTION_MAX_INPUT_CHARS)
-    source_texts = [subject, body]
+    source_texts = ORACLE_SUBJECT_TAG_RE.findall(subject)
     source_texts.extend(Path(path).stem for path in changed_files)
     source_texts.extend(
         line[1:]
