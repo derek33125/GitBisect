@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+import subprocess
 import sys
 import tempfile
 import types
@@ -401,6 +402,117 @@ class ScoringTests(unittest.TestCase):
 
         self.assertEqual(record.semantic_score, 0.05)
         self.assertEqual(record.feedback_bias, 0.0)
+
+
+class AdaptiveTopKTests(unittest.TestCase):
+    def test_adaptive_top_k_uses_large_frontier_above_threshold(self) -> None:
+        config = lm_bisect.AdaptiveTopKConfig(threshold=5_000, large_k=12, small_k=3)
+
+        self.assertEqual(lm_bisect.effective_model_top_k(5_001, 3, config), 12)
+
+    def test_adaptive_top_k_uses_small_frontier_at_threshold(self) -> None:
+        config = lm_bisect.AdaptiveTopKConfig(threshold=5_000, large_k=12, small_k=3)
+
+        self.assertEqual(lm_bisect.effective_model_top_k(5_000, 12, config), 3)
+        self.assertEqual(lm_bisect.effective_model_top_k(2, 12, config), 2)
+
+    def test_parser_accepts_complete_adaptive_schedule(self) -> None:
+        args = lm_bisect.build_parser().parse_args(
+            [
+                "run-online",
+                "--issue",
+                "demo",
+                "--adaptive-top-k-threshold",
+                "5000",
+                "--adaptive-top-k-large",
+                "12",
+                "--adaptive-top-k-small",
+                "3",
+                "--model-cache-namespace",
+                "adaptive-5000-12-3",
+            ]
+        )
+
+        self.assertEqual(
+            lm_bisect.adaptive_top_k_config_from_args(args),
+            lm_bisect.AdaptiveTopKConfig(threshold=5_000, large_k=12, small_k=3),
+        )
+        self.assertEqual(args.model_cache_namespace, "adaptive-5000-12-3")
+
+    def test_adaptive_schedule_requires_all_three_arguments(self) -> None:
+        args = lm_bisect.build_parser().parse_args(
+            ["run-online", "--issue", "demo", "--adaptive-top-k-threshold", "5000"]
+        )
+
+        with self.assertRaises(ValueError):
+            lm_bisect.adaptive_top_k_config_from_args(args)
+
+    def test_adaptive_cache_namespace_and_score_context_are_isolated(self) -> None:
+        profile = demo_profile()
+        namespace = lm_bisect.resolved_model_cache_namespace(
+            None,
+            lm_bisect.AdaptiveTopKConfig(threshold=5_000, large_k=12, small_k=3),
+        )
+        context = lm_bisect.model_score_context_payload(
+            ["a" * 40, "b" * 40],
+            [],
+            12,
+            "topk",
+            "parent",
+            "llm",
+            "trace-only",
+        )
+        other_context = dict(context, model_top_k=3)
+        cache_path = lm_bisect.model_cache_path(profile.issue_id, "gpt-5.4-mini", namespace=namespace)
+
+        self.assertIn("ns-adaptive-5000-12-3", str(cache_path))
+        self.assertNotEqual(
+            lm_bisect.model_score_cache_key("a" * 40, diff_extraction="llm", score_context=lm_bisect.model_score_context_id(context)),
+            lm_bisect.model_score_cache_key("a" * 40, diff_extraction="llm", score_context=lm_bisect.model_score_context_id(other_context)),
+        )
+
+    def test_adaptive_schedule_prevents_history_resume_with_fixed_k_history(self) -> None:
+        existing = lm_bisect.start_run_history_payload(
+            issue_id="demo",
+            scorer="model",
+            model_name="gpt-5.4-mini",
+            model_frontier="topk",
+            search_policy="calibrated-posterior",
+            hybrid_switch_window=32,
+            lambda_weight=2.0,
+            max_steps=30,
+            observation_path="/tmp/observations.json",
+            run_history_path="/tmp/run-history.json",
+            good_commit="g" * 40,
+            bad_commit="b" * 40,
+            initial_unresolved=10_000,
+            model_top_k=3,
+        )
+
+        history, completed_steps, resumed = lm_bisect.prepare_run_history(
+            existing_history=existing,
+            issue_id="demo",
+            scorer="model",
+            model_name="gpt-5.4-mini",
+            model_frontier="topk",
+            search_policy="calibrated-posterior",
+            hybrid_switch_window=32,
+            lambda_weight=2.0,
+            max_steps=30,
+            observation_path="/tmp/observations.json",
+            run_history_path="/tmp/run-history.json",
+            good_commit="g" * 40,
+            bad_commit="b" * 40,
+            initial_unresolved=10_000,
+            candidate_file=None,
+            model_top_k=3,
+            adaptive_top_k={"threshold": 5_000, "large_k": 12, "small_k": 3},
+            model_cache_namespace="adaptive-5000-12-3",
+        )
+
+        self.assertFalse(resumed)
+        self.assertEqual(completed_steps, 0)
+        self.assertEqual(history["adaptive_top_k"]["large_k"], 12)
 
     def test_parser_accepts_general_keyword_heuristic_version(self) -> None:
         args = lm_bisect.build_parser().parse_args(
@@ -2404,6 +2516,23 @@ class SimulationHelpersTests(unittest.TestCase):
         self.assertEqual(lm_bisect.verdict_from_runner_exit_code(125), "skip")
         with self.assertRaises(RuntimeError):
             lm_bisect.verdict_from_runner_exit_code(42)
+
+    def test_runner_missing_issue_definition_is_not_classified_as_bad(self) -> None:
+        profile = demo_profile()
+        completed = subprocess.CompletedProcess(
+            args=["runner"],
+            returncode=1,
+            stdout="missing issue definition: demo\n",
+        )
+
+        with mock.patch.object(lm_bisect, "runner_path_for_issue", return_value=Path("/tmp/runner")), mock.patch(
+            "subprocess.run", return_value=completed
+        ):
+            verdict, summary, _output, evidence = lm_bisect.run_issue_runner(profile, Path("/tmp/repo"))
+
+        self.assertEqual(verdict, "skip")
+        self.assertEqual(summary, "missing issue definition: demo")
+        self.assertIn("runner configuration error", evidence)
 
 
 class ObservationHelpersTests(unittest.TestCase):

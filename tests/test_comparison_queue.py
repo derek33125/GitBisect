@@ -18,6 +18,15 @@ class ComparisonQueueTests(unittest.TestCase):
         self.assertLess(root_assignment, root_change)
         self.assertLess(root_change, command)
 
+    def test_supports_adaptive_parent_extraction_mode(self) -> None:
+        text = SCRIPT.read_text()
+
+        self.assertIn('adaptive-parent-extract)', text)
+        self.assertIn('--adaptive-top-k-threshold "${ADAPTIVE_TOP_K_THRESHOLD}"', text)
+        self.assertIn('--adaptive-top-k-large "${ADAPTIVE_TOP_K_LARGE}"', text)
+        self.assertIn('--adaptive-top-k-small "${ADAPTIVE_TOP_K_SMALL}"', text)
+        self.assertIn('--model-cache-namespace "${MODEL_CACHE_NAMESPACE}"', text)
+
 
 if __name__ == "__main__":
     unittest.main()

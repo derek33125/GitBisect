@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import math
 import os
@@ -320,6 +321,20 @@ class ModelConfig:
     observation_prompt_mode: str = "legacy"
 
 
+@dataclass(frozen=True)
+class AdaptiveTopKConfig:
+    threshold: int
+    large_k: int
+    small_k: int
+
+    def payload(self) -> dict[str, int]:
+        return {
+            "threshold": self.threshold,
+            "large_k": self.large_k,
+            "small_k": self.small_k,
+        }
+
+
 @dataclass
 class CommitMetadata:
     sha: str
@@ -372,10 +387,17 @@ def load_model_config(
     )
 
 
-def model_cache_path(issue_id: str, model_name: str, scoring_version: str = MODEL_SCORING_VERSION) -> Path:
+def model_cache_path(
+    issue_id: str,
+    model_name: str,
+    scoring_version: str = MODEL_SCORING_VERSION,
+    namespace: str | None = None,
+) -> Path:
     safe_model = re.sub(r"[^A-Za-z0-9_.-]+", "_", model_name)
     safe_version = re.sub(r"[^A-Za-z0-9_.-]+", "_", scoring_version)
-    return DEFAULT_MODEL_CACHE_DIR / f"{issue_id}-{safe_model}-{safe_version}.json"
+    safe_namespace = re.sub(r"[^A-Za-z0-9_.-]+", "_", namespace or "").strip("_")
+    suffix = f"-ns-{safe_namespace}" if safe_namespace else ""
+    return DEFAULT_MODEL_CACHE_DIR / f"{issue_id}-{safe_model}-{safe_version}{suffix}.json"
 
 
 def resolved_model_scoring_version(observation_prompt_mode: str = "legacy") -> str:
@@ -390,6 +412,7 @@ def model_score_cache_key(
     diff_mode: str = "parent",
     diff_base_sha: str | None = None,
     diff_extraction: str = "raw",
+    score_context: str | None = None,
 ) -> str:
     if diff_extraction not in {"raw", "llm"}:
         raise ValueError(f"unsupported diff_extraction: {diff_extraction}")
@@ -399,9 +422,106 @@ def model_score_cache_key(
         base_key = f"{sha}|diff:last-tested-candidate-files|base:{diff_base_sha}"
     else:
         base_key = f"{sha}|diff:{diff_mode}"
-    if diff_extraction == "raw":
-        return base_key
-    return f"{base_key}|extract:{diff_extraction}-{DIFF_EXTRACTION_VERSION}"
+    if diff_extraction != "raw":
+        base_key = f"{base_key}|extract:{diff_extraction}-{DIFF_EXTRACTION_VERSION}"
+    if score_context:
+        safe_context = hashlib.sha256(score_context.encode("utf-8")).hexdigest()[:16]
+        base_key = f"{base_key}|context:{safe_context}"
+    return base_key
+
+
+def adaptive_top_k_config_from_args(args: argparse.Namespace) -> AdaptiveTopKConfig | None:
+    values = (
+        getattr(args, "adaptive_top_k_threshold", None),
+        getattr(args, "adaptive_top_k_large", None),
+        getattr(args, "adaptive_top_k_small", None),
+    )
+    if values == (None, None, None):
+        return None
+    if any(value is None for value in values):
+        raise ValueError(
+            "adaptive top-k requires --adaptive-top-k-threshold, "
+            "--adaptive-top-k-large, and --adaptive-top-k-small together"
+        )
+    threshold, large_k, small_k = (int(value) for value in values)
+    if threshold < 0:
+        raise ValueError("adaptive top-k threshold must be non-negative")
+    if large_k <= 0 or small_k <= 0:
+        raise ValueError("adaptive top-k values must be positive")
+    return AdaptiveTopKConfig(threshold=threshold, large_k=large_k, small_k=small_k)
+
+
+def effective_model_top_k(
+    unresolved_count: int,
+    fixed_top_k: int | None,
+    adaptive_config: AdaptiveTopKConfig | None = None,
+) -> int:
+    if unresolved_count <= 0:
+        return 0
+    if adaptive_config is None:
+        requested = fixed_top_k if fixed_top_k is not None else unresolved_count
+    elif unresolved_count > adaptive_config.threshold:
+        requested = adaptive_config.large_k
+    else:
+        requested = adaptive_config.small_k
+    return min(requested, unresolved_count)
+
+
+def resolved_model_cache_namespace(
+    explicit_namespace: str | None,
+    adaptive_config: AdaptiveTopKConfig | None,
+) -> str | None:
+    if explicit_namespace:
+        return explicit_namespace
+    if adaptive_config is None:
+        return None
+    return (
+        f"adaptive-{adaptive_config.threshold}-"
+        f"{adaptive_config.large_k}-{adaptive_config.small_k}"
+    )
+
+
+def model_score_context_payload(
+    unresolved: list[str],
+    observations: list[CommitObservation],
+    model_top_k: int,
+    model_frontier: str,
+    model_diff_mode: str,
+    model_diff_extraction: str,
+    observation_prompt_mode: str,
+) -> dict[str, object]:
+    candidate_digest = hashlib.sha256("\n".join(unresolved).encode("utf-8")).hexdigest()
+    observation_payload = [
+        {
+            "sha": observation.sha,
+            "verdict": observation.verdict,
+            "summary": observation.summary,
+            "source": observation.source,
+            "trace_excerpt": observation.trace_excerpt,
+            "log_excerpt": observation.log_excerpt,
+            "build_failure": observation.build_failure or {},
+        }
+        for observation in observations
+    ]
+    observation_digest = hashlib.sha256(
+        json.dumps(observation_payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    ).hexdigest()
+    return {
+        "version": "v1",
+        "unresolved_count": len(unresolved),
+        "candidate_window_sha256": candidate_digest,
+        "observation_sha256": observation_digest,
+        "model_top_k": model_top_k,
+        "model_frontier": model_frontier,
+        "model_diff_mode": model_diff_mode,
+        "model_diff_extraction": model_diff_extraction,
+        "observation_prompt_mode": observation_prompt_mode,
+    }
+
+
+def model_score_context_id(payload: dict[str, object]) -> str:
+    serialized = json.dumps(payload, sort_keys=True, separators=(",", ":"))
+    return f"v1-{hashlib.sha256(serialized.encode('utf-8')).hexdigest()[:16]}"
 
 
 def load_model_cache(path: Path) -> dict[str, dict]:
@@ -2023,6 +2143,8 @@ def start_run_history_payload(
     model_diff_mode: str = "parent",
     model_diff_extraction: str = "raw",
     model_top_k: int | None = None,
+    adaptive_top_k: dict[str, int] | None = None,
+    model_cache_namespace: str | None = None,
 ) -> dict:
     return {
         "issue": issue_id,
@@ -2043,6 +2165,8 @@ def start_run_history_payload(
         "model_diff_mode": model_diff_mode,
         "model_diff_extraction": model_diff_extraction,
         "model_top_k": model_top_k,
+        "adaptive_top_k": adaptive_top_k,
+        "model_cache_namespace": model_cache_namespace,
         "lambda_weight": lambda_weight,
         "max_steps": max_steps,
         "observation_path": observation_path,
@@ -2079,6 +2203,8 @@ def run_history_matches(
     model_diff_mode: str = "parent",
     model_diff_extraction: str = "raw",
     model_top_k: int | None = None,
+    adaptive_top_k: dict[str, int] | None = None,
+    model_cache_namespace: str | None = None,
 ) -> bool:
     return (
         bool(history)
@@ -2099,6 +2225,8 @@ def run_history_matches(
         and history.get("model_diff_mode", "parent") == model_diff_mode
         and history.get("model_diff_extraction", "raw") == model_diff_extraction
         and history.get("model_top_k") == model_top_k
+        and history.get("adaptive_top_k") == adaptive_top_k
+        and history.get("model_cache_namespace") == model_cache_namespace
     )
 
 
@@ -2131,6 +2259,8 @@ def prepare_run_history(
     model_diff_mode: str = "parent",
     model_diff_extraction: str = "raw",
     model_top_k: int | None = None,
+    adaptive_top_k: dict[str, int] | None = None,
+    model_cache_namespace: str | None = None,
 ) -> tuple[dict, int, bool]:
     history_matches = (
         run_history_matches(
@@ -2151,6 +2281,8 @@ def prepare_run_history(
             model_diff_mode,
             model_diff_extraction,
             model_top_k,
+            adaptive_top_k,
+            model_cache_namespace,
         )
         and existing_history.get("search_policy", "ranked") == search_policy
         and int(existing_history.get("hybrid_switch_window", hybrid_switch_window)) == hybrid_switch_window
@@ -2173,6 +2305,8 @@ def prepare_run_history(
         history["model_diff_mode"] = model_diff_mode
         history["model_diff_extraction"] = model_diff_extraction
         history["model_top_k"] = model_top_k
+        history["adaptive_top_k"] = adaptive_top_k
+        history["model_cache_namespace"] = model_cache_namespace
         history["lambda_weight"] = lambda_weight
         history["max_steps"] = max_steps
         history["observation_path"] = observation_path
@@ -2212,6 +2346,8 @@ def prepare_run_history(
         model_diff_mode=model_diff_mode,
         model_diff_extraction=model_diff_extraction,
         model_top_k=model_top_k,
+        adaptive_top_k=adaptive_top_k,
+        model_cache_namespace=model_cache_namespace,
     )
     if candidate_file:
         history["candidate_file"] = candidate_file
@@ -2536,8 +2672,14 @@ def run_issue_runner(profile: IssueProfile, repo: Path) -> tuple[str, str, str, 
         stderr=subprocess.STDOUT,
         text=True,
     )
-    verdict = verdict_from_runner_exit_code(completed.returncode)
     output = completed.stdout.strip()
+    if re.search(r"(?:missing issue definition|no repro for)\s*:", output, re.IGNORECASE):
+        verdict = "skip"
+        summary = output.splitlines()[-1].strip()
+        evidence = ["runner configuration error"] + runner_evidence_lines(output)
+        output = append_runner_log_tail(output, profile, verdict)
+        return verdict, summary, output, evidence
+    verdict = verdict_from_runner_exit_code(completed.returncode)
     summary = output.splitlines()[-1].strip() if output else f"runner verdict {verdict}"
     output = append_runner_log_tail(output, profile, verdict)
     evidence = runner_evidence_lines(output)
@@ -3158,6 +3300,8 @@ def make_records(
     model_diff_extraction: str = "raw",
     last_tested_sha: str | None = None,
     model_usage_summary: dict[str, object] | None = None,
+    model_cache_namespace: str | None = None,
+    model_score_context: str | None = None,
 ) -> tuple[list[CommitRecord], dict]:
     if model_diff_mode not in {"parent", "last-tested"}:
         raise ValueError(f"unsupported model_diff_mode: {model_diff_mode}")
@@ -3213,11 +3357,18 @@ def make_records(
 
     target_count = len(records) if model_top_k is None else min(model_top_k, len(records))
     selected_shas = set(select_model_frontier_shas(records, target_count, model_frontier))
+    frontier_score_context = model_score_context
+    if model_score_context:
+        frontier_digest = hashlib.sha256(
+            "\n".join(sorted(selected_shas)).encode("utf-8")
+        ).hexdigest()
+        frontier_score_context = f"{model_score_context}|frontier:{frontier_digest}"
 
     cache_path = model_cache_path(
         profile.issue_id,
         model_config.model_name,
         scoring_version=resolved_model_scoring_version(model_config.observation_prompt_mode),
+        namespace=model_cache_namespace,
     )
     cache = model_cache if model_cache is not None else load_model_cache(cache_path)
     effective_model_diff_mode = "last-tested" if model_diff_mode == "last-tested" and last_tested_sha else "parent"
@@ -3259,6 +3410,7 @@ def make_records(
                 item_diff_mode,
                 item_diff_base_sha,
                 model_diff_extraction,
+                frontier_score_context,
             )
         )
         if not is_complete_model_cache_entry(cached):
@@ -3276,6 +3428,7 @@ def make_records(
             item_diff_mode,
             diff_base_sha,
             model_diff_extraction,
+            frontier_score_context,
         )
         cached = cache.get(cache_key)
         if not is_complete_model_cache_entry(cached):
@@ -3351,6 +3504,7 @@ def make_records(
                     batch_item.get("diff_mode", "parent"),
                     batch_item.get("diff_base_sha"),
                     batch_item.get("diff_extraction", model_diff_extraction),
+                    frontier_score_context,
                 )
                 cache[cache_key] = result
         save_model_cache(cache_path, cache)
@@ -4085,6 +4239,17 @@ def command_run_online(args: argparse.Namespace) -> int:
     observation_path = Path(args.observations) if args.observations else observation_path_for_issue(args.issue)
     observations = load_observations(observation_path)
     log_progress(f"loaded observations: {len(observations)} from {observation_path}")
+    adaptive_top_k = adaptive_top_k_config_from_args(args) if args.scorer == "model" else None
+    model_cache_namespace = resolved_model_cache_namespace(
+        args.model_cache_namespace if isinstance(getattr(args, "model_cache_namespace", None), str) else None,
+        adaptive_top_k,
+    )
+    if adaptive_top_k is not None:
+        log_progress(
+            "adaptive model frontier enabled: "
+            f"k={adaptive_top_k.large_k} above {adaptive_top_k.threshold}, "
+            f"k={adaptive_top_k.small_k} at or below"
+        )
     model_name = resolved_model_name(args.scorer, args.model_name)
     run_history_path = run_history_path_for_issue(
         args.issue,
@@ -4138,6 +4303,8 @@ def command_run_online(args: argparse.Namespace) -> int:
         model_diff_mode=args.model_diff_mode,
         model_diff_extraction=args.model_diff_extraction if args.scorer == "model" else "raw",
         model_top_k=args.model_top_k if args.scorer == "model" else None,
+        adaptive_top_k=adaptive_top_k.payload() if adaptive_top_k else None,
+        model_cache_namespace=model_cache_namespace,
     )
     run_history["heuristic_keywords"] = effective_heuristic_keywords(profile, args.heuristic_version)
     save_run_history(run_history_path, run_history)
@@ -4179,6 +4346,7 @@ def command_run_online(args: argparse.Namespace) -> int:
                 profile.issue_id,
                 model_config.model_name,
                 scoring_version=resolved_model_scoring_version(model_config.observation_prompt_mode),
+                namespace=model_cache_namespace,
             )
         )
         if model_config is not None
@@ -4189,6 +4357,7 @@ def command_run_online(args: argparse.Namespace) -> int:
             profile.issue_id,
             model_config.model_name,
             scoring_version=resolved_model_scoring_version(model_config.observation_prompt_mode),
+            namespace=model_cache_namespace,
         )
         if model_config is not None
         else None
@@ -4224,6 +4393,29 @@ def command_run_online(args: argparse.Namespace) -> int:
 
             step += 1
             unresolved_before = len(unresolved)
+            effective_top_k = effective_model_top_k(
+                unresolved_before,
+                args.model_top_k if args.scorer == "model" else None,
+                adaptive_top_k,
+            )
+            score_context_payload = (
+                model_score_context_payload(
+                    unresolved,
+                    observations,
+                    effective_top_k,
+                    args.model_frontier,
+                    args.model_diff_mode,
+                    args.model_diff_extraction,
+                    args.observation_prompt_mode,
+                )
+                if args.scorer == "model"
+                else None
+            )
+            score_context = (
+                model_score_context_id(score_context_payload)
+                if score_context_payload is not None
+                else None
+            )
             last_tested_sha = None
             if run_history.get("steps"):
                 last_tested_sha = str(run_history["steps"][-1].get("sha") or "") or None
@@ -4234,7 +4426,7 @@ def command_run_online(args: argparse.Namespace) -> int:
                 scorer=args.scorer,
                 model_config=model_config,
                 candidate_shas=unresolved,
-                model_top_k=args.model_top_k,
+                model_top_k=effective_top_k if args.scorer == "model" else None,
                 model_frontier=args.model_frontier,
                 candidate_pruning=args.candidate_pruning,
                 heuristic_version=args.heuristic_version,
@@ -4245,6 +4437,8 @@ def command_run_online(args: argparse.Namespace) -> int:
                 model_diff_extraction=args.model_diff_extraction,
                 last_tested_sha=last_tested_sha,
                 model_usage_summary=model_usage_summary,
+                model_cache_namespace=model_cache_namespace,
+                model_score_context=score_context,
             )
             if model_usage_summary is not None:
                 run_history["model_usage"] = model_usage_summary
@@ -4286,7 +4480,7 @@ def command_run_online(args: argparse.Namespace) -> int:
                     scorer=args.scorer,
                     model_config=model_config,
                     candidate_shas=unresolved,
-                    model_top_k=args.model_top_k,
+                    model_top_k=effective_top_k if args.scorer == "model" else None,
                     model_frontier=args.model_frontier,
                     candidate_pruning="off",
                     heuristic_version=args.heuristic_version,
@@ -4296,6 +4490,9 @@ def command_run_online(args: argparse.Namespace) -> int:
                     model_diff_mode=args.model_diff_mode,
                     model_diff_extraction=args.model_diff_extraction,
                     last_tested_sha=last_tested_sha,
+                    model_usage_summary=model_usage_summary,
+                    model_cache_namespace=model_cache_namespace,
+                    model_score_context=score_context,
                 )
                 log_progress(f"step {step}: fallback make_records done records={len(records)}")
                 apply_feedback_bias(
@@ -4410,6 +4607,10 @@ def command_run_online(args: argparse.Namespace) -> int:
                     "summary": summary,
                     "unresolved_before": unresolved_before,
                     "unresolved_after": len(unresolved),
+                    "model_top_k": effective_top_k if args.scorer == "model" else None,
+                    "adaptive_top_k": adaptive_top_k.payload() if adaptive_top_k else None,
+                    "model_score_context": score_context,
+                    "model_score_context_payload": score_context_payload,
                     "candidate_pruning": pruning_summary,
                     "search_policy": args.search_policy,
                     "selection_mode": decision.selection_mode,
@@ -4616,6 +4817,29 @@ def build_parser() -> argparse.ArgumentParser:
     run_online.add_argument("--heuristic-top-k", type=int, default=None, help=argparse.SUPPRESS)
     run_online.add_argument("--model-name", default=None, help="optional model override for scorer=model")
     run_online.add_argument("--model-top-k", type=int, default=3, help="number of heuristic-prefiltered commits to rescore with the model")
+    run_online.add_argument(
+        "--adaptive-top-k-threshold",
+        type=int,
+        default=None,
+        help="use the large model frontier only above this unresolved-commit count",
+    )
+    run_online.add_argument(
+        "--adaptive-top-k-large",
+        type=int,
+        default=None,
+        help="model frontier size while unresolved commits exceed the adaptive threshold",
+    )
+    run_online.add_argument(
+        "--adaptive-top-k-small",
+        type=int,
+        default=None,
+        help="model frontier size while unresolved commits are at or below the adaptive threshold",
+    )
+    run_online.add_argument(
+        "--model-cache-namespace",
+        default=None,
+        help="isolate model scores from other experiment configurations",
+    )
     run_online.add_argument("--model-frontier", choices=("topk", "diverse", "all"), default="topk", help="how to choose the model rescoring frontier")
     run_online.add_argument("--model-diff-mode", choices=("parent", "last-tested"), default="parent", help="diff evidence passed to model-scored candidates")
     run_online.add_argument("--model-diff-extraction", choices=("raw", "llm"), default="raw", help="whether model-scored candidates use raw diff text or an LLM-extracted diff summary")
