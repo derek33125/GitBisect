@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-MODE="${1:?mode required: heuristic|general-heuristic|no-keyword-heuristic|neutral-heuristic|parent-extract|adaptive-parent-extract|lastdiff-extract}"
+MODE="${1:?mode required: heuristic|general-heuristic|no-keyword-heuristic|neutral-heuristic|oracle-first-bad-heuristic|parent-extract|adaptive-parent-extract|lastdiff-extract}"
 LANE="${2:?lane label required}"
 shift 2
 ISSUES=("$@")
@@ -98,6 +98,25 @@ print(profiles[issue]["bad_commit"])
 PY
 }
 
+oracle_first_bad_commit() {
+  local issue="$1"
+  case "${issue}" in
+    pr204559|pr204589) echo "5a5d0fb1e471b3a1e842aee1f993e885c8d19713" ;;
+    pr201444) echo "6bcdd843e302063c4f0d36204686155149a6bb0a" ;;
+    pr193164) echo "cac7fe50e0fbedfb14028c170d83386efeb1265b" ;;
+    pr50304) echo "c9c05a91c4843c243d508c39bdfbc5e26f311af2" ;;
+    pr50585) echo "e38b7e894808ec2a0c976ab01e44364f167508d3" ;;
+    pr48154) echo "20e989e9de6abcf9a684978a2688acc4ea01036f" ;;
+    pr49535) echo "be20eae25f50f5ef648aeefa1143e1c31e4410fc" ;;
+    pr52635) echo "10bc12588dac532fad044b2851dde8e7b9121e88" ;;
+    pr200987) echo "329ef60f3e21fd6845e8e8b0da405cae7eb27267" ;;
+    *)
+      echo "missing canonical first-bad SHA for oracle diagnostic: ${issue}" >&2
+      return 2
+      ;;
+  esac
+}
+
 run_bisect_cmd() {
   RUN_ID="${LANE}" "$@" &
   local child_pid=$!
@@ -109,6 +128,7 @@ run_bisect_cmd() {
 run_issue() {
   local issue="$1"
   local bad
+  local oracle_bad=""
   bad="$(profile_bad_commit "${issue}")"
   local wt="${WORK_ROOT}/${issue}-${LANE}"
   local obs="results/lm_bisect_observations/${issue}-${LANE}.json"
@@ -157,6 +177,19 @@ run_issue() {
         --llvm-dir "${wt}" \
         --scorer heuristic \
         --heuristic-version neutral \
+        --search-policy calibrated-posterior \
+        --observations "${obs}" \
+        --run-label "${LANE}" \
+        --max-steps 30
+      ;;
+    oracle-first-bad-heuristic)
+      oracle_bad="$(oracle_first_bad_commit "${issue}")"
+      run_bisect_cmd "${PY}" tools/lm_bisect.py run-online \
+        --issue "${issue}" \
+        --llvm-dir "${wt}" \
+        --scorer heuristic \
+        --heuristic-version oracle-first-bad \
+        --oracle-first-bad-sha "${oracle_bad}" \
         --search-policy calibrated-posterior \
         --observations "${obs}" \
         --run-label "${LANE}" \

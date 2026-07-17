@@ -27,6 +27,13 @@ class ComparisonQueueTests(unittest.TestCase):
         self.assertIn('--adaptive-top-k-small "${ADAPTIVE_TOP_K_SMALL}"', text)
         self.assertIn('--model-cache-namespace "${MODEL_CACHE_NAMESPACE}"', text)
 
+    def test_supports_oracle_first_bad_keyword_mode(self) -> None:
+        text = SCRIPT.read_text()
+
+        self.assertIn('oracle-first-bad-heuristic)', text)
+        self.assertIn('oracle_first_bad_commit()', text)
+        self.assertIn('--oracle-first-bad-sha "${oracle_bad}"', text)
+
 
 if __name__ == "__main__":
     unittest.main()

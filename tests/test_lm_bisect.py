@@ -403,6 +403,39 @@ class ScoringTests(unittest.TestCase):
         self.assertEqual(record.semantic_score, 0.05)
         self.assertEqual(record.feedback_bias, 0.0)
 
+    def test_oracle_first_bad_keywords_use_first_bad_diff_symbols(self) -> None:
+        with mock.patch.object(lm_bisect, "commit_subject", return_value="[Loop] Repair MagicVectorThing"), mock.patch.object(
+            lm_bisect, "commit_body", return_value=""
+        ), mock.patch.object(
+            lm_bisect, "commit_changed_files", return_value=["llvm/lib/Transforms/Scalar/MagicVectorThing.cpp"]
+        ), mock.patch.object(
+            lm_bisect,
+            "commit_diff_text",
+            return_value="+static void repairMagicVectorThing() {\n+  TightLoopState State;\n+  return;\n+}\n",
+        ):
+            keywords = lm_bisect.oracle_first_bad_keywords(Path("/tmp/repo"), "a" * 40)
+
+        self.assertIn("MagicVectorThing", keywords)
+        self.assertIn("repairMagicVectorThing", keywords)
+        self.assertNotIn("return", keywords)
+
+    def test_oracle_first_bad_profile_replaces_only_authored_keywords(self) -> None:
+        profile = demo_profile(
+            keywords=["authored-only"],
+            relevant_paths=["llvm/lib/Transforms/Vectorize"],
+            high_risk_paths=["llvm/lib/Transforms"],
+        )
+
+        selection_profile = lm_bisect.heuristic_selection_profile(
+            profile,
+            "oracle-first-bad",
+            oracle_keywords=["MagicVectorThing", "TightLoopState"],
+        )
+
+        self.assertEqual(selection_profile.keywords, ["MagicVectorThing", "TightLoopState"])
+        self.assertEqual(selection_profile.relevant_paths, profile.relevant_paths)
+        self.assertEqual(selection_profile.high_risk_paths, profile.high_risk_paths)
+
 
 class AdaptiveTopKTests(unittest.TestCase):
     def test_adaptive_top_k_uses_large_frontier_above_threshold(self) -> None:
@@ -534,6 +567,64 @@ class AdaptiveTopKTests(unittest.TestCase):
         )
 
         self.assertEqual(args.heuristic_version, "neutral")
+
+    def test_parser_accepts_oracle_first_bad_heuristic_with_explicit_sha(self) -> None:
+        args = lm_bisect.build_parser().parse_args(
+            [
+                "run-online",
+                "--issue",
+                "demo",
+                "--heuristic-version",
+                "oracle-first-bad",
+                "--oracle-first-bad-sha",
+                "a" * 40,
+            ]
+        )
+
+        self.assertEqual(args.heuristic_version, "oracle-first-bad")
+        self.assertEqual(args.oracle_first_bad_sha, "a" * 40)
+
+    def test_oracle_first_bad_history_does_not_resume_with_different_source(self) -> None:
+        existing = lm_bisect.start_run_history_payload(
+            issue_id="demo",
+            scorer="heuristic",
+            model_name=None,
+            model_frontier="topk",
+            search_policy="calibrated-posterior",
+            hybrid_switch_window=32,
+            lambda_weight=2.0,
+            max_steps=30,
+            observation_path="/tmp/observations.json",
+            run_history_path="/tmp/run-history.json",
+            good_commit="g" * 40,
+            bad_commit="b" * 40,
+            initial_unresolved=10_000,
+            heuristic_version="oracle-first-bad",
+            oracle_first_bad_sha="a" * 40,
+        )
+
+        _history, completed_steps, resumed = lm_bisect.prepare_run_history(
+            existing_history=existing,
+            issue_id="demo",
+            scorer="heuristic",
+            model_name=None,
+            model_frontier="topk",
+            search_policy="calibrated-posterior",
+            hybrid_switch_window=32,
+            lambda_weight=2.0,
+            max_steps=30,
+            observation_path="/tmp/observations.json",
+            run_history_path="/tmp/run-history.json",
+            good_commit="g" * 40,
+            bad_commit="b" * 40,
+            initial_unresolved=10_000,
+            candidate_file=None,
+            heuristic_version="oracle-first-bad",
+            oracle_first_bad_sha="b" * 40,
+        )
+
+        self.assertFalse(resumed)
+        self.assertEqual(completed_steps, 0)
 
     def test_build_probability_drops_for_build_system_touch(self) -> None:
         score, evidence = lm_bisect.score_build_probability(
