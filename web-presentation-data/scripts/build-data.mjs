@@ -28,6 +28,7 @@ const ORACLE_RAW_DIRS = [
   join(SCOPED, "raw", "aws", "oracle-first-bad"),
   join(SCOPED, "raw", "edu", "oracle-first-bad"),
 ];
+const ADAPTIVE_RAW_DIRS = [join(SCOPED, "raw", "edu", "adaptive")];
 const OUT_DIR = join(ROOT, "data");
 const OUT_FILE = join(OUT_DIR, "site-data.json");
 const LIVE_LANES_FILE = join(SCOPED, "data", "current-lanes.json");
@@ -92,6 +93,28 @@ const TOPK_RUN_LABELS = {
     pr52635: "edu10-parent-llm600k-topk20-dirfix2-e-20260710b",
     pr200987: "aws10-parent-llm600k-topk20-hardened-b-20260715d",
   },
+};
+
+// The AWS queue's nine completed histories were reconciled into the canonical
+// report before the final EDU correction. Only the corrected pr193164 history
+// is retained in this presentation bundle, so keep this audited summary
+// separate from the fixed-k raw-history loaders below.
+const ADAPTIVE_TOPK_ROWS = {
+  pr204559: { steps: 9, first_bad: "5a5d0fb1e471b3a1e842aee1f993e885c8d19713", source: "aws-server" },
+  pr204589: { steps: 10, first_bad: "5a5d0fb1e471b3a1e842aee1f993e885c8d19713", source: "aws-server" },
+  pr201444: { steps: 11, first_bad: "6bcdd843e302063c4f0d36204686155149a6bb0a", source: "aws-server" },
+  pr193164: {
+    steps: 10,
+    first_bad: "cac7fe50e0fbedfb14028c170d83386efeb1265b",
+    source: "edu-server corrected endpoint",
+    run_label: "edu10-adaptive-5000-12-3-pr193164-corrected-20260718a",
+  },
+  pr50304: { steps: 9, first_bad: "c9c05a91c4843c243d508c39bdfbc5e26f311af2", source: "aws-server" },
+  pr50585: { steps: 11, first_bad: "e38b7e894808ec2a0c976ab01e44364f167508d3", source: "aws-server" },
+  pr48154: { steps: 15, first_bad: "20e989e9de6abcf9a684978a2688acc4ea01036f", source: "aws-server" },
+  pr49535: { steps: 11, first_bad: "be20eae25f50f5ef648aeefa1143e1c31e4410fc", source: "aws-server" },
+  pr52635: { steps: 11, first_bad: "10bc12588dac532fad044b2851dde8e7b9121e88", source: "aws-server" },
+  pr200987: { steps: 12, first_bad: "329ef60f3e21fd6845e8e8b0da405cae7eb27267", source: "aws-server" },
 };
 
 const TOPK_ISSUE_TYPES = [
@@ -367,7 +390,7 @@ function buildTopkSensitivity(topkRows) {
 // Index every raw file by basename so we can resolve run labels quickly.
 function indexRawFiles() {
   const idx = [];
-  for (const dir of [...RAW_DIRS, ...ORACLE_RAW_DIRS]) {
+  for (const dir of [...RAW_DIRS, ...ORACLE_RAW_DIRS, ...ADAPTIVE_RAW_DIRS]) {
     if (!existsSync(dir)) continue;
     for (const name of readdirSync(dir)) {
       if (name.endsWith(".json")) idx.push({ name, path: join(dir, name) });
@@ -636,6 +659,28 @@ function loadFocusedRun(rawIdx, issue, runLabel) {
   };
 }
 
+function loadAdaptiveTopkRow(rawIdx, issue, canonicalFirstBad) {
+  const summary = ADAPTIVE_TOPK_ROWS[issue];
+  if (!summary) throw new Error(`missing adaptive summary for ${issue}`);
+  if (!sameCommit(summary.first_bad, canonicalFirstBad)) {
+    throw new Error(`adaptive first-bad boundary mismatch for ${issue}`);
+  }
+  if (!summary.run_label) {
+    return { ...summary, skips: 0, status: "reconciled-summary" };
+  }
+  const rawPath = findRawFile(rawIdx, issue, summary.run_label);
+  if (!rawPath) throw new Error(`missing adaptive raw history for ${issue}`);
+  const raw = readJson(rawPath);
+  if (!isCompletedFirstBadRun(raw) || raw.steps.length !== summary.steps) {
+    throw new Error(`invalid adaptive raw history for ${issue}`);
+  }
+  return {
+    ...summary,
+    skips: raw.steps.filter((step) => step.verdict === "skip").length,
+    status: "raw-history",
+  };
+}
+
 function buildFocusedComparisons(preferred, keywordAblation, weakControl, liveLanes, profiles, rawIdx) {
   const canonicalFirstBad = new Map();
   for (const row of preferred) {
@@ -660,6 +705,7 @@ function buildFocusedComparisons(preferred, keywordAblation, weakControl, liveLa
     }
     topk20.source = topk20Snapshot.source;
     const canonical = canonicalFirstBad.get(base.issue);
+    const adaptive = loadAdaptiveTopkRow(rawIdx, base.issue, canonical);
     return {
       issue: base.issue,
       title: profiles[base.issue]?.title || base.issue,
@@ -667,6 +713,7 @@ function buildFocusedComparisons(preferred, keywordAblation, weakControl, liveLa
       topk3,
       topk10,
       topk20,
+      adaptive,
       canonical_first_bad: canonical,
       topk3_matches: shortSha(topk3.first_bad) === canonical,
       topk10_matches: shortSha(topk10.first_bad) === canonical,
@@ -675,7 +722,7 @@ function buildFocusedComparisons(preferred, keywordAblation, weakControl, liveLa
   });
 
   const topkAggregate = {};
-  for (const key of ["topk3", "topk10", "topk20"]) {
+  for (const key of ["topk3", "topk10", "topk20", "adaptive"]) {
     const rows = topkRows.map((row) => row[key]);
     const steps = rows.map((row) => row.steps);
     topkAggregate[key] = {
@@ -683,7 +730,7 @@ function buildFocusedComparisons(preferred, keywordAblation, weakControl, liveLa
       avg_steps: average(steps),
       median_steps: median(steps),
       skip_rows: rows.filter((row) => row.skips > 0).length,
-      first_bad_matches: topkRows.filter((row) => row[`${key}_matches`]).length,
+      first_bad_matches: topkRows.filter((row) => sameCommit(row[key].first_bad, row.canonical_first_bad)).length,
     };
   }
 
@@ -738,11 +785,20 @@ function buildFocusedComparisons(preferred, keywordAblation, weakControl, liveLa
 
   return {
     topk: {
-      best_configuration: "top-k3 (pre-600k reference)",
+      best_configuration: "top-k3 (fresh 600k reference)",
       comparison_note:
-      "All rows are completed parent-diff + LLM-extraction runs. Top-k3 is a pre-600k reference; top-k10 and top-k20 use the 600k raw-diff cap, so frontier size and extraction revision both differ. The top-k20 rows use the canonical completed live snapshot because it records the preferred successful retry for each issue.",
+      "All rows are completed parent-diff + LLM-extraction runs using the 600k raw-diff cap. The top-k3 rows are fresh cache-isolated AWS histories; top-k10/top-k20 use selected completed histories. The top-k20 rows use the canonical completed live snapshot because it records the preferred successful retry for each issue.",
       rows: topkRows,
       aggregate: topkAggregate,
+      adaptive: {
+        label: "Adaptive k=12 -> 3",
+        status: "completed-matched-summary",
+        definition:
+          "Parent-diff + LLM extraction with k=12 above 5,000 unresolved commits and k=3 at or below 5,000.",
+        provenance:
+          "Nine AWS rows are reconciled canonical summaries from the completed queue; the corrected pr193164 EDU row retains its full local history. The adaptive schedule is comparable by endpoints, runner, diff cap, and search policy, but it is not included in the fixed-k trajectory charts because nine per-step histories are not in this presentation bundle.",
+        rows: topkRows.map((row) => ({ issue: row.issue, ...row.adaptive })),
+      },
       sensitivity: buildTopkSensitivity(topkRows),
     },
     convergence: {

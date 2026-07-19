@@ -30,9 +30,9 @@
       <section class="section">
         <div class="page-kicker">01 / Frontier size</div>
         <h2>Top-k sensitivity</h2>
-        <p class="section-sub">Compare git bisect to parent-diff + LLM extraction with top-k3, top-k10, and top-k20. All displayed LLM histories use the 600k diff cap; lower build steps are better.</p>
+        <p class="section-sub">Compare git bisect to parent-diff + LLM extraction with fixed top-k3, top-k10, top-k20, and the completed adaptive k=12 -&gt; 3 schedule. All displayed LLM histories use the 600k diff cap; lower build steps are better.</p>
         <div class="focused-cards" id="topk-cards"></div>
-        <div class="table-scroll"><table class="cmp focused-table"><thead><tr><th class="left">Issue</th><th>git bisect</th><th>LLM top-k3</th><th>LLM top-k10</th><th>LLM top-k20</th><th>First-bad agreement</th></tr></thead><tbody id="topk-body"></tbody></table></div>
+        <div class="table-scroll"><table class="cmp focused-table"><thead><tr><th class="left">Issue</th><th>git bisect</th><th>LLM top-k3</th><th>LLM top-k10</th><th>LLM top-k20</th><th>Adaptive k=12 -&gt; 3</th><th>First-bad agreement</th></tr></thead><tbody id="topk-body"></tbody></table></div>
         <div class="topk-sensitivity" id="topk-sensitivity"></div>
         <div class="table-scroll"><table class="cmp focused-table topk-trajectory-table"><thead><tr><th class="left">Issue</th><th>k3 to 10%</th><th>k10 to 10%</th><th>k20 to 10%</th><th>k3 to 32</th><th>k10 to 32</th><th>k20 to 32</th><th>k20-k10 steps</th><th>k10/k20 boundary</th></tr></thead><tbody id="topk-trajectory-body"></tbody></table></div>
         <h3>Small-window phase</h3>

@@ -15,6 +15,7 @@ assert.match(html, /href="\.\/focused-results\.html"/, "overview must link to fo
 assert.match(focusedResults, /Top-k sensitivity/, "focused page must show top-k sensitivity");
 assert.match(focusedResults, /Keyword robustness/, "focused page must show keyword robustness");
 assert.match(focusedResults, /id="topk-body"/, "focused page needs a top-k result table");
+assert.match(focusedResults, /Adaptive k=12 -&gt; 3/, "focused page must show the completed adaptive schedule");
 assert.doesNotMatch(focusedResults, /id="topk-note"/, "focused page must not include a top-k interpretation callout");
 assert.match(focusedResults, /id="topk-sensitivity"/, "focused page needs a top-k sensitivity summary");
 assert.match(focusedResults, /id="topk-trajectory-body"/, "focused page needs a middle-trajectory table");
@@ -57,6 +58,12 @@ assert.ok(
 );
 assert.equal(site.live_lanes.parent_llm_topk20.clean.length, 10, "latest top-k20 clean result count is stale");
 assert.equal(site.focused_comparisons.topk.rows.length, 10, "top-k comparison must cover scoped 10");
+assert.equal(site.focused_comparisons.topk.aggregate.adaptive.avg_steps, 10.9);
+assert.equal(site.focused_comparisons.topk.aggregate.adaptive.first_bad_matches, 10);
+assert.equal(site.focused_comparisons.topk.aggregate.adaptive.skip_rows, 0);
+assert.equal(site.focused_comparisons.topk.adaptive.status, "completed-matched-summary");
+assert.equal(site.focused_comparisons.topk.adaptive.rows.length, 10);
+assert.equal(site.focused_comparisons.topk.adaptive.rows.find((row) => row.issue === "pr193164").steps, 10);
 assert.equal(site.focused_comparisons.topk.aggregate.topk3.avg_steps, 11.1);
 assert.equal(site.focused_comparisons.topk.aggregate.topk10.avg_steps, 12.2);
 assert.equal(site.focused_comparisons.topk.aggregate.topk20.avg_steps, 11.4);

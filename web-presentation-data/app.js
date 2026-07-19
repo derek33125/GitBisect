@@ -228,13 +228,14 @@ function agreementCell(results, canonical) {
 
 function renderTopkComparison(topk) {
   renderFocusedCards("#topk-cards", [
+    { label: topk.adaptive.label, metrics: topk.aggregate.adaptive },
     { label: "LLM top-k3", metrics: topk.aggregate.topk3 },
     { label: "LLM top-k10", metrics: topk.aggregate.topk10 },
     { label: "LLM top-k20", metrics: topk.aggregate.topk20 },
   ]);
   $("#topk-body").innerHTML = topk.rows
     .map((row) => {
-      const candidates = [row.topk3, row.topk10, row.topk20];
+      const candidates = [row.topk3, row.topk10, row.topk20, row.adaptive];
       const bestSteps = Math.min(...candidates.map((result) => result.steps));
       return (
         '<tr><td class="left"><strong>' +
@@ -250,6 +251,10 @@ function renderTopkComparison(topk) {
       );
     })
     .join("");
+  const note = document.createElement("p");
+  note.className = "table-footnote";
+  note.innerHTML = "<strong>Adaptive schedule:</strong> " + esc(topk.adaptive.definition) + " " + esc(topk.adaptive.provenance);
+  $("#topk-body").closest(".table-scroll").after(note);
   renderTopkSensitivity(topk.sensitivity);
 }
 

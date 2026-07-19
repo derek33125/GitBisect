@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-07-19T07:00:27.175Z",
+  "generated_at": "2026-07-19T14:07:40.561Z",
   "scope": "Shared 10-case comparison set. Numbers are for apples-to-apples method comparison on a fixed set, not a benchmark-wide claim.",
   "aggregate": {
     "git": {
@@ -395,8 +395,8 @@
   },
   "focused_comparisons": {
     "topk": {
-      "best_configuration": "top-k3 (pre-600k reference)",
-      "comparison_note": "All rows are completed parent-diff + LLM-extraction runs. Top-k3 is a pre-600k reference; top-k10 and top-k20 use the 600k raw-diff cap, so frontier size and extraction revision both differ. The top-k20 rows use the canonical completed live snapshot because it records the preferred successful retry for each issue.",
+      "best_configuration": "top-k3 (fresh 600k reference)",
+      "comparison_note": "All rows are completed parent-diff + LLM-extraction runs using the 600k raw-diff cap. The top-k3 rows are fresh cache-isolated AWS histories; top-k10/top-k20 use selected completed histories. The top-k20 rows use the canonical completed live snapshot because it records the preferred successful retry for each issue.",
       "rows": [
         {
           "issue": "pr204559",
@@ -609,6 +609,13 @@
                 }
               ]
             }
+          },
+          "adaptive": {
+            "steps": 9,
+            "first_bad": "5a5d0fb1e471b3a1e842aee1f993e885c8d19713",
+            "source": "aws-server",
+            "skips": 0,
+            "status": "reconciled-summary"
           },
           "canonical_first_bad": "5a5d0fb1e471",
           "topk3_matches": true,
@@ -827,6 +834,13 @@
               ]
             }
           },
+          "adaptive": {
+            "steps": 10,
+            "first_bad": "5a5d0fb1e471b3a1e842aee1f993e885c8d19713",
+            "source": "aws-server",
+            "skips": 0,
+            "status": "reconciled-summary"
+          },
           "canonical_first_bad": "5a5d0fb1e471",
           "topk3_matches": true,
           "topk10_matches": true,
@@ -1038,6 +1052,13 @@
                 }
               ]
             }
+          },
+          "adaptive": {
+            "steps": 11,
+            "first_bad": "6bcdd843e302063c4f0d36204686155149a6bb0a",
+            "source": "aws-server",
+            "skips": 0,
+            "status": "reconciled-summary"
           },
           "canonical_first_bad": "6bcdd843e302",
           "topk3_matches": true,
@@ -1306,6 +1327,14 @@
               ]
             }
           },
+          "adaptive": {
+            "steps": 10,
+            "first_bad": "cac7fe50e0fbedfb14028c170d83386efeb1265b",
+            "source": "edu-server corrected endpoint",
+            "run_label": "edu10-adaptive-5000-12-3-pr193164-corrected-20260718a",
+            "skips": 0,
+            "status": "raw-history"
+          },
           "canonical_first_bad": "cac7fe50e0fb",
           "topk3_matches": true,
           "topk10_matches": true,
@@ -1512,6 +1541,13 @@
                 }
               ]
             }
+          },
+          "adaptive": {
+            "steps": 9,
+            "first_bad": "c9c05a91c4843c243d508c39bdfbc5e26f311af2",
+            "source": "aws-server",
+            "skips": 0,
+            "status": "reconciled-summary"
           },
           "canonical_first_bad": "c9c05a91c484",
           "topk3_matches": true,
@@ -1759,6 +1795,13 @@
                 }
               ]
             }
+          },
+          "adaptive": {
+            "steps": 11,
+            "first_bad": "e38b7e894808ec2a0c976ab01e44364f167508d3",
+            "source": "aws-server",
+            "skips": 0,
+            "status": "reconciled-summary"
           },
           "canonical_first_bad": "e38b7e894808",
           "topk3_matches": true,
@@ -2047,6 +2090,13 @@
               ]
             }
           },
+          "adaptive": {
+            "steps": 15,
+            "first_bad": "20e989e9de6abcf9a684978a2688acc4ea01036f",
+            "source": "aws-server",
+            "skips": 0,
+            "status": "reconciled-summary"
+          },
           "canonical_first_bad": "20e989e9de6a",
           "topk3_matches": true,
           "topk10_matches": true,
@@ -2279,6 +2329,13 @@
               ]
             }
           },
+          "adaptive": {
+            "steps": 11,
+            "first_bad": "be20eae25f50f5ef648aeefa1143e1c31e4410fc",
+            "source": "aws-server",
+            "skips": 0,
+            "status": "reconciled-summary"
+          },
           "canonical_first_bad": "be20eae25f50",
           "topk3_matches": true,
           "topk10_matches": true,
@@ -2505,6 +2562,13 @@
                 }
               ]
             }
+          },
+          "adaptive": {
+            "steps": 11,
+            "first_bad": "10bc12588dac532fad044b2851dde8e7b9121e88",
+            "source": "aws-server",
+            "skips": 0,
+            "status": "reconciled-summary"
           },
           "canonical_first_bad": "10bc12588dac",
           "topk3_matches": true,
@@ -2748,6 +2812,13 @@
               ]
             }
           },
+          "adaptive": {
+            "steps": 12,
+            "first_bad": "329ef60f3e21fd6845e8e8b0da405cae7eb27267",
+            "source": "aws-server",
+            "skips": 0,
+            "status": "reconciled-summary"
+          },
           "canonical_first_bad": "329ef60f3e21",
           "topk3_matches": true,
           "topk10_matches": true,
@@ -2775,7 +2846,103 @@
           "median_steps": 11,
           "skip_rows": 0,
           "first_bad_matches": 9
+        },
+        "adaptive": {
+          "count": 10,
+          "avg_steps": 10.9,
+          "median_steps": 11,
+          "skip_rows": 0,
+          "first_bad_matches": 10
         }
+      },
+      "adaptive": {
+        "label": "Adaptive k=12 -> 3",
+        "status": "completed-matched-summary",
+        "definition": "Parent-diff + LLM extraction with k=12 above 5,000 unresolved commits and k=3 at or below 5,000.",
+        "provenance": "Nine AWS rows are reconciled canonical summaries from the completed queue; the corrected pr193164 EDU row retains its full local history. The adaptive schedule is comparable by endpoints, runner, diff cap, and search policy, but it is not included in the fixed-k trajectory charts because nine per-step histories are not in this presentation bundle.",
+        "rows": [
+          {
+            "issue": "pr204559",
+            "steps": 9,
+            "first_bad": "5a5d0fb1e471b3a1e842aee1f993e885c8d19713",
+            "source": "aws-server",
+            "skips": 0,
+            "status": "reconciled-summary"
+          },
+          {
+            "issue": "pr204589",
+            "steps": 10,
+            "first_bad": "5a5d0fb1e471b3a1e842aee1f993e885c8d19713",
+            "source": "aws-server",
+            "skips": 0,
+            "status": "reconciled-summary"
+          },
+          {
+            "issue": "pr201444",
+            "steps": 11,
+            "first_bad": "6bcdd843e302063c4f0d36204686155149a6bb0a",
+            "source": "aws-server",
+            "skips": 0,
+            "status": "reconciled-summary"
+          },
+          {
+            "issue": "pr193164",
+            "steps": 10,
+            "first_bad": "cac7fe50e0fbedfb14028c170d83386efeb1265b",
+            "source": "edu-server corrected endpoint",
+            "run_label": "edu10-adaptive-5000-12-3-pr193164-corrected-20260718a",
+            "skips": 0,
+            "status": "raw-history"
+          },
+          {
+            "issue": "pr50304",
+            "steps": 9,
+            "first_bad": "c9c05a91c4843c243d508c39bdfbc5e26f311af2",
+            "source": "aws-server",
+            "skips": 0,
+            "status": "reconciled-summary"
+          },
+          {
+            "issue": "pr50585",
+            "steps": 11,
+            "first_bad": "e38b7e894808ec2a0c976ab01e44364f167508d3",
+            "source": "aws-server",
+            "skips": 0,
+            "status": "reconciled-summary"
+          },
+          {
+            "issue": "pr48154",
+            "steps": 15,
+            "first_bad": "20e989e9de6abcf9a684978a2688acc4ea01036f",
+            "source": "aws-server",
+            "skips": 0,
+            "status": "reconciled-summary"
+          },
+          {
+            "issue": "pr49535",
+            "steps": 11,
+            "first_bad": "be20eae25f50f5ef648aeefa1143e1c31e4410fc",
+            "source": "aws-server",
+            "skips": 0,
+            "status": "reconciled-summary"
+          },
+          {
+            "issue": "pr52635",
+            "steps": 11,
+            "first_bad": "10bc12588dac532fad044b2851dde8e7b9121e88",
+            "source": "aws-server",
+            "skips": 0,
+            "status": "reconciled-summary"
+          },
+          {
+            "issue": "pr200987",
+            "steps": 12,
+            "first_bad": "329ef60f3e21fd6845e8e8b0da405cae7eb27267",
+            "source": "aws-server",
+            "skips": 0,
+            "status": "reconciled-summary"
+          }
+        ]
       },
       "sensitivity": {
         "evidence_scope": "All three rows use parent diffs, LLM extraction, trace-only observations, calibrated-posterior selection, and the 600k raw-diff cap. Fresh top-k3 runs use an empty AWS model-cache namespace; top-k10/top-k20 are selected completed earlier histories.",
