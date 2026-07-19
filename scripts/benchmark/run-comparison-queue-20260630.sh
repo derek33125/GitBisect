@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-MODE="${1:?mode required: heuristic|general-heuristic|no-keyword-heuristic|neutral-heuristic|oracle-first-bad-heuristic|parent-extract|adaptive-parent-extract|lastdiff-extract}"
+MODE="${1:?mode required: heuristic|general-heuristic|no-keyword-heuristic|neutral-heuristic|oracle-first-bad-heuristic|parent-extract|adaptive-parent-extract|confidence-parent-extract|lastdiff-extract}"
 LANE="${2:?lane label required}"
 shift 2
 ISSUES=("$@")
@@ -33,6 +33,7 @@ export ADAPTIVE_TOP_K_THRESHOLD="${ADAPTIVE_TOP_K_THRESHOLD:-5000}"
 export ADAPTIVE_TOP_K_LARGE="${ADAPTIVE_TOP_K_LARGE:-12}"
 export ADAPTIVE_TOP_K_SMALL="${ADAPTIVE_TOP_K_SMALL:-3}"
 export MODEL_CACHE_NAMESPACE="${MODEL_CACHE_NAMESPACE:-adaptive-${ADAPTIVE_TOP_K_THRESHOLD}-${ADAPTIVE_TOP_K_LARGE}-${ADAPTIVE_TOP_K_SMALL}}"
+export CONFIDENCE_FRONTIER_THRESHOLD="${CONFIDENCE_FRONTIER_THRESHOLD:-0.35}"
 export CCACHE_MAXSIZE="${CCACHE_MAXSIZE:-20G}"
 export CMAKE_BUILD_PARALLEL_LEVEL="${JOBS}"
 
@@ -222,6 +223,23 @@ run_issue() {
         --adaptive-top-k-small "${ADAPTIVE_TOP_K_SMALL}" \
         --model-cache-namespace "${MODEL_CACHE_NAMESPACE}" \
         --model-frontier topk \
+        --model-diff-mode parent \
+        --model-diff-extraction llm \
+        --observation-prompt-mode trace-only \
+        --observations "${obs}" \
+        --run-label "${LANE}" \
+        --max-steps 30
+      ;;
+    confidence-parent-extract)
+      run_bisect_cmd "${PY}" tools/lm_bisect.py run-online \
+        --issue "${issue}" \
+        --llvm-dir "${wt}" \
+        --scorer model \
+        --search-policy calibrated-posterior \
+        --model-top-k 3 \
+        --model-frontier topk \
+        --confidence-adaptive-frontier-threshold "${CONFIDENCE_FRONTIER_THRESHOLD}" \
+        --model-cache-namespace "${MODEL_CACHE_NAMESPACE}" \
         --model-diff-mode parent \
         --model-diff-extraction llm \
         --observation-prompt-mode trace-only \

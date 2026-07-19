@@ -548,6 +548,91 @@ class AdaptiveTopKTests(unittest.TestCase):
         self.assertEqual(completed_steps, 0)
         self.assertEqual(history["adaptive_top_k"]["large_k"], 12)
 
+
+class ConfidenceAdaptiveFrontierTests(unittest.TestCase):
+    def test_high_confidence_uses_semantic_topk_frontier(self) -> None:
+        records = [
+            lm_bisect.CommitRecord(index=1, sha="1" * 40, subject="strong", body="", changed_files=[], diff_text="", semantic_score=5.0, build_success_prob=0.9, suspicion_weight=0.0),
+            lm_bisect.CommitRecord(index=2, sha="2" * 40, subject="runner up", body="", changed_files=[], diff_text="", semantic_score=2.0, build_success_prob=0.9, suspicion_weight=0.0),
+            lm_bisect.CommitRecord(index=3, sha="3" * 40, subject="third", body="", changed_files=[], diff_text="", semantic_score=1.0, build_success_prob=0.9, suspicion_weight=0.0),
+            lm_bisect.CommitRecord(index=4, sha="4" * 40, subject="fourth", body="", changed_files=[], diff_text="", semantic_score=0.5, build_success_prob=0.9, suspicion_weight=0.0),
+        ]
+        config = lm_bisect.ConfidenceAdaptiveFrontierConfig(threshold=0.35)
+
+        decision = lm_bisect.resolve_model_frontier(
+            demo_profile(), records, [], target_count=3, configured_frontier="topk", confidence_config=config
+        )
+
+        self.assertEqual(decision.effective_frontier, "topk")
+        self.assertGreater(decision.confidence, config.threshold)
+        self.assertEqual(decision.selected_shas, ["1" * 40, "2" * 40, "3" * 40])
+
+    def test_low_confidence_uses_diverse_frontier(self) -> None:
+        records = [
+            lm_bisect.CommitRecord(index=index, sha=str(index) * 40, subject=f"candidate {index}", body="", changed_files=[], diff_text="", semantic_score=1.0, build_success_prob=0.9, suspicion_weight=0.0)
+            for index in range(1, 7)
+        ]
+        config = lm_bisect.ConfidenceAdaptiveFrontierConfig(threshold=0.35)
+
+        decision = lm_bisect.resolve_model_frontier(
+            demo_profile(), records, [], target_count=3, configured_frontier="topk", confidence_config=config
+        )
+
+        self.assertEqual(decision.effective_frontier, "diverse")
+        self.assertEqual(decision.confidence, 0.0)
+        self.assertEqual(decision.selected_shas, lm_bisect.select_model_frontier_shas(records, 3, "diverse"))
+
+    def test_observation_feedback_changes_the_low_confidence_frontier(self) -> None:
+        records = [
+            lm_bisect.CommitRecord(index=1, sha="1" * 40, subject="first", body="", changed_files=[], diff_text="", semantic_score=5.0, build_success_prob=0.9, suspicion_weight=0.0, features=["other"]),
+            lm_bisect.CommitRecord(index=2, sha="2" * 40, subject="observed mechanism", body="", changed_files=[], diff_text="", semantic_score=4.9, build_success_prob=0.9, suspicion_weight=0.0, features=["mechanism"]),
+            lm_bisect.CommitRecord(index=3, sha="3" * 40, subject="third", body="", changed_files=[], diff_text="", semantic_score=1.0, build_success_prob=0.9, suspicion_weight=0.0, features=["third"]),
+            lm_bisect.CommitRecord(index=4, sha="4" * 40, subject="fourth", body="", changed_files=[], diff_text="", semantic_score=0.5, build_success_prob=0.9, suspicion_weight=0.0, features=["fourth"]),
+        ]
+        observation = lm_bisect.CommitObservation(
+            sha="observed" * 5,
+            verdict="bad",
+            summary="matching mechanism",
+            features=["mechanism"],
+        )
+        config = lm_bisect.ConfidenceAdaptiveFrontierConfig(threshold=0.35)
+
+        without_feedback = lm_bisect.resolve_model_frontier(
+            demo_profile(), records, [], target_count=3, configured_frontier="topk", confidence_config=config
+        )
+        with_feedback = lm_bisect.resolve_model_frontier(
+            demo_profile(), records, [observation], target_count=3, configured_frontier="topk", confidence_config=config
+        )
+
+        self.assertEqual(without_feedback.effective_frontier, "diverse")
+        self.assertEqual(with_feedback.effective_frontier, "topk")
+        self.assertEqual(with_feedback.selected_shas[0], "2" * 40)
+
+    def test_confidence_frontier_context_and_history_are_isolated(self) -> None:
+        config = lm_bisect.ConfidenceAdaptiveFrontierConfig(threshold=0.35)
+        payload = lm_bisect.model_score_context_payload(
+            ["a" * 40, "b" * 40], [], 3, "topk", "parent", "llm", "trace-only", config.payload()
+        )
+        without_policy = lm_bisect.model_score_context_payload(
+            ["a" * 40, "b" * 40], [], 3, "topk", "parent", "llm", "trace-only"
+        )
+        history = lm_bisect.start_run_history_payload(
+            issue_id="demo", scorer="model", model_name="gpt-5.4-mini", model_frontier="topk",
+            search_policy="calibrated-posterior", hybrid_switch_window=32, lambda_weight=2.0,
+            max_steps=30, observation_path="/tmp/observations.json", run_history_path="/tmp/history.json",
+            good_commit="g" * 40, bad_commit="b" * 40, initial_unresolved=10,
+            model_top_k=3, confidence_adaptive_frontier=config.payload(),
+        )
+
+        self.assertNotEqual(lm_bisect.model_score_context_id(payload), lm_bisect.model_score_context_id(without_policy))
+        self.assertEqual(history["confidence_adaptive_frontier"], config.payload())
+
+    def test_confidence_policy_rejects_non_topk_base_frontier(self) -> None:
+        with self.assertRaisesRegex(ValueError, "requires --model-frontier topk"):
+            lm_bisect.validate_confidence_adaptive_frontier(
+                "diverse", lm_bisect.ConfidenceAdaptiveFrontierConfig(threshold=0.35)
+            )
+
     def test_parser_accepts_general_keyword_heuristic_version(self) -> None:
         args = lm_bisect.build_parser().parse_args(
             ["suggest", "--issue", "demo", "--heuristic-version", "general"]

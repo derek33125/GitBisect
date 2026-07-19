@@ -443,6 +443,28 @@ class AdaptiveTopKConfig:
         }
 
 
+@dataclass(frozen=True)
+class ConfidenceAdaptiveFrontierConfig:
+    """Choose a fixed-size model frontier from pre-model semantic confidence."""
+
+    threshold: float
+
+    def payload(self) -> dict[str, float]:
+        return {"threshold": self.threshold}
+
+
+@dataclass(frozen=True)
+class ModelFrontierDecision:
+    selected_shas: list[str]
+    configured_frontier: str
+    effective_frontier: str
+    confidence: float | None
+    threshold: float | None
+    reason: str
+    top_semantic_candidates: list[dict[str, object]]
+    observation_count: int
+
+
 @dataclass
 class CommitMetadata:
     sha: str
@@ -559,6 +581,24 @@ def adaptive_top_k_config_from_args(args: argparse.Namespace) -> AdaptiveTopKCon
     return AdaptiveTopKConfig(threshold=threshold, large_k=large_k, small_k=small_k)
 
 
+def confidence_adaptive_frontier_config_from_args(args: argparse.Namespace) -> ConfidenceAdaptiveFrontierConfig | None:
+    threshold = getattr(args, "confidence_adaptive_frontier_threshold", None)
+    if threshold is None:
+        return None
+    threshold = float(threshold)
+    if threshold < 0.0 or threshold > 1.0:
+        raise ValueError("confidence-adaptive frontier threshold must be between 0 and 1")
+    return ConfidenceAdaptiveFrontierConfig(threshold=threshold)
+
+
+def validate_confidence_adaptive_frontier(
+    configured_frontier: str,
+    confidence_config: ConfidenceAdaptiveFrontierConfig | None,
+) -> None:
+    if confidence_config is not None and configured_frontier != "topk":
+        raise ValueError("confidence-adaptive frontier requires --model-frontier topk")
+
+
 def effective_model_top_k(
     unresolved_count: int,
     fixed_top_k: int | None,
@@ -578,9 +618,12 @@ def effective_model_top_k(
 def resolved_model_cache_namespace(
     explicit_namespace: str | None,
     adaptive_config: AdaptiveTopKConfig | None,
+    confidence_config: ConfidenceAdaptiveFrontierConfig | None = None,
 ) -> str | None:
     if explicit_namespace:
         return explicit_namespace
+    if confidence_config is not None:
+        return f"confidence-frontier-{confidence_config.threshold:g}"
     if adaptive_config is None:
         return None
     return (
@@ -597,6 +640,7 @@ def model_score_context_payload(
     model_diff_mode: str,
     model_diff_extraction: str,
     observation_prompt_mode: str,
+    confidence_adaptive_frontier: dict[str, float] | None = None,
 ) -> dict[str, object]:
     candidate_digest = hashlib.sha256("\n".join(unresolved).encode("utf-8")).hexdigest()
     observation_payload = [
@@ -624,6 +668,7 @@ def model_score_context_payload(
         "model_diff_mode": model_diff_mode,
         "model_diff_extraction": model_diff_extraction,
         "observation_prompt_mode": observation_prompt_mode,
+        "confidence_adaptive_frontier": confidence_adaptive_frontier,
     }
 
 
@@ -2295,6 +2340,7 @@ def start_run_history_payload(
     model_diff_extraction: str = "raw",
     model_top_k: int | None = None,
     adaptive_top_k: dict[str, int] | None = None,
+    confidence_adaptive_frontier: dict[str, float] | None = None,
     model_cache_namespace: str | None = None,
     oracle_first_bad_sha: str | None = None,
 ) -> dict:
@@ -2318,6 +2364,7 @@ def start_run_history_payload(
         "model_diff_extraction": model_diff_extraction,
         "model_top_k": model_top_k,
         "adaptive_top_k": adaptive_top_k,
+        "confidence_adaptive_frontier": confidence_adaptive_frontier,
         "model_cache_namespace": model_cache_namespace,
         "oracle_first_bad_sha": oracle_first_bad_sha,
         "lambda_weight": lambda_weight,
@@ -2357,6 +2404,7 @@ def run_history_matches(
     model_diff_extraction: str = "raw",
     model_top_k: int | None = None,
     adaptive_top_k: dict[str, int] | None = None,
+    confidence_adaptive_frontier: dict[str, float] | None = None,
     model_cache_namespace: str | None = None,
     oracle_first_bad_sha: str | None = None,
 ) -> bool:
@@ -2380,6 +2428,7 @@ def run_history_matches(
         and history.get("model_diff_extraction", "raw") == model_diff_extraction
         and history.get("model_top_k") == model_top_k
         and history.get("adaptive_top_k") == adaptive_top_k
+        and history.get("confidence_adaptive_frontier") == confidence_adaptive_frontier
         and history.get("model_cache_namespace") == model_cache_namespace
         and history.get("oracle_first_bad_sha") == oracle_first_bad_sha
     )
@@ -2415,6 +2464,7 @@ def prepare_run_history(
     model_diff_extraction: str = "raw",
     model_top_k: int | None = None,
     adaptive_top_k: dict[str, int] | None = None,
+    confidence_adaptive_frontier: dict[str, float] | None = None,
     model_cache_namespace: str | None = None,
     oracle_first_bad_sha: str | None = None,
 ) -> tuple[dict, int, bool]:
@@ -2438,6 +2488,7 @@ def prepare_run_history(
             model_diff_extraction,
             model_top_k,
             adaptive_top_k,
+            confidence_adaptive_frontier,
             model_cache_namespace,
             oracle_first_bad_sha,
         )
@@ -2463,6 +2514,7 @@ def prepare_run_history(
         history["model_diff_extraction"] = model_diff_extraction
         history["model_top_k"] = model_top_k
         history["adaptive_top_k"] = adaptive_top_k
+        history["confidence_adaptive_frontier"] = confidence_adaptive_frontier
         history["model_cache_namespace"] = model_cache_namespace
         history["oracle_first_bad_sha"] = oracle_first_bad_sha
         history["lambda_weight"] = lambda_weight
@@ -2505,6 +2557,7 @@ def prepare_run_history(
         model_diff_extraction=model_diff_extraction,
         model_top_k=model_top_k,
         adaptive_top_k=adaptive_top_k,
+        confidence_adaptive_frontier=confidence_adaptive_frontier,
         model_cache_namespace=model_cache_namespace,
         oracle_first_bad_sha=oracle_first_bad_sha,
     )
@@ -3434,6 +3487,75 @@ def select_model_frontier_shas(
     return selected
 
 
+def semantic_frontier_confidence(records: list[CommitRecord]) -> tuple[float, list[CommitRecord]]:
+    """Return a scale-free pre-model confidence score for the semantic leader."""
+    ranked = sorted(
+        records,
+        key=lambda record: (record.semantic_score, record.build_success_prob, -record.index),
+        reverse=True,
+    )
+    if len(ranked) < 2:
+        return 1.0, ranked
+    best_score = ranked[0].semantic_score
+    runner_up_score = ranked[1].semantic_score
+    confidence = max(0.0, best_score - runner_up_score) / max(1.0, abs(best_score))
+    return min(1.0, confidence), ranked
+
+
+def resolve_model_frontier(
+    profile: IssueProfile,
+    records: list[CommitRecord],
+    observations: list[CommitObservation],
+    *,
+    target_count: int,
+    configured_frontier: str,
+    confidence_config: ConfidenceAdaptiveFrontierConfig | None = None,
+) -> ModelFrontierDecision:
+    """Resolve the LLM frontier before model scoring without spending extra calls."""
+    if confidence_config is None:
+        selected_shas = select_model_frontier_shas(records, target_count, configured_frontier)
+        return ModelFrontierDecision(
+            selected_shas=selected_shas,
+            configured_frontier=configured_frontier,
+            effective_frontier=configured_frontier,
+            confidence=None,
+            threshold=None,
+            reason="configured frontier; confidence policy disabled",
+            top_semantic_candidates=[],
+            observation_count=len(observations),
+        )
+
+    # Feedback is used only to decide the next model frontier. The final
+    # selection path applies it once to the actual model-scored records.
+    confidence_records = [replace(record, evidence=list(record.evidence or [])) for record in records]
+    apply_feedback_bias(profile, confidence_records, observations)
+    confidence, semantic_ranked = semantic_frontier_confidence(confidence_records)
+    effective_frontier = "topk" if confidence >= confidence_config.threshold else "diverse"
+    selected_shas = select_model_frontier_shas(confidence_records, target_count, effective_frontier)
+    top_semantic_candidates = [
+        {
+            "sha": record.sha,
+            "semantic_score": round(record.semantic_score, 6),
+            "build_success_prob": round(record.build_success_prob, 6),
+        }
+        for record in semantic_ranked[:2]
+    ]
+    return ModelFrontierDecision(
+        selected_shas=selected_shas,
+        configured_frontier=configured_frontier,
+        effective_frontier=effective_frontier,
+        confidence=confidence,
+        threshold=confidence_config.threshold,
+        reason=(
+            "semantic leader confidence meets threshold; use semantic top-k"
+            if effective_frontier == "topk"
+            else "semantic scores are ambiguous; add posterior and midpoint anchors"
+        ),
+        top_semantic_candidates=top_semantic_candidates,
+        observation_count=len(observations),
+    )
+
+
 def load_issue_profile(profiles: dict[str, IssueProfile], issue_id: str) -> IssueProfile:
     if issue_id not in profiles:
         known = ", ".join(sorted(profiles))
@@ -3461,6 +3583,8 @@ def make_records(
     model_usage_summary: dict[str, object] | None = None,
     model_cache_namespace: str | None = None,
     model_score_context: str | None = None,
+    confidence_adaptive_frontier: ConfidenceAdaptiveFrontierConfig | None = None,
+    model_frontier_decision_out: list[ModelFrontierDecision] | None = None,
 ) -> tuple[list[CommitRecord], dict]:
     if model_diff_mode not in {"parent", "last-tested"}:
         raise ValueError(f"unsupported model_diff_mode: {model_diff_mode}")
@@ -3515,7 +3639,17 @@ def make_records(
         raise RuntimeError("model_config is required for scorer=model")
 
     target_count = len(records) if model_top_k is None else min(model_top_k, len(records))
-    selected_shas = set(select_model_frontier_shas(records, target_count, model_frontier))
+    frontier_decision = resolve_model_frontier(
+        profile,
+        records,
+        observations or [],
+        target_count=target_count,
+        configured_frontier=model_frontier,
+        confidence_config=confidence_adaptive_frontier,
+    )
+    if model_frontier_decision_out is not None:
+        model_frontier_decision_out.append(frontier_decision)
+    selected_shas = set(frontier_decision.selected_shas)
     frontier_score_context = model_score_context
     if model_score_context:
         frontier_digest = hashlib.sha256(
@@ -3632,7 +3766,7 @@ def make_records(
             )
             for item in uncached:
                 item["diff_summary"] = extracted_diffs[item["sha"]]
-        for batch in plan_model_scoring_batches(uncached, frontier_mode=model_frontier):
+        for batch in plan_model_scoring_batches(uncached, frontier_mode=frontier_decision.effective_frontier):
             score_kwargs = {}
             if model_usage_summary is not None:
                 score_kwargs["usage_summary"] = model_usage_summary
@@ -4417,15 +4551,28 @@ def command_run_online(args: argparse.Namespace) -> int:
     observations = load_observations(observation_path)
     log_progress(f"loaded observations: {len(observations)} from {observation_path}")
     adaptive_top_k = adaptive_top_k_config_from_args(args) if args.scorer == "model" else None
+    confidence_adaptive_frontier = (
+        confidence_adaptive_frontier_config_from_args(args) if args.scorer == "model" else None
+    )
+    if adaptive_top_k is not None and confidence_adaptive_frontier is not None:
+        raise ValueError("interval adaptive top-k and confidence-adaptive frontier cannot be combined")
+    validate_confidence_adaptive_frontier(args.model_frontier, confidence_adaptive_frontier)
     model_cache_namespace = resolved_model_cache_namespace(
         args.model_cache_namespace if isinstance(getattr(args, "model_cache_namespace", None), str) else None,
         adaptive_top_k,
+        confidence_adaptive_frontier,
     )
     if adaptive_top_k is not None:
         log_progress(
             "adaptive model frontier enabled: "
             f"k={adaptive_top_k.large_k} above {adaptive_top_k.threshold}, "
             f"k={adaptive_top_k.small_k} at or below"
+        )
+    if confidence_adaptive_frontier is not None:
+        log_progress(
+            "confidence-adaptive model frontier enabled: "
+            f"k={args.model_top_k}, threshold={confidence_adaptive_frontier.threshold:g}, "
+            "low-confidence=diverse"
         )
     model_name = resolved_model_name(args.scorer, args.model_name)
     run_history_path = run_history_path_for_issue(
@@ -4481,6 +4628,9 @@ def command_run_online(args: argparse.Namespace) -> int:
         model_diff_extraction=args.model_diff_extraction if args.scorer == "model" else "raw",
         model_top_k=args.model_top_k if args.scorer == "model" else None,
         adaptive_top_k=adaptive_top_k.payload() if adaptive_top_k else None,
+        confidence_adaptive_frontier=(
+            confidence_adaptive_frontier.payload() if confidence_adaptive_frontier else None
+        ),
         model_cache_namespace=model_cache_namespace,
         oracle_first_bad_sha=oracle_first_bad_sha,
     )
@@ -4591,6 +4741,7 @@ def command_run_online(args: argparse.Namespace) -> int:
                     args.model_diff_mode,
                     args.model_diff_extraction,
                     args.observation_prompt_mode,
+                    confidence_adaptive_frontier.payload() if confidence_adaptive_frontier else None,
                 )
                 if args.scorer == "model"
                 else None
@@ -4604,6 +4755,7 @@ def command_run_online(args: argparse.Namespace) -> int:
             if run_history.get("steps"):
                 last_tested_sha = str(run_history["steps"][-1].get("sha") or "") or None
             log_progress(f"step {step}: make_records start unresolved={unresolved_before}")
+            frontier_decisions: list[ModelFrontierDecision] = []
             records, pruning_summary = make_records(
                 repo,
                 selection_profile,
@@ -4623,7 +4775,10 @@ def command_run_online(args: argparse.Namespace) -> int:
                 model_usage_summary=model_usage_summary,
                 model_cache_namespace=model_cache_namespace,
                 model_score_context=score_context,
+                confidence_adaptive_frontier=confidence_adaptive_frontier,
+                model_frontier_decision_out=frontier_decisions,
             )
+            frontier_decision = frontier_decisions[0] if frontier_decisions else None
             if model_usage_summary is not None:
                 run_history["model_usage"] = model_usage_summary
                 save_run_history(run_history_path, run_history)
@@ -4677,7 +4832,10 @@ def command_run_online(args: argparse.Namespace) -> int:
                     model_usage_summary=model_usage_summary,
                     model_cache_namespace=model_cache_namespace,
                     model_score_context=score_context,
+                    confidence_adaptive_frontier=confidence_adaptive_frontier,
+                    model_frontier_decision_out=frontier_decisions,
                 )
+                frontier_decision = frontier_decisions[-1] if frontier_decisions else None
                 log_progress(f"step {step}: fallback make_records done records={len(records)}")
                 apply_feedback_bias(
                     selection_profile,
@@ -4793,6 +4951,25 @@ def command_run_online(args: argparse.Namespace) -> int:
                     "unresolved_after": len(unresolved),
                     "model_top_k": effective_top_k if args.scorer == "model" else None,
                     "adaptive_top_k": adaptive_top_k.payload() if adaptive_top_k else None,
+                    "confidence_adaptive_frontier": (
+                        confidence_adaptive_frontier.payload() if confidence_adaptive_frontier else None
+                    ),
+                    "model_frontier_decision": (
+                        {
+                            "configured_frontier": frontier_decision.configured_frontier,
+                            "effective_frontier": frontier_decision.effective_frontier,
+                            "confidence": round(frontier_decision.confidence, 6)
+                            if frontier_decision.confidence is not None
+                            else None,
+                            "threshold": frontier_decision.threshold,
+                            "reason": frontier_decision.reason,
+                            "top_semantic_candidates": frontier_decision.top_semantic_candidates,
+                            "selected_frontier_shas": frontier_decision.selected_shas,
+                            "observation_count": frontier_decision.observation_count,
+                        }
+                        if frontier_decision is not None
+                        else None
+                    ),
                     "model_score_context": score_context,
                     "model_score_context_payload": score_context_payload,
                     "candidate_pruning": pruning_summary,
@@ -5022,6 +5199,12 @@ def build_parser() -> argparse.ArgumentParser:
         type=int,
         default=None,
         help="model frontier size while unresolved commits are at or below the adaptive threshold",
+    )
+    run_online.add_argument(
+        "--confidence-adaptive-frontier-threshold",
+        type=float,
+        default=None,
+        help="at fixed model k, use diverse anchors when the pre-model semantic confidence is below this value",
     )
     run_online.add_argument(
         "--model-cache-namespace",
