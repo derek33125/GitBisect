@@ -24,6 +24,10 @@ const REPO_ROOT = resolve(ROOT, "..");
 
 const SCOPED = join(ROOT, "scoped10");
 const RAW_DIRS = [join(SCOPED, "raw", "aws"), join(SCOPED, "raw", "edu")];
+const ORACLE_RAW_DIRS = [
+  join(SCOPED, "raw", "aws", "oracle-first-bad"),
+  join(SCOPED, "raw", "edu", "oracle-first-bad"),
+];
 const OUT_DIR = join(ROOT, "data");
 const OUT_FILE = join(OUT_DIR, "site-data.json");
 const LIVE_LANES_FILE = join(SCOPED, "data", "current-lanes.json");
@@ -125,6 +129,19 @@ const GENERAL_CRASH_TERMS = [
   "loop",
   "target",
 ];
+
+const ORACLE_FIRST_BAD_RUN_LABELS = {
+  pr204559: "edu10-oracle-first-bad-heuristic-20260718a",
+  pr204589: "edu10-oracle-first-bad-heuristic-20260718a",
+  pr201444: "edu10-oracle-first-bad-tail-20260718a",
+  pr193164: "edu10-oracle-first-bad-pr193164-corrected-20260719a",
+  pr50304: "aws10-oracle-first-bad-compat-a-20260719a",
+  pr50585: "aws10-oracle-first-bad-compat-a-20260719a",
+  pr48154: "aws10-oracle-first-bad-compat-b-20260719a",
+  pr49535: "aws10-oracle-first-bad-compat-b-20260719a",
+  pr52635: "aws10-oracle-first-bad-compat-c-20260719a",
+  pr200987: "aws10-oracle-first-bad-compat-c-20260719a",
+};
 
 function readJson(p) {
   return JSON.parse(readFileSync(p, "utf8"));
@@ -350,13 +367,39 @@ function buildTopkSensitivity(topkRows) {
 // Index every raw file by basename so we can resolve run labels quickly.
 function indexRawFiles() {
   const idx = [];
-  for (const dir of RAW_DIRS) {
+  for (const dir of [...RAW_DIRS, ...ORACLE_RAW_DIRS]) {
     if (!existsSync(dir)) continue;
     for (const name of readdirSync(dir)) {
       if (name.endsWith(".json")) idx.push({ name, path: join(dir, name) });
     }
   }
   return idx;
+}
+
+function loadOracleFirstBadDiagnostic(rawIdx, issue, canonicalFirstBad) {
+  const runLabel = ORACLE_FIRST_BAD_RUN_LABELS[issue];
+  const rawPath = findRawFile(rawIdx, issue, runLabel);
+  if (!rawPath || !rawPath.includes("oracle-first-bad")) {
+    throw new Error(`missing selected oracle first-bad history for ${issue}: ${runLabel}`);
+  }
+  const raw = readJson(rawPath);
+  const derivation = raw.oracle_first_bad_derivation;
+  if (!isCompletedFirstBadRun(raw) || !derivation || !Array.isArray(derivation.keywords)) {
+    throw new Error(`invalid oracle first-bad history for ${issue}`);
+  }
+  if (!sameCommit(raw.first_bad_commit, canonicalFirstBad)) {
+    throw new Error(`oracle first-bad boundary mismatch for ${issue}`);
+  }
+
+  return {
+    steps: raw.steps.length,
+    skips: raw.steps.filter((step) => step.verdict === "skip").length,
+    first_bad: raw.first_bad_commit,
+    generated_keywords: derivation.keywords,
+    source: rawPath.includes("/edu/") ? "edu-server" : "aws-server",
+    run_label: raw.run_label,
+    status: "clean",
+  };
 }
 
 function findRawFile(rawIdx, issue, runLabel) {
@@ -658,6 +701,7 @@ function buildFocusedComparisons(preferred, keywordAblation, weakControl, liveLa
       source: base["parent-llm-topk3_source"],
       run_label: base["parent-llm-topk3_run_label"],
     };
+    const canonical = canonicalFirstBad.get(base.issue);
     return {
       issue: base.issue,
       title: profiles[base.issue]?.title || base.issue,
@@ -666,13 +710,20 @@ function buildFocusedComparisons(preferred, keywordAblation, weakControl, liveLa
       issue_specific: ablation.specific_keyword,
       shared_crash: ablation.general_keyword,
       weak_maintenance: weak,
-      canonical_first_bad: canonicalFirstBad.get(base.issue),
+      oracle_first_bad: loadOracleFirstBadDiagnostic(rawIdx, base.issue, canonical),
+      canonical_first_bad: canonical,
       note: ablation.note,
     };
   });
 
   const keywordAggregate = {};
-  for (const key of ["best_parent_llm", "issue_specific", "shared_crash", "weak_maintenance"]) {
+  for (const key of [
+    "best_parent_llm",
+    "issue_specific",
+    "shared_crash",
+    "weak_maintenance",
+    "oracle_first_bad",
+  ]) {
     const rows = keywordRows.map((row) => row[key]);
     const steps = rows.map((row) => row.steps);
     keywordAggregate[key] = {
@@ -723,6 +774,13 @@ function buildFocusedComparisons(preferred, keywordAblation, weakControl, liveLa
       weak_maintenance: {
         definition: weakControl.definition,
         terms: weakControl.keywords,
+      },
+      oracle_first_bad: {
+        definition:
+          "Terms deterministically derived from the known canonical first-bad diff: subsystem tag, changed-file stems, and source-style identifiers.",
+        status: "diagnostic-only",
+        warning:
+          "This diagnostic leaks ground truth because it derives keywords from the first-bad commit that bisection must discover. It is shown only to diagnose first-bad relevance and is not a deployable baseline.",
       },
       rows: keywordRows,
       aggregate: keywordAggregate,

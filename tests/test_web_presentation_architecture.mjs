@@ -20,6 +20,7 @@ assert.match(focusedResults, /id="topk-sensitivity"/, "focused page needs a top-
 assert.match(focusedResults, /id="topk-trajectory-body"/, "focused page needs a middle-trajectory table");
 assert.match(focusedResults, /id="keyword-body"/, "focused page needs a keyword result table");
 assert.match(focusedResults, /id="keyword-vocab"/, "focused page must show keyword vocabularies");
+assert.match(focusedResults, /Oracle first-bad diagnostic/, "focused page must label the diagnostic column");
 assert.match(focusedResults, /Convergence by issue/, "focused page must show per-issue convergence charts");
 assert.match(focusedResults, /id="convergence-charts"/, "focused page needs a convergence chart container");
 assert.match(runtime, /LM-bisect runtime architecture/, "runtime architecture heading is missing");
@@ -83,6 +84,21 @@ for (const row of site.focused_comparisons.convergence.rows) {
 }
 assert.equal(site.focused_comparisons.keywords.rows.length, 10, "keyword comparison must cover scoped 10");
 assert.equal(site.focused_comparisons.keywords.aggregate.best_parent_llm.avg_steps, 11.1);
+assert.equal(site.focused_comparisons.keywords.aggregate.oracle_first_bad.avg_steps, 11.3);
+assert.equal(site.focused_comparisons.keywords.aggregate.oracle_first_bad.first_bad_matches, 10);
+assert.equal(site.focused_comparisons.keywords.oracle_first_bad.status, "diagnostic-only");
+assert.match(site.focused_comparisons.keywords.oracle_first_bad.warning, /leaks ground truth/i);
+for (const row of site.focused_comparisons.keywords.rows) {
+  assert.ok(row.oracle_first_bad.steps > 0, `${row.issue} needs an oracle diagnostic result`);
+  assert.equal(row.oracle_first_bad.skips, 0, `${row.issue} oracle result must be skip-free`);
+  assert.equal(row.oracle_first_bad.generated_keywords.length, 16, `${row.issue} needs all generated keywords`);
+}
+assert.ok(
+  site.focused_comparisons.keywords.rows
+    .find((row) => row.issue === "pr204559")
+    .oracle_first_bad.generated_keywords.includes("SimpleLoopUnswitch"),
+  "oracle keywords must come from the selected first-bad history"
+);
 assert.deepEqual(site.focused_comparisons.keywords.weak_maintenance.terms, [
   "add",
   "update",

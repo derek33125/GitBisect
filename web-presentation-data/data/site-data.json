@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-07-16T17:15:26.928Z",
+  "generated_at": "2026-07-19T07:00:27.175Z",
   "scope": "Shared 10-case comparison set. Numbers are for apples-to-apples method comparison on a fixed set, not a benchmark-wide claim.",
   "aggregate": {
     "git": {
@@ -5530,6 +5530,11 @@
           "document"
         ]
       },
+      "oracle_first_bad": {
+        "definition": "Terms deterministically derived from the known canonical first-bad diff: subsystem tag, changed-file stems, and source-style identifiers.",
+        "status": "diagnostic-only",
+        "warning": "This diagnostic leaks ground truth because it derives keywords from the first-bad commit that bisection must discover. It is shown only to diagnose first-bad relevance and is not a deployable baseline."
+      },
       "rows": [
         {
           "issue": "pr204559",
@@ -5565,6 +5570,32 @@
             "steps": 12,
             "skips": 0,
             "first_bad": "5a5d0fb1e471b3a1e842aee1f993e885c8d19713"
+          },
+          "oracle_first_bad": {
+            "steps": 11,
+            "skips": 0,
+            "first_bad": "5a5d0fb1e471b3a1e842aee1f993e885c8d19713",
+            "generated_keywords": [
+              "SimpleLoopUnswitch",
+              "std::optional",
+              "LatchIdx",
+              "std::nullopt",
+              "LoopLatch",
+              "getLoopLatch",
+              "ULExit",
+              "getUniqueLatchExitBlock",
+              "FullUnswitch",
+              "getSuccessor",
+              "ModifiedBranch",
+              "areLoopExitPHIsLoopInvariant",
+              "llvm::any_of",
+              "Instruction",
+              "mayHaveSideEffects",
+              "MaxBECount"
+            ],
+            "source": "edu-server",
+            "run_label": "edu10-oracle-first-bad-heuristic-20260718a",
+            "status": "clean"
           },
           "canonical_first_bad": "5a5d0fb1e471",
           "note": "Issue-specific keywords use 4 fewer builds."
@@ -5604,6 +5635,32 @@
             "skips": 0,
             "first_bad": "5a5d0fb1e471b3a1e842aee1f993e885c8d19713"
           },
+          "oracle_first_bad": {
+            "steps": 11,
+            "skips": 0,
+            "first_bad": "5a5d0fb1e471b3a1e842aee1f993e885c8d19713",
+            "generated_keywords": [
+              "SimpleLoopUnswitch",
+              "std::optional",
+              "LatchIdx",
+              "std::nullopt",
+              "LoopLatch",
+              "getLoopLatch",
+              "ULExit",
+              "getUniqueLatchExitBlock",
+              "FullUnswitch",
+              "getSuccessor",
+              "ModifiedBranch",
+              "areLoopExitPHIsLoopInvariant",
+              "llvm::any_of",
+              "Instruction",
+              "mayHaveSideEffects",
+              "MaxBECount"
+            ],
+            "source": "edu-server",
+            "run_label": "edu10-oracle-first-bad-heuristic-20260718a",
+            "status": "clean"
+          },
           "canonical_first_bad": "5a5d0fb1e471",
           "note": "Issue-specific keywords use 2 fewer builds."
         },
@@ -5641,6 +5698,32 @@
             "steps": 12,
             "skips": 0,
             "first_bad": "6bcdd843e302063c4f0d36204686155149a6bb0a"
+          },
+          "oracle_first_bad": {
+            "steps": 11,
+            "skips": 0,
+            "first_bad": "6bcdd843e302063c4f0d36204686155149a6bb0a",
+            "generated_keywords": [
+              "X86ISelLowering",
+              "X86InstrCompiler",
+              "X86InstrFragments",
+              "Strip",
+              "TRUNCATE",
+              "ZERO_EXTEND",
+              "ANY_EXTEND",
+              "SDValue",
+              "peekThroughBitPosExtTrunc",
+              "APInt",
+              "LowBits",
+              "APInt::getLowBitsSet",
+              "getScalarValueSizeInBits",
+              "Log2_32",
+              "getOpcode",
+              "ISD::TRUNCATE"
+            ],
+            "source": "edu-server",
+            "run_label": "edu10-oracle-first-bad-tail-20260718a",
+            "status": "clean"
           },
           "canonical_first_bad": "6bcdd843e302",
           "note": "Issue-specific keywords use 1 fewer build."
@@ -5680,6 +5763,32 @@
             "skips": 0,
             "first_bad": "cac7fe50e0fbedfb14028c170d83386efeb1265b"
           },
+          "oracle_first_bad": {
+            "steps": 12,
+            "skips": 0,
+            "first_bad": "cac7fe50e0fbedfb14028c170d83386efeb1265b",
+            "generated_keywords": [
+              "VPlan",
+              "LoopVectorize",
+              "VPlanAnalysis",
+              "VPlanConstruction",
+              "VPlanPatternMatch",
+              "VPlanRecipes",
+              "VPlanTransforms",
+              "VPlanUnroll",
+              "VPlanUtils",
+              "VPlanValue",
+              "VPlanVerifier",
+              "VPDomTreeTest",
+              "VPlanHCFGTest",
+              "VPlanPatternMatchTest",
+              "VPlanSlpTest",
+              "VPlanTest"
+            ],
+            "source": "edu-server",
+            "run_label": "edu10-oracle-first-bad-pr193164-corrected-20260719a",
+            "status": "clean"
+          },
           "canonical_first_bad": "cac7fe50e0fb",
           "note": "Issue-specific keywords use 2 fewer builds."
         },
@@ -5717,6 +5826,32 @@
             "steps": 15,
             "skips": 0,
             "first_bad": "c9c05a91c4843c243d508c39bdfbc5e26f311af2"
+          },
+          "oracle_first_bad": {
+            "steps": 12,
+            "skips": 0,
+            "first_bad": "c9c05a91c4843c243d508c39bdfbc5e26f311af2",
+            "generated_keywords": [
+              "ConstantFolding",
+              "Constant",
+              "ConstantFoldFP",
+              "NativeFP",
+              "APFloat",
+              "Result",
+              "convertToDouble",
+              "GetConstantFoldFPValue",
+              "ConstantFoldBinaryFP",
+              "getValueAsDouble",
+              "getValueAPF",
+              "Intrinsic::amdgcn_sin",
+              "isNegative",
+              "isZero",
+              "IntrinsicID",
+              "Intrinsic::pow"
+            ],
+            "source": "aws-server",
+            "run_label": "aws10-oracle-first-bad-compat-a-20260719a",
+            "status": "clean"
           },
           "canonical_first_bad": "c9c05a91c484",
           "note": "Tie in build count and final first-bad commit."
@@ -5756,6 +5891,32 @@
             "skips": 0,
             "first_bad": "e38b7e894808ec2a0c976ab01e44364f167508d3"
           },
+          "oracle_first_bad": {
+            "steps": 11,
+            "skips": 0,
+            "first_bad": "e38b7e894808ec2a0c976ab01e44364f167508d3",
+            "generated_keywords": [
+              "DivRemPairs",
+              "FIXME",
+              "BasicBlock",
+              "PredBB",
+              "DivBB",
+              "DivInst",
+              "getParent",
+              "RemBB",
+              "RemInst",
+              "IsSafeToHoist",
+              "Instruction",
+              "DivOrRem",
+              "ParentBB",
+              "getIterator",
+              "isGuaranteedToTransferExecutionToSuccessor",
+              "DivRem"
+            ],
+            "source": "aws-server",
+            "run_label": "aws10-oracle-first-bad-compat-a-20260719a",
+            "status": "clean"
+          },
           "canonical_first_bad": "e38b7e894808",
           "note": "Fixed vocabulary uses 1 fewer build."
         },
@@ -5793,6 +5954,32 @@
             "steps": 15,
             "skips": 0,
             "first_bad": "20e989e9de6abcf9a684978a2688acc4ea01036f"
+          },
+          "oracle_first_bad": {
+            "steps": 12,
+            "skips": 0,
+            "first_bad": "20e989e9de6abcf9a684978a2688acc4ea01036f",
+            "generated_keywords": [
+              "BuildLibCalls",
+              "setOnlyAccessesArgMemory",
+              "LibFunc_strcoll",
+              "setDoesNotThrow",
+              "setOnlyReadsMemory",
+              "setDoesNotCapture",
+              "Those",
+              "setDoesNotAlias",
+              "setReturnedArg",
+              "CHECK",
+              "LINUX",
+              "ARGMEMONLY_NOFREE_NOUNWIND_READONLY",
+              "ARGMEMONLY_NOFREE_NOUNWIND",
+              "DARWIN",
+              "UNKNOWN",
+              "memset_pattern16"
+            ],
+            "source": "aws-server",
+            "run_label": "aws10-oracle-first-bad-compat-b-20260719a",
+            "status": "clean"
           },
           "canonical_first_bad": "20e989e9de6a",
           "note": "Tie in build count and final first-bad commit."
@@ -5832,6 +6019,32 @@
             "skips": 0,
             "first_bad": "6792e26c0d0f2260f1e12693382e184f5ea1966f"
           },
+          "oracle_first_bad": {
+            "steps": 10,
+            "skips": 0,
+            "first_bad": "be20eae25f50f5ef648aeefa1143e1c31e4410fc",
+            "generated_keywords": [
+              "ValueTracking",
+              "Instruction::PHI",
+              "PHINode",
+              "BinaryOperator",
+              "Value",
+              "Start1",
+              "Step1",
+              "Start2",
+              "Step2",
+              "getParent",
+              "matchSimpleRecurrence",
+              "Optional",
+              "getInvertibleOperand",
+              "Operator",
+              "getOperand",
+              "CHECK"
+            ],
+            "source": "aws-server",
+            "run_label": "aws10-oracle-first-bad-compat-b-20260719a",
+            "status": "clean"
+          },
           "canonical_first_bad": "be20eae25f50",
           "note": "Tie in steps, but fixed vocabulary resolves the later reapply commit; this is the known apply/reapply ambiguity."
         },
@@ -5869,6 +6082,32 @@
             "steps": 11,
             "skips": 0,
             "first_bad": "10bc12588dac532fad044b2851dde8e7b9121e88"
+          },
+          "oracle_first_bad": {
+            "steps": 10,
+            "skips": 0,
+            "first_bad": "10bc12588dac532fad044b2851dde8e7b9121e88",
+            "generated_keywords": [
+              "xray_interface",
+              "xray_interface_internal",
+              "AsmPrinter",
+              "InstrumentationMap",
+              "Function",
+              "XRayInstrMap",
+              "SledsIndex",
+              "FuncId",
+              "Begin",
+              "uint64_t",
+              "Version",
+              "reinterpret_cast",
+              "uint32_t",
+              "MCStreamer",
+              "MCExpr",
+              "MCSymbol"
+            ],
+            "source": "aws-server",
+            "run_label": "aws10-oracle-first-bad-compat-c-20260719a",
+            "status": "clean"
           },
           "canonical_first_bad": "10bc12588dac",
           "note": "Issue-specific keywords use 1 fewer build."
@@ -5908,6 +6147,32 @@
             "skips": 0,
             "first_bad": "329ef60f3e21fd6845e8e8b0da405cae7eb27267"
           },
+          "oracle_first_bad": {
+            "steps": 13,
+            "skips": 0,
+            "first_bad": "329ef60f3e21fd6845e8e8b0da405cae7eb27267",
+            "generated_keywords": [
+              "LanguageExtensions",
+              "ReleaseNotes",
+              "CGStmt",
+              "Extended",
+              "Outputs",
+              "Indirect",
+              "Issue",
+              "DenseMap",
+              "llvm::CallBrInst",
+              "llvm::DenseMap",
+              "llvm::BasicBlock",
+              "SmallVector",
+              "llvm::Value",
+              "CBRRegResults",
+              "Result",
+              "Builder"
+            ],
+            "source": "aws-server",
+            "run_label": "aws10-oracle-first-bad-compat-c-20260719a",
+            "status": "clean"
+          },
           "canonical_first_bad": "329ef60f3e21",
           "note": "Tie in build count and final first-bad commit."
         }
@@ -5936,6 +6201,12 @@
           "avg_steps": 12.6,
           "median_steps": 12,
           "first_bad_matches": 9
+        },
+        "oracle_first_bad": {
+          "count": 10,
+          "avg_steps": 11.3,
+          "median_steps": 11,
+          "first_bad_matches": 10
         }
       }
     }
@@ -11740,7 +12011,7 @@
         "llvm/test/Transforms/Vectorize"
       ],
       "good_commit": "e9f758a59b2f",
-      "bad_commit": "1bec68a29602",
+      "bad_commit": "cac7fe50e0fb",
       "comparison": {
         "git": {
           "steps": 17,

@@ -406,7 +406,13 @@ function renderKeywordComparison(keywords) {
   $("#keyword-note").innerHTML =
     "<strong>Interpretation:</strong> " +
     esc(keywords.comparison_note) +
-    " The known <code>pr49535</code> apply/reapply ambiguity is shown as an alternate boundary rather than counted as a runner failure.";
+    " The known <code>pr49535</code> apply/reapply ambiguity is shown as an alternate boundary rather than counted as a runner failure. " +
+    '<strong>Diagnostic only:</strong> the first-bad-derived column has <strong>' +
+    esc(keywords.aggregate.oracle_first_bad.avg_steps) +
+    "</strong> mean builds, <strong>" +
+    esc(keywords.aggregate.oracle_first_bad.first_bad_matches) +
+    "/10</strong> canonical first-bad boundaries, and is excluded from the comparison because " +
+    esc(keywords.oracle_first_bad.warning);
   renderKeywordVocabulary(keywords);
   $("#keyword-body").innerHTML = keywords.rows
     .map((row) => {
@@ -414,6 +420,9 @@ function renderKeywordComparison(keywords) {
       const bestSteps = Math.min(...candidates.map((result) => result.steps));
       const mismatch = candidates.some((result) => !sameCommit(result.first_bad, row.canonical_first_bad));
       const caveat = mismatch ? '<span class="table-caveat">apply/reapply</span>' : "";
+      const generatedKeywords = row.oracle_first_bad.generated_keywords
+        .map((term) => "<code>" + esc(term) + "</code>")
+        .join("");
       return (
         '<tr><td class="left"><strong>' +
         esc(row.issue) +
@@ -425,6 +434,14 @@ function renderKeywordComparison(keywords) {
         esc(row.git.steps) +
         "</td>" +
         candidates.map((result) => resultCell(result, bestSteps)).join("") +
+        '<td class="num oracle-diagnostic" title="Diagnostic only; derived from the known first-bad commit.">' +
+        esc(row.oracle_first_bad.steps) +
+        "</td>" +
+        '<td class="left oracle-keywords"><details><summary>' +
+        esc(row.oracle_first_bad.generated_keywords.length) +
+        ' generated terms</summary><div class="oracle-keyword-list">' +
+        generatedKeywords +
+        "</div></details></td>" +
         "</tr>"
       );
     })
