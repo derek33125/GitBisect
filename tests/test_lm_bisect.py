@@ -633,6 +633,173 @@ class ConfidenceAdaptiveFrontierTests(unittest.TestCase):
                 "diverse", lm_bisect.ConfidenceAdaptiveFrontierConfig(threshold=0.35)
             )
 
+
+class ObservationConditionedPosteriorTests(unittest.TestCase):
+    def _record(self, index: int, sha: str, features: list[str]) -> lm_bisect.CommitRecord:
+        path_feature = next((item[5:] for item in features if item.startswith("path:")), "llvm/lib/Support")
+        return lm_bisect.CommitRecord(
+            index=index,
+            sha=sha * 40,
+            subject=f"candidate {sha}",
+            body="",
+            changed_files=[f"{path_feature}/Candidate.cpp"],
+            diff_text="",
+            semantic_score=2.0,
+            build_success_prob=0.9,
+            suspicion_weight=0.0,
+            evidence=["model-scored"],
+            features=features,
+        )
+
+    def test_bad_observation_increases_related_candidate_posterior(self) -> None:
+        records = [
+            self._record(1, "a", ["path:llvm/lib/Transforms/Vectorize", "term:vplan"]),
+            self._record(2, "b", ["path:llvm/lib/Analysis", "term:memoryssa"]),
+        ]
+        observations = [
+            lm_bisect.CommitObservation(
+                sha="o" * 40,
+                verdict="bad",
+                summary="VPlan assertion",
+                features=["path:llvm/lib/Transforms/Vectorize", "term:vplan"],
+            )
+        ]
+
+        probabilities = lm_bisect.observation_conditioned_posterior_probabilities(
+            records,
+            observations,
+            lm_bisect.ObservationConditionedPosteriorConfig(),
+        )
+
+        self.assertGreater(probabilities[0], probabilities[1])
+        self.assertGreater(records[0].observation_bad_similarity, 0.0)
+        self.assertEqual(records[1].observation_bad_similarity, 0.0)
+
+    def test_good_observation_suppresses_related_candidate_posterior(self) -> None:
+        records = [
+            self._record(1, "a", ["path:llvm/lib/Transforms/Vectorize", "term:vplan"]),
+            self._record(2, "b", ["path:llvm/lib/Analysis", "term:memoryssa"]),
+        ]
+        observations = [
+            lm_bisect.CommitObservation(
+                sha="o" * 40,
+                verdict="good",
+                summary="VPlan path is known good",
+                features=["path:llvm/lib/Transforms/Vectorize", "term:vplan"],
+            )
+        ]
+
+        probabilities = lm_bisect.observation_conditioned_posterior_probabilities(
+            records,
+            observations,
+            lm_bisect.ObservationConditionedPosteriorConfig(),
+        )
+
+        self.assertLess(probabilities[0], probabilities[1])
+        self.assertLess(records[0].observation_posterior_evidence, 0.0)
+
+    def test_unrelated_candidate_receives_no_positive_observation_evidence(self) -> None:
+        record = self._record(1, "a", ["path:clang/lib/Sema", "term:openacc"])
+        observation = lm_bisect.CommitObservation(
+            sha="o" * 40,
+            verdict="bad",
+            summary="VPlan assertion",
+            features=["path:llvm/lib/Transforms/Vectorize", "term:vplan"],
+        )
+
+        lm_bisect.observation_conditioned_posterior_probabilities(
+            [record],
+            [observation],
+            lm_bisect.ObservationConditionedPosteriorConfig(),
+        )
+
+        self.assertEqual(record.observation_bad_similarity, 0.0)
+        self.assertEqual(record.observation_posterior_evidence, 0.0)
+
+    def test_model_mechanism_feature_without_prefix_is_retained(self) -> None:
+        record = self._record(1, "a", ["VPlan", "path:llvm/lib/Transforms/Vectorize"])
+        observation = lm_bisect.CommitObservation(
+            sha="o" * 40,
+            verdict="bad",
+            summary="VPlan assertion",
+            features=["VPlan", "path:llvm/lib/Transforms/Vectorize"],
+        )
+
+        lm_bisect.observation_conditioned_posterior_probabilities(
+            [record],
+            [observation],
+            lm_bisect.ObservationConditionedPosteriorConfig(),
+        )
+
+        self.assertGreater(record.observation_bad_similarity, 0.0)
+
+    def test_policy_configuration_isolates_score_context_and_history(self) -> None:
+        config = lm_bisect.ObservationConditionedPosteriorConfig()
+        with_policy = lm_bisect.model_score_context_payload(
+            ["a" * 40, "b" * 40],
+            [],
+            3,
+            "topk",
+            "parent",
+            "llm",
+            "trace-only",
+            observation_conditioned_posterior=config.payload(),
+        )
+        without_policy = lm_bisect.model_score_context_payload(
+            ["a" * 40, "b" * 40], [], 3, "topk", "parent", "llm", "trace-only"
+        )
+        history = lm_bisect.start_run_history_payload(
+            issue_id="demo",
+            scorer="model",
+            model_name="gpt-5.4-mini",
+            model_frontier="topk",
+            search_policy="calibrated-posterior",
+            hybrid_switch_window=32,
+            lambda_weight=2.0,
+            max_steps=30,
+            observation_path="/tmp/observations.json",
+            run_history_path="/tmp/history.json",
+            good_commit="g" * 40,
+            bad_commit="b" * 40,
+            initial_unresolved=10,
+            model_top_k=3,
+            observation_conditioned_posterior=config.payload(),
+        )
+
+        self.assertNotEqual(
+            lm_bisect.model_score_context_id(with_policy),
+            lm_bisect.model_score_context_id(without_policy),
+        )
+        self.assertEqual(history["observation_conditioned_posterior"], config.payload())
+
+    def test_policy_rejects_adaptive_or_confidence_combinations(self) -> None:
+        config = lm_bisect.ObservationConditionedPosteriorConfig()
+
+        with self.assertRaisesRegex(ValueError, "cannot be combined"):
+            lm_bisect.validate_observation_conditioned_posterior(
+                scorer="model",
+                search_policy="calibrated-posterior",
+                configured_frontier="topk",
+                model_top_k=3,
+                model_diff_mode="parent",
+                model_diff_extraction="llm",
+                posterior_config=config,
+                adaptive_config=lm_bisect.AdaptiveTopKConfig(5_000, 12, 3),
+                confidence_config=None,
+            )
+        with self.assertRaisesRegex(ValueError, "requires fixed --model-top-k 3"):
+            lm_bisect.validate_observation_conditioned_posterior(
+                scorer="model",
+                search_policy="calibrated-posterior",
+                configured_frontier="topk",
+                model_top_k=12,
+                model_diff_mode="parent",
+                model_diff_extraction="llm",
+                posterior_config=config,
+                adaptive_config=None,
+                confidence_config=None,
+            )
+
     def test_parser_accepts_general_keyword_heuristic_version(self) -> None:
         args = lm_bisect.build_parser().parse_args(
             ["suggest", "--issue", "demo", "--heuristic-version", "general"]

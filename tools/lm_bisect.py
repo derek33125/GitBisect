@@ -172,6 +172,9 @@ DEFAULT_MODEL_PRIOR_SOFTMAX_TEMPERATURE = 4.0
 DEFAULT_MODEL_DIRECT_HIT_BONUS = 2.5
 DEFAULT_MODEL_MECHANISM_BONUS = 0.25
 DEFAULT_MODEL_MECHANISM_OVERRIDE_SCALE = 2.0
+DEFAULT_OBSERVATION_POSTERIOR_BAD_STRENGTH = 1.5
+DEFAULT_OBSERVATION_POSTERIOR_GOOD_STRENGTH = 1.0
+DEFAULT_OBSERVATION_POSTERIOR_COMPONENT_WEIGHT = 0.75
 TRACE_PROMPT_MAX_CHARS = 2400
 DEFAULT_DIFF_TEXT_MAX_CHARS = 12000
 DIFF_EXTRACTION_MAX_INPUT_CHARS = 600000
@@ -381,6 +384,10 @@ class CommitRecord:
     calibrated_suspicion_weight: float = 0.0
     calibrated_posterior_bad_mass: float = 0.0
     calibrated_posterior_info_gain: float = 0.0
+    observation_bad_similarity: float = 0.0
+    observation_good_similarity: float = 0.0
+    observation_posterior_evidence: float = 0.0
+    observation_conditioned_posterior_mass: float = 0.0
     weak_relevance_penalty: float = 0.0
     evidence: list[str] | None = None
     feedback_bias: float = 0.0
@@ -451,6 +458,22 @@ class ConfidenceAdaptiveFrontierConfig:
 
     def payload(self) -> dict[str, float]:
         return {"threshold": self.threshold}
+
+
+@dataclass(frozen=True)
+class ObservationConditionedPosteriorConfig:
+    """Convert runner good/bad evidence into a mechanism-aware posterior update."""
+
+    bad_strength: float = DEFAULT_OBSERVATION_POSTERIOR_BAD_STRENGTH
+    good_strength: float = DEFAULT_OBSERVATION_POSTERIOR_GOOD_STRENGTH
+    component_weight: float = DEFAULT_OBSERVATION_POSTERIOR_COMPONENT_WEIGHT
+
+    def payload(self) -> dict[str, float]:
+        return {
+            "bad_strength": self.bad_strength,
+            "good_strength": self.good_strength,
+            "component_weight": self.component_weight,
+        }
 
 
 @dataclass(frozen=True)
@@ -599,6 +622,45 @@ def validate_confidence_adaptive_frontier(
         raise ValueError("confidence-adaptive frontier requires --model-frontier topk")
 
 
+def observation_conditioned_posterior_config_from_args(
+    args: argparse.Namespace,
+) -> ObservationConditionedPosteriorConfig | None:
+    if not getattr(args, "observation_conditioned_posterior", False):
+        return None
+    return ObservationConditionedPosteriorConfig()
+
+
+def validate_observation_conditioned_posterior(
+    *,
+    scorer: str,
+    search_policy: str,
+    configured_frontier: str,
+    model_top_k: int | None,
+    model_diff_mode: str,
+    model_diff_extraction: str,
+    posterior_config: ObservationConditionedPosteriorConfig | None,
+    adaptive_config: AdaptiveTopKConfig | None,
+    confidence_config: ConfidenceAdaptiveFrontierConfig | None,
+) -> None:
+    if posterior_config is None:
+        return
+    if scorer != "model":
+        raise ValueError("observation-conditioned posterior requires --scorer model")
+    if search_policy != "calibrated-posterior":
+        raise ValueError("observation-conditioned posterior requires --search-policy calibrated-posterior")
+    if configured_frontier != "topk":
+        raise ValueError("observation-conditioned posterior requires --model-frontier topk")
+    if model_top_k != 3:
+        raise ValueError("observation-conditioned posterior requires fixed --model-top-k 3")
+    if model_diff_mode != "parent" or model_diff_extraction != "llm":
+        raise ValueError("observation-conditioned posterior requires parent diff with LLM extraction")
+    if adaptive_config is not None or confidence_config is not None:
+        raise ValueError(
+            "observation-conditioned posterior cannot be combined with interval adaptive top-k "
+            "or confidence-adaptive frontier"
+        )
+
+
 def effective_model_top_k(
     unresolved_count: int,
     fixed_top_k: int | None,
@@ -619,11 +681,14 @@ def resolved_model_cache_namespace(
     explicit_namespace: str | None,
     adaptive_config: AdaptiveTopKConfig | None,
     confidence_config: ConfidenceAdaptiveFrontierConfig | None = None,
+    observation_posterior_config: ObservationConditionedPosteriorConfig | None = None,
 ) -> str | None:
     if explicit_namespace:
         return explicit_namespace
     if confidence_config is not None:
         return f"confidence-frontier-{confidence_config.threshold:g}"
+    if observation_posterior_config is not None:
+        return "observation-posterior-k3"
     if adaptive_config is None:
         return None
     return (
@@ -641,6 +706,7 @@ def model_score_context_payload(
     model_diff_extraction: str,
     observation_prompt_mode: str,
     confidence_adaptive_frontier: dict[str, float] | None = None,
+    observation_conditioned_posterior: dict[str, float] | None = None,
 ) -> dict[str, object]:
     candidate_digest = hashlib.sha256("\n".join(unresolved).encode("utf-8")).hexdigest()
     observation_payload = [
@@ -648,6 +714,7 @@ def model_score_context_payload(
             "sha": observation.sha,
             "verdict": observation.verdict,
             "summary": observation.summary,
+            "features": observation.features,
             "source": observation.source,
             "trace_excerpt": observation.trace_excerpt,
             "log_excerpt": observation.log_excerpt,
@@ -669,6 +736,7 @@ def model_score_context_payload(
         "model_diff_extraction": model_diff_extraction,
         "observation_prompt_mode": observation_prompt_mode,
         "confidence_adaptive_frontier": confidence_adaptive_frontier,
+        "observation_conditioned_posterior": observation_conditioned_posterior,
     }
 
 
@@ -2077,6 +2145,17 @@ def extract_commit_features(subject: str, body: str, files: list[str], diff: str
     return sorted(features)
 
 
+def merge_commit_features(*feature_sets: Iterable[str] | None) -> list[str]:
+    """Retain model mechanism hints alongside stable path and token features."""
+    merged = {
+        str(feature).strip()
+        for feature_set in feature_sets
+        for feature in (feature_set or [])
+        if str(feature).strip()
+    }
+    return sorted(merged)
+
+
 def jaccard_similarity(lhs: Iterable[str], rhs: Iterable[str]) -> float:
     left = set(lhs)
     right = set(rhs)
@@ -2341,6 +2420,7 @@ def start_run_history_payload(
     model_top_k: int | None = None,
     adaptive_top_k: dict[str, int] | None = None,
     confidence_adaptive_frontier: dict[str, float] | None = None,
+    observation_conditioned_posterior: dict[str, float] | None = None,
     model_cache_namespace: str | None = None,
     oracle_first_bad_sha: str | None = None,
 ) -> dict:
@@ -2365,6 +2445,7 @@ def start_run_history_payload(
         "model_top_k": model_top_k,
         "adaptive_top_k": adaptive_top_k,
         "confidence_adaptive_frontier": confidence_adaptive_frontier,
+        "observation_conditioned_posterior": observation_conditioned_posterior,
         "model_cache_namespace": model_cache_namespace,
         "oracle_first_bad_sha": oracle_first_bad_sha,
         "lambda_weight": lambda_weight,
@@ -2405,6 +2486,7 @@ def run_history_matches(
     model_top_k: int | None = None,
     adaptive_top_k: dict[str, int] | None = None,
     confidence_adaptive_frontier: dict[str, float] | None = None,
+    observation_conditioned_posterior: dict[str, float] | None = None,
     model_cache_namespace: str | None = None,
     oracle_first_bad_sha: str | None = None,
 ) -> bool:
@@ -2429,6 +2511,7 @@ def run_history_matches(
         and history.get("model_top_k") == model_top_k
         and history.get("adaptive_top_k") == adaptive_top_k
         and history.get("confidence_adaptive_frontier") == confidence_adaptive_frontier
+        and history.get("observation_conditioned_posterior") == observation_conditioned_posterior
         and history.get("model_cache_namespace") == model_cache_namespace
         and history.get("oracle_first_bad_sha") == oracle_first_bad_sha
     )
@@ -2465,6 +2548,7 @@ def prepare_run_history(
     model_top_k: int | None = None,
     adaptive_top_k: dict[str, int] | None = None,
     confidence_adaptive_frontier: dict[str, float] | None = None,
+    observation_conditioned_posterior: dict[str, float] | None = None,
     model_cache_namespace: str | None = None,
     oracle_first_bad_sha: str | None = None,
 ) -> tuple[dict, int, bool]:
@@ -2489,6 +2573,7 @@ def prepare_run_history(
             model_top_k,
             adaptive_top_k,
             confidence_adaptive_frontier,
+            observation_conditioned_posterior,
             model_cache_namespace,
             oracle_first_bad_sha,
         )
@@ -2515,6 +2600,7 @@ def prepare_run_history(
         history["model_top_k"] = model_top_k
         history["adaptive_top_k"] = adaptive_top_k
         history["confidence_adaptive_frontier"] = confidence_adaptive_frontier
+        history["observation_conditioned_posterior"] = observation_conditioned_posterior
         history["model_cache_namespace"] = model_cache_namespace
         history["oracle_first_bad_sha"] = oracle_first_bad_sha
         history["lambda_weight"] = lambda_weight
@@ -2558,6 +2644,7 @@ def prepare_run_history(
         model_top_k=model_top_k,
         adaptive_top_k=adaptive_top_k,
         confidence_adaptive_frontier=confidence_adaptive_frontier,
+        observation_conditioned_posterior=observation_conditioned_posterior,
         model_cache_namespace=model_cache_namespace,
         oracle_first_bad_sha=oracle_first_bad_sha,
     )
@@ -2591,6 +2678,14 @@ def compact_candidate_view(record: CommitRecord, rank: int) -> dict:
         payload["calibrated_posterior_bad_mass"] = round(record.calibrated_posterior_bad_mass, 6)
     if record.calibrated_posterior_info_gain:
         payload["calibrated_posterior_info_gain"] = round(record.calibrated_posterior_info_gain, 6)
+    if record.observation_conditioned_posterior_mass:
+        payload["observation_bad_similarity"] = round(record.observation_bad_similarity, 6)
+        payload["observation_good_similarity"] = round(record.observation_good_similarity, 6)
+        payload["observation_posterior_evidence"] = round(record.observation_posterior_evidence, 6)
+        payload["observation_conditioned_posterior_mass"] = round(
+            record.observation_conditioned_posterior_mass,
+            6,
+        )
     if record.weak_relevance_penalty:
         payload["weak_relevance_penalty"] = round(record.weak_relevance_penalty, 6)
     add_diff_metadata_to_payload(payload, record)
@@ -2618,6 +2713,14 @@ def selection_payload(record: CommitRecord) -> dict:
         payload["calibrated_posterior_bad_mass"] = round(record.calibrated_posterior_bad_mass, 6)
     if record.calibrated_posterior_info_gain:
         payload["calibrated_posterior_info_gain"] = round(record.calibrated_posterior_info_gain, 6)
+    if record.observation_conditioned_posterior_mass:
+        payload["observation_bad_similarity"] = round(record.observation_bad_similarity, 6)
+        payload["observation_good_similarity"] = round(record.observation_good_similarity, 6)
+        payload["observation_posterior_evidence"] = round(record.observation_posterior_evidence, 6)
+        payload["observation_conditioned_posterior_mass"] = round(
+            record.observation_conditioned_posterior_mass,
+            6,
+        )
     if record.weak_relevance_penalty:
         payload["weak_relevance_penalty"] = round(record.weak_relevance_penalty, 6)
     add_diff_metadata_to_payload(payload, record)
@@ -3189,6 +3292,90 @@ def keyword_feature_overlap_score(
     return total
 
 
+def observation_semantic_features(features: Iterable[str] | None) -> set[str]:
+    """Keep mechanism and component evidence, excluding generic build/meta noise."""
+    normalized_features: set[str] = set()
+    for feature in features or []:
+        feature = str(feature).strip()
+        if not feature or feature.startswith(("build:", "meta:")):
+            continue
+        if feature.startswith(("path:", "term:")):
+            normalized_features.add(feature)
+            continue
+        normalized = normalize_token(feature)
+        if normalized:
+            normalized_features.add(f"term:{normalized}")
+    return normalized_features
+
+
+def observation_feature_affinity(
+    candidate_features: Iterable[str] | None,
+    observation_features: Iterable[str] | None,
+    component_weight: float,
+) -> float:
+    candidate = observation_semantic_features(candidate_features)
+    observed = observation_semantic_features(observation_features)
+    if not candidate or not observed:
+        return 0.0
+    candidate_paths = {feature for feature in candidate if feature.startswith("path:")}
+    observed_paths = {feature for feature in observed if feature.startswith("path:")}
+    candidate_mechanisms = candidate - candidate_paths
+    observed_mechanisms = observed - observed_paths
+    path_similarity = jaccard_similarity(candidate_paths, observed_paths)
+    mechanism_similarity = jaccard_similarity(candidate_mechanisms, observed_mechanisms)
+    if mechanism_similarity > 0.0 and path_similarity > 0.0:
+        return (mechanism_similarity + component_weight * path_similarity) / (1.0 + component_weight)
+    return max(mechanism_similarity, component_weight * path_similarity)
+
+
+def observation_conditioned_posterior_probabilities(
+    records: list[CommitRecord],
+    observations: list[CommitObservation],
+    config: ObservationConditionedPosteriorConfig,
+    prior_power: float = DEFAULT_CALIBRATED_PRIOR_POWER,
+) -> list[float]:
+    """Reweight calibrated priors using observed good/bad mechanism affinity."""
+    if not records:
+        raise ValueError("records must not be empty")
+    priors = calibrated_prior_probabilities(records, prior_power)
+    bad_observations = [item for item in observations if item.verdict == "bad"]
+    good_observations = [item for item in observations if item.verdict == "good"]
+    weights: list[float] = []
+    for record, prior in zip(records, priors):
+        features = merge_commit_features(
+            record.features,
+            extract_commit_features(
+                record.subject,
+                record.body,
+                record.changed_files,
+                record.diff_text,
+            ),
+        )
+        bad_similarity = max(
+            (
+                observation_feature_affinity(features, observation.features, config.component_weight)
+                for observation in bad_observations
+            ),
+            default=0.0,
+        )
+        good_similarity = max(
+            (
+                observation_feature_affinity(features, observation.features, config.component_weight)
+                for observation in good_observations
+            ),
+            default=0.0,
+        )
+        evidence = config.bad_strength * bad_similarity - config.good_strength * good_similarity
+        record.observation_bad_similarity = bad_similarity
+        record.observation_good_similarity = good_similarity
+        record.observation_posterior_evidence = evidence
+        weights.append(prior * math.exp(evidence))
+    total = sum(weights)
+    if total <= 0.0:
+        raise ValueError("observation-conditioned posterior total must be positive")
+    return [weight / total for weight in weights]
+
+
 def calibrated_posterior_selection(
     profile: IssueProfile,
     records: list[CommitRecord],
@@ -3197,12 +3384,23 @@ def calibrated_posterior_selection(
     weak_relevance_penalty: float,
     weak_relevance_threshold: float,
     build_success_power: float = DEFAULT_BUILD_SUCCESS_POWER,
+    observations: list[CommitObservation] | None = None,
+    observation_posterior_config: ObservationConditionedPosteriorConfig | None = None,
 ) -> tuple[CommitRecord, list[CommitRecord]]:
     if not records:
         raise ValueError("records must not be empty")
 
     ordered = sorted(records, key=lambda record: record.index)
-    probabilities = calibrated_prior_probabilities(ordered, prior_power)
+    probabilities = (
+        observation_conditioned_posterior_probabilities(
+            ordered,
+            observations or [],
+            observation_posterior_config,
+            prior_power,
+        )
+        if observation_posterior_config is not None
+        else calibrated_prior_probabilities(ordered, prior_power)
+    )
     model_scored_window = all(any(item == "model-scored" for item in (record.evidence or [])) for record in ordered)
     feature_counts: dict[str, int] = {}
     keyword_overlap_by_sha: dict[str, float] = {}
@@ -3262,6 +3460,9 @@ def calibrated_posterior_selection(
         cumulative += probability
         record.calibrated_suspicion_weight = probability
         record.calibrated_posterior_bad_mass = cumulative
+        record.observation_conditioned_posterior_mass = (
+            cumulative if observation_posterior_config is not None else 0.0
+        )
         record.calibrated_posterior_info_gain = binary_split_info_gain(cumulative)
         record.weak_relevance_penalty = weak_relevance_penalty_for_record(
             profile,
@@ -3346,6 +3547,8 @@ def select_next_commit(
     calibrated_prior_bonus: float = DEFAULT_CALIBRATED_PRIOR_BONUS,
     weak_relevance_penalty: float = DEFAULT_WEAK_RELEVANCE_PENALTY,
     weak_relevance_threshold: float = DEFAULT_WEAK_RELEVANCE_THRESHOLD,
+    observations: list[CommitObservation] | None = None,
+    observation_posterior_config: ObservationConditionedPosteriorConfig | None = None,
 ) -> SelectionDecision:
     selection = compute_selection(
         records,
@@ -3396,12 +3599,18 @@ def select_next_commit(
             weak_relevance_penalty=weak_relevance_penalty,
             weak_relevance_threshold=weak_relevance_threshold,
             build_success_power=build_success_power,
+            observations=observations,
+            observation_posterior_config=observation_posterior_config,
         )
         return SelectionDecision(
             selected=selected,
             ranked_candidates=calibrated_ranked,
             search_policy=search_policy,
-            selection_mode="calibrated-posterior",
+            selection_mode=(
+                "observation-conditioned-posterior"
+                if observation_posterior_config is not None
+                else "calibrated-posterior"
+            ),
         )
     raise ValueError(f"unsupported search policy: {search_policy}")
 
@@ -4554,13 +4763,28 @@ def command_run_online(args: argparse.Namespace) -> int:
     confidence_adaptive_frontier = (
         confidence_adaptive_frontier_config_from_args(args) if args.scorer == "model" else None
     )
+    observation_conditioned_posterior = (
+        observation_conditioned_posterior_config_from_args(args) if args.scorer == "model" else None
+    )
     if adaptive_top_k is not None and confidence_adaptive_frontier is not None:
         raise ValueError("interval adaptive top-k and confidence-adaptive frontier cannot be combined")
     validate_confidence_adaptive_frontier(args.model_frontier, confidence_adaptive_frontier)
+    validate_observation_conditioned_posterior(
+        scorer=args.scorer,
+        search_policy=args.search_policy,
+        configured_frontier=args.model_frontier,
+        model_top_k=args.model_top_k if args.scorer == "model" else None,
+        model_diff_mode=args.model_diff_mode,
+        model_diff_extraction=args.model_diff_extraction,
+        posterior_config=observation_conditioned_posterior,
+        adaptive_config=adaptive_top_k,
+        confidence_config=confidence_adaptive_frontier,
+    )
     model_cache_namespace = resolved_model_cache_namespace(
         args.model_cache_namespace if isinstance(getattr(args, "model_cache_namespace", None), str) else None,
         adaptive_top_k,
         confidence_adaptive_frontier,
+        observation_conditioned_posterior,
     )
     if adaptive_top_k is not None:
         log_progress(
@@ -4573,6 +4797,12 @@ def command_run_online(args: argparse.Namespace) -> int:
             "confidence-adaptive model frontier enabled: "
             f"k={args.model_top_k}, threshold={confidence_adaptive_frontier.threshold:g}, "
             "low-confidence=diverse"
+        )
+    if observation_conditioned_posterior is not None:
+        log_progress(
+            "observation-conditioned posterior enabled: "
+            f"fixed-k=3, bad={observation_conditioned_posterior.bad_strength:g}, "
+            f"good={observation_conditioned_posterior.good_strength:g}"
         )
     model_name = resolved_model_name(args.scorer, args.model_name)
     run_history_path = run_history_path_for_issue(
@@ -4630,6 +4860,9 @@ def command_run_online(args: argparse.Namespace) -> int:
         adaptive_top_k=adaptive_top_k.payload() if adaptive_top_k else None,
         confidence_adaptive_frontier=(
             confidence_adaptive_frontier.payload() if confidence_adaptive_frontier else None
+        ),
+        observation_conditioned_posterior=(
+            observation_conditioned_posterior.payload() if observation_conditioned_posterior else None
         ),
         model_cache_namespace=model_cache_namespace,
         oracle_first_bad_sha=oracle_first_bad_sha,
@@ -4742,6 +4975,9 @@ def command_run_online(args: argparse.Namespace) -> int:
                     args.model_diff_extraction,
                     args.observation_prompt_mode,
                     confidence_adaptive_frontier.payload() if confidence_adaptive_frontier else None,
+                    observation_conditioned_posterior.payload()
+                    if observation_conditioned_posterior
+                    else None,
                 )
                 if args.scorer == "model"
                 else None
@@ -4787,7 +5023,10 @@ def command_run_online(args: argparse.Namespace) -> int:
                 selection_profile,
                 records,
                 observations,
-                enabled=args.scorer != "heuristic" or args.heuristic_version != "neutral",
+                enabled=(
+                    (args.scorer != "heuristic" or args.heuristic_version != "neutral")
+                    and observation_conditioned_posterior is None
+                ),
             )
             log_progress(f"step {step}: select_next_commit start")
             decision = select_next_commit(
@@ -4801,6 +5040,8 @@ def command_run_online(args: argparse.Namespace) -> int:
                 calibrated_prior_bonus=args.calibrated_prior_bonus,
                 weak_relevance_penalty=args.weak_relevance_penalty,
                 weak_relevance_threshold=args.weak_relevance_threshold,
+                observations=observations,
+                observation_posterior_config=observation_conditioned_posterior,
             )
             log_progress(f"step {step}: selected {decision.selected.sha[:12]} mode={decision.selection_mode}")
             try:
@@ -4841,7 +5082,10 @@ def command_run_online(args: argparse.Namespace) -> int:
                     selection_profile,
                     records,
                     observations,
-                    enabled=args.scorer != "heuristic" or args.heuristic_version != "neutral",
+                    enabled=(
+                        (args.scorer != "heuristic" or args.heuristic_version != "neutral")
+                        and observation_conditioned_posterior is None
+                    ),
                 )
                 decision = select_next_commit(
                     selection_profile,
@@ -4854,6 +5098,8 @@ def command_run_online(args: argparse.Namespace) -> int:
                     calibrated_prior_bonus=args.calibrated_prior_bonus,
                     weak_relevance_penalty=args.weak_relevance_penalty,
                     weak_relevance_threshold=args.weak_relevance_threshold,
+                    observations=observations,
+                    observation_posterior_config=observation_conditioned_posterior,
                 )
                 selected, cached = select_non_noop_candidate(
                     decision.ranked_candidates,
@@ -4906,11 +5152,14 @@ def command_run_online(args: argparse.Namespace) -> int:
                 verdict, summary, runner_output, runner_evidence = run_issue_runner(profile, repo)
                 runner_duration_sec = time.monotonic() - runner_started
                 log_progress(f"step {step}: runner done verdict={verdict} duration={runner_duration_sec:.1f}s")
-                features = extract_commit_features(
-                    selected.subject,
-                    selected.body,
-                    selected.changed_files,
-                    selected.diff_text,
+                features = merge_commit_features(
+                    selected.features,
+                    extract_commit_features(
+                        selected.subject,
+                        selected.body,
+                        selected.changed_files,
+                        selected.diff_text,
+                    ),
                 )
                 observation = CommitObservation(
                     sha=selected.sha,
@@ -4953,6 +5202,11 @@ def command_run_online(args: argparse.Namespace) -> int:
                     "adaptive_top_k": adaptive_top_k.payload() if adaptive_top_k else None,
                     "confidence_adaptive_frontier": (
                         confidence_adaptive_frontier.payload() if confidence_adaptive_frontier else None
+                    ),
+                    "observation_conditioned_posterior": (
+                        observation_conditioned_posterior.payload()
+                        if observation_conditioned_posterior
+                        else None
                     ),
                     "model_frontier_decision": (
                         {
@@ -5205,6 +5459,11 @@ def build_parser() -> argparse.ArgumentParser:
         type=float,
         default=None,
         help="at fixed model k, use diverse anchors when the pre-model semantic confidence is below this value",
+    )
+    run_online.add_argument(
+        "--observation-conditioned-posterior",
+        action="store_true",
+        help="use runner good/bad mechanism and component evidence to update the fixed-k3 calibrated posterior",
     )
     run_online.add_argument(
         "--model-cache-namespace",
