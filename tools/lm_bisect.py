@@ -179,8 +179,13 @@ TRACE_PROMPT_MAX_CHARS = 2400
 DEFAULT_DIFF_TEXT_MAX_CHARS = 12000
 DIFF_EXTRACTION_MAX_INPUT_CHARS = 600000
 DIFF_EXTRACTION_VERSION = "llm-v2-600k"
+CAUSAL_DIFF_EXTRACTION_VERSION = "causal-llm-v1-retrieved-context"
 DEFAULT_DIFF_EXTRACTION_BATCH_SIZE = 20
 DEFAULT_DIFF_EXTRACTION_MAX_PROMPT_CHARS = 240000
+CAUSAL_DIFF_MAX_SELECTED_HUNKS = 8
+CAUSAL_DIFF_MAX_HUNK_CHARS = 4000
+CAUSAL_DIFF_MAX_FUNCTION_CONTEXTS = 4
+CAUSAL_DIFF_MAX_FUNCTION_CONTEXT_CHARS = 2400
 
 CANDIDATE_PRUNING_GROUPS = {
     "clang-pgo": (
@@ -396,6 +401,7 @@ class CommitRecord:
     diff_extraction: str = "raw"
     diff_base_sha: str | None = None
     diff_summary: str = ""
+    causal_evidence: dict[str, object] | None = None
 
 
 @dataclass
@@ -567,7 +573,7 @@ def model_score_cache_key(
     diff_extraction: str = "raw",
     score_context: str | None = None,
 ) -> str:
-    if diff_extraction not in {"raw", "llm"}:
+    if diff_extraction not in {"raw", "llm", "causal-llm"}:
         raise ValueError(f"unsupported diff_extraction: {diff_extraction}")
     if diff_mode == "parent":
         base_key = sha
@@ -576,11 +582,21 @@ def model_score_cache_key(
     else:
         base_key = f"{sha}|diff:{diff_mode}"
     if diff_extraction != "raw":
-        base_key = f"{base_key}|extract:{diff_extraction}-{DIFF_EXTRACTION_VERSION}"
+        base_key = f"{base_key}|extract:{diff_extraction}-{diff_extraction_version(diff_extraction)}"
     if score_context:
         safe_context = hashlib.sha256(score_context.encode("utf-8")).hexdigest()[:16]
         base_key = f"{base_key}|context:{safe_context}"
     return base_key
+
+
+def diff_extraction_version(diff_extraction: str) -> str:
+    if diff_extraction == "llm":
+        return DIFF_EXTRACTION_VERSION
+    if diff_extraction == "causal-llm":
+        return CAUSAL_DIFF_EXTRACTION_VERSION
+    if diff_extraction == "raw":
+        return "raw"
+    raise ValueError(f"unsupported diff_extraction: {diff_extraction}")
 
 
 def adaptive_top_k_config_from_args(args: argparse.Namespace) -> AdaptiveTopKConfig | None:
@@ -846,6 +862,23 @@ def commit_diff_text(repo: Path, sha: str, max_chars: int = DEFAULT_DIFF_TEXT_MA
     return git_limited_output(repo, ["show", "--no-renames", "--format=", "--unified=0", sha], max_chars)
 
 
+def commit_parent_diff_for_files(
+    repo: Path,
+    sha: str,
+    files: list[str],
+    max_chars: int = DEFAULT_DIFF_TEXT_MAX_CHARS,
+    max_files: int = TRANSITION_DIFF_FILE_LIMIT,
+) -> str:
+    scoped_files = [path for path in files if path][:max_files]
+    if not scoped_files:
+        return ""
+    return git_limited_output(
+        repo,
+        ["show", "--no-renames", "--format=", "--unified=0", sha, "--", *scoped_files],
+        max_chars,
+    )
+
+
 def commit_transition_diff_text(
     repo: Path,
     base_sha: str,
@@ -876,6 +909,210 @@ def commit_transition_diff_for_files(
         ["diff", "--no-renames", "--unified=0", base_sha, candidate_sha, "--", *scoped_files],
         max_chars,
     )
+
+
+def parse_unified_diff_hunks(diff: str) -> list[dict[str, object]]:
+    """Split a parent diff into file hunks so retrieval is auditable."""
+    hunks: list[dict[str, object]] = []
+    current_path = ""
+    current_lines: list[str] = []
+    current_header = ""
+
+    def flush() -> None:
+        if current_path and current_lines:
+            hunks.append(
+                {
+                    "path": current_path,
+                    "header": current_header,
+                    "patch": "\n".join(current_lines).strip(),
+                }
+            )
+
+    for line in diff.splitlines():
+        if line.startswith("diff --git "):
+            flush()
+            current_path = ""
+            current_lines = [line]
+            current_header = ""
+            continue
+        if line.startswith("+++ b/"):
+            current_path = line[6:]
+            current_lines.append(line)
+            continue
+        if line.startswith("@@ "):
+            if current_path and current_lines and current_header:
+                flush()
+                current_lines = [line]
+            else:
+                current_lines.append(line)
+            current_header = line
+            continue
+        if current_lines:
+            current_lines.append(line)
+    flush()
+    return hunks
+
+
+def causal_hunk_match_reasons(profile: IssueProfile, path: str, hunk_text: str) -> list[str]:
+    reasons: list[str] = []
+    if path_matches(path, profile.relevant_paths):
+        reasons.append("relevant-path")
+    if path_matches(path, profile.high_risk_paths):
+        reasons.append("high-risk-path")
+    lowered = hunk_text.lower()
+    keyword_hits = [keyword for keyword in profile.keywords if keyword.lower() in lowered]
+    if keyword_hits:
+        reasons.append("issue-keyword")
+    path_tokens = set(tokenize(path))
+    issue_tokens = set(tokenize(" ".join((profile.title, profile.bug_report_summary, *profile.keywords))))
+    if path_tokens & issue_tokens:
+        reasons.append("issue-path-token")
+    return reasons
+
+
+def select_causal_retrieval_files(profile: IssueProfile, changed_files: list[str]) -> list[str]:
+    """Choose a bounded, profile-matched path set before reading a parent diff."""
+    issue_tokens = set(tokenize(" ".join((profile.title, profile.bug_report_summary, *profile.keywords))))
+    candidates: list[tuple[int, int, str]] = []
+    fallback: list[str] = []
+    seen: set[str] = set()
+    for index, path in enumerate(changed_files):
+        if not path or path in seen:
+            continue
+        seen.add(path)
+        fallback.append(path)
+        score = 0
+        if path_matches(path, profile.relevant_paths):
+            score += 8
+        if path_matches(path, profile.high_risk_paths):
+            score += 4
+        if set(tokenize(path)) & issue_tokens:
+            score += 2
+        if score:
+            candidates.append((score, index, path))
+    if not candidates:
+        return fallback[:TRANSITION_DIFF_FILE_LIMIT]
+    candidates.sort(key=lambda item: (-item[0], item[1], item[2]))
+    return [path for _score, _index, path in candidates[:TRANSITION_DIFF_FILE_LIMIT]]
+
+
+def causal_hunk_symbols(hunk_text: str) -> list[str]:
+    symbols: list[str] = []
+    seen: set[str] = set()
+    for candidate in ORACLE_IDENTIFIER_RE.findall(hunk_text):
+        normalized = compact_alnum(candidate)
+        if len(normalized) < 5 or normalized in seen:
+            continue
+        if not ("::" in candidate or any(char.isupper() for char in candidate) or "_" in candidate):
+            continue
+        seen.add(normalized)
+        symbols.append(candidate)
+        if len(symbols) >= 8:
+            break
+    return symbols
+
+
+def function_context_at_commit(repo: Path, sha: str, path: str, symbol: str) -> str:
+    normalized_symbol = symbol.split("(", 1)[0].strip()
+    if not normalized_symbol:
+        return ""
+    try:
+        return git_limited_output(
+            repo,
+            ["show", f"{sha}:{path}"],
+            CAUSAL_DIFF_MAX_FUNCTION_CONTEXT_CHARS * 8,
+        )
+    except subprocess.CalledProcessError:
+        return ""
+
+
+def extract_function_context(source: str, symbol: str) -> str:
+    if not source:
+        return ""
+    simple_symbol = symbol.rsplit("::", 1)[-1]
+    match = re.search(rf"^.*\b{re.escape(simple_symbol)}\s*\([^\n]*\)", source, re.MULTILINE)
+    if match is None:
+        return ""
+    start = match.start()
+    return source[start : start + CAUSAL_DIFF_MAX_FUNCTION_CONTEXT_CHARS].strip()
+
+
+def retrieve_causal_diff_evidence(repo: Path, profile: IssueProfile, item: dict) -> dict[str, object]:
+    """Retrieve issue-matched parent-diff hunks and local symbol context."""
+    raw_diff = str(item.get("diff", ""))
+    if not raw_diff:
+        selected_files = select_causal_retrieval_files(profile, list(item.get("files", [])))
+        raw_diff = commit_parent_diff_for_files(
+            repo,
+            str(item["sha"]),
+            selected_files,
+            max_chars=DIFF_EXTRACTION_MAX_INPUT_CHARS,
+        )
+    scored_hunks: list[dict[str, object]] = []
+    for hunk in parse_unified_diff_hunks(raw_diff):
+        path = str(hunk["path"])
+        patch = str(hunk["patch"])
+        reasons = causal_hunk_match_reasons(profile, path, patch)
+        symbols = causal_hunk_symbols(patch)
+        score = 4 * ("relevant-path" in reasons) + 2 * ("issue-keyword" in reasons) + len(symbols)
+        scored_hunks.append(
+            {
+                **hunk,
+                "match_reasons": reasons,
+                "symbols": symbols,
+                "retrieval_score": score,
+            }
+        )
+
+    scored_hunks.sort(
+        key=lambda hunk: (
+            int(hunk["retrieval_score"]),
+            bool(hunk["match_reasons"]),
+            -len(str(hunk["patch"])),
+        ),
+        reverse=True,
+    )
+    selected = [hunk for hunk in scored_hunks if hunk["match_reasons"]]
+    if not selected:
+        selected = scored_hunks[:CAUSAL_DIFF_MAX_SELECTED_HUNKS]
+    else:
+        selected = selected[:CAUSAL_DIFF_MAX_SELECTED_HUNKS]
+
+    selected_hunks = [
+        {
+            "path": hunk["path"],
+            "header": hunk["header"],
+            "patch": str(hunk["patch"])[:CAUSAL_DIFF_MAX_HUNK_CHARS],
+            "match_reasons": hunk["match_reasons"],
+            "symbols": hunk["symbols"],
+        }
+        for hunk in selected
+    ]
+    contexts: list[dict[str, str]] = []
+    seen_contexts: set[tuple[str, str]] = set()
+    for hunk in selected_hunks:
+        for symbol in hunk["symbols"]:
+            key = (str(hunk["path"]), str(symbol))
+            if key in seen_contexts:
+                continue
+            source = function_context_at_commit(repo, str(item["sha"]), key[0], key[1])
+            context = extract_function_context(source, key[1])
+            if not context:
+                continue
+            seen_contexts.add(key)
+            contexts.append({"path": key[0], "symbol": key[1], "context": context})
+            if len(contexts) >= CAUSAL_DIFF_MAX_FUNCTION_CONTEXTS:
+                break
+        if len(contexts) >= CAUSAL_DIFF_MAX_FUNCTION_CONTEXTS:
+            break
+    return {
+        "selected_files": sorted({str(hunk["path"]) for hunk in selected_hunks}),
+        "selected_hunks": selected_hunks,
+        "function_contexts": contexts,
+        "omitted_hunk_count": max(0, len(scored_hunks) - len(selected_hunks)),
+        "raw_diff_chars": len(raw_diff),
+        "raw_diff_truncated": len(raw_diff) >= DIFF_EXTRACTION_MAX_INPUT_CHARS,
+    }
 
 
 def commit_subject_and_files(repo: Path, sha: str) -> tuple[str, list[str]]:
@@ -1832,6 +2069,226 @@ def format_extracted_diff_evidence(payload: dict) -> str:
     return "\n".join(fields).strip() or "Summary: model returned no substantive diff evidence."
 
 
+def causal_retrieval_prompt_block(retrieval: dict[str, object]) -> str:
+    hunk_blocks = []
+    for hunk in retrieval.get("selected_hunks", []):
+        hunk_blocks.append(
+            "\n".join(
+                [
+                    f"File: {hunk.get('path', '')}",
+                    f"Retrieval reasons: {', '.join(hunk.get('match_reasons', [])) or '<fallback coverage>'}",
+                    f"Visible symbols: {', '.join(hunk.get('symbols', [])) or '<none>'}",
+                    f"Patch:\n{hunk.get('patch', '') or '<empty>'}",
+                ]
+            )
+        )
+    context_blocks = [
+        "\n".join(
+            [
+                f"File: {context.get('path', '')}",
+                f"Symbol: {context.get('symbol', '')}",
+                f"Context:\n{context.get('context', '')}",
+            ]
+        )
+        for context in retrieval.get("function_contexts", [])
+    ]
+    return "\n\n".join(
+        [
+            "Retrieved hunks:\n" + ("\n\n".join(hunk_blocks) or "<none>"),
+            "Function context:\n" + ("\n\n".join(context_blocks) or "<none available>"),
+            "Coverage: "
+            f"selected_files={len(retrieval.get('selected_files', []))}, "
+            f"selected_hunks={len(retrieval.get('selected_hunks', []))}, "
+            f"omitted_hunks={retrieval.get('omitted_hunk_count', 0)}, "
+            f"raw_diff_chars={retrieval.get('raw_diff_chars', 0)}, "
+            f"raw_diff_truncated={str(bool(retrieval.get('raw_diff_truncated'))).lower()}",
+        ]
+    )
+
+
+def build_causal_diff_extraction_prompt(profile: IssueProfile, item: dict) -> str:
+    retrieval = item.get("causal_retrieval") or {}
+    return f"""
+You are producing structured causal evidence for an LLVM bug-bisect candidate.
+
+Task:
+- Analyze only the retrieved diff hunks and function context below, not a raw diff prefix.
+- Identify the changed symbols and behavioral or mechanism change.
+- Explicitly link the change to the issue assertion, stack trace, reproducer, pass, or subsystem when evidence supports it.
+- State confidence from 0.0 to 1.0. Low confidence is valid when the retrieved evidence is insufficient.
+- Do not choose the next bisect commit and do not infer facts absent from the retrieved evidence.
+
+Issue context:
+- id: {profile.issue_id}
+- title: {profile.title}
+- summary: {profile.bug_report_summary}
+- relevant paths: {', '.join(profile.relevant_paths)}
+- keywords: {', '.join(profile.keywords)}
+
+Commit:
+- sha: {item.get('sha', '')}
+- subject: {item.get('subject', '')}
+- diff mode: {item.get('diff_mode', 'parent')}
+
+{causal_retrieval_prompt_block(retrieval)}
+
+Return strict JSON with this schema:
+{{
+  "summary": "one-paragraph description of the substantive change",
+  "changed_symbols": ["function/class/pass/checker names visible in evidence"],
+  "behavioral_change": ["specific algorithm, invariant, or control-flow change"],
+  "issue_link": {{
+    "assertion_or_trace": ["matching assertion/stack/diagnostic terms"],
+    "reproducer": ["matching reproducer behavior or input property"],
+    "pass_or_subsystem": ["LLVM pass/subsystem involved"],
+    "explanation": "why this change could or could not cause the issue"
+  }},
+  "confidence": 0.0,
+  "build_risk": ["build or testability signals"]
+}}
+Only output JSON.
+""".strip()
+
+
+def build_causal_diff_extraction_batch_prompt(profile: IssueProfile, items: list[dict]) -> str:
+    blocks = []
+    for item in items:
+        blocks.append(
+            "\n".join(
+                [
+                    "Commit:",
+                    f"- sha: {item.get('sha', '')}",
+                    f"- subject: {item.get('subject', '')}",
+                    causal_retrieval_prompt_block(item.get("causal_retrieval") or {}),
+                ]
+            )
+        )
+    return f"""
+You are producing structured causal evidence for LLVM bug-bisect candidates.
+
+For each candidate, analyze only the retrieved hunks and function context. State
+changed symbols, behavioral change, an evidence-backed link to the issue, and a
+0.0-to-1.0 confidence. Do not choose the next commit or invent unavailable facts.
+
+Issue context:
+- id: {profile.issue_id}
+- title: {profile.title}
+- summary: {profile.bug_report_summary}
+- relevant paths: {', '.join(profile.relevant_paths)}
+- keywords: {', '.join(profile.keywords)}
+
+Candidates:
+
+{chr(10).join(blocks)}
+
+Return strict JSON as an array. One object per commit, with this schema:
+[
+  {{
+    "sha": "<commit sha>",
+    "summary": "one-paragraph description of the substantive change",
+    "changed_symbols": ["function/class/pass/checker names"],
+    "behavioral_change": ["specific algorithm or invariant change"],
+    "issue_link": {{
+      "assertion_or_trace": ["matching assertion/stack/diagnostic terms"],
+      "reproducer": ["matching reproducer behavior"],
+      "pass_or_subsystem": ["LLVM pass/subsystem"],
+      "explanation": "why the change could or could not cause the issue"
+    }},
+    "confidence": 0.0,
+    "build_risk": ["build/testability signals"]
+  }}
+]
+Only output JSON.
+""".strip()
+
+
+def normalized_string_list(value: object, limit: int = 8) -> list[str]:
+    if not isinstance(value, list):
+        return []
+    result: list[str] = []
+    seen: set[str] = set()
+    for item in value:
+        text = str(item).strip()
+        normalized = compact_alnum(text)
+        if not text or not normalized or normalized in seen:
+            continue
+        seen.add(normalized)
+        result.append(text)
+        if len(result) >= limit:
+            break
+    return result
+
+
+def normalize_causal_diff_evidence(item: dict, payload: dict) -> dict[str, object]:
+    raw_issue_link = payload.get("issue_link")
+    issue_link = raw_issue_link if isinstance(raw_issue_link, dict) else {}
+    try:
+        confidence = float(payload.get("confidence", 0.0))
+    except (TypeError, ValueError):
+        confidence = 0.0
+    retrieval = item.get("causal_retrieval")
+    if not isinstance(retrieval, dict):
+        retrieval = {}
+    return {
+        "summary": str(payload.get("summary", "")).strip(),
+        "changed_symbols": normalized_string_list(payload.get("changed_symbols")),
+        "behavioral_change": normalized_string_list(payload.get("behavioral_change")),
+        "issue_link": {
+            "assertion_or_trace": normalized_string_list(issue_link.get("assertion_or_trace")),
+            "reproducer": normalized_string_list(issue_link.get("reproducer")),
+            "pass_or_subsystem": normalized_string_list(issue_link.get("pass_or_subsystem")),
+            "explanation": str(issue_link.get("explanation", "")).strip(),
+        },
+        "confidence": round(max(0.0, min(1.0, confidence)), 3),
+        "build_risk": normalized_string_list(payload.get("build_risk")),
+        "retrieval": retrieval,
+    }
+
+
+def causal_evidence_features(payload: dict[str, object]) -> list[str]:
+    features: set[str] = set()
+    for path in payload.get("retrieval", {}).get("selected_files", []):
+        features.add(f"path:{stem_path(str(path))}")
+    issue_link = payload.get("issue_link", {})
+    feature_values = [
+        *payload.get("changed_symbols", []),
+        *payload.get("behavioral_change", []),
+        *issue_link.get("assertion_or_trace", []),
+        *issue_link.get("reproducer", []),
+        *issue_link.get("pass_or_subsystem", []),
+    ]
+    for value in feature_values:
+        normalized = normalize_token(str(value))
+        if normalized:
+            features.add(f"term:{normalized}")
+    return sorted(features)
+
+
+def format_causal_diff_evidence(payload: dict[str, object]) -> str:
+    fields = []
+    if payload.get("summary"):
+        fields.append(f"Summary: {payload['summary']}")
+    for label, key in (("Changed symbols", "changed_symbols"), ("Behavioral change", "behavioral_change")):
+        values = payload.get(key, [])
+        if values:
+            fields.append(f"{label}: " + "; ".join(values))
+    issue_link = payload.get("issue_link", {})
+    for label, key in (
+        ("Assertion or trace link", "assertion_or_trace"),
+        ("Reproducer link", "reproducer"),
+        ("Pass or subsystem link", "pass_or_subsystem"),
+    ):
+        values = issue_link.get(key, [])
+        if values:
+            fields.append(f"{label}: " + "; ".join(values))
+    if issue_link.get("explanation"):
+        fields.append(f"Causal explanation: {issue_link['explanation']}")
+    fields.append(f"Causal confidence: {float(payload.get('confidence', 0.0)):.2f}")
+    if payload.get("build_risk"):
+        fields.append("Build risk: " + "; ".join(payload["build_risk"]))
+    return "\n".join(fields).strip() or "Summary: model returned no causal diff evidence."
+
+
 def normalize_model_usage(usage: object) -> dict[str, int] | None:
     if usage is None:
         return None
@@ -1997,6 +2454,118 @@ def extract_diff_evidence_batch_with_model(
         sha = item["sha"]
         if sha not in extracted:
             extracted[sha] = extract_diff_evidence_with_model(profile, item, config, usage_summary)
+    return extracted
+
+
+def extract_causal_diff_evidence_with_model(
+    profile: IssueProfile,
+    item: dict,
+    config: ModelConfig,
+    usage_summary: dict[str, object] | None = None,
+) -> dict[str, object]:
+    try:
+        from openai import OpenAI
+    except Exception as exc:
+        raise RuntimeError("openai package is not available; install it in the local venv") from exc
+
+    client = OpenAI(api_key=config.api_key, base_url=config.base_url, timeout=DEFAULT_MODEL_REQUEST_TIMEOUT)
+    response = model_completion_with_retry(
+        client,
+        config,
+        build_causal_diff_extraction_prompt(profile, item),
+        "causal diff extraction",
+    )
+    if usage_summary is not None:
+        record_model_usage(usage_summary, "causal_diff_extraction", response)
+    content = response.choices[0].message.content or ""
+    try:
+        payload = json.loads(content.strip())
+    except json.JSONDecodeError:
+        fence_match = re.search(r"```(?:json)?\s*(.*?)```", content, re.DOTALL | re.IGNORECASE)
+        if not fence_match:
+            raise
+        payload = json.loads(fence_match.group(1).strip())
+    if not isinstance(payload, dict):
+        raise ValueError("causal diff extraction payload is not a JSON object")
+    return normalize_causal_diff_evidence(item, payload)
+
+
+def plan_causal_diff_extraction_batches(
+    profile: IssueProfile,
+    items: list[dict],
+    batch_size: int = 3,
+    max_prompt_chars: int = DEFAULT_DIFF_EXTRACTION_MAX_PROMPT_CHARS,
+) -> list[list[dict]]:
+    if batch_size <= 0:
+        raise ValueError("batch_size must be positive")
+    if max_prompt_chars <= 0:
+        raise ValueError("max_prompt_chars must be positive")
+    batches: list[list[dict]] = []
+    current: list[dict] = []
+    for item in items:
+        candidate = [*current, item]
+        if current and (
+            len(candidate) > batch_size
+            or len(build_causal_diff_extraction_batch_prompt(profile, candidate)) > max_prompt_chars
+        ):
+            batches.append(current)
+            current = [item]
+        else:
+            current = candidate
+    if current:
+        batches.append(current)
+    return batches
+
+
+def extract_causal_diff_evidence_batch_with_model(
+    profile: IssueProfile,
+    items: list[dict],
+    config: ModelConfig,
+    usage_summary: dict[str, object] | None = None,
+) -> dict[str, dict[str, object]]:
+    if not items:
+        return {}
+    if len(items) == 1:
+        return {items[0]["sha"]: extract_causal_diff_evidence_with_model(profile, items[0], config, usage_summary)}
+    try:
+        from openai import OpenAI
+    except Exception as exc:
+        raise RuntimeError("openai package is not available; install it in the local venv") from exc
+
+    client = OpenAI(api_key=config.api_key, base_url=config.base_url, timeout=DEFAULT_MODEL_REQUEST_TIMEOUT)
+    extracted: dict[str, dict[str, object]] = {}
+    batches = plan_causal_diff_extraction_batches(profile, items)
+    for batch_index, batch in enumerate(batches, start=1):
+        log_progress(f"causal diff extraction batch {batch_index}/{len(batches)} size={len(batch)}")
+        try:
+            response = model_completion_with_retry(
+                client,
+                config,
+                build_causal_diff_extraction_batch_prompt(profile, batch),
+                "causal diff extraction batch",
+            )
+            if usage_summary is not None:
+                record_model_usage(usage_summary, "causal_diff_extraction", response)
+            choices = getattr(response, "choices", None) or []
+            if not choices:
+                raise ValueError("causal diff extraction batch response contained no choices")
+            for payload in parse_model_json_payload(choices[0].message.content or ""):
+                sha = str(payload.get("sha", ""))
+                item = next((candidate for candidate in batch if candidate["sha"] == sha), None)
+                if item is not None:
+                    extracted[sha] = normalize_causal_diff_evidence(item, payload)
+        except Exception as exc:
+            log_progress(
+                f"causal diff extraction batch {batch_index}/{len(batches)} failed ({exc}); retrying items individually"
+            )
+        for item in batch:
+            if item["sha"] not in extracted:
+                extracted[item["sha"]] = extract_causal_diff_evidence_with_model(
+                    profile,
+                    item,
+                    config,
+                    usage_summary,
+                )
     return extracted
 
 
@@ -2735,6 +3304,8 @@ def add_diff_metadata_to_payload(payload: dict, record: CommitRecord) -> None:
         payload["diff_base_sha"] = record.diff_base_sha
     if record.diff_summary:
         payload["diff_summary"] = record.diff_summary
+    if record.causal_evidence:
+        payload["causal_evidence"] = record.causal_evidence
 
 
 def find_observation_by_sha(observations: list[CommitObservation], sha: str) -> CommitObservation | None:
@@ -3031,6 +3602,7 @@ def build_commit_record(
         diff_extraction = "raw"
         diff_base_sha = None
         diff_summary = ""
+        causal_evidence = None
     else:
         subject = preloaded["subject"]
         body = preloaded["body"]
@@ -3043,6 +3615,7 @@ def build_commit_record(
         diff_extraction = str(preloaded.get("diff_extraction") or preloaded_result.get("diff_extraction") or "raw")
         diff_base_sha = preloaded.get("diff_base_sha") or preloaded_result.get("diff_base_sha")
         diff_summary = str(preloaded.get("diff_summary") or preloaded_result.get("diff_summary") or "")
+        causal_evidence = preloaded.get("causal_evidence") or preloaded_result.get("causal_evidence")
     if scorer == "model":
         if model_config is None:
             raise RuntimeError("model_config is required for scorer=model")
@@ -3084,6 +3657,7 @@ def build_commit_record(
         diff_extraction=diff_extraction,
         diff_base_sha=diff_base_sha,
         diff_summary=diff_summary,
+        causal_evidence=causal_evidence if isinstance(causal_evidence, dict) else None,
     )
 
 
@@ -3797,8 +4371,10 @@ def make_records(
 ) -> tuple[list[CommitRecord], dict]:
     if model_diff_mode not in {"parent", "last-tested"}:
         raise ValueError(f"unsupported model_diff_mode: {model_diff_mode}")
-    if model_diff_extraction not in {"raw", "llm"}:
+    if model_diff_extraction not in {"raw", "llm", "causal-llm"}:
         raise ValueError(f"unsupported model_diff_extraction: {model_diff_extraction}")
+    if model_diff_extraction == "causal-llm" and model_diff_mode != "parent":
+        raise ValueError("causal-llm extraction supports parent diffs only")
     shas = candidate_shas if candidate_shas is not None else list_candidate_commits(repo, profile.good_commit, profile.bad_commit)
     if max_candidates is not None:
         shas = shas[:max_candidates]
@@ -3893,6 +4469,8 @@ def make_records(
             return False
         if model_diff_extraction == "llm" and not entry.get("diff_summary"):
             return False
+        if model_diff_extraction == "causal-llm" and not entry.get("causal_evidence"):
+            return False
         return True
 
     uncached_shas = []
@@ -3951,6 +4529,11 @@ def make_records(
                 item["files"] = deep_metadata.changed_files
                 item["diff_mode"] = "last-tested"
                 item["diff_base_sha"] = diff_base_sha
+            elif model_diff_extraction == "causal-llm":
+                # Retrieval fetches only profile-matched parent-diff files.
+                item["diff"] = ""
+                item["diff_mode"] = "parent"
+                item.pop("diff_base_sha", None)
             else:
                 item["diff"] = commit_diff_text(repo, item["sha"], max_chars=diff_fetch_max_chars)
                 item["diff_mode"] = "parent"
@@ -3961,6 +4544,8 @@ def make_records(
             item["model_result"] = cached
             if cached.get("diff_summary"):
                 item["diff_summary"] = str(cached["diff_summary"])
+            if cached.get("causal_evidence"):
+                item["causal_evidence"] = cached["causal_evidence"]
 
     if uncached:
         if model_diff_extraction == "llm":
@@ -3975,6 +4560,22 @@ def make_records(
             )
             for item in uncached:
                 item["diff_summary"] = extracted_diffs[item["sha"]]
+        elif model_diff_extraction == "causal-llm":
+            for item in uncached:
+                item["causal_retrieval"] = retrieve_causal_diff_evidence(repo, profile, item)
+            extraction_kwargs = {}
+            if model_usage_summary is not None:
+                extraction_kwargs["usage_summary"] = model_usage_summary
+            extracted_evidence = extract_causal_diff_evidence_batch_with_model(
+                profile,
+                uncached,
+                model_config,
+                **extraction_kwargs,
+            )
+            for item in uncached:
+                causal_evidence = extracted_evidence[item["sha"]]
+                item["causal_evidence"] = causal_evidence
+                item["diff_summary"] = format_causal_diff_evidence(causal_evidence)
         for batch in plan_model_scoring_batches(uncached, frontier_mode=frontier_decision.effective_frontier):
             score_kwargs = {}
             if model_usage_summary is not None:
@@ -3999,7 +4600,11 @@ def make_records(
                     result["diff_base_sha"] = batch_item["diff_base_sha"]
                 if batch_item.get("diff_summary"):
                     result["diff_summary"] = batch_item["diff_summary"]
-                    result["diff_summary_version"] = DIFF_EXTRACTION_VERSION
+                    result["diff_summary_version"] = diff_extraction_version(
+                        batch_item.get("diff_extraction", model_diff_extraction)
+                    )
+                if batch_item.get("causal_evidence"):
+                    result["causal_evidence"] = batch_item["causal_evidence"]
                 batch_item["model_result"] = result
                 cache_key = model_score_cache_key(
                     batch_item["sha"],
@@ -4019,7 +4624,15 @@ def make_records(
         result = item["model_result"]
         record.semantic_score = float(result["semantic_score"])
         record.build_success_prob = float(result["build_success_prob"])
-        record.features = list(result.get("features", [])) or record.features
+        causal_evidence = item.get("causal_evidence") or result.get("causal_evidence")
+        if isinstance(causal_evidence, dict):
+            record.features = merge_commit_features(
+                result.get("features", []),
+                causal_evidence_features(causal_evidence),
+                record.features,
+            )
+        else:
+            record.features = list(result.get("features", [])) or record.features
         record.evidence = ["model-scored"] + [str(entry) for entry in result.get("evidence", [])]
         if record.features:
             record.evidence.append(f"features: {', '.join(record.features[:6])}")
@@ -4027,6 +4640,7 @@ def make_records(
         record.diff_extraction = str(item.get("diff_extraction") or result.get("diff_extraction") or "raw")
         record.diff_base_sha = item.get("diff_base_sha") or result.get("diff_base_sha")
         record.diff_summary = str(item.get("diff_summary") or result.get("diff_summary") or "")
+        record.causal_evidence = causal_evidence if isinstance(causal_evidence, dict) else None
 
     return records, pruning_summary
 
@@ -5337,7 +5951,7 @@ def build_parser() -> argparse.ArgumentParser:
     suggest.add_argument("--model-top-k", type=int, default=3, help="number of heuristic-prefiltered commits to rescore with the model")
     suggest.add_argument("--model-frontier", choices=("topk", "diverse", "all"), default="topk", help="how to choose the model rescoring frontier")
     suggest.add_argument("--model-diff-mode", choices=("parent", "last-tested"), default="parent", help="diff evidence passed to model-scored candidates")
-    suggest.add_argument("--model-diff-extraction", choices=("raw", "llm"), default="raw", help="whether model-scored candidates use raw diff text or an LLM-extracted diff summary")
+    suggest.add_argument("--model-diff-extraction", choices=("raw", "llm", "causal-llm"), default="raw", help="whether model-scored candidates use raw diff text, an LLM summary, or retrieved causal LLM evidence")
     suggest.add_argument("--observation-prompt-mode", choices=("legacy", "trace-only"), default="legacy", help="how runner-backed crash observations are formatted when scorer=model")
     suggest.add_argument("--search-policy", choices=("ranked", "hybrid", "posterior", "calibrated-posterior"), default="ranked", help="commit selection policy")
     suggest.add_argument("--candidate-pruning", choices=("off", "conservative"), default="off", help="prune obviously irrelevant commits before scoring")
@@ -5409,7 +6023,7 @@ def build_parser() -> argparse.ArgumentParser:
     simulate.add_argument("--model-top-k", type=int, default=3, help="number of heuristic-prefiltered commits to rescore with the model")
     simulate.add_argument("--model-frontier", choices=("topk", "diverse", "all"), default="topk", help="how to choose the model rescoring frontier")
     simulate.add_argument("--model-diff-mode", choices=("parent", "last-tested"), default="parent", help="diff evidence passed to model-scored candidates")
-    simulate.add_argument("--model-diff-extraction", choices=("raw", "llm"), default="raw", help="whether model-scored candidates use raw diff text or an LLM-extracted diff summary")
+    simulate.add_argument("--model-diff-extraction", choices=("raw", "llm", "causal-llm"), default="raw", help="whether model-scored candidates use raw diff text, an LLM summary, or retrieved causal LLM evidence")
     simulate.add_argument("--observation-prompt-mode", choices=("legacy", "trace-only"), default="legacy", help="how runner-backed crash observations are formatted when scorer=model")
     simulate.add_argument("--search-policy", choices=("ranked", "hybrid", "posterior", "calibrated-posterior"), default="ranked", help="commit selection policy")
     simulate.add_argument("--candidate-pruning", choices=("off", "conservative"), default="off", help="prune obviously irrelevant commits before scoring")
@@ -5472,7 +6086,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     run_online.add_argument("--model-frontier", choices=("topk", "diverse", "all"), default="topk", help="how to choose the model rescoring frontier")
     run_online.add_argument("--model-diff-mode", choices=("parent", "last-tested"), default="parent", help="diff evidence passed to model-scored candidates")
-    run_online.add_argument("--model-diff-extraction", choices=("raw", "llm"), default="raw", help="whether model-scored candidates use raw diff text or an LLM-extracted diff summary")
+    run_online.add_argument("--model-diff-extraction", choices=("raw", "llm", "causal-llm"), default="raw", help="whether model-scored candidates use raw diff text, an LLM summary, or retrieved causal LLM evidence")
     run_online.add_argument("--observation-prompt-mode", choices=("legacy", "trace-only"), default="legacy", help="how runner-backed crash observations are formatted when scorer=model")
     run_online.add_argument("--search-policy", choices=("ranked", "hybrid", "posterior", "calibrated-posterior"), default="ranked", help="commit selection policy")
     run_online.add_argument("--candidate-pruning", choices=("off", "conservative"), default="off", help="prune obviously irrelevant commits before scoring")

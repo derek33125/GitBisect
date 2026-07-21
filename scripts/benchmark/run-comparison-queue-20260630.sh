@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-MODE="${1:?mode required: heuristic|general-heuristic|no-keyword-heuristic|neutral-heuristic|oracle-first-bad-heuristic|parent-extract|adaptive-parent-extract|confidence-parent-extract|observation-posterior-parent-extract|lastdiff-extract}"
+MODE="${1:?mode required: heuristic|general-heuristic|no-keyword-heuristic|neutral-heuristic|oracle-first-bad-heuristic|parent-extract|causal-parent-extract|adaptive-parent-extract|confidence-parent-extract|observation-posterior-parent-extract|lastdiff-extract}"
 LANE="${2:?lane label required}"
 shift 2
 ISSUES=("$@")
@@ -206,6 +206,22 @@ run_issue() {
         --model-frontier topk \
         --model-diff-mode parent \
         --model-diff-extraction llm \
+        --observation-prompt-mode trace-only \
+        --observations "${obs}" \
+        --run-label "${LANE}" \
+        --max-steps 30
+      ;;
+    causal-parent-extract)
+      run_bisect_cmd "${PY}" tools/lm_bisect.py run-online \
+        --issue "${issue}" \
+        --llvm-dir "${wt}" \
+        --scorer model \
+        --search-policy calibrated-posterior \
+        --model-top-k 3 \
+        --model-frontier topk \
+        --model-cache-namespace "${MODEL_CACHE_NAMESPACE}" \
+        --model-diff-mode parent \
+        --model-diff-extraction causal-llm \
         --observation-prompt-mode trace-only \
         --observations "${obs}" \
         --run-label "${LANE}" \

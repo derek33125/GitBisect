@@ -2285,6 +2285,125 @@ class ModelPromptTests(unittest.TestCase):
         self.assertIn("Return strict JSON as an array.", prompt)
         self.assertIn("- raw diff truncated: true", prompt)
 
+    def test_causal_retrieval_prefers_issue_matched_hunks_and_adds_function_context(self) -> None:
+        profile = demo_profile(
+            keywords=["vectorizer", "recipe"],
+            relevant_paths=["llvm/lib/Transforms/Vectorize"],
+        )
+        raw_diff = """diff --git a/llvm/lib/Support/Noise.cpp b/llvm/lib/Support/Noise.cpp
+index 1..2 100644
+--- a/llvm/lib/Support/Noise.cpp
++++ b/llvm/lib/Support/Noise.cpp
+@@ -1 +1 @@ unrelated_helper
+-old
++new
+diff --git a/llvm/lib/Transforms/Vectorize/VPlan.cpp b/llvm/lib/Transforms/Vectorize/VPlan.cpp
+index 3..4 100644
+--- a/llvm/lib/Transforms/Vectorize/VPlan.cpp
++++ b/llvm/lib/Transforms/Vectorize/VPlan.cpp
+@@ -10 +10 @@ VPlan::buildRecipe()
+-return OldRecipe;
++return NewRecipe;
+"""
+        item = {
+            "sha": "a" * 40,
+            "files": ["llvm/lib/Support/Noise.cpp", "llvm/lib/Transforms/Vectorize/VPlan.cpp"],
+            "diff": "",
+        }
+
+        def fake_git_output(_repo, args, _max_chars):
+            if "--" in args:
+                return raw_diff
+            return "void VPlan::buildRecipe() {\n  return NewRecipe;\n}\n"
+
+        with mock.patch.object(lm_bisect, "git_limited_output", side_effect=fake_git_output) as git_output:
+            retrieval = lm_bisect.retrieve_causal_diff_evidence(Path("/tmp/fake-llvm-project"), profile, item)
+
+        self.assertEqual(retrieval["selected_hunks"][0]["path"], "llvm/lib/Transforms/Vectorize/VPlan.cpp")
+        self.assertIn("relevant-path", retrieval["selected_hunks"][0]["match_reasons"])
+        self.assertIn("buildRecipe", retrieval["function_contexts"][0]["symbol"])
+        self.assertNotIn("llvm/lib/Support/Noise.cpp", retrieval["selected_files"])
+        self.assertIn("--", git_output.call_args_list[0].args[1])
+        self.assertIn("llvm/lib/Transforms/Vectorize/VPlan.cpp", git_output.call_args_list[0].args[1])
+        self.assertNotIn("llvm/lib/Support/Noise.cpp", git_output.call_args_list[0].args[1])
+
+    def test_causal_extraction_prompt_requires_structured_linkage_without_raw_diff_prefix(self) -> None:
+        profile = demo_profile()
+        item = {
+            "sha": "a" * 40,
+            "subject": "Vectorize recipe update",
+            "files": ["llvm/lib/Transforms/Vectorize/VPlan.cpp"],
+            "diff": "RAW_DIFF_PREFIX_MUST_NOT_APPEAR",
+            "causal_retrieval": {
+                "selected_files": ["llvm/lib/Transforms/Vectorize/VPlan.cpp"],
+                "selected_hunks": [
+                    {
+                        "path": "llvm/lib/Transforms/Vectorize/VPlan.cpp",
+                        "match_reasons": ["relevant-path"],
+                        "symbols": ["VPlan::buildRecipe"],
+                        "patch": "+return NewRecipe;",
+                    }
+                ],
+                "function_contexts": [
+                    {
+                        "path": "llvm/lib/Transforms/Vectorize/VPlan.cpp",
+                        "symbol": "VPlan::buildRecipe",
+                        "context": "void VPlan::buildRecipe() { return NewRecipe; }",
+                    }
+                ],
+                "omitted_hunk_count": 4,
+                "raw_diff_chars": 1000,
+                "raw_diff_truncated": False,
+            },
+        }
+
+        prompt = lm_bisect.build_causal_diff_extraction_prompt(profile, item)
+
+        self.assertIn('"changed_symbols"', prompt)
+        self.assertIn('"behavioral_change"', prompt)
+        self.assertIn('"issue_link"', prompt)
+        self.assertIn('"confidence"', prompt)
+        self.assertIn("VPlan::buildRecipe", prompt)
+        self.assertNotIn("RAW_DIFF_PREFIX_MUST_NOT_APPEAR", prompt)
+        self.assertNotIn("Diff excerpt:", prompt)
+
+    def test_normalized_causal_evidence_preserves_inspectable_artifact_and_features(self) -> None:
+        item = {
+            "sha": "a" * 40,
+            "causal_retrieval": {
+                "selected_files": ["llvm/lib/Transforms/Vectorize/VPlan.cpp"],
+                "selected_hunks": [],
+                "function_contexts": [],
+                "omitted_hunk_count": 2,
+                "raw_diff_chars": 1234,
+                "raw_diff_truncated": False,
+            },
+        }
+        payload = lm_bisect.normalize_causal_diff_evidence(
+            item,
+            {
+                "summary": "Changes vector recipe construction.",
+                "changed_symbols": ["VPlan::buildRecipe"],
+                "behavioral_change": ["selects a new vector recipe"],
+                "issue_link": {
+                    "assertion_or_trace": ["VPlan assertion"],
+                    "reproducer": ["vector loop reproducer"],
+                    "pass_or_subsystem": ["LoopVectorize"],
+                    "explanation": "The changed recipe path can reach the asserted invariant.",
+                },
+                "confidence": 0.8,
+                "build_risk": ["none"],
+            },
+        )
+
+        self.assertEqual(payload["changed_symbols"], ["VPlan::buildRecipe"])
+        self.assertEqual(payload["issue_link"]["pass_or_subsystem"], ["LoopVectorize"])
+        self.assertEqual(payload["confidence"], 0.8)
+        self.assertIn("term:vplanbuildrecipe", lm_bisect.causal_evidence_features(payload))
+        formatted = lm_bisect.format_causal_diff_evidence(payload)
+        self.assertIn("Causal confidence: 0.80", formatted)
+        self.assertIn("LoopVectorize", formatted)
+
     def test_model_completion_retries_transient_server_error(self) -> None:
         class TransientError(Exception):
             status_code = 503
@@ -4473,13 +4592,108 @@ class MetadataLoadingTests(unittest.TestCase):
 
         raw_key = lm_bisect.model_score_cache_key(sha, "parent", None, "raw")
         extracted_key = lm_bisect.model_score_cache_key(sha, "parent", None, "llm")
+        causal_key = lm_bisect.model_score_cache_key(sha, "parent", None, "causal-llm")
         last_tested_key = lm_bisect.model_score_cache_key(sha, "last-tested", "a" * 40, "llm")
 
         self.assertEqual(raw_key, sha)
         self.assertNotEqual(raw_key, extracted_key)
+        self.assertNotEqual(extracted_key, causal_key)
         self.assertIn("extract:llm", extracted_key)
+        self.assertIn("extract:causal-llm", causal_key)
+        self.assertIn(lm_bisect.CAUSAL_DIFF_EXTRACTION_VERSION, causal_key)
         self.assertIn("diff:last-tested-candidate-files", last_tested_key)
         self.assertIn("extract:llm", last_tested_key)
+
+    def test_make_records_causal_extraction_persists_evidence_and_features(self) -> None:
+        profile = demo_profile()
+        repo = Path("/tmp/fake-llvm-project")
+        sha = "b" * 40
+        metadata_cache = {
+            sha: lm_bisect.CommitMetadata(
+                sha=sha,
+                subject="candidate",
+                body="",
+                changed_files=["llvm/lib/Transforms/Vectorize/VPlan.cpp"],
+            )
+        }
+        model_config = lm_bisect.ModelConfig(
+            api_key="k",
+            base_url="http://example.invalid",
+            model_name="gpt-5.4-mini",
+        )
+        causal_evidence = {
+            "summary": "Changes recipe construction.",
+            "changed_symbols": ["VPlan::buildRecipe"],
+            "behavioral_change": ["selects a new vector recipe"],
+            "issue_link": {
+                "assertion_or_trace": ["VPlan assertion"],
+                "reproducer": [],
+                "pass_or_subsystem": ["LoopVectorize"],
+                "explanation": "The recipe path reaches the asserted invariant.",
+            },
+            "confidence": 0.8,
+            "build_risk": [],
+            "retrieval": {"selected_files": ["llvm/lib/Transforms/Vectorize/VPlan.cpp"]},
+        }
+
+        with mock.patch.object(lm_bisect, "load_commit_metadata", return_value=metadata_cache), mock.patch.object(
+            lm_bisect,
+            "commit_diff_text",
+            side_effect=AssertionError("causal extraction must not fetch a broad parent diff"),
+        ) as commit_diff, mock.patch.object(
+            lm_bisect,
+            "retrieve_causal_diff_evidence",
+            return_value=causal_evidence["retrieval"],
+        ), mock.patch.object(
+            lm_bisect,
+            "extract_causal_diff_evidence_batch_with_model",
+            return_value={sha: causal_evidence},
+        ), mock.patch.object(
+            lm_bisect,
+            "score_model_batch_with_backfill",
+            return_value={
+                sha: {
+                    "semantic_score": 4.0,
+                    "build_success_prob": 0.9,
+                    "evidence": ["causal-scored"],
+                    "features": ["term:model"],
+                }
+            },
+        ):
+            records, _summary = lm_bisect.make_records(
+                repo,
+                profile,
+                scorer="model",
+                model_config=model_config,
+                candidate_shas=[sha],
+                model_top_k=1,
+                metadata_cache={},
+                model_cache={},
+                model_diff_extraction="causal-llm",
+            )
+
+        self.assertEqual(records[0].diff_extraction, "causal-llm")
+        commit_diff.assert_not_called()
+        self.assertEqual(records[0].causal_evidence, causal_evidence)
+        self.assertIn("term:vplanbuildrecipe", records[0].features)
+        self.assertIn("Causal confidence: 0.80", records[0].diff_summary)
+        self.assertEqual(lm_bisect.selection_payload(records[0])["causal_evidence"], causal_evidence)
+
+    def test_make_records_rejects_last_tested_causal_extraction(self) -> None:
+        with self.assertRaisesRegex(ValueError, "parent diffs"):
+            lm_bisect.make_records(
+                Path("/tmp/fake-llvm-project"),
+                demo_profile(),
+                scorer="model",
+                model_config=lm_bisect.ModelConfig(
+                    api_key="k",
+                    base_url="http://example.invalid",
+                    model_name="gpt-5.4-mini",
+                ),
+                candidate_shas=["a" * 40],
+                model_diff_mode="last-tested",
+                model_diff_extraction="causal-llm",
+            )
 
     def test_make_records_parent_mode_can_use_llm_diff_extraction(self) -> None:
         profile = demo_profile()
