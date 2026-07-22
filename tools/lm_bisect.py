@@ -492,6 +492,7 @@ class ModelFrontierDecision:
     reason: str
     top_semantic_candidates: list[dict[str, object]]
     observation_count: int
+    role_assignments: list[dict[str, object]]
 
 
 @dataclass
@@ -666,8 +667,8 @@ def validate_observation_conditioned_posterior(
         raise ValueError("observation-conditioned posterior requires --search-policy calibrated-posterior")
     if configured_frontier != "topk":
         raise ValueError("observation-conditioned posterior requires --model-frontier topk")
-    if model_top_k != 3:
-        raise ValueError("observation-conditioned posterior requires fixed --model-top-k 3")
+    if model_top_k not in {3, 12}:
+        raise ValueError("observation-conditioned posterior requires fixed --model-top-k 3 or 12")
     if model_diff_mode != "parent" or model_diff_extraction != "llm":
         raise ValueError("observation-conditioned posterior requires parent diff with LLM extraction")
     if adaptive_config is not None or confidence_config is not None:
@@ -2578,7 +2579,7 @@ def plan_model_scoring_batches(
         return []
     if batch_size <= 0:
         raise ValueError("batch_size must be positive")
-    if frontier_mode in {"topk", "diverse"} and len(commits) <= batch_size:
+    if frontier_mode in {"topk", "diverse", "evidence-diverse"} and len(commits) <= batch_size:
         return [commits]
     return [commits[start : start + batch_size] for start in range(0, len(commits), batch_size)]
 
@@ -4270,13 +4271,103 @@ def select_model_frontier_shas(
     return selected
 
 
-def semantic_frontier_confidence(records: list[CommitRecord]) -> tuple[float, list[CommitRecord]]:
-    """Return a scale-free pre-model confidence score for the semantic leader."""
-    ranked = sorted(
+def semantic_frontier_records(records: list[CommitRecord]) -> list[CommitRecord]:
+    return sorted(
         records,
         key=lambda record: (record.semantic_score, record.build_success_prob, -record.index),
         reverse=True,
     )
+
+
+def matching_profile_components(profile: IssueProfile, record: CommitRecord) -> list[str]:
+    """Return issue-relevant changed-file prefixes, ordered most specific first."""
+    matched: set[str] = set()
+    for path in record.changed_files:
+        for prefix in profile.relevant_paths:
+            if path.startswith(prefix):
+                matched.add(prefix.rstrip("/"))
+        for prefix in profile.high_risk_paths:
+            if path.startswith(prefix):
+                matched.add(prefix.rstrip("/"))
+    return sorted(matched, key=lambda component: (-len(component), component))
+
+
+def select_evidence_diverse_frontier(
+    profile: IssueProfile,
+    records: list[CommitRecord],
+    target_count: int,
+) -> tuple[list[str], list[dict[str, object]]]:
+    """Mix semantic, posterior, and component evidence before LLM rescoring."""
+    if target_count <= 0 or not records:
+        return [], []
+
+    semantic_ranked = semantic_frontier_records(records)
+    selected: list[CommitRecord] = []
+    assignments: list[dict[str, object]] = []
+    seen: set[str] = set()
+
+    def add(record: CommitRecord | None, role: str, component: str | None = None) -> bool:
+        if record is None or record.sha in seen or len(selected) >= target_count:
+            return False
+        selected.append(record)
+        seen.add(record.sha)
+        assignment: dict[str, object] = {"role": role, "sha": record.sha}
+        if component:
+            assignment["component"] = component
+        assignments.append(assignment)
+        return True
+
+    add(semantic_ranked[0], "semantic-leader")
+
+    midpoint = posterior_anchor_by_mass(records, 0.5)
+    if not add(midpoint, "posterior-midpoint"):
+        # A dominant semantic leader can also be the weighted posterior
+        # midpoint. In that case keep the role exploratory via index midpoint.
+        add(index_anchor(records, 0.5), "posterior-midpoint")
+
+    represented_components = {
+        component
+        for record in selected
+        for component in matching_profile_components(profile, record)
+    }
+    component_candidate: CommitRecord | None = None
+    component_name: str | None = None
+    for record in semantic_ranked:
+        if record.sha in seen:
+            continue
+        components = matching_profile_components(profile, record)
+        unrepresented = [component for component in components if component not in represented_components]
+        if unrepresented:
+            component_candidate = record
+            component_name = unrepresented[0]
+            break
+    if not add(component_candidate, "relevant-component", component_name):
+        # Some narrow issues have only one matching component. Retain a third
+        # distinct probe and make the lack of component diversity explicit.
+        for record in semantic_ranked:
+            if add(record, "component-fallback"):
+                break
+
+    structural_anchors = (
+        (posterior_anchor_by_mass(records, 0.25), "posterior-q25"),
+        (posterior_anchor_by_mass(records, 0.75), "posterior-q75"),
+        (index_anchor(records, 0.25), "index-q25"),
+        (index_anchor(records, 0.75), "index-q75"),
+    )
+    for record, role in structural_anchors:
+        add(record, role)
+
+    for record in semantic_ranked:
+        add(record, "semantic-fill")
+        if len(selected) >= target_count:
+            break
+
+    return [record.sha for record in selected], assignments
+
+
+def semantic_frontier_confidence(records: list[CommitRecord]) -> tuple[float, list[CommitRecord]]:
+    """Return a scale-free pre-model confidence score for the semantic leader."""
+    ranked = semantic_frontier_records(records)
     if len(ranked) < 2:
         return 1.0, ranked
     best_score = ranked[0].semantic_score
@@ -4296,16 +4387,25 @@ def resolve_model_frontier(
 ) -> ModelFrontierDecision:
     """Resolve the LLM frontier before model scoring without spending extra calls."""
     if confidence_config is None:
-        selected_shas = select_model_frontier_shas(records, target_count, configured_frontier)
+        if configured_frontier == "evidence-diverse":
+            selected_shas, role_assignments = select_evidence_diverse_frontier(
+                profile, records, target_count
+            )
+            reason = "fixed mixed frontier: semantic leader, posterior anchors, and relevant components"
+        else:
+            selected_shas = select_model_frontier_shas(records, target_count, configured_frontier)
+            role_assignments = []
+            reason = "configured frontier; confidence policy disabled"
         return ModelFrontierDecision(
             selected_shas=selected_shas,
             configured_frontier=configured_frontier,
             effective_frontier=configured_frontier,
             confidence=None,
             threshold=None,
-            reason="configured frontier; confidence policy disabled",
+            reason=reason,
             top_semantic_candidates=[],
             observation_count=len(observations),
+            role_assignments=role_assignments,
         )
 
     # Feedback is used only to decide the next model frontier. The final
@@ -4336,6 +4436,7 @@ def resolve_model_frontier(
         ),
         top_semantic_candidates=top_semantic_candidates,
         observation_count=len(observations),
+        role_assignments=[],
     )
 
 
@@ -5833,6 +5934,7 @@ def command_run_online(args: argparse.Namespace) -> int:
                             "reason": frontier_decision.reason,
                             "top_semantic_candidates": frontier_decision.top_semantic_candidates,
                             "selected_frontier_shas": frontier_decision.selected_shas,
+                            "role_assignments": frontier_decision.role_assignments,
                             "observation_count": frontier_decision.observation_count,
                         }
                         if frontier_decision is not None
@@ -5949,7 +6051,7 @@ def build_parser() -> argparse.ArgumentParser:
     suggest.add_argument("--oracle-first-bad-sha", default=None, help="required known first-bad SHA for heuristic-version=oracle-first-bad")
     suggest.add_argument("--model-name", default=None, help="optional model override for scorer=model")
     suggest.add_argument("--model-top-k", type=int, default=3, help="number of heuristic-prefiltered commits to rescore with the model")
-    suggest.add_argument("--model-frontier", choices=("topk", "diverse", "all"), default="topk", help="how to choose the model rescoring frontier")
+    suggest.add_argument("--model-frontier", choices=("topk", "diverse", "evidence-diverse", "all"), default="topk", help="how to choose the model rescoring frontier")
     suggest.add_argument("--model-diff-mode", choices=("parent", "last-tested"), default="parent", help="diff evidence passed to model-scored candidates")
     suggest.add_argument("--model-diff-extraction", choices=("raw", "llm", "causal-llm"), default="raw", help="whether model-scored candidates use raw diff text, an LLM summary, or retrieved causal LLM evidence")
     suggest.add_argument("--observation-prompt-mode", choices=("legacy", "trace-only"), default="legacy", help="how runner-backed crash observations are formatted when scorer=model")
@@ -6021,7 +6123,7 @@ def build_parser() -> argparse.ArgumentParser:
     simulate.add_argument("--oracle-first-bad-sha", default=None, help="required known first-bad SHA for heuristic-version=oracle-first-bad")
     simulate.add_argument("--model-name", default=None, help="optional model override for scorer=model")
     simulate.add_argument("--model-top-k", type=int, default=3, help="number of heuristic-prefiltered commits to rescore with the model")
-    simulate.add_argument("--model-frontier", choices=("topk", "diverse", "all"), default="topk", help="how to choose the model rescoring frontier")
+    simulate.add_argument("--model-frontier", choices=("topk", "diverse", "evidence-diverse", "all"), default="topk", help="how to choose the model rescoring frontier")
     simulate.add_argument("--model-diff-mode", choices=("parent", "last-tested"), default="parent", help="diff evidence passed to model-scored candidates")
     simulate.add_argument("--model-diff-extraction", choices=("raw", "llm", "causal-llm"), default="raw", help="whether model-scored candidates use raw diff text, an LLM summary, or retrieved causal LLM evidence")
     simulate.add_argument("--observation-prompt-mode", choices=("legacy", "trace-only"), default="legacy", help="how runner-backed crash observations are formatted when scorer=model")
@@ -6084,7 +6186,7 @@ def build_parser() -> argparse.ArgumentParser:
         default=None,
         help="isolate model scores from other experiment configurations",
     )
-    run_online.add_argument("--model-frontier", choices=("topk", "diverse", "all"), default="topk", help="how to choose the model rescoring frontier")
+    run_online.add_argument("--model-frontier", choices=("topk", "diverse", "evidence-diverse", "all"), default="topk", help="how to choose the model rescoring frontier")
     run_online.add_argument("--model-diff-mode", choices=("parent", "last-tested"), default="parent", help="diff evidence passed to model-scored candidates")
     run_online.add_argument("--model-diff-extraction", choices=("raw", "llm", "causal-llm"), default="raw", help="whether model-scored candidates use raw diff text, an LLM summary, or retrieved causal LLM evidence")
     run_online.add_argument("--observation-prompt-mode", choices=("legacy", "trace-only"), default="legacy", help="how runner-backed crash observations are formatted when scorer=model")

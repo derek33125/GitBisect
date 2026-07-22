@@ -787,18 +787,17 @@ class ObservationConditionedPosteriorTests(unittest.TestCase):
                 adaptive_config=lm_bisect.AdaptiveTopKConfig(5_000, 12, 3),
                 confidence_config=None,
             )
-        with self.assertRaisesRegex(ValueError, "requires fixed --model-top-k 3"):
-            lm_bisect.validate_observation_conditioned_posterior(
-                scorer="model",
-                search_policy="calibrated-posterior",
-                configured_frontier="topk",
-                model_top_k=12,
-                model_diff_mode="parent",
-                model_diff_extraction="llm",
-                posterior_config=config,
-                adaptive_config=None,
-                confidence_config=None,
-            )
+        lm_bisect.validate_observation_conditioned_posterior(
+            scorer="model",
+            search_policy="calibrated-posterior",
+            configured_frontier="topk",
+            model_top_k=12,
+            model_diff_mode="parent",
+            model_diff_extraction="llm",
+            posterior_config=config,
+            adaptive_config=None,
+            confidence_config=None,
+        )
 
     def test_parser_accepts_general_keyword_heuristic_version(self) -> None:
         args = lm_bisect.build_parser().parse_args(
@@ -1692,6 +1691,133 @@ class RankingHelperTests(unittest.TestCase):
         self.assertIn("1" * 40, shas)
         self.assertIn("3" * 40, shas)
         self.assertIn("6" * 40, shas)
+
+    def test_evidence_diverse_frontier_uses_semantic_midpoint_and_component_roles(self) -> None:
+        profile = demo_profile(
+            relevant_paths=[
+                "llvm/lib/Transforms/Vectorize",
+                "llvm/lib/Analysis/MemorySSA",
+            ],
+            high_risk_paths=["llvm/lib/Transforms"],
+        )
+        records = [
+            lm_bisect.CommitRecord(
+                index=1,
+                sha="1" * 40,
+                subject="semantic leader",
+                body="",
+                changed_files=["llvm/lib/Transforms/Vectorize/VPlan.cpp"],
+                diff_text="",
+                semantic_score=9.0,
+                build_success_prob=0.9,
+                suspicion_weight=0.0,
+            ),
+            lm_bisect.CommitRecord(
+                index=2,
+                sha="2" * 40,
+                subject="midpoint",
+                body="",
+                changed_files=["llvm/lib/Transforms/Vectorize/LoopVectorize.cpp"],
+                diff_text="",
+                semantic_score=1.0,
+                build_success_prob=0.9,
+                suspicion_weight=0.0,
+            ),
+            lm_bisect.CommitRecord(
+                index=3,
+                sha="3" * 40,
+                subject="independent component",
+                body="",
+                changed_files=["llvm/lib/Analysis/MemorySSA/MemorySSA.cpp"],
+                diff_text="",
+                semantic_score=4.0,
+                build_success_prob=0.9,
+                suspicion_weight=0.0,
+            ),
+            lm_bisect.CommitRecord(
+                index=4,
+                sha="4" * 40,
+                subject="unrelated",
+                body="",
+                changed_files=["clang/lib/Driver/Driver.cpp"],
+                diff_text="",
+                semantic_score=3.0,
+                build_success_prob=0.9,
+                suspicion_weight=0.0,
+            ),
+        ]
+
+        decision = lm_bisect.resolve_model_frontier(
+            profile,
+            records,
+            [],
+            target_count=3,
+            configured_frontier="evidence-diverse",
+        )
+
+        self.assertEqual(decision.effective_frontier, "evidence-diverse")
+        self.assertEqual(decision.selected_shas[0], "1" * 40)
+        self.assertIn("2" * 40, decision.selected_shas)
+        self.assertIn("3" * 40, decision.selected_shas)
+        self.assertEqual(
+            [item["role"] for item in decision.role_assignments],
+            ["semantic-leader", "posterior-midpoint", "relevant-component"],
+        )
+        self.assertEqual(decision.role_assignments[2]["component"], "llvm/lib/Analysis/MemorySSA")
+
+    def test_evidence_diverse_frontier_fills_requested_k_without_duplicates(self) -> None:
+        profile = demo_profile(relevant_paths=["llvm/lib/Transforms/Vectorize"])
+        records = [
+            lm_bisect.CommitRecord(
+                index=index,
+                sha=str(index) * 40,
+                subject=f"candidate {index}",
+                body="",
+                changed_files=["llvm/lib/Transforms/Vectorize/VPlan.cpp"],
+                diff_text="",
+                semantic_score=float(20 - index),
+                build_success_prob=0.9,
+                suspicion_weight=0.0,
+            )
+            for index in range(1, 15)
+        ]
+
+        decision = lm_bisect.resolve_model_frontier(
+            profile,
+            records,
+            [],
+            target_count=12,
+            configured_frontier="evidence-diverse",
+        )
+
+        self.assertEqual(len(decision.selected_shas), 12)
+        self.assertEqual(len(set(decision.selected_shas)), 12)
+        self.assertEqual(decision.role_assignments[2]["role"], "component-fallback")
+
+    def test_evidence_diverse_frontier_changes_score_context(self) -> None:
+        evidence_payload = lm_bisect.model_score_context_payload(
+            ["a" * 40, "b" * 40],
+            [],
+            12,
+            "evidence-diverse",
+            "parent",
+            "llm",
+            "trace-only",
+        )
+        topk_payload = lm_bisect.model_score_context_payload(
+            ["a" * 40, "b" * 40],
+            [],
+            12,
+            "topk",
+            "parent",
+            "llm",
+            "trace-only",
+        )
+
+        self.assertNotEqual(
+            lm_bisect.model_score_context_id(evidence_payload),
+            lm_bisect.model_score_context_id(topk_payload),
+        )
 
     def test_select_model_frontier_shas_all_returns_full_window(self) -> None:
         records = [

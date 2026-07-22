@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-MODE="${1:?mode required: heuristic|general-heuristic|no-keyword-heuristic|neutral-heuristic|oracle-first-bad-heuristic|parent-extract|causal-parent-extract|adaptive-parent-extract|confidence-parent-extract|observation-posterior-parent-extract|lastdiff-extract}"
+MODE="${1:?mode required: heuristic|general-heuristic|no-keyword-heuristic|neutral-heuristic|oracle-first-bad-heuristic|parent-extract|causal-parent-extract|evidence-diverse-k12|causal-parent-k12|adaptive-parent-extract|confidence-parent-extract|confidence-parent-k12|observation-posterior-parent-extract|observation-posterior-parent-k12|lastdiff-extract}"
 LANE="${2:?lane label required}"
 shift 2
 ISSUES=("$@")
@@ -227,6 +227,38 @@ run_issue() {
         --run-label "${LANE}" \
         --max-steps 30
       ;;
+    evidence-diverse-k12)
+      run_bisect_cmd "${PY}" tools/lm_bisect.py run-online \
+        --issue "${issue}" \
+        --llvm-dir "${wt}" \
+        --scorer model \
+        --search-policy calibrated-posterior \
+        --model-top-k 12 \
+        --model-frontier evidence-diverse \
+        --model-cache-namespace "${MODEL_CACHE_NAMESPACE}" \
+        --model-diff-mode parent \
+        --model-diff-extraction causal-llm \
+        --observation-prompt-mode trace-only \
+        --observations "${obs}" \
+        --run-label "${LANE}" \
+        --max-steps 30
+      ;;
+    causal-parent-k12)
+      run_bisect_cmd "${PY}" tools/lm_bisect.py run-online \
+        --issue "${issue}" \
+        --llvm-dir "${wt}" \
+        --scorer model \
+        --search-policy calibrated-posterior \
+        --model-top-k 12 \
+        --model-frontier topk \
+        --model-cache-namespace "${MODEL_CACHE_NAMESPACE}" \
+        --model-diff-mode parent \
+        --model-diff-extraction causal-llm \
+        --observation-prompt-mode trace-only \
+        --observations "${obs}" \
+        --run-label "${LANE}" \
+        --max-steps 30
+      ;;
     adaptive-parent-extract)
       run_bisect_cmd "${PY}" tools/lm_bisect.py run-online \
         --issue "${issue}" \
@@ -263,6 +295,23 @@ run_issue() {
         --run-label "${LANE}" \
         --max-steps 30
       ;;
+    confidence-parent-k12)
+      run_bisect_cmd "${PY}" tools/lm_bisect.py run-online \
+        --issue "${issue}" \
+        --llvm-dir "${wt}" \
+        --scorer model \
+        --search-policy calibrated-posterior \
+        --model-top-k 12 \
+        --model-frontier topk \
+        --confidence-adaptive-frontier-threshold "${CONFIDENCE_FRONTIER_THRESHOLD}" \
+        --model-cache-namespace "${MODEL_CACHE_NAMESPACE}" \
+        --model-diff-mode parent \
+        --model-diff-extraction llm \
+        --observation-prompt-mode trace-only \
+        --observations "${obs}" \
+        --run-label "${LANE}" \
+        --max-steps 30
+      ;;
     observation-posterior-parent-extract)
       run_bisect_cmd "${PY}" tools/lm_bisect.py run-online \
         --issue "${issue}" \
@@ -270,6 +319,23 @@ run_issue() {
         --scorer model \
         --search-policy calibrated-posterior \
         --model-top-k 3 \
+        --model-frontier topk \
+        --model-cache-namespace "${MODEL_CACHE_NAMESPACE}" \
+        --model-diff-mode parent \
+        --model-diff-extraction llm \
+        --observation-prompt-mode trace-only \
+        --observation-conditioned-posterior \
+        --observations "${obs}" \
+        --run-label "${LANE}" \
+        --max-steps 30
+      ;;
+    observation-posterior-parent-k12)
+      run_bisect_cmd "${PY}" tools/lm_bisect.py run-online \
+        --issue "${issue}" \
+        --llvm-dir "${wt}" \
+        --scorer model \
+        --search-policy calibrated-posterior \
+        --model-top-k 12 \
         --model-frontier topk \
         --model-cache-namespace "${MODEL_CACHE_NAMESPACE}" \
         --model-diff-mode parent \
