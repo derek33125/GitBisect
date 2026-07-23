@@ -166,6 +166,140 @@ const ORACLE_FIRST_BAD_RUN_LABELS = {
   pr200987: "aws10-oracle-first-bad-compat-c-20260719a",
 };
 
+// These arms intentionally remain separate. The k3 results are historical
+// policy runs; the k12 values are the current clean fixed-k12 matrix snapshot.
+// A cell is only included in its aggregate when it is both completed and valid.
+const K12_VARIANT_METHODS = [
+  {
+    key: "evidence",
+    label: "Evidence-guided diverse frontier",
+    k3_setup: "Not run: this frontier policy was introduced for the fixed-k12 matrix.",
+    k12_setup:
+      "Use a 12-candidate causal frontier, then select semantically relevant, information-gain, and component-diverse probes.",
+  },
+  {
+    key: "causal",
+    label: "Structured causal parent-diff reasoning",
+    k3_setup:
+      "Historical k3 run: retrieve issue-matched parent-diff hunks and function context, then extract symbols, mechanisms, linkage, confidence, and build risk.",
+    k12_setup: "The same causal evidence extraction with a fixed 12-candidate model frontier.",
+  },
+  {
+    key: "posterior",
+    label: "Observation-conditioned posterior",
+    k3_setup:
+      "Historical k3 run: runner good/bad evidence reweights unresolved candidates sharing extracted mechanism and component features.",
+    k12_setup:
+      "The same posterior update with generic parent-diff extraction and a fixed 12-candidate frontier.",
+  },
+  {
+    key: "confidence",
+    label: "Confidence-adaptive frontier",
+    k3_setup:
+      "Historical k3 run: agreement uses the semantic top three; disagreement uses a semantic leader, posterior anchor, and midpoint probe.",
+    k12_setup:
+      "The same confidence-conditioned selection policy with a fixed 12-candidate model frontier.",
+  },
+];
+
+const K12_VARIANT_RESULTS = {
+  evidence: {
+    k3: {},
+    k12: {
+      pr204559: { state: "completed", steps: 10, source: "aws-server" },
+      pr204589: { state: "completed", steps: 10, source: "aws-server" },
+      pr201444: { state: "completed", steps: 9, source: "aws-server" },
+      pr193164: {
+        state: "running",
+        steps: 3,
+        source: "edu-server",
+        note:
+          "Corrected EDU rerun after the stale AWS 10-step result used obsolete bad endpoint 1bec68a; the stale row is excluded.",
+      },
+      pr50304: { state: "completed", steps: 11, source: "aws-server" },
+      pr50585: { state: "completed", steps: 13, source: "aws-server" },
+      pr48154: { state: "completed", steps: 16, source: "edu-server" },
+      pr49535: { state: "completed", steps: 11, source: "edu-server" },
+      pr52635: { state: "completed", steps: 11, source: "edu-server" },
+      pr200987: { state: "completed", steps: 12, source: "edu-server" },
+    },
+  },
+  causal: {
+    k3: {
+      pr204559: { state: "completed", steps: 9 },
+      pr204589: { state: "completed", steps: 9 },
+      pr201444: { state: "completed", steps: 12 },
+      pr193164: {
+        state: "invalid",
+        note:
+          "The historical AWS causal run used obsolete bad endpoint 1bec68a, which is validated good; excluded from the aggregate.",
+      },
+      pr50304: { state: "completed", steps: 9 },
+      pr50585: { state: "completed", steps: 11 },
+      pr48154: { state: "completed", steps: 15 },
+      pr49535: { state: "completed", steps: 11 },
+      pr52635: { state: "completed", steps: 11 },
+      pr200987: { state: "completed", steps: 11 },
+    },
+    k12: {
+      pr204559: { state: "completed", steps: 9, source: "aws-server" },
+      pr204589: { state: "completed", steps: 13, source: "aws-server" },
+      pr201444: { state: "completed", steps: 9, source: "aws-server" },
+      pr193164: { state: "completed", steps: 10, source: "aws-server" },
+      pr50304: { state: "completed", steps: 9, source: "aws-server" },
+      pr50585: { state: "completed", steps: 12, source: "aws-server" },
+      pr48154: { state: "completed", steps: 14, source: "edu-server" },
+      pr49535: { state: "completed", steps: 10, source: "edu-server" },
+      pr52635: { state: "completed", steps: 11, source: "edu-server" },
+      pr200987: { state: "completed", steps: 10, source: "edu-server" },
+    },
+  },
+  posterior: {
+    k3: {
+      pr204559: { state: "completed", steps: 8 },
+      pr204589: { state: "completed", steps: 11 },
+      pr201444: { state: "completed", steps: 11 },
+      pr193164: { state: "completed", steps: 11, note: "Corrected-endpoint rerun." },
+      pr50304: { state: "completed", steps: 9 },
+      pr50585: { state: "completed", steps: 12 },
+      pr48154: { state: "completed", steps: 16 },
+      pr49535: { state: "completed", steps: 11 },
+      pr52635: { state: "completed", steps: 11 },
+      pr200987: { state: "completed", steps: 11 },
+    },
+    k12: {
+      pr204559: { state: "running", steps: 1, source: "aws-server" },
+      pr201444: { state: "running", steps: 2, source: "aws-server" },
+      pr50304: { state: "completed", steps: 10, source: "aws-server" },
+      pr50585: { state: "completed", steps: 13, source: "aws-server" },
+      pr52635: { state: "completed", steps: 10, source: "edu-server" },
+    },
+  },
+  confidence: {
+    k3: {
+      pr204559: { state: "completed", steps: 11 },
+      pr204589: { state: "completed", steps: 11 },
+      pr201444: { state: "completed", steps: 12 },
+      pr193164: { state: "completed", steps: 12 },
+      pr50304: { state: "completed", steps: 10 },
+      pr50585: { state: "completed", steps: 14 },
+      pr48154: { state: "completed", steps: 16 },
+      pr49535: {
+        state: "invalid",
+        note: "The historical k3 replica was superseded before it reached a terminal result; excluded.",
+      },
+      pr52635: { state: "completed", steps: 12 },
+      pr200987: { state: "completed", steps: 12 },
+    },
+    k12: {
+      pr204559: { state: "completed", steps: 11, source: "aws-server" },
+      pr50304: { state: "completed", steps: 11, source: "aws-server" },
+      pr50585: { state: "completed", steps: 14, source: "aws-server" },
+      pr52635: { state: "completed", steps: 11, source: "edu-server" },
+    },
+  },
+};
+
 function readJson(p) {
   return JSON.parse(readFileSync(p, "utf8"));
 }
@@ -390,13 +524,142 @@ function buildTopkSensitivity(topkRows) {
 // Index every raw file by basename so we can resolve run labels quickly.
 function indexRawFiles() {
   const idx = [];
-  for (const dir of [...RAW_DIRS, ...ORACLE_RAW_DIRS, ...ADAPTIVE_RAW_DIRS]) {
+  const k12RawDirs = [join(SCOPED, "raw", "k12", "aws"), join(SCOPED, "raw", "k12", "edu")];
+  for (const dir of [...RAW_DIRS, ...ORACLE_RAW_DIRS, ...ADAPTIVE_RAW_DIRS, ...k12RawDirs]) {
     if (!existsSync(dir)) continue;
     for (const name of readdirSync(dir)) {
       if (name.endsWith(".json")) idx.push({ name, path: join(dir, name) });
     }
   }
   return idx;
+}
+
+function completedVariantCell(raw, source) {
+  if (!isCompletedFirstBadRun(raw)) {
+    throw new Error(`expected completed variant history: ${raw?.run_label || "unknown"}`);
+  }
+  return {
+    state: "completed",
+    steps: raw.steps.length,
+    first_bad: shortSha(raw.first_bad_commit),
+    source,
+    run_label: raw.run_label,
+  };
+}
+
+function completeVariantCell(cell) {
+  return {
+    state: cell.state || "not_run",
+    steps: typeof cell.steps === "number" ? cell.steps : null,
+    first_bad: cell.first_bad ? shortSha(cell.first_bad) : null,
+    source: cell.source || null,
+    run_label: cell.run_label || null,
+    note: cell.note || null,
+  };
+}
+
+function buildVariantAggregate(rows, key, arm) {
+  const completed = rows.filter((row) => row[key][arm].state === "completed");
+  const steps = completed.map((row) => row[key][arm].steps);
+  const referenceSteps = completed.map((row) => row.reference.steps);
+  const deltas = completed.map((row) => row[key][arm].steps - row.reference.steps);
+  return {
+    completed: completed.length,
+    total_steps: steps.reduce((sum, value) => sum + value, 0),
+    mean_steps: steps.length ? average(steps) : null,
+    median_steps: steps.length ? median(steps) : null,
+    matched_reference_total: referenceSteps.reduce((sum, value) => sum + value, 0),
+    matched_reference_mean: referenceSteps.length ? average(referenceSteps) : null,
+    wins: deltas.filter((value) => value < 0).length,
+    ties: deltas.filter((value) => value === 0).length,
+    losses: deltas.filter((value) => value > 0).length,
+  };
+}
+
+function buildK12VariantComparison(preferred, profiles, rawIdx) {
+  const referenceByIssue = new Map(
+    preferred.map((row) => [
+      row.issue,
+      {
+        state: "completed",
+        steps: row["parent-llm-topk3_steps"],
+        first_bad: shortSha(row["parent-llm-topk3_first_bad"]),
+        source: row["parent-llm-topk3_source"],
+        run_label: row["parent-llm-topk3_run_label"],
+      },
+    ])
+  );
+
+  const rows = preferred.map((base) => {
+    const row = {
+      issue: base.issue,
+      title: profiles[base.issue]?.title || base.issue,
+      reference: referenceByIssue.get(base.issue),
+    };
+    for (const method of K12_VARIANT_METHODS) {
+      row[method.key] = {};
+      for (const arm of ["k3", "k12"]) {
+        row[method.key][arm] = completeVariantCell(K12_VARIANT_RESULTS[method.key][arm][base.issue] || {});
+      }
+    }
+    return row;
+  });
+
+  // Verify every available local raw history agrees with the audited summary.
+  const expectedRaw = [
+    ["causal", "k3", "aws10-causal-parent-k3"],
+    ["causal", "k12", "k12matrix", "causal"],
+    ["posterior", "k3", "aws10-observation-posterior"],
+    ["confidence", "k3", "aws10-confidence-frontier"],
+    ["evidence", "k12", "k12matrix", "evidence-diverse"],
+    ["posterior", "k12", "k12matrix", "observation-posterior"],
+    ["confidence", "k12", "k12matrix", "confidence"],
+  ];
+  for (const [key, arm, ...needles] of expectedRaw) {
+    for (const row of rows) {
+      const cell = row[key][arm];
+      const matches = rawIdx.filter(
+        (entry) =>
+          entry.name.startsWith(row.issue + "-") &&
+          needles.every((needle) => entry.name.includes(needle))
+      );
+      const rawPath = matches.at(-1)?.path;
+      if (!rawPath) continue;
+      const raw = readJson(rawPath);
+      if (cell.state === "completed" && isCompletedFirstBadRun(raw)) {
+        const checked = completedVariantCell(raw, rawPath.includes("/edu/") ? "edu-server" : "aws-server");
+        if (checked.steps !== cell.steps) {
+          throw new Error(`variant step mismatch for ${key} ${arm} ${row.issue}`);
+        }
+        cell.first_bad = checked.first_bad;
+        cell.run_label = checked.run_label;
+      }
+    }
+  }
+
+  const configurations = K12_VARIANT_METHODS.map((method) => ({
+    ...method,
+    k3: { aggregate: buildVariantAggregate(rows, method.key, "k3") },
+    k12: { aggregate: buildVariantAggregate(rows, method.key, "k12") },
+  }));
+  const referenceSteps = rows.map((row) => row.reference.steps);
+  return {
+    scope:
+      "Four isolated policy variants evaluated on the same scoped ten LLVM crash intervals. Values are runner build steps only.",
+    reference: {
+      label: "Parent diff + LLM extraction (top-k3)",
+      aggregate: {
+        completed: referenceSteps.length,
+        total_steps: referenceSteps.reduce((sum, value) => sum + value, 0),
+        mean_steps: average(referenceSteps),
+        median_steps: median(referenceSteps),
+      },
+    },
+    validity_note:
+      "Only completed, endpoint-valid rows contribute to a configuration's aggregate. Matched reference totals use exactly those completed rows. The stale AWS evidence-diverse pr193164 result is excluded; the corrected EDU replacement remains running.",
+    configurations,
+    rows,
+  };
 }
 
 function loadOracleFirstBadDiagnostic(rawIdx, issue, canonicalFirstBad) {
@@ -862,6 +1125,7 @@ function main() {
     profiles,
     rawIdx
   );
+  const k12Variants = buildK12VariantComparison(preferred, profiles, rawIdx);
 
   const issues = [];
   for (const baseRow of preferred) {
@@ -972,6 +1236,7 @@ function main() {
     keyword_ablation: keywordAblation,
     weak_maintenance_keyword_control: weakMaintenanceKeywordControl,
     focused_comparisons: focusedComparisons,
+    k12_variants: k12Variants,
     live_lanes: liveLanes,
     runtime_example: buildRuntimeExample(rawIdx, profiles),
     issues,

@@ -1,0 +1,2274 @@
+{
+  "issue": "pr193164",
+  "scorer": "model",
+  "model_name": "gpt-5.4-mini",
+  "model_frontier": "topk",
+  "search_policy": "calibrated-posterior",
+  "hybrid_switch_window": 32,
+  "candidate_pruning": "off",
+  "heuristic_version": "tuned",
+  "calibrated_prior_power": 1.35,
+  "calibrated_prior_bonus": 1.5,
+  "weak_relevance_penalty": 0.05,
+  "weak_relevance_threshold": 0.8,
+  "build_success_power": 1.0,
+  "observation_prompt_mode": "trace-only",
+  "run_label": "aws10-confidence-frontier-b-20260720a",
+  "model_diff_mode": "parent",
+  "model_diff_extraction": "llm",
+  "model_top_k": 3,
+  "adaptive_top_k": null,
+  "confidence_adaptive_frontier": {
+    "threshold": 0.35
+  },
+  "model_cache_namespace": "confidence-frontier-035-20260720-aws-b",
+  "oracle_first_bad_sha": null,
+  "lambda_weight": 2.0,
+  "max_steps": 30,
+  "observation_path": "results/lm_bisect_observations/pr193164-aws10-confidence-frontier-b-20260720a.json",
+  "run_history_path": "/home/ubuntu/gitbisect-work/confidence-adaptive-20260720-896b595/results/lm_bisect_runs/pr193164-model-gpt-5.4-mini-calibrated-posterior-obs-trace-only-aws10-confidence-frontier-b-20260720a.json",
+  "good_commit": "e9f758a59b2f887acb07e26e2d480c7369a72009",
+  "bad_commit": "cac7fe50e0fbedfb14028c170d83386efeb1265b",
+  "initial_unresolved": 12030,
+  "status": "completed",
+  "steps": [
+    {
+      "step": 1,
+      "sha": "24d21ca03cd2ba7792f72c5acad1d8715b622237",
+      "subject": "[flang][OpenMP] Fix counting generated nests (#183957)",
+      "verdict": "good",
+      "source": "runner",
+      "summary": "verdict: good",
+      "unresolved_before": 12030,
+      "unresolved_after": 6108,
+      "model_top_k": 3,
+      "adaptive_top_k": null,
+      "confidence_adaptive_frontier": {
+        "threshold": 0.35
+      },
+      "model_frontier_decision": {
+        "configured_frontier": "topk",
+        "effective_frontier": "diverse",
+        "confidence": 0.026144,
+        "threshold": 0.35,
+        "reason": "semantic scores are ambiguous; add posterior and midpoint anchors",
+        "top_semantic_candidates": [
+          {
+            "sha": "8e1d5ec534a68a5a1c0667dfe9e4333143e07888",
+            "semantic_score": 7.65,
+            "build_success_prob": 0.92
+          },
+          {
+            "sha": "16395da0ff577750571b99fe28281ce6fb6a3ae8",
+            "semantic_score": 7.45,
+            "build_success_prob": 0.83
+          }
+        ],
+        "selected_frontier_shas": [
+          "8e1d5ec534a68a5a1c0667dfe9e4333143e07888",
+          "24d21ca03cd2ba7792f72c5acad1d8715b622237",
+          "49c3cd15e8b4c21dd86eefdc76754ddfc2a7a65e"
+        ],
+        "observation_count": 0
+      },
+      "model_score_context": "v1-b6b5121203d201aa",
+      "model_score_context_payload": {
+        "version": "v1",
+        "unresolved_count": 12030,
+        "candidate_window_sha256": "59e531cad4ff525f5527ba0465978f87a3a05023c032f3c4ef6e52b9f2b11ecc",
+        "observation_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "model_top_k": 3,
+        "model_frontier": "topk",
+        "model_diff_mode": "parent",
+        "model_diff_extraction": "llm",
+        "observation_prompt_mode": "trace-only",
+        "confidence_adaptive_frontier": {
+          "threshold": 0.35
+        }
+      },
+      "candidate_pruning": {
+        "mode": "off",
+        "before_count": 12030,
+        "after_count": 12030,
+        "pruned_count": 0,
+        "keep_prefixes": [],
+        "kept_reason_counts": {},
+        "prune_reason_counts": {},
+        "pruned_examples": []
+      },
+      "search_policy": "calibrated-posterior",
+      "selection_mode": "calibrated-posterior",
+      "selection": {
+        "utility": 0.978777,
+        "selection_score": 1.13158,
+        "semantic_score": 0.2,
+        "build_success_prob": 0.98,
+        "balance_score": 0.998654,
+        "suspicion_weight": 4.9e-05,
+        "feedback_bias": 0.0,
+        "evidence": [
+          "model-scored",
+          "Flang OpenMP semantic checker change with no relation to LoopVectorize/VPlan.",
+          "Different frontend and subsystem from the reported assertion, so it is very unlikely to be near the bug.",
+          "features: flang semantics, OpenMP loop nest counting, unrelated to vectorizer"
+        ],
+        "posterior_bad_mass": 0.499327,
+        "calibrated_suspicion_weight": 2.3e-05,
+        "calibrated_posterior_bad_mass": 0.509533,
+        "calibrated_posterior_info_gain": 0.999738,
+        "weak_relevance_penalty": 0.049,
+        "diff_mode": "parent",
+        "diff_extraction": "llm",
+        "diff_summary": "Summary: Refines Flang OpenMP loop-nest counting for generated constructs, especially nested FUSE blocks without a LOOPRANGE clause. The semantic checker now treats an inner FUSE with no nested loops as an invalid subconstruct to be diagnosed locally rather than repeatedly propagating an error to every enclosing loop construct, and it adjusts the computed nest count for nested generated loop sequences. A new semantic test covers the off-by-one/duplication case in FUSE nest counting.\nMechanisms: OpenMP loop nest counting in semantic analysis; Recursive traversal of parser blocks and generated constructs; Error suppression/propagation control via std::nullopt; Adjustment of derived loop-sequence length for nested constructs\nTouched symbols: IsFullUnroll; CountGeneratedNests; parser::Block; parser::OpenMPLoopConstruct\nRisk relevance: Touches recursive counting logic for nested constructs; Changes control flow around invalid nested-loop detection and propagation; Uses optional-return semantics to alter when errors are emitted; Affects generated loop-nest accounting, which is prone to off-by-one regressions\nBuild risk: Modifies semantic checker behavior in flang frontend; Adds new parser/semantic test coverage; No direct LLVM vectorizer/VPlan impact"
+      },
+      "top_candidates": [
+        {
+          "rank": 1,
+          "sha": "24d21ca03cd2ba7792f72c5acad1d8715b622237",
+          "subject": "[flang][OpenMP] Fix counting generated nests (#183957)",
+          "utility": 0.978777,
+          "selection_score": 1.13158,
+          "semantic_score": 0.2,
+          "build_success_prob": 0.98,
+          "feedback_bias": 0.0,
+          "posterior_bad_mass": 0.499327,
+          "calibrated_suspicion_weight": 2.3e-05,
+          "calibrated_posterior_bad_mass": 0.509533,
+          "calibrated_posterior_info_gain": 0.999738,
+          "weak_relevance_penalty": 0.049,
+          "diff_mode": "parent",
+          "diff_extraction": "llm",
+          "diff_summary": "Summary: Refines Flang OpenMP loop-nest counting for generated constructs, especially nested FUSE blocks without a LOOPRANGE clause. The semantic checker now treats an inner FUSE with no nested loops as an invalid subconstruct to be diagnosed locally rather than repeatedly propagating an error to every enclosing loop construct, and it adjusts the computed nest count for nested generated loop sequences. A new semantic test covers the off-by-one/duplication case in FUSE nest counting.\nMechanisms: OpenMP loop nest counting in semantic analysis; Recursive traversal of parser blocks and generated constructs; Error suppression/propagation control via std::nullopt; Adjustment of derived loop-sequence length for nested constructs\nTouched symbols: IsFullUnroll; CountGeneratedNests; parser::Block; parser::OpenMPLoopConstruct\nRisk relevance: Touches recursive counting logic for nested constructs; Changes control flow around invalid nested-loop detection and propagation; Uses optional-return semantics to alter when errors are emitted; Affects generated loop-nest accounting, which is prone to off-by-one regressions\nBuild risk: Modifies semantic checker behavior in flang frontend; Adds new parser/semantic test coverage; No direct LLVM vectorizer/VPlan impact"
+        },
+        {
+          "rank": 2,
+          "sha": "49c3cd15e8b4c21dd86eefdc76754ddfc2a7a65e",
+          "subject": "Add a test that we recover from a crashing breakpoint condition.",
+          "utility": 0.955874,
+          "selection_score": 1.119239,
+          "semantic_score": 0.1,
+          "build_success_prob": 0.97,
+          "feedback_bias": 0.0,
+          "posterior_bad_mass": 0.507306,
+          "calibrated_suspicion_weight": 9e-06,
+          "calibrated_posterior_bad_mass": 0.51766,
+          "calibrated_posterior_info_gain": 0.9991,
+          "weak_relevance_penalty": 0.0485,
+          "diff_mode": "parent",
+          "diff_extraction": "llm",
+          "diff_summary": "Summary: Adds an LLDB API regression test for recovering from a breakpoint condition that itself crashes while being evaluated. The test builds a small C program, sets a breakpoint with a crashing condition expression, verifies the debugger stops at the breakpoint instead of failing outright, and then continues execution to confirm the real target crash is reported as an exception stop. This is primarily test-only coverage for debugger condition-evaluation fault handling.\nMechanisms: Breakpoint condition evaluation error recovery; Debugger stop-state verification after failed condition expression; Test harness execution to breakpoint and continue semantics\nTouched symbols: TestCrashingCondition; do_crash; main\nRisk relevance: No direct relation to LLVM code generation or vectorization; Concerns debugger runtime behavior rather than compiler optimization passes; Involves crash-handling paths, but only inside LLDB test infrastructure\nBuild risk: Adds new LLDB API test case and Makefile; Depends on debugger/runtime test execution; Covers crashing-condition edge case in test-only code"
+        },
+        {
+          "rank": 3,
+          "sha": "8e1d5ec534a68a5a1c0667dfe9e4333143e07888",
+          "subject": "[LV] Add LoopVectorize/VPlan subdirectory for VPlan printing tests. (#180611)",
+          "utility": 0.573048,
+          "selection_score": 1.113202,
+          "semantic_score": 2.4,
+          "build_success_prob": 0.93,
+          "feedback_bias": 0.0,
+          "posterior_bad_mass": 0.307726,
+          "calibrated_suspicion_weight": 0.000656,
+          "calibrated_posterior_bad_mass": 0.309294,
+          "calibrated_posterior_info_gain": 0.892357,
+          "diff_mode": "parent",
+          "diff_extraction": "llm",
+          "diff_summary": "Summary: Moves a collection of LoopVectorize VPlan debug-printing tests out of the generic LoopVectorize test tree into a new dedicated llvm/test/Transforms/LoopVectorize/VPlan hierarchy, with per-target lit.local.cfg files for AArch64, PowerPC, RISCV, and X86. The substantive change is test organization plus preservation of many VPlan-focused checks covering tail folding, histogram vectorization, widening calls/intrinsics, explicit-vector-length paths, first-order recurrences, replicate-region sinking, conditional scalar assignment, and uniform-icmp handling. The commit does not appear to change vectorizer implementation code, but it centralizes and expands test coverage around VPlan recipe ordering, phi-like recipes, reductions, predication, and vectorization plan construction.\nMechanisms: VPlan debug-printing and recipe ordering checks; LoopVectorize test relocation / subdirectory organization; Predicated vectorization and tail folding test coverage; First-order recurrence / splice / reduction / replicate-region VPlan patterns; Explicit vector length (EVL) and scalable vectorization plan construction\nTouched symbols: llvm/test/Transforms/LoopVectorize/VPlan/*; lit.local.cfg; FileCheck; opt -passes=loop-vectorize; VPlan; LoopVectorize\nRisk relevance: Touches many tests that exercise the exact VPlan printing and recipe sequencing machinery implicated by phi-like-after-non-phi assertions; Covers scalable-vectorization, predication, reductions, and recurrence handling where recipe ordering is delicate; Includes cases with replicate regions, branch-on-mask, active-lane-mask phis, and first-order splices that stress VPlan block/recipe layout; Although implementation code is unchanged, the breadth of VPlan-specific coverage indicates close proximity to the crash surface\nBuild risk: Large test reshuffle may require correct lit discovery and target gating through new subdirectory cfg files; Deleted old test paths and added new ones; any stale references or coverage gaps would be test-only regressions; AArch64/PowerPC/RISCV/X86-specific cfgs change which tests run on which bots; Many tests depend on asserts and debug-only output, so build configurations without asserts will skip them\nRaw diff truncated before extraction: yes"
+        },
+        {
+          "rank": 4,
+          "sha": "320220e48b8f1054ce7a37c8b2a528315080e29c",
+          "subject": "[VPlan] Support arbitrary predicated early exits. (#182396)",
+          "utility": 0.906276,
+          "selection_score": 0.923583,
+          "semantic_score": 6.65,
+          "build_success_prob": 0.92,
+          "feedback_bias": 0.0,
+          "posterior_bad_mass": 0.490928,
+          "calibrated_suspicion_weight": 0.002597,
+          "calibrated_posterior_bad_mass": 0.500275,
+          "calibrated_posterior_info_gain": 1.0
+        },
+        {
+          "rank": 5,
+          "sha": "6f9c68d32074162304f27d38e69f4de4cd26ab50",
+          "subject": "[VPlan] Don't adjust trip count for DataAndControlFlowWithoutRuntimeCheck (#183729)",
+          "utility": 0.884683,
+          "selection_score": 0.923177,
+          "semantic_score": 6.65,
+          "build_success_prob": 0.92,
+          "feedback_bias": 0.0,
+          "posterior_bad_mass": 0.479232,
+          "calibrated_suspicion_weight": 0.002597,
+          "calibrated_posterior_bad_mass": 0.487648,
+          "calibrated_posterior_info_gain": 0.99956
+        }
+      ],
+      "evidence": [
+        "=== validated-bisect-runner ===",
+        "issue: pr193164",
+        "llvm-project: /home/ubuntu/gitbisect-work/worktrees/pr193164-aws10-confidence-frontier-b-20260720a",
+        "commit: 24d21ca03cd2",
+        "jobs: 4",
+        "build type: Release",
+        "assertions: ON",
+        "ccache dir: /home/ubuntu/gitbisect-work/confidence-adaptive-20260720-896b595/.ccache/pr193164-git-bisect",
+        "repro exit code: 0",
+        "verdict: good"
+      ],
+      "log_excerpt": "=== validated-bisect-runner ===\nissue: pr193164\nllvm-project: /home/ubuntu/gitbisect-work/worktrees/pr193164-aws10-confidence-frontier-b-20260720a\ncommit: 24d21ca03cd2\njobs: 4\nbuild type: Release\nassertions: ON\nccache dir: /home/ubuntu/gitbisect-work/confidence-adaptive-20260720-896b595/.ccache/pr193164-git-bisect\nrepro exit code: 0\nverdict: good",
+      "trace_excerpt": "=== validated-bisect-runner ===\nissue: pr193164\nllvm-project: /home/ubuntu/gitbisect-work/worktrees/pr193164-aws10-confidence-frontier-b-20260720a\ncommit: 24d21ca03cd2\njobs: 4\nbuild type: Release\nassertions: ON\nccache dir: /home/ubuntu/gitbisect-work/confidence-adaptive-20260720-896b595/.ccache/pr193164-git-bisect\nrepro exit code: 0\nverdict: good",
+      "runner_duration_sec": 3157.179
+    },
+    {
+      "step": 2,
+      "sha": "d21e1a379878ae23d695ac033274fc8006415202",
+      "subject": "[LIBM][AMDLIBM] - New vector calls for cdfnorm and round scalar calls (#187232)",
+      "verdict": "good",
+      "source": "runner",
+      "summary": "verdict: good",
+      "unresolved_before": 6108,
+      "unresolved_after": 2957,
+      "model_top_k": 3,
+      "adaptive_top_k": null,
+      "confidence_adaptive_frontier": {
+        "threshold": 0.35
+      },
+      "model_frontier_decision": {
+        "configured_frontier": "topk",
+        "effective_frontier": "diverse",
+        "confidence": 0.0,
+        "threshold": 0.35,
+        "reason": "semantic scores are ambiguous; add posterior and midpoint anchors",
+        "top_semantic_candidates": [
+          {
+            "sha": "2ce5f91425ea90195d8de1b254aedcac94e602e8",
+            "semantic_score": 6.85,
+            "build_success_prob": 0.92
+          },
+          {
+            "sha": "c79a058a6a299f9300015482c5c168bbe12a8235",
+            "semantic_score": 6.85,
+            "build_success_prob": 0.92
+          }
+        ],
+        "selected_frontier_shas": [
+          "2ce5f91425ea90195d8de1b254aedcac94e602e8",
+          "d21e1a379878ae23d695ac033274fc8006415202",
+          "047cd90b5efdd41655fc32f00410d69b899abd95"
+        ],
+        "observation_count": 1
+      },
+      "model_score_context": "v1-6aec92ca54f611ca",
+      "model_score_context_payload": {
+        "version": "v1",
+        "unresolved_count": 6108,
+        "candidate_window_sha256": "0bb90cccd6cc830d23f85bfd5bb593b28947b4164ec44412cd4efbfa1d7914ec",
+        "observation_sha256": "e752de4c88f643ab1ca9bc9f9a091c805026f9c8c937b18d025989dd259bceda",
+        "model_top_k": 3,
+        "model_frontier": "topk",
+        "model_diff_mode": "parent",
+        "model_diff_extraction": "llm",
+        "observation_prompt_mode": "trace-only",
+        "confidence_adaptive_frontier": {
+          "threshold": 0.35
+        }
+      },
+      "candidate_pruning": {
+        "mode": "off",
+        "before_count": 6108,
+        "after_count": 6108,
+        "pruned_count": 0,
+        "keep_prefixes": [],
+        "kept_reason_counts": {},
+        "prune_reason_counts": {},
+        "pruned_examples": []
+      },
+      "search_policy": "calibrated-posterior",
+      "selection_mode": "calibrated-posterior",
+      "selection": {
+        "utility": 0.900935,
+        "selection_score": 1.202641,
+        "semantic_score": 1.3,
+        "build_success_prob": 0.9,
+        "balance_score": 0.999688,
+        "suspicion_weight": 0.000676,
+        "feedback_bias": 1.0,
+        "evidence": [
+          "model-scored",
+          "Only extends veclib/runtime-libcall mappings and related tests; it is in LoopVectorize-adjacent code but not in VPlan or recipe-ordering logic.",
+          "No clear mechanism for causing a VPlan phi-like recipe ordering assertion; at most it changes vectorization call replacement coverage.",
+          "features: LoopVectorize test coverage, veclib mappings, runtime libcalls, vector function tables"
+        ],
+        "posterior_bad_mass": 0.499844,
+        "calibrated_suspicion_weight": 0.000615,
+        "calibrated_posterior_bad_mass": 0.489311,
+        "calibrated_posterior_info_gain": 0.99967,
+        "diff_mode": "parent",
+        "diff_extraction": "llm",
+        "diff_summary": "Summary: Extends vector-library and runtime-libcall tables with AMDLIBM support for cdfnorm and round/roundf, then updates LoopVectorize veclib replacement tests to exercise those mappings across multiple vector widths. The test now runs replace-with-veclib and adds coverage for both libcalls and LLVM round intrinsics, checking that the vectorizer replaces scalar math calls with the expected AMD vector library entry points or intrinsic vector forms depending on width.\nMechanisms: Vector-library mapping table extension; Runtime libcall enumeration / lookup expansion; LoopVectorize veclib call replacement\nTouched symbols: TLI_DEFINE_VECFUNC; AMDLIBM_VECFUNCS; CDFNORM_#S; ROUND_#S; amd_vrd2_cdfnorm; amd_vrd4_cdfnorm; amd_vrd8_cdfnorm; amd_vrd2_round\nRisk relevance: Touches LoopVectorize test coverage and vector-library replacement paths, so it can expose vectorization regressions indirectly; Adds new vector-function mappings and width-dependent selection logic, which can affect cost modeling and call replacement decisions; Exercises multiple vector widths and intrinsic/library fallback behavior\nBuild risk: Updates tablegen-style runtime libcalls definitions and vector-function catalogs; Expands a large backend-facing test with many new checks and runtime call declarations; Potential target-specific sensitivity around AVX/AVX512 and AMDLIBM availability"
+      },
+      "top_candidates": [
+        {
+          "rank": 1,
+          "sha": "d21e1a379878ae23d695ac033274fc8006415202",
+          "subject": "[LIBM][AMDLIBM] - New vector calls for cdfnorm and round scalar calls (#187232)",
+          "utility": 0.900935,
+          "selection_score": 1.202641,
+          "semantic_score": 1.3,
+          "build_success_prob": 0.9,
+          "feedback_bias": 1.0,
+          "posterior_bad_mass": 0.499844,
+          "calibrated_suspicion_weight": 0.000615,
+          "calibrated_posterior_bad_mass": 0.489311,
+          "calibrated_posterior_info_gain": 0.99967,
+          "diff_mode": "parent",
+          "diff_extraction": "llm",
+          "diff_summary": "Summary: Extends vector-library and runtime-libcall tables with AMDLIBM support for cdfnorm and round/roundf, then updates LoopVectorize veclib replacement tests to exercise those mappings across multiple vector widths. The test now runs replace-with-veclib and adds coverage for both libcalls and LLVM round intrinsics, checking that the vectorizer replaces scalar math calls with the expected AMD vector library entry points or intrinsic vector forms depending on width.\nMechanisms: Vector-library mapping table extension; Runtime libcall enumeration / lookup expansion; LoopVectorize veclib call replacement\nTouched symbols: TLI_DEFINE_VECFUNC; AMDLIBM_VECFUNCS; CDFNORM_#S; ROUND_#S; amd_vrd2_cdfnorm; amd_vrd4_cdfnorm; amd_vrd8_cdfnorm; amd_vrd2_round\nRisk relevance: Touches LoopVectorize test coverage and vector-library replacement paths, so it can expose vectorization regressions indirectly; Adds new vector-function mappings and width-dependent selection logic, which can affect cost modeling and call replacement decisions; Exercises multiple vector widths and intrinsic/library fallback behavior\nBuild risk: Updates tablegen-style runtime libcalls definitions and vector-function catalogs; Expands a large backend-facing test with many new checks and runtime call declarations; Potential target-specific sensitivity around AVX/AVX512 and AMDLIBM availability"
+        },
+        {
+          "rank": 2,
+          "sha": "047cd90b5efdd41655fc32f00410d69b899abd95",
+          "subject": "Revert \"[ClangScanDeps] Do not emit warning for P1689 format\" (#188179)",
+          "utility": 0.942095,
+          "selection_score": 1.116894,
+          "semantic_score": 0.1,
+          "build_success_prob": 0.97,
+          "feedback_bias": 1.0,
+          "posterior_bad_mass": 0.485565,
+          "calibrated_suspicion_weight": 1.9e-05,
+          "calibrated_posterior_bad_mass": 0.475389,
+          "calibrated_posterior_info_gain": 0.998252,
+          "weak_relevance_penalty": 0.0485,
+          "diff_mode": "parent",
+          "diff_extraction": "llm",
+          "diff_summary": "Summary: Reverts a Clang dependency-scanning change that suppressed all diagnostics when emitting P1689-format output. The revert restores normal warning emission by removing the diagnostics ignore-all-warnings special case from the scanner initialization path and deletes the corresponding suppression test. This is a scanner/driver behavior change only, with no LLVM vectorizer interaction.\nMechanisms: Dependency scanner diagnostic policy for P1689 output; Warning suppression / diagnostics configuration\nTouched symbols: dependencies::initializeScanCompilerInstance; ScanningOutputFormat::P1689\nRisk relevance: No direct relationship to LoopVectorize, VPlan, or phi-like recipe ordering; Affects clang-scan-deps diagnostic behavior rather than optimizer IR construction\nBuild risk: Removes a test file and one conditional path in clang dependency scanning; Potentially changes warning visibility in scan-deps test coverage"
+        },
+        {
+          "rank": 3,
+          "sha": "40304d8fefc8872dc8dd2c53f67c7303e40ea727",
+          "subject": "Reapply \"[VPlan] Remove manual region removal when simplifying for VF and UF. (#181252)\" (#188589)",
+          "utility": 0.890351,
+          "selection_score": 0.927618,
+          "semantic_score": 6.65,
+          "build_success_prob": 0.92,
+          "feedback_bias": 1.0,
+          "posterior_bad_mass": 0.519437,
+          "calibrated_suspicion_weight": 0.005566,
+          "calibrated_posterior_bad_mass": 0.504848,
+          "calibrated_posterior_info_gain": 0.999932
+        },
+        {
+          "rank": 4,
+          "sha": "76a96922547050594bcd74be1b730e59d88159ec",
+          "subject": "[VPlan] Sink single-scalar replicates in licm (#187047)",
+          "utility": 0.877179,
+          "selection_score": 0.927557,
+          "semantic_score": 6.85,
+          "build_success_prob": 0.92,
+          "feedback_bias": 1.0,
+          "posterior_bad_mass": 0.526644,
+          "calibrated_suspicion_weight": 0.005793,
+          "calibrated_posterior_bad_mass": 0.512775,
+          "calibrated_posterior_info_gain": 0.999529
+        },
+        {
+          "rank": 5,
+          "sha": "f8fe67c998dbc792e28993800edf8c5040c8711c",
+          "subject": "[VPlan] Expose cloneFrom and mergeBlocksIntoPredecessors. (NFC) (#188818)",
+          "utility": 0.860104,
+          "selection_score": 0.926359,
+          "semantic_score": 6.65,
+          "build_success_prob": 0.92,
+          "feedback_bias": 1.0,
+          "posterior_bad_mass": 0.535762,
+          "calibrated_suspicion_weight": 0.005566,
+          "calibrated_posterior_bad_mass": 0.52222,
+          "calibrated_posterior_info_gain": 0.998575
+        }
+      ],
+      "evidence": [
+        "=== validated-bisect-runner ===",
+        "issue: pr193164",
+        "llvm-project: /home/ubuntu/gitbisect-work/worktrees/pr193164-aws10-confidence-frontier-b-20260720a",
+        "commit: d21e1a379878",
+        "jobs: 4",
+        "build type: Release",
+        "assertions: ON",
+        "ccache dir: /home/ubuntu/gitbisect-work/confidence-adaptive-20260720-896b595/.ccache/pr193164-git-bisect",
+        "repro exit code: 0",
+        "verdict: good"
+      ],
+      "log_excerpt": "=== validated-bisect-runner ===\nissue: pr193164\nllvm-project: /home/ubuntu/gitbisect-work/worktrees/pr193164-aws10-confidence-frontier-b-20260720a\ncommit: d21e1a379878\njobs: 4\nbuild type: Release\nassertions: ON\nccache dir: /home/ubuntu/gitbisect-work/confidence-adaptive-20260720-896b595/.ccache/pr193164-git-bisect\nrepro exit code: 0\nverdict: good",
+      "trace_excerpt": "=== validated-bisect-runner ===\nissue: pr193164\nllvm-project: /home/ubuntu/gitbisect-work/worktrees/pr193164-aws10-confidence-frontier-b-20260720a\ncommit: d21e1a379878\njobs: 4\nbuild type: Release\nassertions: ON\nccache dir: /home/ubuntu/gitbisect-work/confidence-adaptive-20260720-896b595/.ccache/pr193164-git-bisect\nrepro exit code: 0\nverdict: good",
+      "runner_duration_sec": 2654.086
+    },
+    {
+      "step": 3,
+      "sha": "93b04091aa38b8d5e6429b58b68ccf9c39f091cc",
+      "subject": "[SPIR-V] Use OpDecorateId instead of OpDecorate for memory aliasing decorations (#190731)",
+      "verdict": "good",
+      "source": "runner",
+      "summary": "verdict: good",
+      "unresolved_before": 2957,
+      "unresolved_after": 1448,
+      "model_top_k": 3,
+      "adaptive_top_k": null,
+      "confidence_adaptive_frontier": {
+        "threshold": 0.35
+      },
+      "model_frontier_decision": {
+        "configured_frontier": "topk",
+        "effective_frontier": "diverse",
+        "confidence": 0.075188,
+        "threshold": 0.35,
+        "reason": "semantic scores are ambiguous; add posterior and midpoint anchors",
+        "top_semantic_candidates": [
+          {
+            "sha": "f8fe67c998dbc792e28993800edf8c5040c8711c",
+            "semantic_score": 6.65,
+            "build_success_prob": 0.92
+          },
+          {
+            "sha": "8a4f21048f5a395763fa127d9c42311a70610234",
+            "semantic_score": 6.15,
+            "build_success_prob": 0.92
+          }
+        ],
+        "selected_frontier_shas": [
+          "f8fe67c998dbc792e28993800edf8c5040c8711c",
+          "93b04091aa38b8d5e6429b58b68ccf9c39f091cc",
+          "3f583d40455fb498373b17ecf058fae553770395"
+        ],
+        "observation_count": 2
+      },
+      "model_score_context": "v1-ce873810b7eef4ec",
+      "model_score_context_payload": {
+        "version": "v1",
+        "unresolved_count": 2957,
+        "candidate_window_sha256": "4149f3516fdaf1c8b77b0223e9c009fc15dc8c073f077eaf7c6ee51144b23f2f",
+        "observation_sha256": "4fc5eb1b98b2bb04dc9f5130e3f506bac4e60a9ae6f38264e40076ac2e80603f",
+        "model_top_k": 3,
+        "model_frontier": "topk",
+        "model_diff_mode": "parent",
+        "model_diff_extraction": "llm",
+        "observation_prompt_mode": "trace-only",
+        "confidence_adaptive_frontier": {
+          "threshold": 0.35
+        }
+      },
+      "candidate_pruning": {
+        "mode": "off",
+        "before_count": 2957,
+        "after_count": 2957,
+        "pruned_count": 0,
+        "keep_prefixes": [],
+        "kept_reason_counts": {},
+        "prune_reason_counts": {},
+        "pruned_examples": []
+      },
+      "search_policy": "calibrated-posterior",
+      "selection_mode": "calibrated-posterior",
+      "selection": {
+        "utility": 0.957901,
+        "selection_score": 1.142224,
+        "semantic_score": 0.2,
+        "build_success_prob": 0.96,
+        "balance_score": 0.997358,
+        "suspicion_weight": 0.000228,
+        "feedback_bias": 1.0,
+        "evidence": [
+          "model-scored",
+          "SPIR-V backend change is unrelated to LoopVectorize/VPlan and the reported assertion",
+          "No plausible mechanism connecting decoration opcode selection to phi-like recipe ordering",
+          "features: SPIR-V backend, opcode printing, aliasing decorations, unrelated target codegen"
+        ],
+        "posterior_bad_mass": 0.498679,
+        "calibrated_suspicion_weight": 0.000114,
+        "calibrated_posterior_bad_mass": 0.487108,
+        "calibrated_posterior_info_gain": 0.99952,
+        "weak_relevance_penalty": 0.048,
+        "diff_mode": "parent",
+        "diff_extraction": "llm",
+        "diff_summary": "Summary: This SPIR-V codegen patch switches memory aliasing decorations from OpDecorate to OpDecorateId so the decoration payload can reference IDs correctly. It updates the SPIR-V instruction printer to recognize both opcode forms and changes the global registry emission site for memory aliasing metadata. Tests were adjusted to validate the new opcode spelling and to run spirv-val on generated output.\nMechanisms: SPIR-V decoration opcode selection; Instruction printing for OpDecorateId; Emission of INTEL memory access aliasing metadata\nTouched symbols: SPIRVInstPrinter::printInst; SPIRVGlobalRegistry::buildMemAliasingOpDecorate\nRisk relevance: Primarily targets SPIR-V backend rather than LoopVectorize/VPlan, so less directly related to the crash signature; Touches instruction encoding/printing logic, which can affect backend correctness if opcodes are misclassified; Changes how ID-referencing decorations are emitted, a potential source of verifier or assembly mismatches\nBuild risk: Backend-specific codegen path and opcode printer behavior changes; Test updates require spirv-tools/spirv-val availability for validation paths; Potential mismatch between textual checks and object emission format"
+      },
+      "top_candidates": [
+        {
+          "rank": 1,
+          "sha": "93b04091aa38b8d5e6429b58b68ccf9c39f091cc",
+          "subject": "[SPIR-V] Use OpDecorateId instead of OpDecorate for memory aliasing decorations (#190731)",
+          "utility": 0.957901,
+          "selection_score": 1.142224,
+          "semantic_score": 0.2,
+          "build_success_prob": 0.96,
+          "feedback_bias": 1.0,
+          "posterior_bad_mass": 0.498679,
+          "calibrated_suspicion_weight": 0.000114,
+          "calibrated_posterior_bad_mass": 0.487108,
+          "calibrated_posterior_info_gain": 0.99952,
+          "weak_relevance_penalty": 0.048,
+          "diff_mode": "parent",
+          "diff_extraction": "llm",
+          "diff_summary": "Summary: This SPIR-V codegen patch switches memory aliasing decorations from OpDecorate to OpDecorateId so the decoration payload can reference IDs correctly. It updates the SPIR-V instruction printer to recognize both opcode forms and changes the global registry emission site for memory aliasing metadata. Tests were adjusted to validate the new opcode spelling and to run spirv-val on generated output.\nMechanisms: SPIR-V decoration opcode selection; Instruction printing for OpDecorateId; Emission of INTEL memory access aliasing metadata\nTouched symbols: SPIRVInstPrinter::printInst; SPIRVGlobalRegistry::buildMemAliasingOpDecorate\nRisk relevance: Primarily targets SPIR-V backend rather than LoopVectorize/VPlan, so less directly related to the crash signature; Touches instruction encoding/printing logic, which can affect backend correctness if opcodes are misclassified; Changes how ID-referencing decorations are emitted, a potential source of verifier or assembly mismatches\nBuild risk: Backend-specific codegen path and opcode printer behavior changes; Test updates require spirv-tools/spirv-val availability for validation paths; Potential mismatch between textual checks and object emission format"
+        },
+        {
+          "rank": 2,
+          "sha": "3f583d40455fb498373b17ecf058fae553770395",
+          "subject": "[VPlan] Optimize FindLast of (binop %IV, live-in) by sinking. (#183911)",
+          "utility": 0.783125,
+          "selection_score": 1.07042,
+          "semantic_score": 7.6,
+          "build_success_prob": 0.78,
+          "feedback_bias": 1.0,
+          "posterior_bad_mass": 0.493457,
+          "calibrated_suspicion_weight": 0.015536,
+          "calibrated_posterior_bad_mass": 0.484359,
+          "calibrated_posterior_info_gain": 0.999294,
+          "diff_mode": "parent",
+          "diff_extraction": "llm",
+          "diff_summary": "Summary: This LoopVectorize/VPlan transform patch extends FindIV reduction optimization to detect and sink simple binary expressions of the induction variable into the scalar epilogue/middle-block flow. It adds helpers to recognize expression-shaped IV uses, clone the binary op for the scalar IV, and selectively prefer sinking only when it does not block sentinel-based epilogue vectorization. The rewrite also changes how ComputeReductionResult and exit users are built, including special handling for commutative and non-commutative operand order, reduced/AnyOf paths, and sentinel selection logic.\nMechanisms: FindIV reduction sinking; VPlan recipe cloning and insertion around scalar IVs; Sentinel-based epilogue vectorization gating; Special-case handling for binary IV expressions and operand order\nTouched symbols: LoopVectorize::hasUnsupportedHeaderPhiRecipe; VPlanTransforms::optimizeFindIVReductions; getExpressionIV; cloneBinOpForScalarIV; vputils::findComputeReductionResult; CheckSentinel; VPBuilder::createSelect; VPBuilder::createNaryOp\nRisk relevance: Directly changes LoopVectorize VPlan recipe construction and the placement of select/compute-reduction recipes; Introduces new cloning/insertion paths for binary recipes that can disturb phi-like recipe ordering; Handles multiple reduction kinds and epilogue-vectorization branches, increasing chance of invariant mismatches; Contains assertions around SCEV/addrec classification that can trip on unexpected plan shapes\nBuild risk: Large transform logic change in llvm/lib/Transforms/Vectorize/LoopVectorize.cpp and VPlanTransforms.cpp; Adds new test coverage for several reduction patterns, indicating broad behavioral surface; Risk of test fragility from recipe ordering and naming changes in emitted IR"
+        },
+        {
+          "rank": 3,
+          "sha": "e382a955c9f8bf07d28daaedcd404ca530df9be4",
+          "subject": "[LV] Update remaining tests to use VPlan cost output (NFC). (#190038)",
+          "utility": 0.893332,
+          "selection_score": 0.930972,
+          "semantic_score": 4.655,
+          "build_success_prob": 0.92,
+          "feedback_bias": 0.7,
+          "posterior_bad_mass": 0.51959,
+          "calibrated_suspicion_weight": 0.008015,
+          "calibrated_posterior_bad_mass": 0.505751,
+          "calibrated_posterior_info_gain": 0.999905
+        },
+        {
+          "rank": 4,
+          "sha": "5a7aab6e9efc5736ed37f24f8546e52d6e192abe",
+          "subject": "[LV][NFC] Remove more unused function attributes from tests (#190786)",
+          "utility": 0.855604,
+          "selection_score": 0.928218,
+          "semantic_score": 4.235,
+          "build_success_prob": 0.92,
+          "feedback_bias": 0.7,
+          "posterior_bad_mass": 0.539443,
+          "calibrated_suspicion_weight": 0.007055,
+          "calibrated_posterior_bad_mass": 0.523782,
+          "calibrated_posterior_info_gain": 0.998367
+        },
+        {
+          "rank": 5,
+          "sha": "2e29531ff4fee12ef883ad9af54208f9eada8f18",
+          "subject": "[VPlan] Properly preserve IsMaterialized in VPlan::duplicate (NFC). (#190849)",
+          "utility": 0.875677,
+          "selection_score": 0.92399,
+          "semantic_score": 2.35,
+          "build_success_prob": 0.92,
+          "feedback_bias": 1.0,
+          "posterior_bad_mass": 0.526624,
+          "calibrated_suspicion_weight": 0.003185,
+          "calibrated_posterior_bad_mass": 0.51234,
+          "calibrated_posterior_info_gain": 0.999561
+        }
+      ],
+      "evidence": [
+        "=== validated-bisect-runner ===",
+        "issue: pr193164",
+        "llvm-project: /home/ubuntu/gitbisect-work/worktrees/pr193164-aws10-confidence-frontier-b-20260720a",
+        "commit: 93b04091aa38",
+        "jobs: 4",
+        "build type: Release",
+        "assertions: ON",
+        "ccache dir: /home/ubuntu/gitbisect-work/confidence-adaptive-20260720-896b595/.ccache/pr193164-git-bisect",
+        "repro exit code: 0",
+        "verdict: good"
+      ],
+      "log_excerpt": "=== validated-bisect-runner ===\nissue: pr193164\nllvm-project: /home/ubuntu/gitbisect-work/worktrees/pr193164-aws10-confidence-frontier-b-20260720a\ncommit: 93b04091aa38\njobs: 4\nbuild type: Release\nassertions: ON\nccache dir: /home/ubuntu/gitbisect-work/confidence-adaptive-20260720-896b595/.ccache/pr193164-git-bisect\nrepro exit code: 0\nverdict: good",
+      "trace_excerpt": "=== validated-bisect-runner ===\nissue: pr193164\nllvm-project: /home/ubuntu/gitbisect-work/worktrees/pr193164-aws10-confidence-frontier-b-20260720a\ncommit: 93b04091aa38\njobs: 4\nbuild type: Release\nassertions: ON\nccache dir: /home/ubuntu/gitbisect-work/confidence-adaptive-20260720-896b595/.ccache/pr193164-git-bisect\nrepro exit code: 0\nverdict: good",
+      "runner_duration_sec": 2439.742
+    },
+    {
+      "step": 4,
+      "sha": "7083e9d8da07d97ab4541405b72e8b7ce8dad181",
+      "subject": "XFAIL symbolizer test for TySan (#191810)",
+      "verdict": "good",
+      "source": "runner",
+      "summary": "verdict: good",
+      "unresolved_before": 1448,
+      "unresolved_after": 731,
+      "model_top_k": 3,
+      "adaptive_top_k": null,
+      "confidence_adaptive_frontier": {
+        "threshold": 0.35
+      },
+      "model_frontier_decision": {
+        "configured_frontier": "topk",
+        "effective_frontier": "diverse",
+        "confidence": 0.058824,
+        "threshold": 0.35,
+        "reason": "semantic scores are ambiguous; add posterior and midpoint anchors",
+        "top_semantic_candidates": [
+          {
+            "sha": "cac7fe50e0fbedfb14028c170d83386efeb1265b",
+            "semantic_score": 5.6525,
+            "build_success_prob": 0.88
+          },
+          {
+            "sha": "ad554651add849014743f68c0decef3e66b3cdbd",
+            "semantic_score": 5.32,
+            "build_success_prob": 0.92
+          }
+        ],
+        "selected_frontier_shas": [
+          "cac7fe50e0fbedfb14028c170d83386efeb1265b",
+          "7083e9d8da07d97ab4541405b72e8b7ce8dad181",
+          "a2bf43d6b18d6a0614b685c8c72432fc90f6dc1c"
+        ],
+        "observation_count": 3
+      },
+      "model_score_context": "v1-ff211408398f33aa",
+      "model_score_context_payload": {
+        "version": "v1",
+        "unresolved_count": 1448,
+        "candidate_window_sha256": "33b0e4a759c14ce95b33ac59880fe89e2d1eeb6f89de9ca95aaf4d334e9601a5",
+        "observation_sha256": "dbaaceb3937cc5e4102c9ac0478532f80faa98e038bdb442d3339d201609919d",
+        "model_top_k": 3,
+        "model_frontier": "topk",
+        "model_diff_mode": "parent",
+        "model_diff_extraction": "llm",
+        "observation_prompt_mode": "trace-only",
+        "confidence_adaptive_frontier": {
+          "threshold": 0.35
+        }
+      },
+      "candidate_pruning": {
+        "mode": "off",
+        "before_count": 1448,
+        "after_count": 1448,
+        "pruned_count": 0,
+        "keep_prefixes": [],
+        "kept_reason_counts": {},
+        "prune_reason_counts": {},
+        "pruned_examples": []
+      },
+      "search_policy": "calibrated-posterior",
+      "selection_mode": "calibrated-posterior",
+      "selection": {
+        "utility": 0.984797,
+        "selection_score": 1.141675,
+        "semantic_score": 0.15,
+        "build_success_prob": 0.99,
+        "balance_score": 0.994019,
+        "suspicion_weight": 0.000365,
+        "feedback_bias": 1.0,
+        "evidence": [
+          "model-scored",
+          "Test-only TySan XFAIL update in compiler-rt, unrelated to LLVM LoopVectorize/VPlan crash mechanism",
+          "No changes to vectorizer, VPlan, phi-like recipes, or recipe ordering",
+          "features: test-only change, sanitizer_common, TySan XFAIL, unrelated to LoopVectorize/VPlan"
+        ],
+        "posterior_bad_mass": 0.49701,
+        "calibrated_suspicion_weight": 0.000165,
+        "calibrated_posterior_bad_mass": 0.475115,
+        "calibrated_posterior_info_gain": 0.998212,
+        "weak_relevance_penalty": 0.0495,
+        "diff_mode": "parent",
+        "diff_extraction": "llm",
+        "diff_summary": "Summary: Test-only change in compiler-rt sanitizer_common that marks two stack/symbolizer cases XFAIL for TySan. It does not touch LLVM optimization or vectorization code, and the diff is limited to test annotations in internal_symbolizer.cpp and print-stack-trace.cpp.\nMechanisms: sanitizer test expectation management; TySan-specific XFAIL gating\nTouched symbols: compiler-rt/test/sanitizer_common/TestCases/Linux/internal_symbolizer.cpp; compiler-rt/test/sanitizer_common/TestCases/print-stack-trace.cpp\nRisk relevance: no LoopVectorize/VPlan/phi ordering changes; no IR construction or recipe ordering impact; unlikely to explain a vectorizer assertion crash\nBuild risk: test-only change; affects sanitizer test coverage rather than compiler code; may hide an existing TySan test failure rather than fix it"
+      },
+      "top_candidates": [
+        {
+          "rank": 1,
+          "sha": "7083e9d8da07d97ab4541405b72e8b7ce8dad181",
+          "subject": "XFAIL symbolizer test for TySan (#191810)",
+          "utility": 0.984797,
+          "selection_score": 1.141675,
+          "semantic_score": 0.15,
+          "build_success_prob": 0.99,
+          "feedback_bias": 1.0,
+          "posterior_bad_mass": 0.49701,
+          "calibrated_suspicion_weight": 0.000165,
+          "calibrated_posterior_bad_mass": 0.475115,
+          "calibrated_posterior_info_gain": 0.998212,
+          "weak_relevance_penalty": 0.0495,
+          "diff_mode": "parent",
+          "diff_extraction": "llm",
+          "diff_summary": "Summary: Test-only change in compiler-rt sanitizer_common that marks two stack/symbolizer cases XFAIL for TySan. It does not touch LLVM optimization or vectorization code, and the diff is limited to test annotations in internal_symbolizer.cpp and print-stack-trace.cpp.\nMechanisms: sanitizer test expectation management; TySan-specific XFAIL gating\nTouched symbols: compiler-rt/test/sanitizer_common/TestCases/Linux/internal_symbolizer.cpp; compiler-rt/test/sanitizer_common/TestCases/print-stack-trace.cpp\nRisk relevance: no LoopVectorize/VPlan/phi ordering changes; no IR construction or recipe ordering impact; unlikely to explain a vectorizer assertion crash\nBuild risk: test-only change; affects sanitizer test coverage rather than compiler code; may hide an existing TySan test failure rather than fix it"
+        },
+        {
+          "rank": 2,
+          "sha": "a2bf43d6b18d6a0614b685c8c72432fc90f6dc1c",
+          "subject": "[ORC] Add MachOBuilder support for LC_UUID load commands. (#191807)",
+          "utility": 0.942649,
+          "selection_score": 1.120392,
+          "semantic_score": 0.12,
+          "build_success_prob": 0.97,
+          "feedback_bias": 1.0,
+          "posterior_bad_mass": 0.514382,
+          "calibrated_suspicion_weight": 0.000122,
+          "calibrated_posterior_bad_mass": 0.49815,
+          "calibrated_posterior_info_gain": 0.99999,
+          "weak_relevance_penalty": 0.0485,
+          "diff_mode": "parent",
+          "diff_extraction": "llm",
+          "diff_summary": "Summary: [ORC] adds MachOBuilder support for LC_UUID load commands by introducing a new template specialization that copies a 16-byte UUID into the command payload. It also adds a unit test that builds a Mach-O object, writes the load command, re-parses it, and checks that the UUID round-trips correctly.\nMechanisms: Mach-O load command serialization; object file parsing/round-trip validation; ORC builder template specialization\nTouched symbols: MachOBuilderLoadCommand<MachO::LC_UUID>; MachOBuilder<MachO64LE>::addLoadCommand; MachOBuilderTest.AddLCUUID; object::ObjectFile::createMachOObjectFile\nRisk relevance: no VPlan or LoopVectorize involvement; no recipe ordering or phi-like handling changes; mostly isolated to ORC Mach-O emission\nBuild risk: adds new template specialization and unit test; touches binary format code and object parsing; could affect Darwin/ORC test coverage but not vectorizer behavior"
+        },
+        {
+          "rank": 3,
+          "sha": "b33c301e818207ef59fcf19ebc295fb623eb0d0d",
+          "subject": "[LV] Extend epilogue vectorization test coverage with dead FORs/FMinMax. (#191799)",
+          "utility": 0.925203,
+          "selection_score": 0.941422,
+          "semantic_score": 4.375,
+          "build_success_prob": 0.92,
+          "feedback_bias": 0.7,
+          "posterior_bad_mass": 0.507649,
+          "calibrated_suspicion_weight": 0.01569,
+          "calibrated_posterior_bad_mass": 0.490805,
+          "calibrated_posterior_info_gain": 0.999756
+        },
+        {
+          "rank": 4,
+          "sha": "ca318abfe65a3224b8b6286f836ee4335fde9d95",
+          "subject": "Reapply \"[VPlan] Handle calls in VPInstruction:opcodeMayReadOrWriteFromMemory.\" (#191886)",
+          "utility": 0.826739,
+          "selection_score": 0.941253,
+          "semantic_score": 5.054,
+          "build_success_prob": 0.92,
+          "feedback_bias": 0.76,
+          "posterior_bad_mass": 0.561465,
+          "calibrated_suspicion_weight": 0.019063,
+          "calibrated_posterior_bad_mass": 0.542999,
+          "calibrated_posterior_info_gain": 0.994658
+        },
+        {
+          "rank": 5,
+          "sha": "f5ef1edaccdbe727de504c5e530d671b3efc06ca",
+          "subject": "Reapply \"[LV] Enable scalable FindLast on RISCV. (#184931)\" (#190938)",
+          "utility": 0.795597,
+          "selection_score": 0.9326,
+          "semantic_score": 4.598,
+          "build_success_prob": 0.92,
+          "feedback_bias": 0.76,
+          "posterior_bad_mass": 0.577069,
+          "calibrated_suspicion_weight": 0.016779,
+          "calibrated_posterior_bad_mass": 0.562196,
+          "calibrated_posterior_info_gain": 0.988809
+        }
+      ],
+      "evidence": [
+        "=== validated-bisect-runner ===",
+        "issue: pr193164",
+        "llvm-project: /home/ubuntu/gitbisect-work/worktrees/pr193164-aws10-confidence-frontier-b-20260720a",
+        "commit: 7083e9d8da07",
+        "jobs: 4",
+        "build type: Release",
+        "assertions: ON",
+        "ccache dir: /home/ubuntu/gitbisect-work/confidence-adaptive-20260720-896b595/.ccache/pr193164-git-bisect",
+        "repro exit code: 0",
+        "verdict: good"
+      ],
+      "log_excerpt": "=== validated-bisect-runner ===\nissue: pr193164\nllvm-project: /home/ubuntu/gitbisect-work/worktrees/pr193164-aws10-confidence-frontier-b-20260720a\ncommit: 7083e9d8da07\njobs: 4\nbuild type: Release\nassertions: ON\nccache dir: /home/ubuntu/gitbisect-work/confidence-adaptive-20260720-896b595/.ccache/pr193164-git-bisect\nrepro exit code: 0\nverdict: good",
+      "trace_excerpt": "=== validated-bisect-runner ===\nissue: pr193164\nllvm-project: /home/ubuntu/gitbisect-work/worktrees/pr193164-aws10-confidence-frontier-b-20260720a\ncommit: 7083e9d8da07\njobs: 4\nbuild type: Release\nassertions: ON\nccache dir: /home/ubuntu/gitbisect-work/confidence-adaptive-20260720-896b595/.ccache/pr193164-git-bisect\nrepro exit code: 0\nverdict: good",
+      "runner_duration_sec": 2449.384
+    },
+    {
+      "step": 5,
+      "sha": "cbe64931e791ba565b4dea3eab30135326531777",
+      "subject": "[AMDGPU] Enable true16 pattern to build vectors (0, vgpr) (#191896)",
+      "verdict": "good",
+      "source": "runner",
+      "summary": "verdict: good",
+      "unresolved_before": 731,
+      "unresolved_after": 365,
+      "model_top_k": 3,
+      "adaptive_top_k": null,
+      "confidence_adaptive_frontier": {
+        "threshold": 0.35
+      },
+      "model_frontier_decision": {
+        "configured_frontier": "topk",
+        "effective_frontier": "diverse",
+        "confidence": 0.058824,
+        "threshold": 0.35,
+        "reason": "semantic scores are ambiguous; add posterior and midpoint anchors",
+        "top_semantic_candidates": [
+          {
+            "sha": "cac7fe50e0fbedfb14028c170d83386efeb1265b",
+            "semantic_score": 5.6525,
+            "build_success_prob": 0.88
+          },
+          {
+            "sha": "ad554651add849014743f68c0decef3e66b3cdbd",
+            "semantic_score": 5.32,
+            "build_success_prob": 0.92
+          }
+        ],
+        "selected_frontier_shas": [
+          "cac7fe50e0fbedfb14028c170d83386efeb1265b",
+          "f943685879121b02d568c0ae7e0c95a89a2323e3",
+          "cbe64931e791ba565b4dea3eab30135326531777"
+        ],
+        "observation_count": 4
+      },
+      "model_score_context": "v1-40120f135d239ea9",
+      "model_score_context_payload": {
+        "version": "v1",
+        "unresolved_count": 731,
+        "candidate_window_sha256": "73dbd00135164ce6d215dbda216aa711ad68bc8cdd8dd50b7c6428a67a3b3617",
+        "observation_sha256": "0a79fd9d2211d804e190deeb070efd1a3695404816995672341ffca5acc52db6",
+        "model_top_k": 3,
+        "model_frontier": "topk",
+        "model_diff_mode": "parent",
+        "model_diff_extraction": "llm",
+        "observation_prompt_mode": "trace-only",
+        "confidence_adaptive_frontier": {
+          "threshold": 0.35
+        }
+      },
+      "candidate_pruning": {
+        "mode": "off",
+        "before_count": 731,
+        "after_count": 731,
+        "pruned_count": 0,
+        "keep_prefixes": [],
+        "kept_reason_counts": {},
+        "prune_reason_counts": {},
+        "pruned_examples": []
+      },
+      "search_policy": "calibrated-posterior",
+      "selection_mode": "calibrated-posterior",
+      "selection": {
+        "utility": 0.782004,
+        "selection_score": 1.086152,
+        "semantic_score": 0.3,
+        "build_success_prob": 0.88,
+        "balance_score": 0.886091,
+        "suspicion_weight": 0.001439,
+        "feedback_bias": 1.0,
+        "evidence": [
+          "model-scored",
+          "AMDGPU codegen pattern change is unrelated to LoopVectorize/VPlan recipe ordering assertion",
+          "Touches vector materialization at target lowering level, but not the VPlan/phi-like recipe construction path",
+          "features: AMDGPU instruction selection, true16 lowering, build_vector legalization"
+        ],
+        "posterior_bad_mass": 0.443045,
+        "calibrated_suspicion_weight": 0.000788,
+        "calibrated_posterior_bad_mass": 0.418503,
+        "calibrated_posterior_info_gain": 0.98075,
+        "weak_relevance_penalty": 0.044,
+        "diff_mode": "parent",
+        "diff_extraction": "llm",
+        "diff_summary": "Summary: Enables a new AMDGPU true16 pattern that recognizes a divergent build_vector forming <2 x i16> from a zero/valued lane and lowers it to a left-shift-based construction using V_LSHLREV_B32_e64. The change is targeted at the SI instruction selector pattern table and is validated by broad codegen test updates that replace multi-instruction b16 packing/unpacking sequences with shorter true16 forms. It primarily affects how vector materialization is legalized and selected for bf16/true16 paths on GFX11+, with corresponding test expectation churn across many bitcast and math cases.\nMechanisms: AMDGPU instruction selection pattern matching for true16; build_vector / divergent bin fragment lowering; b16/bf16 vector materialization via left-shift and dual-issue VALU forms; true16-specific codegen shaping for packed half/bfloat operations\nTouched symbols: SIInstructions.td; UseRealTrue16Insts; DivergentBinFrag<build_vector>; V_LSHLREV_B32_e64\nRisk relevance: Touches target-side lowering logic rather than IR-only changes; Changes vector construction and lane packing order in true16 codegen; Introduces/depends on a new target predicate gate for pattern selection; Broadly rewrites expected instruction ordering in many bf16/bitcast tests, indicating sensitivity to scheduling and recipe/materialization order\nBuild risk: Large test expectation churn across AMDGPU codegen suites; New tablegen pattern may affect instruction selection coverage on multiple subtargets; Can alter generated assembly for many bf16/half conversion paths, increasing regression surface\nRaw diff truncated before extraction: yes"
+      },
+      "top_candidates": [
+        {
+          "rank": 1,
+          "sha": "cbe64931e791ba565b4dea3eab30135326531777",
+          "subject": "[AMDGPU] Enable true16 pattern to build vectors (0, vgpr) (#191896)",
+          "utility": 0.782004,
+          "selection_score": 1.086152,
+          "semantic_score": 0.3,
+          "build_success_prob": 0.88,
+          "feedback_bias": 1.0,
+          "posterior_bad_mass": 0.443045,
+          "calibrated_suspicion_weight": 0.000788,
+          "calibrated_posterior_bad_mass": 0.418503,
+          "calibrated_posterior_info_gain": 0.98075,
+          "weak_relevance_penalty": 0.044,
+          "diff_mode": "parent",
+          "diff_extraction": "llm",
+          "diff_summary": "Summary: Enables a new AMDGPU true16 pattern that recognizes a divergent build_vector forming <2 x i16> from a zero/valued lane and lowers it to a left-shift-based construction using V_LSHLREV_B32_e64. The change is targeted at the SI instruction selector pattern table and is validated by broad codegen test updates that replace multi-instruction b16 packing/unpacking sequences with shorter true16 forms. It primarily affects how vector materialization is legalized and selected for bf16/true16 paths on GFX11+, with corresponding test expectation churn across many bitcast and math cases.\nMechanisms: AMDGPU instruction selection pattern matching for true16; build_vector / divergent bin fragment lowering; b16/bf16 vector materialization via left-shift and dual-issue VALU forms; true16-specific codegen shaping for packed half/bfloat operations\nTouched symbols: SIInstructions.td; UseRealTrue16Insts; DivergentBinFrag<build_vector>; V_LSHLREV_B32_e64\nRisk relevance: Touches target-side lowering logic rather than IR-only changes; Changes vector construction and lane packing order in true16 codegen; Introduces/depends on a new target predicate gate for pattern selection; Broadly rewrites expected instruction ordering in many bf16/bitcast tests, indicating sensitivity to scheduling and recipe/materialization order\nBuild risk: Large test expectation churn across AMDGPU codegen suites; New tablegen pattern may affect instruction selection coverage on multiple subtargets; Can alter generated assembly for many bf16/half conversion paths, increasing regression surface\nRaw diff truncated before extraction: yes"
+        },
+        {
+          "rank": 2,
+          "sha": "f943685879121b02d568c0ae7e0c95a89a2323e3",
+          "subject": "[LV] Add support for absolute difference partial reductions (#188043)",
+          "utility": 0.752101,
+          "selection_score": 1.024225,
+          "semantic_score": 6.4,
+          "build_success_prob": 0.72,
+          "feedback_bias": 1.0,
+          "posterior_bad_mass": 0.507916,
+          "calibrated_suspicion_weight": 0.049084,
+          "calibrated_posterior_bad_mass": 0.487796,
+          "calibrated_posterior_info_gain": 0.99957,
+          "diff_mode": "parent",
+          "diff_extraction": "llm",
+          "diff_summary": "Summary: Adds a new LoopVectorize/VPlan optimization that recognizes partial reductions of the form abs(sub(ext(A), ext(B))) and rewrites them into widened absolute-difference style sequences using freeze, umax/umin or smax/smin, sub, and a final zext. The change extends VPlan pattern matching with a dedicated m_WidenIntrinsic helper, adjusts insertion helpers to preserve typed recipe chaining, and updates the partial-reduction matcher to accept this new operand shape only when both extends and source types line up and the sub/abs chain has a single use. Test coverage is added for unsigned and signed absolute differences, plus negative cases for mismatched extends, source types, and extra users.\nMechanisms: VPlan partial-reduction recognition; Pattern matching for widened intrinsics and cast/sub/abs chains; Recipe insertion API returning typed VPRecipeBase-derived pointers; Freeze + min/max + subtract lowering for absolute-difference reductions; Single-use and type-consistency guards in reduction folding\nTouched symbols: LoopVectorizationPlanner::insert; m_WidenIntrinsic; optimizeExtendsForPartialReduction; matchExtendedReductionOperand; VPWidenIntrinsicRecipe; VPWidenCastRecipe; VPWidenRecipe; VPlanTransforms\nRisk relevance: Touches LoopVectorize/VPlan lowering logic in the exact area of recipe construction and ordering; Introduces new matching/rewrite paths around phi-like reduction operands and widened intrinsics; Adds assertions and cast assumptions on defining recipes and operand types; Manipulates recipe insertion order and SmallVector-backed plan construction indirectly through builder insertion; Relevant to partial-reduction plans, which are sensitive to VPlan recipe sequencing\nBuild risk: Adds new helper templates and const-correctness changes that can affect overload resolution; Expands pattern-match utilities used widely in vectorizer transformations; Adds new IR tests for AArch64 VPlan and loop-vectorize output, increasing backend-specific test surface; Uses explicit casts to VPWidenCastRecipe/VPWidenIntrinsicRecipe that can trip verifier or assertion paths if plan construction changes"
+        },
+        {
+          "rank": 3,
+          "sha": "ac2c986c5830b6c413ddbb0e75b8c1399fdffe85",
+          "subject": "[LV][NFC] Rename ScalarEpilogueLowering to EpilogueLowering (#191871)",
+          "utility": 0.875572,
+          "selection_score": 0.965788,
+          "semantic_score": 4.972,
+          "build_success_prob": 0.92,
+          "feedback_bias": 0.88,
+          "posterior_bad_mass": 0.545807,
+          "calibrated_suspicion_weight": 0.034907,
+          "calibrated_posterior_bad_mass": 0.529208,
+          "calibrated_posterior_info_gain": 0.997537
+        },
+        {
+          "rank": 4,
+          "sha": "ad554651add849014743f68c0decef3e66b3cdbd",
+          "subject": "Reapply \"[VPlan] Extract reverse mask from reverse accesses\" (#189930)",
+          "utility": 0.813492,
+          "selection_score": 0.958512,
+          "semantic_score": 5.32,
+          "build_success_prob": 0.92,
+          "feedback_bias": 0.8,
+          "posterior_bad_mass": 0.57935,
+          "calibrated_suspicion_weight": 0.038246,
+          "calibrated_posterior_bad_mass": 0.571174,
+          "calibrated_posterior_info_gain": 0.985334
+        },
+        {
+          "rank": 5,
+          "sha": "f4e43c43ea7da30c580d5edb1e2f5e12623d1184",
+          "subject": "[VPlan] Remove ComputeAnyOfResult, use ComputeReductionResult. (#190039)",
+          "utility": 0.761535,
+          "selection_score": 0.93668,
+          "semantic_score": 5.054,
+          "build_success_prob": 0.92,
+          "feedback_bias": 0.76,
+          "posterior_bad_mass": 0.605258,
+          "calibrated_suspicion_weight": 0.035687,
+          "calibrated_posterior_bad_mass": 0.607492,
+          "calibrated_posterior_info_gain": 0.966399
+        }
+      ],
+      "evidence": [
+        "=== validated-bisect-runner ===",
+        "issue: pr193164",
+        "llvm-project: /home/ubuntu/gitbisect-work/worktrees/pr193164-aws10-confidence-frontier-b-20260720a",
+        "commit: cbe64931e791",
+        "jobs: 4",
+        "build type: Release",
+        "assertions: ON",
+        "ccache dir: /home/ubuntu/gitbisect-work/confidence-adaptive-20260720-896b595/.ccache/pr193164-git-bisect",
+        "repro exit code: 0",
+        "verdict: good"
+      ],
+      "log_excerpt": "=== validated-bisect-runner ===\nissue: pr193164\nllvm-project: /home/ubuntu/gitbisect-work/worktrees/pr193164-aws10-confidence-frontier-b-20260720a\ncommit: cbe64931e791\njobs: 4\nbuild type: Release\nassertions: ON\nccache dir: /home/ubuntu/gitbisect-work/confidence-adaptive-20260720-896b595/.ccache/pr193164-git-bisect\nrepro exit code: 0\nverdict: good",
+      "trace_excerpt": "=== validated-bisect-runner ===\nissue: pr193164\nllvm-project: /home/ubuntu/gitbisect-work/worktrees/pr193164-aws10-confidence-frontier-b-20260720a\ncommit: cbe64931e791\njobs: 4\nbuild type: Release\nassertions: ON\nccache dir: /home/ubuntu/gitbisect-work/confidence-adaptive-20260720-896b595/.ccache/pr193164-git-bisect\nrepro exit code: 0\nverdict: good",
+      "runner_duration_sec": 2451.485
+    },
+    {
+      "step": 6,
+      "sha": "a4cccdc393ec8930c03d633ecf932e47d914466b",
+      "subject": "[VPlan] Remove constant branches early. (#183397)",
+      "verdict": "good",
+      "source": "runner",
+      "summary": "verdict: good",
+      "unresolved_before": 365,
+      "unresolved_after": 174,
+      "model_top_k": 3,
+      "adaptive_top_k": null,
+      "confidence_adaptive_frontier": {
+        "threshold": 0.35
+      },
+      "model_frontier_decision": {
+        "configured_frontier": "topk",
+        "effective_frontier": "diverse",
+        "confidence": 0.058824,
+        "threshold": 0.35,
+        "reason": "semantic scores are ambiguous; add posterior and midpoint anchors",
+        "top_semantic_candidates": [
+          {
+            "sha": "cac7fe50e0fbedfb14028c170d83386efeb1265b",
+            "semantic_score": 5.6525,
+            "build_success_prob": 0.88
+          },
+          {
+            "sha": "ad554651add849014743f68c0decef3e66b3cdbd",
+            "semantic_score": 5.32,
+            "build_success_prob": 0.92
+          }
+        ],
+        "selected_frontier_shas": [
+          "cac7fe50e0fbedfb14028c170d83386efeb1265b",
+          "a4cccdc393ec8930c03d633ecf932e47d914466b",
+          "a02d955b334c3b65a08159bb869018e8a7f0f81c"
+        ],
+        "observation_count": 5
+      },
+      "model_score_context": "v1-4757325963361b7e",
+      "model_score_context_payload": {
+        "version": "v1",
+        "unresolved_count": 365,
+        "candidate_window_sha256": "a0fc250f1594379e62c0b59fd9162ba5bfdd94243841114a2b1cb8448516805f",
+        "observation_sha256": "48577cb0e0ce950e9eb712ff2884e3eda739e61550bbfc3e797be3f71977a70c",
+        "model_top_k": 3,
+        "model_frontier": "topk",
+        "model_diff_mode": "parent",
+        "model_diff_extraction": "llm",
+        "observation_prompt_mode": "trace-only",
+        "confidence_adaptive_frontier": {
+          "threshold": 0.35
+        }
+      },
+      "candidate_pruning": {
+        "mode": "off",
+        "before_count": 365,
+        "after_count": 365,
+        "pruned_count": 0,
+        "keep_prefixes": [],
+        "kept_reason_counts": {},
+        "prune_reason_counts": {},
+        "pruned_examples": []
+      },
+      "search_policy": "calibrated-posterior",
+      "selection_mode": "calibrated-posterior",
+      "selection": {
+        "utility": 0.90857,
+        "selection_score": 1.211831,
+        "semantic_score": 5.7,
+        "build_success_prob": 0.83,
+        "balance_score": 0.994995,
+        "suspicion_weight": 0.050084,
+        "feedback_bias": 1.0,
+        "evidence": [
+          "model-scored",
+          "Directly changes LoopVectorize/VPlan plan mutation and recipe cleanup, which is close to a phi-like recipe ordering assertion.",
+          "Touches unreachable-block pruning and phi-like recipe value cleanup, a plausible source of ordering/lifetime bugs in VPlan.",
+          "features: VPlan CFG mutation, recipe deletion and cleanup, LoopVectorize plan execution, phi-like recipe handling"
+        ],
+        "posterior_bad_mass": 0.497498,
+        "calibrated_suspicion_weight": 0.074134,
+        "calibrated_posterior_bad_mass": 0.506914,
+        "calibrated_posterior_info_gain": 0.999862,
+        "diff_mode": "parent",
+        "diff_extraction": "llm",
+        "diff_summary": "Summary: Refactors VPlan branch-on-constant elimination to remove constant branches earlier and then explicitly prune newly unreachable blocks, including disconnecting dead edges and clearing incoming values from phi-like recipes. The patch also makes LoopVectorize and VPlan code more null-tolerant around scalar preheaders and scalar headers, and adjusts several planner/execution paths to cope with plans that may lose the scalar preheader after simplification. Test updates reflect fewer synthetic resume phis and revised scalar PHI operands after branch removal.\nMechanisms: constant-branch removal in VPlan CFG; unreachable-block pruning; phi incoming-value cleanup after CFG surgery; null-guarding scalar preheader / header access\nTouched symbols: VPlanTransforms::removeBranchOnConst; LoopVectorizationPlanner::executePlan; LoopVectorizationPlanner::tryToBuildVPlanWithVPRecipes; VPlan::execute; VPlan::getScalarPreheader; VPlan::getScalarHeader; VPlan::headerInGuards\nRisk relevance: Touches VPlan CFG mutation and recipe deletion paths; Adjusts assumptions about existence of scalar preheaders/headers; Potentially impacts phi ordering and recipe lifetime during plan rewriting\nBuild risk: Many LoopVectorize/VPlan lit updates across targets; Behavioral changes in scalar resume value materialization and CFG shape; Nullability changes may hide or expose latent verifier/assert issues"
+      },
+      "top_candidates": [
+        {
+          "rank": 1,
+          "sha": "a4cccdc393ec8930c03d633ecf932e47d914466b",
+          "subject": "[VPlan] Remove constant branches early. (#183397)",
+          "utility": 0.90857,
+          "selection_score": 1.211831,
+          "semantic_score": 5.7,
+          "build_success_prob": 0.83,
+          "feedback_bias": 1.0,
+          "posterior_bad_mass": 0.497498,
+          "calibrated_suspicion_weight": 0.074134,
+          "calibrated_posterior_bad_mass": 0.506914,
+          "calibrated_posterior_info_gain": 0.999862,
+          "diff_mode": "parent",
+          "diff_extraction": "llm",
+          "diff_summary": "Summary: Refactors VPlan branch-on-constant elimination to remove constant branches earlier and then explicitly prune newly unreachable blocks, including disconnecting dead edges and clearing incoming values from phi-like recipes. The patch also makes LoopVectorize and VPlan code more null-tolerant around scalar preheaders and scalar headers, and adjusts several planner/execution paths to cope with plans that may lose the scalar preheader after simplification. Test updates reflect fewer synthetic resume phis and revised scalar PHI operands after branch removal.\nMechanisms: constant-branch removal in VPlan CFG; unreachable-block pruning; phi incoming-value cleanup after CFG surgery; null-guarding scalar preheader / header access\nTouched symbols: VPlanTransforms::removeBranchOnConst; LoopVectorizationPlanner::executePlan; LoopVectorizationPlanner::tryToBuildVPlanWithVPRecipes; VPlan::execute; VPlan::getScalarPreheader; VPlan::getScalarHeader; VPlan::headerInGuards\nRisk relevance: Touches VPlan CFG mutation and recipe deletion paths; Adjusts assumptions about existence of scalar preheaders/headers; Potentially impacts phi ordering and recipe lifetime during plan rewriting\nBuild risk: Many LoopVectorize/VPlan lit updates across targets; Behavioral changes in scalar resume value materialization and CFG shape; Nullability changes may hide or expose latent verifier/assert issues"
+        },
+        {
+          "rank": 2,
+          "sha": "a02d955b334c3b65a08159bb869018e8a7f0f81c",
+          "subject": "[mlir][vector] Fold poison operands into vector.shuffle mask (#190932)",
+          "utility": 0.760272,
+          "selection_score": 1.104273,
+          "semantic_score": 0.2,
+          "build_success_prob": 0.97,
+          "feedback_bias": 1.0,
+          "posterior_bad_mass": 0.39052,
+          "calibrated_suspicion_weight": 0.000805,
+          "calibrated_posterior_bad_mass": 0.360744,
+          "calibrated_posterior_info_gain": 0.943299,
+          "weak_relevance_penalty": 0.0485,
+          "diff_mode": "parent",
+          "diff_extraction": "llm",
+          "diff_summary": "Summary: Adds MLIR vector shuffle folding that treats poison operands specially: instead of only folding identity masks and constant shuffles, the fold now can rewrite mask entries to the poison index when one operand is poison, and it factors out helpers for identity-mask folding, poison-input folding, and constant-input evaluation. The change also updates canonicalization tests and multiple vector-dialect expected outputs to reflect the new poison-to-mask behavior and -1 mask encodings.\nMechanisms: vector.shuffle folding; poison propagation into shuffle masks; identity-mask canonicalization; constant 1-D shuffle evaluation\nTouched symbols: vector::ShuffleOp::fold; foldShuffleIdentityMask; foldShufflePoisonOperandToMask; foldShufflePoisonInputs; foldShuffleConstantInputs\nRisk relevance: Touches value-folding semantics in a core vector op; Introduces in-place mask mutation and poison-index rewriting; Could alter downstream canonicalization and constant folding behavior\nBuild risk: Broad test expectation updates across multiple MLIR dialects; Changes to shuffle folding may affect legalization/canonicalization pipelines"
+        },
+        {
+          "rank": 3,
+          "sha": "8364db5096b6baa00904242eb323d66f1ef96e94",
+          "subject": "[LV] Fix the cost of first order recurrence splice (#192473)",
+          "utility": 0.894697,
+          "selection_score": 0.992518,
+          "semantic_score": 5.0,
+          "build_success_prob": 0.92,
+          "feedback_bias": 0.8,
+          "posterior_bad_mass": 0.446974,
+          "calibrated_suspicion_weight": 0.062115,
+          "calibrated_posterior_bad_mass": 0.432656,
+          "calibrated_posterior_info_gain": 0.986874
+        },
+        {
+          "rank": 4,
+          "sha": "6383afba60e16a9b5b9c62e68fe214f870dd3183",
+          "subject": "[VPlan] Use vputils helper in Blend::usesFirstLaneOnly (NFC) (#189697)",
+          "utility": 0.900859,
+          "selection_score": 0.955236,
+          "semantic_score": 2.835,
+          "build_success_prob": 0.92,
+          "feedback_bias": 0.7,
+          "posterior_bad_mass": 0.533637,
+          "calibrated_suspicion_weight": 0.028876,
+          "calibrated_posterior_bad_mass": 0.540786,
+          "calibrated_posterior_info_gain": 0.995195
+        },
+        {
+          "rank": 5,
+          "sha": "efd8a91ee1e10e10fa7eeab06abbee91c5c5232d",
+          "subject": "[VPlan] Split sinkable FindLastIV tail folding tests into new test. NFC (#191195)",
+          "utility": 0.818194,
+          "selection_score": 0.943245,
+          "semantic_score": 2.835,
+          "build_success_prob": 0.92,
+          "feedback_bias": 0.7,
+          "posterior_bad_mass": 0.576431,
+          "calibrated_suspicion_weight": 0.028876,
+          "calibrated_posterior_bad_mass": 0.577272,
+          "calibrated_posterior_info_gain": 0.982702
+        }
+      ],
+      "evidence": [
+        "=== validated-bisect-runner ===",
+        "issue: pr193164",
+        "llvm-project: /home/ubuntu/gitbisect-work/worktrees/pr193164-aws10-confidence-frontier-b-20260720a",
+        "commit: a4cccdc393ec",
+        "jobs: 4",
+        "build type: Release",
+        "assertions: ON",
+        "ccache dir: /home/ubuntu/gitbisect-work/confidence-adaptive-20260720-896b595/.ccache/pr193164-git-bisect",
+        "repro exit code: 0",
+        "verdict: good"
+      ],
+      "log_excerpt": "=== validated-bisect-runner ===\nissue: pr193164\nllvm-project: /home/ubuntu/gitbisect-work/worktrees/pr193164-aws10-confidence-frontier-b-20260720a\ncommit: a4cccdc393ec\njobs: 4\nbuild type: Release\nassertions: ON\nccache dir: /home/ubuntu/gitbisect-work/confidence-adaptive-20260720-896b595/.ccache/pr193164-git-bisect\nrepro exit code: 0\nverdict: good",
+      "trace_excerpt": "=== validated-bisect-runner ===\nissue: pr193164\nllvm-project: /home/ubuntu/gitbisect-work/worktrees/pr193164-aws10-confidence-frontier-b-20260720a\ncommit: a4cccdc393ec\njobs: 4\nbuild type: Release\nassertions: ON\nccache dir: /home/ubuntu/gitbisect-work/confidence-adaptive-20260720-896b595/.ccache/pr193164-git-bisect\nrepro exit code: 0\nverdict: good",
+      "runner_duration_sec": 2142.222
+    },
+    {
+      "step": 7,
+      "sha": "f6916bded9f5306057824c5be7c5a877baa1bdc3",
+      "subject": "[LV] Modernize outer loop tests check lines (NFC) (#192689)",
+      "verdict": "good",
+      "source": "runner",
+      "summary": "verdict: good",
+      "unresolved_before": 174,
+      "unresolved_after": 94,
+      "model_top_k": 3,
+      "adaptive_top_k": null,
+      "confidence_adaptive_frontier": {
+        "threshold": 0.35
+      },
+      "model_frontier_decision": {
+        "configured_frontier": "topk",
+        "effective_frontier": "topk",
+        "confidence": 0.392,
+        "threshold": 0.35,
+        "reason": "semantic leader confidence meets threshold; use semantic top-k",
+        "top_semantic_candidates": [
+          {
+            "sha": "f6916bded9f5306057824c5be7c5a877baa1bdc3",
+            "semantic_score": 4.375,
+            "build_success_prob": 0.92
+          },
+          {
+            "sha": "cac7fe50e0fbedfb14028c170d83386efeb1265b",
+            "semantic_score": 2.66,
+            "build_success_prob": 0.88
+          }
+        ],
+        "selected_frontier_shas": [
+          "f6916bded9f5306057824c5be7c5a877baa1bdc3",
+          "cac7fe50e0fbedfb14028c170d83386efeb1265b",
+          "efd8a91ee1e10e10fa7eeab06abbee91c5c5232d"
+        ],
+        "observation_count": 6
+      },
+      "model_score_context": "v1-dcfe9858df1453f9",
+      "model_score_context_payload": {
+        "version": "v1",
+        "unresolved_count": 174,
+        "candidate_window_sha256": "eaf160c0b764f91daa0ee985fb2fe6c190fc24a56054d28068451658e703e4c3",
+        "observation_sha256": "6c9f017ae759560470c474ea826e20aea14651b43c9c7ecfbb4466a9bbe09825",
+        "model_top_k": 3,
+        "model_frontier": "topk",
+        "model_diff_mode": "parent",
+        "model_diff_extraction": "llm",
+        "observation_prompt_mode": "trace-only",
+        "confidence_adaptive_frontier": {
+          "threshold": 0.35
+        }
+      },
+      "candidate_pruning": {
+        "mode": "off",
+        "before_count": 174,
+        "after_count": 174,
+        "pruned_count": 0,
+        "keep_prefixes": [],
+        "kept_reason_counts": {},
+        "prune_reason_counts": {},
+        "pruned_examples": []
+      },
+      "search_policy": "calibrated-posterior",
+      "selection_mode": "calibrated-posterior",
+      "selection": {
+        "utility": 0.742399,
+        "selection_score": 1.140574,
+        "semantic_score": 1.4,
+        "build_success_prob": 0.97,
+        "balance_score": 0.717358,
+        "suspicion_weight": 0.033457,
+        "feedback_bias": 1.0,
+        "evidence": [
+          "model-scored",
+          "Pure FileCheck regeneration/NFC across outer-loop vectorization tests; no IR transformation or VPlan construction logic changed.",
+          "Shares the LoopVectorize test subtree, but the diff is formatting-only and only weakly related to the specific phi-like recipe ordering crash.",
+          "features: outer-loop-vectorize-tests, filecheck-regeneration, test-only-nfc"
+        ],
+        "posterior_bad_mass": 0.358679,
+        "calibrated_suspicion_weight": 0.0371,
+        "calibrated_posterior_bad_mass": 0.269082,
+        "calibrated_posterior_info_gain": 0.840144,
+        "diff_mode": "parent",
+        "diff_extraction": "llm",
+        "diff_summary": "Summary: Test-only NFC update for LoopVectorize outer-loop coverage. The commit rewrites a large set of outer-loop vectorization and VPlan FileCheck expectations to match newer printed naming/formatting conventions (e.g. renamed blocks, adjusted labels, empty-check spacing, and updated autogenerated check metadata). It does not change LLVM transformation logic, VPlan construction, or recipe ordering; the diff is limited to regression tests and expected output normalization.\nMechanisms: LoopVectorize outer-loop test expectation normalization; VPlan/IR print-format churn in FileCheck expectations; Autogenerated check regeneration for vectorized outer loops\nTouched symbols: llvm/test/Transforms/LoopVectorize/AArch64/outer_loop_prefer_scalable.ll; llvm/test/Transforms/LoopVectorize/AArch64/outer_loop_test1_no_explicit_vect_width.ll; llvm/test/Transforms/LoopVectorize/X86/outer_loop_test1_no_explicit_vect_width.ll; llvm/test/Transforms/LoopVectorize/dbg-outer-loop-vect.ll; llvm/test/Transforms/LoopVectorize/outer-loop-vec-phi-predecessor-order.ll; llvm/test/Transforms/LoopVectorize/outer_loop_scalable.ll; llvm/test/Transforms/LoopVectorize/outer_loop_test1.ll; llvm/test/Transforms/LoopVectorize/outer_loop_test2.ll\nRisk relevance: No IR or pass logic changes in LoopVectorize/VPlan despite broad test surface; Touches outer-loop vectorization test coverage, which is adjacent to VPlan recipe ordering but only through expectations; Updated checks around phi placement and loop block naming could mask or expose printer-related test failures, not runtime crashes\nBuild risk: High test churn across many loop-vectorize files may require FileCheck updates on downstream branches; Autogenerated assertion version bumps can cause test-only conflicts with nearby VPlan formatting changes; No source code edits, so compile-time risk is low"
+      },
+      "top_candidates": [
+        {
+          "rank": 1,
+          "sha": "f6916bded9f5306057824c5be7c5a877baa1bdc3",
+          "subject": "[LV] Modernize outer loop tests check lines (NFC) (#192689)",
+          "utility": 0.742399,
+          "selection_score": 1.140574,
+          "semantic_score": 1.4,
+          "build_success_prob": 0.97,
+          "feedback_bias": 1.0,
+          "posterior_bad_mass": 0.358679,
+          "calibrated_suspicion_weight": 0.0371,
+          "calibrated_posterior_bad_mass": 0.269082,
+          "calibrated_posterior_info_gain": 0.840144,
+          "diff_mode": "parent",
+          "diff_extraction": "llm",
+          "diff_summary": "Summary: Test-only NFC update for LoopVectorize outer-loop coverage. The commit rewrites a large set of outer-loop vectorization and VPlan FileCheck expectations to match newer printed naming/formatting conventions (e.g. renamed blocks, adjusted labels, empty-check spacing, and updated autogenerated check metadata). It does not change LLVM transformation logic, VPlan construction, or recipe ordering; the diff is limited to regression tests and expected output normalization.\nMechanisms: LoopVectorize outer-loop test expectation normalization; VPlan/IR print-format churn in FileCheck expectations; Autogenerated check regeneration for vectorized outer loops\nTouched symbols: llvm/test/Transforms/LoopVectorize/AArch64/outer_loop_prefer_scalable.ll; llvm/test/Transforms/LoopVectorize/AArch64/outer_loop_test1_no_explicit_vect_width.ll; llvm/test/Transforms/LoopVectorize/X86/outer_loop_test1_no_explicit_vect_width.ll; llvm/test/Transforms/LoopVectorize/dbg-outer-loop-vect.ll; llvm/test/Transforms/LoopVectorize/outer-loop-vec-phi-predecessor-order.ll; llvm/test/Transforms/LoopVectorize/outer_loop_scalable.ll; llvm/test/Transforms/LoopVectorize/outer_loop_test1.ll; llvm/test/Transforms/LoopVectorize/outer_loop_test2.ll\nRisk relevance: No IR or pass logic changes in LoopVectorize/VPlan despite broad test surface; Touches outer-loop vectorization test coverage, which is adjacent to VPlan recipe ordering but only through expectations; Updated checks around phi placement and loop block naming could mask or expose printer-related test failures, not runtime crashes\nBuild risk: High test churn across many loop-vectorize files may require FileCheck updates on downstream branches; Autogenerated assertion version bumps can cause test-only conflicts with nearby VPlan formatting changes; No source code edits, so compile-time risk is low"
+        },
+        {
+          "rank": 2,
+          "sha": "5bcac7bb5c4957138c929a13359d1350994230bb",
+          "subject": "[VPlan] Fix isLatch to handle BranchOnTwoConds, check verifier.(NFC) (#192808)",
+          "utility": 0.663385,
+          "selection_score": 1.013044,
+          "semantic_score": 2.21,
+          "build_success_prob": 0.92,
+          "feedback_bias": 0.52,
+          "posterior_bad_mass": 0.673909,
+          "calibrated_suspicion_weight": 0.068712,
+          "calibrated_posterior_bad_mass": 0.524644,
+          "calibrated_posterior_info_gain": 0.998247
+        },
+        {
+          "rank": 3,
+          "sha": "e70a2e84ce954c58c2da5bfbee7f69b8c2b1109d",
+          "subject": "[VPlan] Allow same predecessor multiple times in the verifier. (NFC) (#192809)",
+          "utility": 0.72851,
+          "selection_score": 0.944573,
+          "semantic_score": 0.94,
+          "build_success_prob": 0.92,
+          "feedback_bias": 0.4,
+          "posterior_bad_mass": 0.621094,
+          "calibrated_suspicion_weight": 0.021668,
+          "calibrated_posterior_bad_mass": 0.455932,
+          "calibrated_posterior_info_gain": 0.994389
+        },
+        {
+          "rank": 4,
+          "sha": "26b7fd51095221e03ce2a2170b6d168652ba3c7d",
+          "subject": "[VPlan] Support plain CFG plans in the verifier. (#181817)",
+          "utility": 0.444436,
+          "selection_score": 0.940594,
+          "semantic_score": 1.33,
+          "build_success_prob": 0.92,
+          "feedback_bias": 0.2,
+          "posterior_bad_mass": 0.772896,
+          "calibrated_suspicion_weight": 0.034618,
+          "calibrated_posterior_bad_mass": 0.598335,
+          "calibrated_posterior_info_gain": 0.971916
+        },
+        {
+          "rank": 5,
+          "sha": "d1dcce6b6580edfd4c501c17ded6b7cb86ae4ccf",
+          "subject": "[X86] Add crash test coverage for #169485 (#192797)",
+          "utility": 0.795431,
+          "selection_score": 0.930746,
+          "semantic_score": 0.85,
+          "build_success_prob": 0.92,
+          "feedback_bias": 1.0,
+          "posterior_bad_mass": 0.584578,
+          "calibrated_suspicion_weight": 0.018916,
+          "calibrated_posterior_bad_mass": 0.425137,
+          "calibrated_posterior_info_gain": 0.983768
+        }
+      ],
+      "evidence": [
+        "=== validated-bisect-runner ===",
+        "issue: pr193164",
+        "llvm-project: /home/ubuntu/gitbisect-work/worktrees/pr193164-aws10-confidence-frontier-b-20260720a",
+        "commit: f6916bded9f5",
+        "jobs: 4",
+        "build type: Release",
+        "assertions: ON",
+        "ccache dir: /home/ubuntu/gitbisect-work/confidence-adaptive-20260720-896b595/.ccache/pr193164-git-bisect",
+        "repro exit code: 0",
+        "verdict: good"
+      ],
+      "log_excerpt": "=== validated-bisect-runner ===\nissue: pr193164\nllvm-project: /home/ubuntu/gitbisect-work/worktrees/pr193164-aws10-confidence-frontier-b-20260720a\ncommit: f6916bded9f5\njobs: 4\nbuild type: Release\nassertions: ON\nccache dir: /home/ubuntu/gitbisect-work/confidence-adaptive-20260720-896b595/.ccache/pr193164-git-bisect\nrepro exit code: 0\nverdict: good",
+      "trace_excerpt": "=== validated-bisect-runner ===\nissue: pr193164\nllvm-project: /home/ubuntu/gitbisect-work/worktrees/pr193164-aws10-confidence-frontier-b-20260720a\ncommit: f6916bded9f5\njobs: 4\nbuild type: Release\nassertions: ON\nccache dir: /home/ubuntu/gitbisect-work/confidence-adaptive-20260720-896b595/.ccache/pr193164-git-bisect\nrepro exit code: 0\nverdict: good",
+      "runner_duration_sec": 2068.375
+    },
+    {
+      "step": 8,
+      "sha": "e70a2e84ce954c58c2da5bfbee7f69b8c2b1109d",
+      "subject": "[VPlan] Allow same predecessor multiple times in the verifier. (NFC) (#192809)",
+      "verdict": "good",
+      "source": "runner",
+      "summary": "verdict: good",
+      "unresolved_before": 94,
+      "unresolved_after": 33,
+      "model_top_k": 3,
+      "adaptive_top_k": null,
+      "confidence_adaptive_frontier": {
+        "threshold": 0.35
+      },
+      "model_frontier_decision": {
+        "configured_frontier": "topk",
+        "effective_frontier": "diverse",
+        "confidence": 0.169173,
+        "threshold": 0.35,
+        "reason": "semantic scores are ambiguous; add posterior and midpoint anchors",
+        "top_semantic_candidates": [
+          {
+            "sha": "cac7fe50e0fbedfb14028c170d83386efeb1265b",
+            "semantic_score": 2.66,
+            "build_success_prob": 0.88
+          },
+          {
+            "sha": "5bcac7bb5c4957138c929a13359d1350994230bb",
+            "semantic_score": 2.21,
+            "build_success_prob": 0.92
+          }
+        ],
+        "selected_frontier_shas": [
+          "cac7fe50e0fbedfb14028c170d83386efeb1265b",
+          "e70a2e84ce954c58c2da5bfbee7f69b8c2b1109d",
+          "703dcde39dff4d4a98db6d964ab09603c16c4b8d"
+        ],
+        "observation_count": 7
+      },
+      "model_score_context": "v1-ee434006e4b882ba",
+      "model_score_context_payload": {
+        "version": "v1",
+        "unresolved_count": 94,
+        "candidate_window_sha256": "bae481b3e26e683e2941bcafa2c2f9cbdecd2be32273bd9dc5c473da6a771bd8",
+        "observation_sha256": "14e4858209b1de8523d4ea30b694a487bd3c87cb4f3d47d57d765ef06121ebdf",
+        "model_top_k": 3,
+        "model_frontier": "topk",
+        "model_diff_mode": "parent",
+        "model_diff_extraction": "llm",
+        "observation_prompt_mode": "trace-only",
+        "confidence_adaptive_frontier": {
+          "threshold": 0.35
+        }
+      },
+      "candidate_pruning": {
+        "mode": "off",
+        "before_count": 94,
+        "after_count": 94,
+        "pruned_count": 0,
+        "keep_prefixes": [],
+        "kept_reason_counts": {},
+        "prune_reason_counts": {},
+        "pruned_examples": []
+      },
+      "search_policy": "calibrated-posterior",
+      "selection_mode": "calibrated-posterior",
+      "selection": {
+        "utility": 1.262483,
+        "selection_score": 1.603816,
+        "semantic_score": 5.8,
+        "build_success_prob": 0.93,
+        "balance_score": 0.992532,
+        "suspicion_weight": 0.183861,
+        "feedback_bias": 1.0,
+        "evidence": [
+          "model-scored",
+          "Directly changes VPlan verifier logic in the LoopVectorize/VPlan subsystem named by the crash context.",
+          "Relaxing duplicate predecessor handling can affect structural assertions around recipe/block ordering, though it is verifier-focused rather than construction-focused.",
+          "features: VPlan verifier relaxation, duplicate predecessor handling, LoopVectorize structural invariant"
+        ],
+        "posterior_bad_mass": 0.503734,
+        "calibrated_suspicion_weight": 0.264866,
+        "calibrated_posterior_bad_mass": 0.43862,
+        "calibrated_posterior_info_gain": 0.989102,
+        "diff_mode": "parent",
+        "diff_extraction": "llm",
+        "diff_summary": "Summary: Relaxes the VPlan verifier so duplicate predecessor/successor entries are accepted, removing the generic duplicate-check helper and updating verifier tests to expect success for conditional terminators. The change narrows verifier strictness around CFG-like block edge lists, aligning verification with constructs that legitimately repeat edges, such as switch-like or conditional-region forms.\nMechanisms: verifier predicate relaxation; duplicate edge-list validation removal; test expectation inversion for CFG edge multiplicity\nTouched symbols: VPlanVerifier::verifyBlock; VPlanVerifier::verifyVPBasicBlock; hasDuplicates; VPVerifierTest.DuplicateSuccessorsOutsideRegion; VPVerifierTest.DuplicateSuccessorsInsideRegion\nRisk relevance: Directly changes VPlan verification invariants; May mask or expose structural plan bugs involving predecessor/successor ordering; Touches region/block consistency checks that can gate LoopVectorize assertions\nBuild risk: Verifier behavior change can alter debug-only failure modes and test expectations; Unit tests switch from stderr-capturing failure checks to success checks"
+      },
+      "top_candidates": [
+        {
+          "rank": 1,
+          "sha": "e70a2e84ce954c58c2da5bfbee7f69b8c2b1109d",
+          "subject": "[VPlan] Allow same predecessor multiple times in the verifier. (NFC) (#192809)",
+          "utility": 1.262483,
+          "selection_score": 1.603816,
+          "semantic_score": 5.8,
+          "build_success_prob": 0.93,
+          "feedback_bias": 1.0,
+          "posterior_bad_mass": 0.503734,
+          "calibrated_suspicion_weight": 0.264866,
+          "calibrated_posterior_bad_mass": 0.43862,
+          "calibrated_posterior_info_gain": 0.989102,
+          "diff_mode": "parent",
+          "diff_extraction": "llm",
+          "diff_summary": "Summary: Relaxes the VPlan verifier so duplicate predecessor/successor entries are accepted, removing the generic duplicate-check helper and updating verifier tests to expect success for conditional terminators. The change narrows verifier strictness around CFG-like block edge lists, aligning verification with constructs that legitimately repeat edges, such as switch-like or conditional-region forms.\nMechanisms: verifier predicate relaxation; duplicate edge-list validation removal; test expectation inversion for CFG edge multiplicity\nTouched symbols: VPlanVerifier::verifyBlock; VPlanVerifier::verifyVPBasicBlock; hasDuplicates; VPVerifierTest.DuplicateSuccessorsOutsideRegion; VPVerifierTest.DuplicateSuccessorsInsideRegion\nRisk relevance: Directly changes VPlan verification invariants; May mask or expose structural plan bugs involving predecessor/successor ordering; Touches region/block consistency checks that can gate LoopVectorize assertions\nBuild risk: Verifier behavior change can alter debug-only failure modes and test expectations; Unit tests switch from stderr-capturing failure checks to success checks"
+        },
+        {
+          "rank": 2,
+          "sha": "5bcac7bb5c4957138c929a13359d1350994230bb",
+          "subject": "[VPlan] Fix isLatch to handle BranchOnTwoConds, check verifier.(NFC) (#192808)",
+          "utility": 0.894106,
+          "selection_score": 1.019027,
+          "semantic_score": 2.21,
+          "build_success_prob": 0.92,
+          "feedback_bias": 0.52,
+          "posterior_bad_mass": 0.573791,
+          "calibrated_suspicion_weight": 0.071999,
+          "calibrated_posterior_bad_mass": 0.510619,
+          "calibrated_posterior_info_gain": 0.999675
+        },
+        {
+          "rank": 3,
+          "sha": "26b7fd51095221e03ce2a2170b6d168652ba3c7d",
+          "subject": "[VPlan] Support plain CFG plans in the verifier. (#181817)",
+          "utility": 0.588384,
+          "selection_score": 0.948351,
+          "semantic_score": 1.33,
+          "build_success_prob": 0.92,
+          "feedback_bias": 0.2,
+          "posterior_bad_mass": 0.705093,
+          "calibrated_suspicion_weight": 0.036274,
+          "calibrated_posterior_bad_mass": 0.587835,
+          "calibrated_posterior_info_gain": 0.977623
+        },
+        {
+          "rank": 4,
+          "sha": "4cf7796dfb540215f06ba9ad5fe92534f8ab034b",
+          "subject": "[VPlan] Mark DerivedIV unconditionally single-scalar (NFC) (#189706)",
+          "utility": 0.692746,
+          "selection_score": 0.928106,
+          "semantic_score": 0.47,
+          "build_success_prob": 0.92,
+          "feedback_bias": 0.2,
+          "posterior_bad_mass": 0.634402,
+          "calibrated_suspicion_weight": 0.008907,
+          "calibrated_posterior_bad_mass": 0.539424,
+          "calibrated_posterior_info_gain": 0.995511
+        },
+        {
+          "rank": 5,
+          "sha": "4113d79a20253cd34820d8ff2031c7e0307b9e66",
+          "subject": "[NFC][CodeGen] Optimize hash table lookups in MachineBlockHashInfo (#192823)",
+          "utility": 0.744496,
+          "selection_score": 0.880502,
+          "semantic_score": 0.342,
+          "build_success_prob": 0.92,
+          "feedback_bias": 0.76,
+          "posterior_bad_mass": 0.60397,
+          "calibrated_suspicion_weight": 0.005799,
+          "calibrated_posterior_bad_mass": 0.523663,
+          "calibrated_posterior_info_gain": 0.998384,
+          "weak_relevance_penalty": 0.046
+        }
+      ],
+      "evidence": [
+        "=== validated-bisect-runner ===",
+        "issue: pr193164",
+        "llvm-project: /home/ubuntu/gitbisect-work/worktrees/pr193164-aws10-confidence-frontier-b-20260720a",
+        "commit: e70a2e84ce95",
+        "jobs: 4",
+        "build type: Release",
+        "assertions: ON",
+        "ccache dir: /home/ubuntu/gitbisect-work/confidence-adaptive-20260720-896b595/.ccache/pr193164-git-bisect",
+        "repro exit code: 0",
+        "verdict: good"
+      ],
+      "log_excerpt": "=== validated-bisect-runner ===\nissue: pr193164\nllvm-project: /home/ubuntu/gitbisect-work/worktrees/pr193164-aws10-confidence-frontier-b-20260720a\ncommit: e70a2e84ce95\njobs: 4\nbuild type: Release\nassertions: ON\nccache dir: /home/ubuntu/gitbisect-work/confidence-adaptive-20260720-896b595/.ccache/pr193164-git-bisect\nrepro exit code: 0\nverdict: good",
+      "trace_excerpt": "=== validated-bisect-runner ===\nissue: pr193164\nllvm-project: /home/ubuntu/gitbisect-work/worktrees/pr193164-aws10-confidence-frontier-b-20260720a\ncommit: e70a2e84ce95\njobs: 4\nbuild type: Release\nassertions: ON\nccache dir: /home/ubuntu/gitbisect-work/confidence-adaptive-20260720-896b595/.ccache/pr193164-git-bisect\nrepro exit code: 0\nverdict: good",
+      "runner_duration_sec": 915.729
+    },
+    {
+      "step": 9,
+      "sha": "26b7fd51095221e03ce2a2170b6d168652ba3c7d",
+      "subject": "[VPlan] Support plain CFG plans in the verifier. (#181817)",
+      "verdict": "good",
+      "source": "runner",
+      "summary": "verdict: good",
+      "unresolved_before": 33,
+      "unresolved_after": 13,
+      "model_top_k": 3,
+      "adaptive_top_k": null,
+      "confidence_adaptive_frontier": {
+        "threshold": 0.35
+      },
+      "model_frontier_decision": {
+        "configured_frontier": "topk",
+        "effective_frontier": "topk",
+        "confidence": 0.5,
+        "threshold": 0.35,
+        "reason": "semantic leader confidence meets threshold; use semantic top-k",
+        "top_semantic_candidates": [
+          {
+            "sha": "cac7fe50e0fbedfb14028c170d83386efeb1265b",
+            "semantic_score": 2.66,
+            "build_success_prob": 0.88
+          },
+          {
+            "sha": "26b7fd51095221e03ce2a2170b6d168652ba3c7d",
+            "semantic_score": 1.33,
+            "build_success_prob": 0.92
+          }
+        ],
+        "selected_frontier_shas": [
+          "cac7fe50e0fbedfb14028c170d83386efeb1265b",
+          "26b7fd51095221e03ce2a2170b6d168652ba3c7d",
+          "5bcac7bb5c4957138c929a13359d1350994230bb"
+        ],
+        "observation_count": 8
+      },
+      "model_score_context": "v1-faf78bfa4cee4888",
+      "model_score_context_payload": {
+        "version": "v1",
+        "unresolved_count": 33,
+        "candidate_window_sha256": "fad5b92d132f41bcfbb7e967371f2d75c24b303f5c56d72fca060d347ae7c911",
+        "observation_sha256": "4b2eb965291427972614b03e93a55ef33ef306409d5fa992d8a55bc73f048d40",
+        "model_top_k": 3,
+        "model_frontier": "topk",
+        "model_diff_mode": "parent",
+        "model_diff_extraction": "llm",
+        "observation_prompt_mode": "trace-only",
+        "confidence_adaptive_frontier": {
+          "threshold": 0.35
+        }
+      },
+      "candidate_pruning": {
+        "mode": "off",
+        "before_count": 33,
+        "after_count": 33,
+        "pruned_count": 0,
+        "keep_prefixes": [],
+        "kept_reason_counts": {},
+        "prune_reason_counts": {},
+        "pruned_examples": []
+      },
+      "search_policy": "calibrated-posterior",
+      "selection_mode": "calibrated-posterior",
+      "selection": {
+        "utility": 1.067704,
+        "selection_score": 1.332964,
+        "semantic_score": 5.8,
+        "build_success_prob": 0.72,
+        "balance_score": 0.933604,
+        "suspicion_weight": 0.294192,
+        "feedback_bias": 1.0,
+        "evidence": [
+          "model-scored",
+          "Major LoopVectorize/VPlan refactor that rewires canonical IV handling and recipe ordering, which can directly affect phi-like recipe placement.",
+          "Touches LoopVectorize.cpp and VPlan construction/verification paths, matching the reported crash area more closely than verifier-only or NFC changes.",
+          "features: LoopVectorize, VPlan construction, recipe ordering"
+        ],
+        "posterior_bad_mass": 0.533198,
+        "calibrated_suspicion_weight": 0.34403,
+        "calibrated_posterior_bad_mass": 0.473468,
+        "calibrated_posterior_info_gain": 0.997968,
+        "diff_mode": "parent",
+        "diff_extraction": "llm",
+        "diff_summary": "Summary: Major VPlan refactor that makes the canonical induction variable a region-owned `VPRegionValue` instead of a dedicated header phi recipe, and threads that change through LoopVectorize, VPlan transforms, analysis, printing, cloning, verification, and numerous tests. The patch changes loop-region construction to carry canonical-IV type/debug metadata, introduces helpers to find or materialize the canonical-IV increment separately, updates type/uniformity/SCEV reasoning to treat region values as scalar-uniform, and adjusts many transformations to preserve or rewrite uses around the new region-level IV model. It also changes recipe ordering and insertion points for IV-related and lane-mask/current-iteration recipes, which is exactly the kind of machinery that can perturb VPlan recipe sequencing and verifier invariants.\nMechanisms: Canonical IV model migration from header recipe to region value; Loop-region construction/duplication/printing changes; Canonical-IV increment discovery and materialization; Recipe insertion/reordering around header, current-iteration, and mask recipes; Uniformity/type/SCEV inference updates for region-defined values; Verifier rule relaxation and redefinition for new IV representation\nTouched symbols: LoopVectorizationPlanner::buildVPlansWithVPRecipes; LoopVectorizationPlanner::tryToBuildVPlanWithVPRecipes; VPlanTransforms::createHeaderPhiRecipes; VPlanTransforms::createInLoopReductionRecipes; VPlanTransforms::addExitUsersForFirstOrderRecurrences; VPlanTransforms::removeBranchOnConst; VPlanTransforms::addExplicitVectorLength; VPlanTransforms::convertEVLExitCond\nRisk relevance: Directly rewrites VPlan recipe representation and block/recipe ordering around the canonical IV; Introduces new region-value semantics into passes that previously assumed phi-recipes, increasing verifier and ordering fragility; Touches LoopVectorize plan construction and multiple transforms that can reorder or insert recipes, matching crash signatures about phi-like recipe ordering; Changes handling of branch/mask/exit/UF materialization paths, which are high-risk for latent assertion failures\nBuild risk: Large cross-cutting API/signature changes across VPlan classes and helpers; Many test expectations updated for print/debug output and recipe counts/order; Adds new helper class and new include dependencies (e.g. DebugLoc) in core VPlan types; Verifier semantics changed, so existing tests and downstream code may fail due to stricter or different ordering assumptions"
+      },
+      "top_candidates": [
+        {
+          "rank": 1,
+          "sha": "26b7fd51095221e03ce2a2170b6d168652ba3c7d",
+          "subject": "[VPlan] Support plain CFG plans in the verifier. (#181817)",
+          "utility": 1.067704,
+          "selection_score": 1.332964,
+          "semantic_score": 5.8,
+          "build_success_prob": 0.72,
+          "feedback_bias": 1.0,
+          "posterior_bad_mass": 0.533198,
+          "calibrated_suspicion_weight": 0.34403,
+          "calibrated_posterior_bad_mass": 0.473468,
+          "calibrated_posterior_info_gain": 0.997968,
+          "diff_mode": "parent",
+          "diff_extraction": "llm",
+          "diff_summary": "Summary: Major VPlan refactor that makes the canonical induction variable a region-owned `VPRegionValue` instead of a dedicated header phi recipe, and threads that change through LoopVectorize, VPlan transforms, analysis, printing, cloning, verification, and numerous tests. The patch changes loop-region construction to carry canonical-IV type/debug metadata, introduces helpers to find or materialize the canonical-IV increment separately, updates type/uniformity/SCEV reasoning to treat region values as scalar-uniform, and adjusts many transformations to preserve or rewrite uses around the new region-level IV model. It also changes recipe ordering and insertion points for IV-related and lane-mask/current-iteration recipes, which is exactly the kind of machinery that can perturb VPlan recipe sequencing and verifier invariants.\nMechanisms: Canonical IV model migration from header recipe to region value; Loop-region construction/duplication/printing changes; Canonical-IV increment discovery and materialization; Recipe insertion/reordering around header, current-iteration, and mask recipes; Uniformity/type/SCEV inference updates for region-defined values; Verifier rule relaxation and redefinition for new IV representation\nTouched symbols: LoopVectorizationPlanner::buildVPlansWithVPRecipes; LoopVectorizationPlanner::tryToBuildVPlanWithVPRecipes; VPlanTransforms::createHeaderPhiRecipes; VPlanTransforms::createInLoopReductionRecipes; VPlanTransforms::addExitUsersForFirstOrderRecurrences; VPlanTransforms::removeBranchOnConst; VPlanTransforms::addExplicitVectorLength; VPlanTransforms::convertEVLExitCond\nRisk relevance: Directly rewrites VPlan recipe representation and block/recipe ordering around the canonical IV; Introduces new region-value semantics into passes that previously assumed phi-recipes, increasing verifier and ordering fragility; Touches LoopVectorize plan construction and multiple transforms that can reorder or insert recipes, matching crash signatures about phi-like recipe ordering; Changes handling of branch/mask/exit/UF materialization paths, which are high-risk for latent assertion failures\nBuild risk: Large cross-cutting API/signature changes across VPlan classes and helpers; Many test expectations updated for print/debug output and recipe counts/order; Adds new helper class and new include dependencies (e.g. DebugLoc) in core VPlan types; Verifier semantics changed, so existing tests and downstream code may fail due to stricter or different ordering assumptions"
+        },
+        {
+          "rank": 2,
+          "sha": "5492150b2078f03c9c1942c13f6d0428a530e165",
+          "subject": "[ConstantFold] Support byte values in `bitcast` constant folding (#188030)",
+          "utility": 0.815358,
+          "selection_score": 0.888299,
+          "semantic_score": 0.44,
+          "build_success_prob": 0.92,
+          "feedback_bias": 0.8,
+          "posterior_bad_mass": 0.575805,
+          "calibrated_suspicion_weight": 0.010584,
+          "calibrated_posterior_bad_mass": 0.489336,
+          "calibrated_posterior_info_gain": 0.999672,
+          "weak_relevance_penalty": 0.046
+        },
+        {
+          "rank": 3,
+          "sha": "d34661b89c7978b28005811c557ca8aca1a23d0d",
+          "subject": "[LPM][LegacyPM] Reenable LCSSA Verification",
+          "utility": 0.773667,
+          "selection_score": 0.886187,
+          "semantic_score": 0.385,
+          "build_success_prob": 0.92,
+          "feedback_bias": 0.7,
+          "posterior_bad_mass": 0.595334,
+          "calibrated_suspicion_weight": 0.008838,
+          "calibrated_posterior_bad_mass": 0.498174,
+          "calibrated_posterior_info_gain": 0.99999,
+          "weak_relevance_penalty": 0.046
+        },
+        {
+          "rank": 4,
+          "sha": "c12a3bb65edf117cfd209e1bb8029beadb0c1c01",
+          "subject": "[test] Improve driver option coverage (#192861)",
+          "utility": 0.739546,
+          "selection_score": 0.880783,
+          "semantic_score": 0.25,
+          "build_success_prob": 0.92,
+          "feedback_bias": 1.0,
+          "posterior_bad_mass": 0.608014,
+          "calibrated_suspicion_weight": 0.004934,
+          "calibrated_posterior_bad_mass": 0.503108,
+          "calibrated_posterior_info_gain": 0.999972,
+          "weak_relevance_penalty": 0.046
+        },
+        {
+          "rank": 5,
+          "sha": "e93f7e595cbcbc995c97942ae343a1382f921f18",
+          "subject": "[NFC][Loop] Remove unused verbose loop debug output",
+          "utility": 0.834085,
+          "selection_score": 0.876213,
+          "semantic_score": 0.15,
+          "build_success_prob": 0.92,
+          "feedback_bias": 0.6,
+          "posterior_bad_mass": 0.553487,
+          "calibrated_suspicion_weight": 0.002476,
+          "calibrated_posterior_bad_mass": 0.478753,
+          "calibrated_posterior_info_gain": 0.998697,
+          "weak_relevance_penalty": 0.046
+        }
+      ],
+      "evidence": [
+        "=== validated-bisect-runner ===",
+        "issue: pr193164",
+        "llvm-project: /home/ubuntu/gitbisect-work/worktrees/pr193164-aws10-confidence-frontier-b-20260720a",
+        "commit: 26b7fd510952",
+        "jobs: 4",
+        "build type: Release",
+        "assertions: ON",
+        "ccache dir: /home/ubuntu/gitbisect-work/confidence-adaptive-20260720-896b595/.ccache/pr193164-git-bisect",
+        "repro exit code: 0",
+        "verdict: good"
+      ],
+      "log_excerpt": "=== validated-bisect-runner ===\nissue: pr193164\nllvm-project: /home/ubuntu/gitbisect-work/worktrees/pr193164-aws10-confidence-frontier-b-20260720a\ncommit: 26b7fd510952\njobs: 4\nbuild type: Release\nassertions: ON\nccache dir: /home/ubuntu/gitbisect-work/confidence-adaptive-20260720-896b595/.ccache/pr193164-git-bisect\nrepro exit code: 0\nverdict: good",
+      "trace_excerpt": "=== validated-bisect-runner ===\nissue: pr193164\nllvm-project: /home/ubuntu/gitbisect-work/worktrees/pr193164-aws10-confidence-frontier-b-20260720a\ncommit: 26b7fd510952\njobs: 4\nbuild type: Release\nassertions: ON\nccache dir: /home/ubuntu/gitbisect-work/confidence-adaptive-20260720-896b595/.ccache/pr193164-git-bisect\nrepro exit code: 0\nverdict: good",
+      "runner_duration_sec": 107.396
+    },
+    {
+      "step": 10,
+      "sha": "d34661b89c7978b28005811c557ca8aca1a23d0d",
+      "subject": "[LPM][LegacyPM] Reenable LCSSA Verification",
+      "verdict": "good",
+      "source": "runner",
+      "summary": "verdict: good",
+      "unresolved_before": 13,
+      "unresolved_after": 5,
+      "model_top_k": 3,
+      "adaptive_top_k": null,
+      "confidence_adaptive_frontier": {
+        "threshold": 0.35
+      },
+      "model_frontier_decision": {
+        "configured_frontier": "topk",
+        "effective_frontier": "topk",
+        "confidence": 0.834586,
+        "threshold": 0.35,
+        "reason": "semantic leader confidence meets threshold; use semantic top-k",
+        "top_semantic_candidates": [
+          {
+            "sha": "cac7fe50e0fbedfb14028c170d83386efeb1265b",
+            "semantic_score": 2.66,
+            "build_success_prob": 0.88
+          },
+          {
+            "sha": "5492150b2078f03c9c1942c13f6d0428a530e165",
+            "semantic_score": 0.44,
+            "build_success_prob": 0.92
+          }
+        ],
+        "selected_frontier_shas": [
+          "cac7fe50e0fbedfb14028c170d83386efeb1265b",
+          "5492150b2078f03c9c1942c13f6d0428a530e165",
+          "d34661b89c7978b28005811c557ca8aca1a23d0d"
+        ],
+        "observation_count": 9
+      },
+      "model_score_context": "v1-c3330a37514c3efd",
+      "model_score_context_payload": {
+        "version": "v1",
+        "unresolved_count": 13,
+        "candidate_window_sha256": "33f66863da30e4559f2eea85b6e8f87ad35b66d9b9b74b6a4a55769dfecc2aa7",
+        "observation_sha256": "9c1d02f61bc78930d6af5bd25f7da093782aaf4c8da2e33a0617c99617d8cb93",
+        "model_top_k": 3,
+        "model_frontier": "topk",
+        "model_diff_mode": "parent",
+        "model_diff_extraction": "llm",
+        "observation_prompt_mode": "trace-only",
+        "confidence_adaptive_frontier": {
+          "threshold": 0.35
+        }
+      },
+      "candidate_pruning": {
+        "mode": "off",
+        "before_count": 13,
+        "after_count": 13,
+        "pruned_count": 0,
+        "keep_prefixes": [],
+        "kept_reason_counts": {},
+        "prune_reason_counts": {},
+        "pruned_examples": []
+      },
+      "search_policy": "calibrated-posterior",
+      "selection_mode": "calibrated-posterior",
+      "selection": {
+        "utility": 0.726465,
+        "selection_score": 0.989692,
+        "semantic_score": 2.2,
+        "build_success_prob": 0.96,
+        "balance_score": 0.541614,
+        "suspicion_weight": 0.198592,
+        "feedback_bias": 1.0,
+        "evidence": [
+          "model-scored",
+          "Loop-related verification change can expose latent loop-IR invariant bugs.",
+          "Still only legacy LCSSA verification; does not target VPlan phi-like recipe ordering.",
+          "features: loop pass verification, LCSSA checks, debug assertion gating"
+        ],
+        "posterior_bad_mass": 0.270807,
+        "calibrated_suspicion_weight": 0.150356,
+        "calibrated_posterior_bad_mass": 0.173958,
+        "calibrated_posterior_info_gain": 0.666678,
+        "diff_mode": "parent",
+        "diff_extraction": "llm",
+        "diff_summary": "Summary: Re-enables legacy loop pass LCSSA verification in debug builds by switching previously disabled checks from `#if 0` to `#ifndef NDEBUG`. The change restores verification after loop pass execution so loop-related structural mistakes are detected again during debug testing, increasing the likelihood of catching malformed loop transformations earlier.\nMechanisms: Loop pass verification gating; LCSSA validation in legacy pass manager; Debug-only consistency checks\nTouched symbols: LPPassManager::runOnFunction\nRisk relevance: Strengthens verification around loop transforms, which can surface latent loop-structure bugs; Could cause new assertion failures in debug builds if earlier passes violate LCSSA; Relevant to loop transformation correctness, though not directly to VPlan recipe ordering\nBuild risk: Debug-only behavior change may alter test outcomes under assertions enabled; Can expose pre-existing IR invariant violations in legacy loop pipelines"
+      },
+      "top_candidates": [
+        {
+          "rank": 1,
+          "sha": "d34661b89c7978b28005811c557ca8aca1a23d0d",
+          "subject": "[LPM][LegacyPM] Reenable LCSSA Verification",
+          "utility": 0.726465,
+          "selection_score": 0.989692,
+          "semantic_score": 2.2,
+          "build_success_prob": 0.96,
+          "feedback_bias": 1.0,
+          "posterior_bad_mass": 0.270807,
+          "calibrated_suspicion_weight": 0.150356,
+          "calibrated_posterior_bad_mass": 0.173958,
+          "calibrated_posterior_info_gain": 0.666678,
+          "diff_mode": "parent",
+          "diff_extraction": "llm",
+          "diff_summary": "Summary: Re-enables legacy loop pass LCSSA verification in debug builds by switching previously disabled checks from `#if 0` to `#ifndef NDEBUG`. The change restores verification after loop pass execution so loop-related structural mistakes are detected again during debug testing, increasing the likelihood of catching malformed loop transformations earlier.\nMechanisms: Loop pass verification gating; LCSSA validation in legacy pass manager; Debug-only consistency checks\nTouched symbols: LPPassManager::runOnFunction\nRisk relevance: Strengthens verification around loop transforms, which can surface latent loop-structure bugs; Could cause new assertion failures in debug builds if earlier passes violate LCSSA; Relevant to loop transformation correctness, though not directly to VPlan recipe ordering\nBuild risk: Debug-only behavior change may alter test outcomes under assertions enabled; Can expose pre-existing IR invariant violations in legacy loop pipelines"
+        },
+        {
+          "rank": 2,
+          "sha": "c12a3bb65edf117cfd209e1bb8029beadb0c1c01",
+          "subject": "[test] Improve driver option coverage (#192861)",
+          "utility": 0.564173,
+          "selection_score": 0.591093,
+          "semantic_score": 0.25,
+          "build_success_prob": 0.92,
+          "feedback_bias": 1.0,
+          "posterior_bad_mass": 0.293374,
+          "calibrated_suspicion_weight": 0.007981,
+          "calibrated_posterior_bad_mass": 0.181939,
+          "calibrated_posterior_info_gain": 0.6843,
+          "weak_relevance_penalty": 0.046
+        },
+        {
+          "rank": 3,
+          "sha": "4bd6175f718f032cc391de9263a3d4c14ae5109d",
+          "subject": "[AArch64][SME] Remove a couple of unused functions (NFC) (#192649)",
+          "utility": 0.558229,
+          "selection_score": 0.587206,
+          "semantic_score": 0.038,
+          "build_success_prob": 0.92,
+          "feedback_bias": 0.76,
+          "posterior_bad_mass": 0.301318,
+          "calibrated_suspicion_weight": 0.000627,
+          "calibrated_posterior_bad_mass": 0.183475,
+          "calibrated_posterior_info_gain": 0.68762,
+          "weak_relevance_penalty": 0.046
+        },
+        {
+          "rank": 4,
+          "sha": "e7cdce484bd273b3d6a26d4edc54ae4c37cea3b0",
+          "subject": "[BitcodeReader] Simplify CST_CODE_DATA constant parsing (NFC) (#190846)",
+          "utility": 0.553061,
+          "selection_score": 0.586226,
+          "semantic_score": 0.05,
+          "build_success_prob": 0.92,
+          "feedback_bias": 1.0,
+          "posterior_bad_mass": 0.297888,
+          "calibrated_suspicion_weight": 0.000909,
+          "calibrated_posterior_bad_mass": 0.182848,
+          "calibrated_posterior_info_gain": 0.686267,
+          "weak_relevance_penalty": 0.046
+        },
+        {
+          "rank": 5,
+          "sha": "abc37e6aef740b0af087331e6db807b916f559f5",
+          "subject": "[gn build] Port 4b0dd87d3a29 (#192869)",
+          "utility": 0.51598,
+          "selection_score": 0.5374,
+          "semantic_score": 0.04,
+          "build_success_prob": 0.84,
+          "feedback_bias": 0.8,
+          "posterior_bad_mass": 0.304929,
+          "calibrated_suspicion_weight": 0.000672,
+          "calibrated_posterior_bad_mass": 0.184147,
+          "calibrated_posterior_info_gain": 0.689066,
+          "weak_relevance_penalty": 0.042
+        }
+      ],
+      "evidence": [
+        "=== validated-bisect-runner ===",
+        "issue: pr193164",
+        "llvm-project: /home/ubuntu/gitbisect-work/worktrees/pr193164-aws10-confidence-frontier-b-20260720a",
+        "commit: d34661b89c79",
+        "jobs: 4",
+        "build type: Release",
+        "assertions: ON",
+        "ccache dir: /home/ubuntu/gitbisect-work/confidence-adaptive-20260720-896b595/.ccache/pr193164-git-bisect",
+        "repro exit code: 0",
+        "verdict: good"
+      ],
+      "log_excerpt": "=== validated-bisect-runner ===\nissue: pr193164\nllvm-project: /home/ubuntu/gitbisect-work/worktrees/pr193164-aws10-confidence-frontier-b-20260720a\ncommit: d34661b89c79\njobs: 4\nbuild type: Release\nassertions: ON\nccache dir: /home/ubuntu/gitbisect-work/confidence-adaptive-20260720-896b595/.ccache/pr193164-git-bisect\nrepro exit code: 0\nverdict: good",
+      "trace_excerpt": "=== validated-bisect-runner ===\nissue: pr193164\nllvm-project: /home/ubuntu/gitbisect-work/worktrees/pr193164-aws10-confidence-frontier-b-20260720a\ncommit: d34661b89c79\njobs: 4\nbuild type: Release\nassertions: ON\nccache dir: /home/ubuntu/gitbisect-work/confidence-adaptive-20260720-896b595/.ccache/pr193164-git-bisect\nrepro exit code: 0\nverdict: good",
+      "runner_duration_sec": 95.598
+    },
+    {
+      "step": 11,
+      "sha": "e7cdce484bd273b3d6a26d4edc54ae4c37cea3b0",
+      "subject": "[BitcodeReader] Simplify CST_CODE_DATA constant parsing (NFC) (#190846)",
+      "verdict": "good",
+      "source": "runner",
+      "summary": "verdict: good",
+      "unresolved_before": 5,
+      "unresolved_after": 3,
+      "model_top_k": 3,
+      "adaptive_top_k": null,
+      "confidence_adaptive_frontier": {
+        "threshold": 0.35
+      },
+      "model_frontier_decision": {
+        "configured_frontier": "topk",
+        "effective_frontier": "topk",
+        "confidence": 0.906015,
+        "threshold": 0.35,
+        "reason": "semantic leader confidence meets threshold; use semantic top-k",
+        "top_semantic_candidates": [
+          {
+            "sha": "cac7fe50e0fbedfb14028c170d83386efeb1265b",
+            "semantic_score": 2.66,
+            "build_success_prob": 0.88
+          },
+          {
+            "sha": "c12a3bb65edf117cfd209e1bb8029beadb0c1c01",
+            "semantic_score": 0.25,
+            "build_success_prob": 0.92
+          }
+        ],
+        "selected_frontier_shas": [
+          "cac7fe50e0fbedfb14028c170d83386efeb1265b",
+          "c12a3bb65edf117cfd209e1bb8029beadb0c1c01",
+          "e7cdce484bd273b3d6a26d4edc54ae4c37cea3b0"
+        ],
+        "observation_count": 10
+      },
+      "model_score_context": "v1-2a081ae697e9fd0a",
+      "model_score_context_payload": {
+        "version": "v1",
+        "unresolved_count": 5,
+        "candidate_window_sha256": "695015706e7244da3c5f02538f23423fc28cfd7448c5db930a05fa6456575e2f",
+        "observation_sha256": "b907b91784584ad677fb7bda42af4101f8ec426d231f6324ee9ddf0f8b1a9385",
+        "model_top_k": 3,
+        "model_frontier": "topk",
+        "model_diff_mode": "parent",
+        "model_diff_extraction": "llm",
+        "observation_prompt_mode": "trace-only",
+        "confidence_adaptive_frontier": {
+          "threshold": 0.35
+        }
+      },
+      "candidate_pruning": {
+        "mode": "off",
+        "before_count": 5,
+        "after_count": 5,
+        "pruned_count": 0,
+        "keep_prefixes": [],
+        "kept_reason_counts": {},
+        "prune_reason_counts": {},
+        "pruned_examples": []
+      },
+      "search_policy": "calibrated-posterior",
+      "selection_mode": "calibrated-posterior",
+      "selection": {
+        "utility": 0.229544,
+        "selection_score": 0.33229,
+        "semantic_score": 0.9,
+        "build_success_prob": 0.78,
+        "balance_score": 0.245125,
+        "suspicion_weight": 0.100279,
+        "feedback_bias": 1.0,
+        "evidence": [
+          "model-scored",
+          "BitcodeReader constant parsing is unrelated to LoopVectorize/VPlan recipe ordering",
+          "Could affect IR input correctness indirectly, but does not match the phi-like/non-phi assertion mechanism",
+          "features: bitcode parsing, constant decoding, IR construction"
+        ],
+        "posterior_bad_mass": 0.122563,
+        "calibrated_suspicion_weight": 0.050986,
+        "calibrated_posterior_bad_mass": 0.057679,
+        "calibrated_posterior_info_gain": 0.318163,
+        "diff_mode": "parent",
+        "diff_extraction": "llm",
+        "diff_summary": "Summary: This is a non-functional cleanup of BitcodeReader constant parsing, replacing a long chain of type-specific CST_CODE_DATA handling with a more generic raw-byte construction path. It adds endian-aware raw-data assembly using SwapByteOrder support, relies on ConstantDataSequential compatibility checks, and routes arrays/vectors through ConstantDataArray/Vector raw constructors. The change alters bitcode constant decoding mechanics but not vectorization or VPlan logic.\nMechanisms: bitcode constant record decoding; raw byte materialization for ConstantDataSequential; host endianness handling during bitcode import\nTouched symbols: BitcodeReader::parseConstants; ConstantDataSequential::isElementTypeCompatible; ConstantDataVector::getRaw; ConstantDataArray::getRaw\nRisk relevance: Touches low-level constant parsing that could affect IR construction and downstream passes; Uses endian-dependent raw reconstruction, which can be fragile across targets; Could indirectly influence optimization inputs, though not specifically VPlan recipe ordering\nBuild risk: Adds a new include and relies on byte-order utilities; Changes parsing paths for arrays/vectors of constants, which can impact bitcode reader correctness; Potential portability sensitivity on big-endian hosts"
+      },
+      "top_candidates": [
+        {
+          "rank": 1,
+          "sha": "e7cdce484bd273b3d6a26d4edc54ae4c37cea3b0",
+          "subject": "[BitcodeReader] Simplify CST_CODE_DATA constant parsing (NFC) (#190846)",
+          "utility": 0.229544,
+          "selection_score": 0.33229,
+          "semantic_score": 0.9,
+          "build_success_prob": 0.78,
+          "feedback_bias": 1.0,
+          "posterior_bad_mass": 0.122563,
+          "calibrated_suspicion_weight": 0.050986,
+          "calibrated_posterior_bad_mass": 0.057679,
+          "calibrated_posterior_info_gain": 0.318163,
+          "diff_mode": "parent",
+          "diff_extraction": "llm",
+          "diff_summary": "Summary: This is a non-functional cleanup of BitcodeReader constant parsing, replacing a long chain of type-specific CST_CODE_DATA handling with a more generic raw-byte construction path. It adds endian-aware raw-data assembly using SwapByteOrder support, relies on ConstantDataSequential compatibility checks, and routes arrays/vectors through ConstantDataArray/Vector raw constructors. The change alters bitcode constant decoding mechanics but not vectorization or VPlan logic.\nMechanisms: bitcode constant record decoding; raw byte materialization for ConstantDataSequential; host endianness handling during bitcode import\nTouched symbols: BitcodeReader::parseConstants; ConstantDataSequential::isElementTypeCompatible; ConstantDataVector::getRaw; ConstantDataArray::getRaw\nRisk relevance: Touches low-level constant parsing that could affect IR construction and downstream passes; Uses endian-dependent raw reconstruction, which can be fragile across targets; Could indirectly influence optimization inputs, though not specifically VPlan recipe ordering\nBuild risk: Adds a new include and relies on byte-order utilities; Changes parsing paths for arrays/vectors of constants, which can impact bitcode reader correctness; Potential portability sensitivity on big-endian hosts"
+        },
+        {
+          "rank": 2,
+          "sha": "4bd6175f718f032cc391de9263a3d4c14ae5109d",
+          "subject": "[AArch64][SME] Remove a couple of unused functions (NFC) (#192649)",
+          "utility": 0.234506,
+          "selection_score": 0.249346,
+          "semantic_score": 0.035,
+          "build_success_prob": 0.92,
+          "feedback_bias": 0.7,
+          "posterior_bad_mass": 0.126462,
+          "calibrated_suspicion_weight": 0.000636,
+          "calibrated_posterior_bad_mass": 0.058316,
+          "calibrated_posterior_info_gain": 0.320722,
+          "weak_relevance_penalty": 0.046
+        },
+        {
+          "rank": 3,
+          "sha": "abc37e6aef740b0af087331e6db807b916f559f5",
+          "subject": "[gn build] Port 4b0dd87d3a29 (#192869)",
+          "utility": 0.221905,
+          "selection_score": 0.23028,
+          "semantic_score": 0.04,
+          "build_success_prob": 0.84,
+          "feedback_bias": 0.8,
+          "posterior_bad_mass": 0.130919,
+          "calibrated_suspicion_weight": 0.000762,
+          "calibrated_posterior_bad_mass": 0.059078,
+          "calibrated_posterior_info_gain": 0.323773,
+          "weak_relevance_penalty": 0.042
+        },
+        {
+          "rank": 4,
+          "sha": "c12a3bb65edf117cfd209e1bb8029beadb0c1c01",
+          "subject": "[test] Improve driver option coverage (#192861)",
+          "utility": 0.045158,
+          "selection_score": 0.018133,
+          "semantic_score": 0.2,
+          "build_success_prob": 0.97,
+          "feedback_bias": 1.0,
+          "posterior_bad_mass": 0.022284,
+          "calibrated_suspicion_weight": 0.006693,
+          "calibrated_posterior_bad_mass": 0.006693,
+          "calibrated_posterior_info_gain": 0.057968,
+          "weak_relevance_penalty": 0.0485,
+          "diff_mode": "parent",
+          "diff_extraction": "llm",
+          "diff_summary": "Summary: This commit is a driver-test refactor that reorganizes clang driver coverage across target-specific test files. It moves Linux/GNU linker forwarding checks into a dedicated linux-ld-args.c test, adds explicit FreeBSD forwarding coverage for -rdynamic/-s/-t/-T, and adds LoongArch toolchain forwarding checks for -X and --no-relax. The change is focused on command-line argument propagation and test file partitioning, not LLVM optimization or VPlan internals.\nMechanisms: clang driver option forwarding to linker jobs; target-specific toolchain/test coverage partitioning; GNU ld argument ordering and passthrough semantics\nTouched symbols: clang/test/Driver/Xlinker-args.c; clang/test/Driver/freebsd.c; clang/test/Driver/linux-ld-args.c; clang/test/Driver/linux-ld.c; clang/test/Driver/loongarch-toolchain.c\nRisk relevance: No LoopVectorize/VPlan/phi ordering code touched; No recipe storage or vectorizer plan construction changes; Changes are confined to frontend driver tests, so unlikely to explain a VPlan assertion\nBuild risk: Test-only changes may alter driver test expectations; Introduces a new test file and moves checks between files, which can affect lit coverage organization; Potential brittleness in target-specific command-line expectations"
+        },
+        {
+          "rank": 5,
+          "sha": "cac7fe50e0fbedfb14028c170d83386efeb1265b",
+          "subject": "[VPlan] Make canonical IV part of the region (#156262)",
+          "utility": 0.0,
+          "selection_score": 0.0,
+          "semantic_score": 7.8,
+          "build_success_prob": 0.61,
+          "feedback_bias": 1.0,
+          "posterior_bad_mass": 1.0,
+          "calibrated_suspicion_weight": 0.940922,
+          "calibrated_posterior_bad_mass": 1.0,
+          "diff_mode": "parent",
+          "diff_extraction": "llm",
+          "diff_summary": "Summary: This commit makes the canonical induction variable a first-class region-associated value in VPlan instead of a header recipe. It deletes VPCanonicalIVPHIRecipe and introduces VPRegionValue plus VPCanonicalIVInfo stored on VPRegionBlock, changing loop-region creation, cloning, printing, verification, SCEV/value inference, register-usage accounting, unrolling, and many LoopVectorize transforms that previously assumed the canonical IV lived as the first header recipe. The patch also adds helper logic to locate or synthesize the canonical IV increment, updates epilogue/vector-length/tail-folding transformations to work with the new region-level representation, and adjusts many VPlan tests to expect a CANONICAL-IV marker before the vector body. This is a broad structural rewrite of VPlan recipe/value ordering and canonical-IV handling, directly intersecting the kind of ordering/assertion failure described in the issue.\nMechanisms: VPlan canonical IV representation moved from header PHI recipe to region value; VPRegionBlock ownership/state for loop-vs-replicate regions; canonical IV increment discovery/synthesis and NUW tracking; VPlan cloning/printing/verification/name assignment updates; LoopVectorize epilogue, tail-folding, VF/UF materialization, and scalar-IV transform adjustments\nTouched symbols: LoopVectorizationPlanner::tryToBuildVPlanWithVPRecipes; preparePlanForMainVectorLoop; preparePlanForEpilogueVectorLoop; VPRegionBlock; VPRegionValue; VPCanonicalIVInfo; VPlan::createLoopRegion; VPlan::duplicate\nRisk relevance: Directly changes VPlan recipe/value ordering and replaces a recipe with a region value; Touches LoopVectorize and multiple VPlan transformation paths that manipulate header recipes; Adds/removes assertions around canonical IV placement and increment discovery; Changes printing and verification expectations for recipe ordering, which is close to the reported phi-like after non-phi assertion; Modifies SmallVector-backed recipe traversal and insertion patterns across regions and headers; Introduces new assumptions about region values being uniform/single-scalar\nBuild risk: Large API churn: createLoopRegion signature changes and callers updated across unit tests; Deletes a concrete recipe class and changes many dyn_cast/match sites; Extensive test expectation rewrites across LoopVectorize/VPlan and unit tests; Potential for compile errors or subtle UB from reordered ownership/lifetime of region values; Adds new helper methods and relies on plan state consistency across many transform passes"
+        }
+      ],
+      "evidence": [
+        "=== validated-bisect-runner ===",
+        "issue: pr193164",
+        "llvm-project: /home/ubuntu/gitbisect-work/worktrees/pr193164-aws10-confidence-frontier-b-20260720a",
+        "commit: e7cdce484bd2",
+        "jobs: 4",
+        "build type: Release",
+        "assertions: ON",
+        "ccache dir: /home/ubuntu/gitbisect-work/confidence-adaptive-20260720-896b595/.ccache/pr193164-git-bisect",
+        "repro exit code: 0",
+        "verdict: good"
+      ],
+      "log_excerpt": "=== validated-bisect-runner ===\nissue: pr193164\nllvm-project: /home/ubuntu/gitbisect-work/worktrees/pr193164-aws10-confidence-frontier-b-20260720a\ncommit: e7cdce484bd2\njobs: 4\nbuild type: Release\nassertions: ON\nccache dir: /home/ubuntu/gitbisect-work/confidence-adaptive-20260720-896b595/.ccache/pr193164-git-bisect\nrepro exit code: 0\nverdict: good",
+      "trace_excerpt": "=== validated-bisect-runner ===\nissue: pr193164\nllvm-project: /home/ubuntu/gitbisect-work/worktrees/pr193164-aws10-confidence-frontier-b-20260720a\ncommit: e7cdce484bd2\njobs: 4\nbuild type: Release\nassertions: ON\nccache dir: /home/ubuntu/gitbisect-work/confidence-adaptive-20260720-896b595/.ccache/pr193164-git-bisect\nrepro exit code: 0\nverdict: good",
+      "runner_duration_sec": 93.063
+    },
+    {
+      "step": 12,
+      "sha": "abc37e6aef740b0af087331e6db807b916f559f5",
+      "subject": "[gn build] Port 4b0dd87d3a29 (#192869)",
+      "verdict": "good",
+      "source": "runner",
+      "summary": "verdict: good",
+      "unresolved_before": 3,
+      "unresolved_after": 1,
+      "model_top_k": 3,
+      "adaptive_top_k": null,
+      "confidence_adaptive_frontier": {
+        "threshold": 0.35
+      },
+      "model_frontier_decision": {
+        "configured_frontier": "topk",
+        "effective_frontier": "topk",
+        "confidence": 0.984962,
+        "threshold": 0.35,
+        "reason": "semantic leader confidence meets threshold; use semantic top-k",
+        "top_semantic_candidates": [
+          {
+            "sha": "cac7fe50e0fbedfb14028c170d83386efeb1265b",
+            "semantic_score": 2.66,
+            "build_success_prob": 0.88
+          },
+          {
+            "sha": "abc37e6aef740b0af087331e6db807b916f559f5",
+            "semantic_score": 0.04,
+            "build_success_prob": 0.84
+          }
+        ],
+        "selected_frontier_shas": [
+          "cac7fe50e0fbedfb14028c170d83386efeb1265b",
+          "abc37e6aef740b0af087331e6db807b916f559f5",
+          "4bd6175f718f032cc391de9263a3d4c14ae5109d"
+        ],
+        "observation_count": 11
+      },
+      "model_score_context": "v1-1cebf2be54a64c7e",
+      "model_score_context_payload": {
+        "version": "v1",
+        "unresolved_count": 3,
+        "candidate_window_sha256": "f3d7a89606f637568626a67234fdd4c1c756809b4db1025e512af8db77cfe0f7",
+        "observation_sha256": "45cef748308ccb66a8ca42141995c037f779885076135c312bf7b62b440a47cd",
+        "model_top_k": 3,
+        "model_frontier": "topk",
+        "model_diff_mode": "parent",
+        "model_diff_extraction": "llm",
+        "observation_prompt_mode": "trace-only",
+        "confidence_adaptive_frontier": {
+          "threshold": 0.35
+        }
+      },
+      "candidate_pruning": {
+        "mode": "off",
+        "before_count": 3,
+        "after_count": 3,
+        "pruned_count": 0,
+        "keep_prefixes": [],
+        "kept_reason_counts": {},
+        "prune_reason_counts": {},
+        "pruned_examples": []
+      },
+      "search_policy": "calibrated-posterior",
+      "selection_mode": "calibrated-posterior",
+      "selection": {
+        "utility": 0.050738,
+        "selection_score": -0.0495,
+        "semantic_score": 0.1,
+        "build_success_prob": 0.99,
+        "balance_score": 0.05,
+        "suspicion_weight": 0.0125,
+        "feedback_bias": 1.0,
+        "evidence": [
+          "model-scored",
+          "GN build manifest update only; no compiler IR or vectorizer logic is touched.",
+          "No overlap with LoopVectorize, VPlan, or phi-like recipe ordering mechanisms.",
+          "features: GN build port, header list maintenance, build-system only"
+        ],
+        "posterior_bad_mass": 0.025,
+        "calibrated_suspicion_weight": 0.0,
+        "calibrated_posterior_bad_mass": 0.0,
+        "calibrated_posterior_info_gain": 0.0,
+        "weak_relevance_penalty": 0.0495,
+        "diff_mode": "parent",
+        "diff_extraction": "llm",
+        "diff_summary": "Summary: This GN build port adds a missing clang header to a secondary GN build file. The change is a build-system synchronization update only, with no compiler transformation or IR logic changes.\nMechanisms: GN build manifest maintenance; Header installation/copy list update\nTouched symbols: copy(\"Headers\"); __clang_spirv_math.h\nRisk relevance: No interaction with LoopVectorize, VPlan, or vectorizer recipe ordering\nBuild risk: Build graph change only; can affect header availability in GN builds; Potential for target-specific build breakage if the copied header list is incomplete elsewhere"
+      },
+      "top_candidates": [
+        {
+          "rank": 0,
+          "sha": "abc37e6aef740b0af087331e6db807b916f559f5",
+          "subject": "[gn build] Port 4b0dd87d3a29 (#192869)",
+          "utility": 0.050738,
+          "selection_score": -0.0494999999956101,
+          "semantic_score": 0.1,
+          "build_success_prob": 0.99,
+          "feedback_bias": 1.0,
+          "posterior_bad_mass": 0.025,
+          "calibrated_suspicion_weight": 4.204651035188118e-14,
+          "calibrated_posterior_bad_mass": 8.409302070376236e-14,
+          "calibrated_posterior_info_gain": 3.7738306579005166e-12,
+          "weak_relevance_penalty": 0.0495,
+          "diff_mode": "parent",
+          "diff_extraction": "llm",
+          "diff_summary": "Summary: This GN build port adds a missing clang header to a secondary GN build file. The change is a build-system synchronization update only, with no compiler transformation or IR logic changes.\nMechanisms: GN build manifest maintenance; Header installation/copy list update\nTouched symbols: copy(\"Headers\"); __clang_spirv_math.h\nRisk relevance: No interaction with LoopVectorize, VPlan, or vectorizer recipe ordering\nBuild risk: Build graph change only; can affect header availability in GN builds; Potential for target-specific build breakage if the copied header list is incomplete elsewhere"
+        },
+        {
+          "rank": 1,
+          "sha": "cac7fe50e0fbedfb14028c170d83386efeb1265b",
+          "subject": "[VPlan] Make canonical IV part of the region (#156262)",
+          "utility": 0.0,
+          "selection_score": 0.54,
+          "semantic_score": 7.8,
+          "build_success_prob": 0.72,
+          "feedback_bias": 1.0,
+          "posterior_bad_mass": 1.0,
+          "calibrated_suspicion_weight": 1.0,
+          "calibrated_posterior_bad_mass": 1.0,
+          "calibrated_posterior_info_gain": 0.0,
+          "diff_mode": "parent",
+          "diff_extraction": "llm",
+          "diff_summary": "Summary: This is a large VPlan refactor that moves the canonical induction variable out of a header PHI recipe and models it as a region-owned VPRegionValue attached to the loop region. The implementation rewires LoopVectorize/VPlan construction, cloning, printing, verification, type analysis, SCEV extraction, register-usage, and several transforms to treat the canonical IV as a region value plus a separately materialized increment instruction. It also changes recipe ordering expectations and many tests to print the canonical IV before the vector body, which directly affects the machinery around header recipe ordering and phi-like placement.\nMechanisms: VPlan canonical IV representation change from recipe to region value; Loop region construction and cloning with canonical IV metadata; Separate canonical IV increment discovery/materialization; Verifier and printer adjustments for region-owned values; Type/SCEV/uniformity analysis updates for VPRegionValue; Transform rewrites to preserve canonical IV users and ordering\nTouched symbols: LoopVectorize::preparePlanForMainVectorLoop; LoopVectorizationPlanner::tryToBuildVPlanWithVPRecipes; preparePlanForEpilogueVectorLoop; VPRegionBlock; VPRegionBlock::getCanonicalIV; VPRegionBlock::getOrCreateCanonicalIVIncrement; VPRegionBlock::clearCanonicalIVNUW; VPCanonicalIVInfo\nRisk relevance: Directly touches VPlan region/value modeling and canonical IV handling, matching the bug area; Changes recipe ordering assumptions in loop headers and verifier checks, which can trigger phi-like ordering assertions; Introduces new SmallVector/region-value lifetime and replacement behavior via retained canonical IV values; Adjusts canonical IV user replacement and increment discovery, increasing risk of stale or reordered uses during plan construction; Touches many LoopVectorize transformation stages, so regressions can surface in -O3 vectorization pipelines\nBuild risk: Large API and class-layout change in VPlan headers and implementation; Many downstream call sites updated, increasing compile-time break risk; Tests were broadly rewritten to match new printing/order semantics, so even small behavior changes can cause widespread test failures; Verifier and pattern-matching expectations changed, making latent ordering bugs easier to expose"
+        },
+        {
+          "rank": 2,
+          "sha": "4bd6175f718f032cc391de9263a3d4c14ae5109d",
+          "subject": "[AArch64][SME] Remove a couple of unused functions (NFC) (#192649)",
+          "utility": 0.025113,
+          "selection_score": -0.049,
+          "semantic_score": 0.1,
+          "build_success_prob": 0.98,
+          "feedback_bias": 1.0,
+          "posterior_bad_mass": 0.0125,
+          "calibrated_suspicion_weight": 0.0,
+          "calibrated_posterior_bad_mass": 0.0,
+          "calibrated_posterior_info_gain": 0.0,
+          "weak_relevance_penalty": 0.049,
+          "diff_mode": "parent",
+          "diff_extraction": "llm",
+          "diff_summary": "Summary: This commit is unrelated to LoopVectorize/VPlan behavior. It removes two now-unused AArch64 SME attribute helper methods from a target-specific header and updates the associated unit test expectations to use newer helper names around lazy-save / ZT0 preservation semantics. The change is confined to AArch64 SME attribute bookkeeping and test coverage, with no vectorizer or VPlan code paths touched.\nMechanisms: AArch64 SME call-state attribute queries; Removal of obsolete helper APIs; Unit test expectation renaming for SME transition logic\nTouched symbols: AArch64SMEAttributes::requiresDisablingZABeforeCall; AArch64SMEAttributes::requiresEnablingZAAfterCall; SMEAttributesTest.Transitions; requiresLazySave; requiresPreservingZT0\nRisk relevance: No direct overlap with LoopVectorize, VPlan, VPRecipeBuilder, or recipe ordering; Target-specific cleanup only; unlikely to affect canonical IV / phi-like recipe construction\nBuild risk: Header API removal can break downstream callers if any remain; Unit test expectation updates indicate semantic renaming, so stale references may fail compilation"
+        },
+        {
+          "rank": 3,
+          "sha": "abc37e6aef740b0af087331e6db807b916f559f5",
+          "subject": "[gn build] Port 4b0dd87d3a29 (#192869)",
+          "utility": 0.050738,
+          "selection_score": -0.0495,
+          "semantic_score": 0.1,
+          "build_success_prob": 0.99,
+          "feedback_bias": 1.0,
+          "posterior_bad_mass": 0.025,
+          "calibrated_suspicion_weight": 0.0,
+          "calibrated_posterior_bad_mass": 0.0,
+          "calibrated_posterior_info_gain": 0.0,
+          "weak_relevance_penalty": 0.0495,
+          "diff_mode": "parent",
+          "diff_extraction": "llm",
+          "diff_summary": "Summary: This GN build port adds a missing clang header to a secondary GN build file. The change is a build-system synchronization update only, with no compiler transformation or IR logic changes.\nMechanisms: GN build manifest maintenance; Header installation/copy list update\nTouched symbols: copy(\"Headers\"); __clang_spirv_math.h\nRisk relevance: No interaction with LoopVectorize, VPlan, or vectorizer recipe ordering\nBuild risk: Build graph change only; can affect header availability in GN builds; Potential for target-specific build breakage if the copied header list is incomplete elsewhere"
+        }
+      ],
+      "evidence": [
+        "=== validated-bisect-runner ===",
+        "issue: pr193164",
+        "llvm-project: /home/ubuntu/gitbisect-work/worktrees/pr193164-aws10-confidence-frontier-b-20260720a",
+        "commit: abc37e6aef74",
+        "jobs: 4",
+        "build type: Release",
+        "assertions: ON",
+        "ccache dir: /home/ubuntu/gitbisect-work/confidence-adaptive-20260720-896b595/.ccache/pr193164-git-bisect",
+        "repro exit code: 0",
+        "verdict: good"
+      ],
+      "log_excerpt": "=== validated-bisect-runner ===\nissue: pr193164\nllvm-project: /home/ubuntu/gitbisect-work/worktrees/pr193164-aws10-confidence-frontier-b-20260720a\ncommit: abc37e6aef74\njobs: 4\nbuild type: Release\nassertions: ON\nccache dir: /home/ubuntu/gitbisect-work/confidence-adaptive-20260720-896b595/.ccache/pr193164-git-bisect\nrepro exit code: 0\nverdict: good",
+      "trace_excerpt": "=== validated-bisect-runner ===\nissue: pr193164\nllvm-project: /home/ubuntu/gitbisect-work/worktrees/pr193164-aws10-confidence-frontier-b-20260720a\ncommit: abc37e6aef74\njobs: 4\nbuild type: Release\nassertions: ON\nccache dir: /home/ubuntu/gitbisect-work/confidence-adaptive-20260720-896b595/.ccache/pr193164-git-bisect\nrepro exit code: 0\nverdict: good",
+      "runner_duration_sec": 89.855
+    }
+  ],
+  "heuristic_keywords": [
+    "crash",
+    "assertion",
+    "LoopVectorize",
+    "VPlan",
+    "VPRecipe",
+    "VPRecipeBuilder",
+    "phi-like recipe",
+    "non-phi recipe",
+    "SmallVector",
+    "O3"
+  ],
+  "model_usage": {
+    "requests": 29,
+    "prompt_tokens": 897612,
+    "completion_tokens": 22927,
+    "total_tokens": 920539,
+    "by_kind": {
+      "diff_extraction": {
+        "requests": 17,
+        "prompt_tokens": 864223,
+        "completion_tokens": 17786,
+        "total_tokens": 882009
+      },
+      "scoring": {
+        "requests": 12,
+        "prompt_tokens": 33389,
+        "completion_tokens": 5141,
+        "total_tokens": 38530
+      }
+    }
+  },
+  "steps_executed": 12,
+  "remaining_unresolved": 1,
+  "final_unresolved_window": [
+    "cac7fe50e0fbedfb14028c170d83386efeb1265b"
+  ],
+  "first_bad_commit": "cac7fe50e0fbedfb14028c170d83386efeb1265b",
+  "unresolved_window_path": "/home/ubuntu/gitbisect-work/confidence-adaptive-20260720-896b595/results/issues/pr193164/pr193164-model-gpt-5.4-mini-calibrated-posterior-obs-trace-only-aws10-confidence-frontier-b-20260720a-unresolved-window.json",
+  "runner_build_count": 12,
+  "runner_build_avg_duration_sec": 1555.343
+}

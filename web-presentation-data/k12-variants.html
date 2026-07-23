@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Fixed-k12 Variant Matrix - LLM-Guided Git Bisect</title>
+    <meta name="description" content="Historical k3 and clean fixed-k12 results for four isolated LLM-bisect policy variants." />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <header class="site-header compact-header">
+      <div class="wrap">
+        <div class="eyebrow">Scoped-10 / isolated policy variants</div>
+        <h1>Four policy variants at top-k3 and top-k12</h1>
+        <p class="lede">A separate matrix for changes to the model-guided search policy. Every number is a runner-backed build step. The original parent-diff plus LLM top-k3 run is the common reference, not another variant.</p>
+        <p class="scope" id="scope-note"></p>
+      </div>
+    </header>
+    <nav class="tabbar" aria-label="Presentation pages">
+      <div class="wrap tabbar-inner">
+        <a href="./index.html" class="tab">Overview &amp; results</a>
+        <a href="./focused-results.html" class="tab">Focused comparisons</a>
+        <a href="./k12-variants.html" class="tab active">Variant matrix</a>
+        <a href="./runtime.html" class="tab">Runtime &amp; LLM I/O</a>
+        <a href="./explorer.html" class="tab">Trace explorer</a>
+      </div>
+    </nav>
+    <main class="wrap">
+      <section class="section">
+        <div class="page-kicker">01 / Policy changes</div>
+        <h2>What each variant changes</h2>
+        <p class="section-sub">The fixed-k12 matrix launches every arm from a clean archive root, cache namespace, observations file, and run history. Historical k3 cells are displayed as prior evidence, not resumed work.</p>
+        <div class="variant-methods">
+          <article class="variant-method"><h3>Evidence-guided diverse frontier</h3><p>Preserves a semantic leader, an information-gain probe, and an issue-relevant component not represented by the leader.</p><dl><dt>k3</dt><dd>Not run historically.</dd><dt>k12</dt><dd>Uses the diverse causal frontier.</dd></dl></article>
+          <article class="variant-method"><h3>Structured causal parent-diff reasoning</h3><p>Retrieves issue-matched parent-diff hunks and local function context before extracting symbols, mechanisms, causal linkage, confidence, and build risk.</p><dl><dt>k3</dt><dd>Historical causal extraction run.</dd><dt>k12</dt><dd>Same extraction at a fixed 12-candidate frontier.</dd></dl></article>
+          <article class="variant-method"><h3>Observation-conditioned posterior</h3><p>Good and bad runner verdicts update the priority of unresolved candidates sharing the selected commit's extracted mechanisms and components.</p><dl><dt>k3</dt><dd>Historical posterior policy.</dd><dt>k12</dt><dd>Same posterior update with generic extraction.</dd></dl></article>
+          <article class="variant-method"><h3>Confidence-adaptive frontier</h3><p>Uses the model and heuristic agreement signal to choose either the semantic top group or a deliberately mixed information-gain frontier.</p><dl><dt>k3</dt><dd>Historical confidence-conditioned policy.</dd><dt>k12</dt><dd>Same policy with a fixed 12-candidate frontier.</dd></dl></article>
+        </div>
+      </section>
+      <section class="section">
+        <div class="page-kicker">02 / Matched completion</div>
+        <h2>Aggregate runner build steps</h2>
+        <p class="section-sub">Lower is better. Each card compares a configuration only with the common reference on the exact rows that configuration has completed validly. It never treats a pending or invalid row as a loss.</p>
+        <div class="variant-summary" id="k12-variant-cards"></div>
+        <div class="focused-note" id="k12-variant-note"></div>
+      </section>
+      <section class="section">
+        <div class="page-kicker">03 / Per issue</div>
+        <h2>Runner build steps to a terminal boundary</h2>
+        <p class="section-sub">Completed values are terminal, endpoint-valid histories. <strong>running</strong> includes the recorded current step count; <strong>not run</strong> means that arm was never launched; <strong>invalid</strong> is excluded due to provenance or endpoint failure.</p>
+        <div class="table-scroll variant-table-wrap">
+          <table class="cmp variant-table">
+            <thead>
+              <tr><th rowspan="2" class="left">Issue</th><th rowspan="2">Reference<br />parent+LLM k3</th><th colspan="2">Evidence diverse</th><th colspan="2">Causal parent diff</th><th colspan="2">Observation posterior</th><th colspan="2">Confidence frontier</th></tr>
+              <tr><th>k3</th><th>k12</th><th>k3</th><th>k12</th><th>k3</th><th>k12</th><th>k3</th><th>k12</th></tr>
+            </thead>
+            <tbody id="k12-variant-body"></tbody>
+          </table>
+        </div>
+        <p class="note">The historical and fixed-k12 arms differ in frontier size and launch time. This page reports observations; it does not claim a controlled causal effect of k alone.</p>
+      </section>
+      <section class="section page-links"><a class="next-page" href="./focused-results.html"><span>Compare</span><strong>Return to top-k and heuristic controls</strong><b>&larr;</b></a><a class="next-page" href="./runtime.html"><span>Inspect</span><strong>See the runtime architecture and LLM boundary</strong><b>&rarr;</b></a></section>
+    </main>
+    <footer class="site-footer"><div class="wrap"><p id="footer-note"></p></div></footer>
+    <script src="./app.js"></script>
+  </body>
+</html>

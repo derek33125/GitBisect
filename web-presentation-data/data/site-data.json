@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-07-19T14:07:40.561Z",
+  "generated_at": "2026-07-23T13:19:35.342Z",
   "scope": "Shared 10-case comparison set. Numbers are for apples-to-apples method comparison on a fixed set, not a benchmark-wide claim.",
   "aggregate": {
     "git": {
@@ -6377,6 +6377,981 @@
         }
       }
     }
+  },
+  "k12_variants": {
+    "scope": "Four isolated policy variants evaluated on the same scoped ten LLVM crash intervals. Values are runner build steps only.",
+    "reference": {
+      "label": "Parent diff + LLM extraction (top-k3)",
+      "aggregate": {
+        "completed": 10,
+        "total_steps": 111,
+        "mean_steps": 11.1,
+        "median_steps": 11
+      }
+    },
+    "validity_note": "Only completed, endpoint-valid rows contribute to a configuration's aggregate. Matched reference totals use exactly those completed rows. The stale AWS evidence-diverse pr193164 result is excluded; the corrected EDU replacement remains running.",
+    "configurations": [
+      {
+        "key": "evidence",
+        "label": "Evidence-guided diverse frontier",
+        "k3_setup": "Not run: this frontier policy was introduced for the fixed-k12 matrix.",
+        "k12_setup": "Use a 12-candidate causal frontier, then select semantically relevant, information-gain, and component-diverse probes.",
+        "k3": {
+          "aggregate": {
+            "completed": 0,
+            "total_steps": 0,
+            "mean_steps": null,
+            "median_steps": null,
+            "matched_reference_total": 0,
+            "matched_reference_mean": null,
+            "wins": 0,
+            "ties": 0,
+            "losses": 0
+          }
+        },
+        "k12": {
+          "aggregate": {
+            "completed": 9,
+            "total_steps": 103,
+            "mean_steps": 11.44,
+            "median_steps": 11,
+            "matched_reference_total": 98,
+            "matched_reference_mean": 10.89,
+            "wins": 1,
+            "ties": 4,
+            "losses": 4
+          }
+        }
+      },
+      {
+        "key": "causal",
+        "label": "Structured causal parent-diff reasoning",
+        "k3_setup": "Historical k3 run: retrieve issue-matched parent-diff hunks and function context, then extract symbols, mechanisms, linkage, confidence, and build risk.",
+        "k12_setup": "The same causal evidence extraction with a fixed 12-candidate model frontier.",
+        "k3": {
+          "aggregate": {
+            "completed": 9,
+            "total_steps": 98,
+            "mean_steps": 10.89,
+            "median_steps": 11,
+            "matched_reference_total": 98,
+            "matched_reference_mean": 10.89,
+            "wins": 2,
+            "ties": 5,
+            "losses": 2
+          }
+        },
+        "k12": {
+          "aggregate": {
+            "completed": 10,
+            "total_steps": 107,
+            "mean_steps": 10.7,
+            "median_steps": 10,
+            "matched_reference_total": 111,
+            "matched_reference_mean": 11.1,
+            "wins": 5,
+            "ties": 2,
+            "losses": 3
+          }
+        }
+      },
+      {
+        "key": "posterior",
+        "label": "Observation-conditioned posterior",
+        "k3_setup": "Historical k3 run: runner good/bad evidence reweights unresolved candidates sharing extracted mechanism and component features.",
+        "k12_setup": "The same posterior update with generic parent-diff extraction and a fixed 12-candidate frontier.",
+        "k3": {
+          "aggregate": {
+            "completed": 10,
+            "total_steps": 111,
+            "mean_steps": 11.1,
+            "median_steps": 11,
+            "matched_reference_total": 111,
+            "matched_reference_mean": 11.1,
+            "wins": 1,
+            "ties": 7,
+            "losses": 2
+          }
+        },
+        "k12": {
+          "aggregate": {
+            "completed": 3,
+            "total_steps": 33,
+            "mean_steps": 11,
+            "median_steps": 10,
+            "matched_reference_total": 31,
+            "matched_reference_mean": 10.33,
+            "wins": 1,
+            "ties": 0,
+            "losses": 2
+          }
+        }
+      },
+      {
+        "key": "confidence",
+        "label": "Confidence-adaptive frontier",
+        "k3_setup": "Historical k3 run: agreement uses the semantic top three; disagreement uses a semantic leader, posterior anchor, and midpoint probe.",
+        "k12_setup": "The same confidence-conditioned selection policy with a fixed 12-candidate model frontier.",
+        "k3": {
+          "aggregate": {
+            "completed": 9,
+            "total_steps": 110,
+            "mean_steps": 12.22,
+            "median_steps": 12,
+            "matched_reference_total": 100,
+            "matched_reference_mean": 11.11,
+            "wins": 1,
+            "ties": 1,
+            "losses": 7
+          }
+        },
+        "k12": {
+          "aggregate": {
+            "completed": 4,
+            "total_steps": 47,
+            "mean_steps": 11.75,
+            "median_steps": 11,
+            "matched_reference_total": 39,
+            "matched_reference_mean": 9.75,
+            "wins": 0,
+            "ties": 1,
+            "losses": 3
+          }
+        }
+      }
+    ],
+    "rows": [
+      {
+        "issue": "pr204559",
+        "title": "MemorySSA clobber walker verification assertion at -O1",
+        "reference": {
+          "state": "completed",
+          "steps": 8,
+          "first_bad": "5a5d0fb1e471",
+          "source": "aws",
+          "run_label": "aws10-parent-llm600k-topk3-fresh-a-20260716a"
+        },
+        "evidence": {
+          "k3": {
+            "state": "not_run",
+            "steps": null,
+            "first_bad": null,
+            "source": null,
+            "run_label": null,
+            "note": null
+          },
+          "k12": {
+            "state": "completed",
+            "steps": 10,
+            "first_bad": "5a5d0fb1e471",
+            "source": "aws-server",
+            "run_label": "aws12-k12matrix-a-evidence-diverse-20260722a",
+            "note": null
+          }
+        },
+        "causal": {
+          "k3": {
+            "state": "completed",
+            "steps": 9,
+            "first_bad": "5a5d0fb1e471",
+            "source": null,
+            "run_label": "aws10-causal-parent-k3-a-20260721a",
+            "note": null
+          },
+          "k12": {
+            "state": "completed",
+            "steps": 9,
+            "first_bad": "5a5d0fb1e471",
+            "source": "aws-server",
+            "run_label": "aws12-k12matrix-a-causal-20260722a",
+            "note": null
+          }
+        },
+        "posterior": {
+          "k3": {
+            "state": "completed",
+            "steps": 8,
+            "first_bad": "5a5d0fb1e471",
+            "source": null,
+            "run_label": "aws10-observation-posterior-a-20260720b",
+            "note": null
+          },
+          "k12": {
+            "state": "running",
+            "steps": 1,
+            "first_bad": null,
+            "source": "aws-server",
+            "run_label": null,
+            "note": null
+          }
+        },
+        "confidence": {
+          "k3": {
+            "state": "completed",
+            "steps": 11,
+            "first_bad": "5a5d0fb1e471",
+            "source": null,
+            "run_label": "aws10-confidence-frontier-a-20260720a",
+            "note": null
+          },
+          "k12": {
+            "state": "completed",
+            "steps": 11,
+            "first_bad": "5a5d0fb1e471",
+            "source": "aws-server",
+            "run_label": "aws12-k12matrix-a-confidence-20260722a",
+            "note": null
+          }
+        }
+      },
+      {
+        "issue": "pr204589",
+        "title": "MemorySSA removeFromLookups assertion at -O3",
+        "reference": {
+          "state": "completed",
+          "steps": 10,
+          "first_bad": "5a5d0fb1e471",
+          "source": "aws",
+          "run_label": "aws10-parent-llm600k-topk3-fresh-a-20260716a"
+        },
+        "evidence": {
+          "k3": {
+            "state": "not_run",
+            "steps": null,
+            "first_bad": null,
+            "source": null,
+            "run_label": null,
+            "note": null
+          },
+          "k12": {
+            "state": "completed",
+            "steps": 10,
+            "first_bad": "5a5d0fb1e471",
+            "source": "aws-server",
+            "run_label": "aws12-k12matrix-a-evidence-diverse-20260722a",
+            "note": null
+          }
+        },
+        "causal": {
+          "k3": {
+            "state": "completed",
+            "steps": 9,
+            "first_bad": "5a5d0fb1e471",
+            "source": null,
+            "run_label": "aws10-causal-parent-k3-a-20260721a",
+            "note": null
+          },
+          "k12": {
+            "state": "completed",
+            "steps": 13,
+            "first_bad": "5a5d0fb1e471",
+            "source": "aws-server",
+            "run_label": "aws12-k12matrix-a-causal-20260722a",
+            "note": null
+          }
+        },
+        "posterior": {
+          "k3": {
+            "state": "completed",
+            "steps": 11,
+            "first_bad": "5a5d0fb1e471",
+            "source": null,
+            "run_label": "aws10-observation-posterior-a-20260720b",
+            "note": null
+          },
+          "k12": {
+            "state": "not_run",
+            "steps": null,
+            "first_bad": null,
+            "source": null,
+            "run_label": null,
+            "note": null
+          }
+        },
+        "confidence": {
+          "k3": {
+            "state": "completed",
+            "steps": 11,
+            "first_bad": "5a5d0fb1e471",
+            "source": null,
+            "run_label": "aws10-confidence-frontier-a-20260720a",
+            "note": null
+          },
+          "k12": {
+            "state": "not_run",
+            "steps": null,
+            "first_bad": null,
+            "source": null,
+            "run_label": null,
+            "note": null
+          }
+        }
+      },
+      {
+        "issue": "pr201444",
+        "title": "X86 DAG combine low-bits constraint assertion",
+        "reference": {
+          "state": "completed",
+          "steps": 11,
+          "first_bad": "6bcdd843e302",
+          "source": "aws",
+          "run_label": "aws10-parent-llm600k-topk3-fresh-a-20260716a"
+        },
+        "evidence": {
+          "k3": {
+            "state": "not_run",
+            "steps": null,
+            "first_bad": null,
+            "source": null,
+            "run_label": null,
+            "note": null
+          },
+          "k12": {
+            "state": "completed",
+            "steps": 9,
+            "first_bad": "6bcdd843e302",
+            "source": "aws-server",
+            "run_label": "aws12-k12matrix-b-evidence-diverse-20260722a",
+            "note": null
+          }
+        },
+        "causal": {
+          "k3": {
+            "state": "completed",
+            "steps": 12,
+            "first_bad": "6bcdd843e302",
+            "source": null,
+            "run_label": "aws10-causal-parent-k3-b-20260721a",
+            "note": null
+          },
+          "k12": {
+            "state": "completed",
+            "steps": 9,
+            "first_bad": "6bcdd843e302",
+            "source": "aws-server",
+            "run_label": "aws12-k12matrix-b-causal-20260722a",
+            "note": null
+          }
+        },
+        "posterior": {
+          "k3": {
+            "state": "completed",
+            "steps": 11,
+            "first_bad": "6bcdd843e302",
+            "source": null,
+            "run_label": "aws10-observation-posterior-b-20260720b",
+            "note": null
+          },
+          "k12": {
+            "state": "running",
+            "steps": 2,
+            "first_bad": null,
+            "source": "aws-server",
+            "run_label": null,
+            "note": null
+          }
+        },
+        "confidence": {
+          "k3": {
+            "state": "completed",
+            "steps": 12,
+            "first_bad": "6bcdd843e302",
+            "source": null,
+            "run_label": "aws10-confidence-frontier-b-20260720a",
+            "note": null
+          },
+          "k12": {
+            "state": "not_run",
+            "steps": null,
+            "first_bad": null,
+            "source": null,
+            "run_label": null,
+            "note": null
+          }
+        }
+      },
+      {
+        "issue": "pr193164",
+        "title": "LoopVectorize VPlan phi-like recipe ordering assertion",
+        "reference": {
+          "state": "completed",
+          "steps": 13,
+          "first_bad": "cac7fe50e0fb",
+          "source": "aws",
+          "run_label": "aws10-parent-llm600k-topk3-fresh-a-20260716a"
+        },
+        "evidence": {
+          "k3": {
+            "state": "not_run",
+            "steps": null,
+            "first_bad": null,
+            "source": null,
+            "run_label": null,
+            "note": null
+          },
+          "k12": {
+            "state": "running",
+            "steps": 3,
+            "first_bad": null,
+            "source": "edu-server",
+            "run_label": null,
+            "note": "Corrected EDU rerun after the stale AWS 10-step result used obsolete bad endpoint 1bec68a; the stale row is excluded."
+          }
+        },
+        "causal": {
+          "k3": {
+            "state": "invalid",
+            "steps": null,
+            "first_bad": null,
+            "source": null,
+            "run_label": null,
+            "note": "The historical AWS causal run used obsolete bad endpoint 1bec68a, which is validated good; excluded from the aggregate."
+          },
+          "k12": {
+            "state": "completed",
+            "steps": 10,
+            "first_bad": "cac7fe50e0fb",
+            "source": "aws-server",
+            "run_label": "aws12-k12matrix-b-causal-20260722a",
+            "note": null
+          }
+        },
+        "posterior": {
+          "k3": {
+            "state": "completed",
+            "steps": 11,
+            "first_bad": "cac7fe50e0fb",
+            "source": null,
+            "run_label": "aws10-observation-posterior-pr193164-corrected-20260721a",
+            "note": "Corrected-endpoint rerun."
+          },
+          "k12": {
+            "state": "not_run",
+            "steps": null,
+            "first_bad": null,
+            "source": null,
+            "run_label": null,
+            "note": null
+          }
+        },
+        "confidence": {
+          "k3": {
+            "state": "completed",
+            "steps": 12,
+            "first_bad": "cac7fe50e0fb",
+            "source": null,
+            "run_label": "aws10-confidence-frontier-b-20260720a",
+            "note": null
+          },
+          "k12": {
+            "state": "not_run",
+            "steps": null,
+            "first_bad": null,
+            "source": null,
+            "run_label": null,
+            "note": null
+          }
+        }
+      },
+      {
+        "issue": "pr50304",
+        "title": "APFloat/ConstantFold representability assertion",
+        "reference": {
+          "state": "completed",
+          "steps": 9,
+          "first_bad": "c9c05a91c484",
+          "source": "aws",
+          "run_label": "aws10-parent-llm600k-topk3-fresh-b-20260716a"
+        },
+        "evidence": {
+          "k3": {
+            "state": "not_run",
+            "steps": null,
+            "first_bad": null,
+            "source": null,
+            "run_label": null,
+            "note": null
+          },
+          "k12": {
+            "state": "completed",
+            "steps": 11,
+            "first_bad": "c9c05a91c484",
+            "source": "aws-server",
+            "run_label": "aws12-k12matrix-c-evidence-diverse-20260722a",
+            "note": null
+          }
+        },
+        "causal": {
+          "k3": {
+            "state": "completed",
+            "steps": 9,
+            "first_bad": "c9c05a91c484",
+            "source": null,
+            "run_label": "aws10-causal-parent-k3-c-20260721a",
+            "note": null
+          },
+          "k12": {
+            "state": "completed",
+            "steps": 9,
+            "first_bad": "c9c05a91c484",
+            "source": "aws-server",
+            "run_label": "aws12-k12matrix-c-causal-20260722a",
+            "note": null
+          }
+        },
+        "posterior": {
+          "k3": {
+            "state": "completed",
+            "steps": 9,
+            "first_bad": "c9c05a91c484",
+            "source": null,
+            "run_label": "aws10-observation-posterior-c-20260720b",
+            "note": null
+          },
+          "k12": {
+            "state": "completed",
+            "steps": 10,
+            "first_bad": "c9c05a91c484",
+            "source": "aws-server",
+            "run_label": "aws12-k12matrix-c-observation-posterior-20260722a",
+            "note": null
+          }
+        },
+        "confidence": {
+          "k3": {
+            "state": "completed",
+            "steps": 10,
+            "first_bad": "c9c05a91c484",
+            "source": null,
+            "run_label": "aws10-confidence-frontier-c-20260720a",
+            "note": null
+          },
+          "k12": {
+            "state": "completed",
+            "steps": 11,
+            "first_bad": "c9c05a91c484",
+            "source": "aws-server",
+            "run_label": "aws12-k12matrix-c-confidence-20260722a",
+            "note": null
+          }
+        }
+      },
+      {
+        "issue": "pr50585",
+        "title": "Optimizer verifier domination failure",
+        "reference": {
+          "state": "completed",
+          "steps": 11,
+          "first_bad": "e38b7e894808",
+          "source": "aws",
+          "run_label": "aws10-parent-llm600k-topk3-fresh-b-20260716a"
+        },
+        "evidence": {
+          "k3": {
+            "state": "not_run",
+            "steps": null,
+            "first_bad": null,
+            "source": null,
+            "run_label": null,
+            "note": null
+          },
+          "k12": {
+            "state": "completed",
+            "steps": 13,
+            "first_bad": "e38b7e894808",
+            "source": "aws-server",
+            "run_label": "aws12-k12matrix-c-evidence-diverse-20260722a",
+            "note": null
+          }
+        },
+        "causal": {
+          "k3": {
+            "state": "completed",
+            "steps": 11,
+            "first_bad": "e38b7e894808",
+            "source": null,
+            "run_label": "aws10-causal-parent-k3-c-20260721a",
+            "note": null
+          },
+          "k12": {
+            "state": "completed",
+            "steps": 12,
+            "first_bad": "e38b7e894808",
+            "source": "aws-server",
+            "run_label": "aws12-k12matrix-c-causal-20260722a",
+            "note": null
+          }
+        },
+        "posterior": {
+          "k3": {
+            "state": "completed",
+            "steps": 12,
+            "first_bad": "e38b7e894808",
+            "source": null,
+            "run_label": "aws10-observation-posterior-c-20260720b",
+            "note": null
+          },
+          "k12": {
+            "state": "completed",
+            "steps": 13,
+            "first_bad": "e38b7e894808",
+            "source": "aws-server",
+            "run_label": "aws12-k12matrix-c-observation-posterior-20260722a",
+            "note": null
+          }
+        },
+        "confidence": {
+          "k3": {
+            "state": "completed",
+            "steps": 14,
+            "first_bad": "e38b7e894808",
+            "source": null,
+            "run_label": "aws10-confidence-frontier-c-20260720a",
+            "note": null
+          },
+          "k12": {
+            "state": "completed",
+            "steps": 14,
+            "first_bad": "e38b7e894808",
+            "source": "aws-server",
+            "run_label": "aws12-k12matrix-c-confidence-20260722a",
+            "note": null
+          }
+        }
+      },
+      {
+        "issue": "pr48154",
+        "title": "InstCombine/Attributor verifier incompatible attributes crash",
+        "reference": {
+          "state": "completed",
+          "steps": 16,
+          "first_bad": "20e989e9de6a",
+          "source": "aws",
+          "run_label": "aws10-parent-llm600k-topk3-fresh-b-20260716a"
+        },
+        "evidence": {
+          "k3": {
+            "state": "not_run",
+            "steps": null,
+            "first_bad": null,
+            "source": null,
+            "run_label": null,
+            "note": null
+          },
+          "k12": {
+            "state": "completed",
+            "steps": 16,
+            "first_bad": null,
+            "source": "edu-server",
+            "run_label": null,
+            "note": null
+          }
+        },
+        "causal": {
+          "k3": {
+            "state": "completed",
+            "steps": 15,
+            "first_bad": null,
+            "source": null,
+            "run_label": null,
+            "note": null
+          },
+          "k12": {
+            "state": "completed",
+            "steps": 14,
+            "first_bad": null,
+            "source": "edu-server",
+            "run_label": null,
+            "note": null
+          }
+        },
+        "posterior": {
+          "k3": {
+            "state": "completed",
+            "steps": 16,
+            "first_bad": null,
+            "source": null,
+            "run_label": null,
+            "note": null
+          },
+          "k12": {
+            "state": "not_run",
+            "steps": null,
+            "first_bad": null,
+            "source": null,
+            "run_label": null,
+            "note": null
+          }
+        },
+        "confidence": {
+          "k3": {
+            "state": "completed",
+            "steps": 16,
+            "first_bad": null,
+            "source": null,
+            "run_label": null,
+            "note": null
+          },
+          "k12": {
+            "state": "not_run",
+            "steps": null,
+            "first_bad": null,
+            "source": null,
+            "run_label": null,
+            "note": null
+          }
+        }
+      },
+      {
+        "issue": "pr49535",
+        "title": "ValueTracking invertible operand assertion",
+        "reference": {
+          "state": "completed",
+          "steps": 11,
+          "first_bad": "be20eae25f50",
+          "source": "aws",
+          "run_label": "aws10-parent-llm600k-topk3-fresh-c-20260716a"
+        },
+        "evidence": {
+          "k3": {
+            "state": "not_run",
+            "steps": null,
+            "first_bad": null,
+            "source": null,
+            "run_label": null,
+            "note": null
+          },
+          "k12": {
+            "state": "completed",
+            "steps": 11,
+            "first_bad": null,
+            "source": "edu-server",
+            "run_label": null,
+            "note": null
+          }
+        },
+        "causal": {
+          "k3": {
+            "state": "completed",
+            "steps": 11,
+            "first_bad": null,
+            "source": null,
+            "run_label": null,
+            "note": null
+          },
+          "k12": {
+            "state": "completed",
+            "steps": 10,
+            "first_bad": null,
+            "source": "edu-server",
+            "run_label": null,
+            "note": null
+          }
+        },
+        "posterior": {
+          "k3": {
+            "state": "completed",
+            "steps": 11,
+            "first_bad": null,
+            "source": null,
+            "run_label": null,
+            "note": null
+          },
+          "k12": {
+            "state": "not_run",
+            "steps": null,
+            "first_bad": null,
+            "source": null,
+            "run_label": null,
+            "note": null
+          }
+        },
+        "confidence": {
+          "k3": {
+            "state": "invalid",
+            "steps": null,
+            "first_bad": null,
+            "source": null,
+            "run_label": null,
+            "note": "The historical k3 replica was superseded before it reached a terminal result; excluded."
+          },
+          "k12": {
+            "state": "not_run",
+            "steps": null,
+            "first_bad": null,
+            "source": null,
+            "run_label": null,
+            "note": null
+          }
+        }
+      },
+      {
+        "issue": "pr52635",
+        "title": "AArch64 XRay MCSymbolRefExpr assertion",
+        "reference": {
+          "state": "completed",
+          "steps": 11,
+          "first_bad": "10bc12588dac",
+          "source": "aws",
+          "run_label": "aws10-parent-llm600k-topk3-fresh-c-20260716a"
+        },
+        "evidence": {
+          "k3": {
+            "state": "not_run",
+            "steps": null,
+            "first_bad": null,
+            "source": null,
+            "run_label": null,
+            "note": null
+          },
+          "k12": {
+            "state": "completed",
+            "steps": 11,
+            "first_bad": null,
+            "source": "edu-server",
+            "run_label": null,
+            "note": null
+          }
+        },
+        "causal": {
+          "k3": {
+            "state": "completed",
+            "steps": 11,
+            "first_bad": null,
+            "source": null,
+            "run_label": null,
+            "note": null
+          },
+          "k12": {
+            "state": "completed",
+            "steps": 11,
+            "first_bad": null,
+            "source": "edu-server",
+            "run_label": null,
+            "note": null
+          }
+        },
+        "posterior": {
+          "k3": {
+            "state": "completed",
+            "steps": 11,
+            "first_bad": null,
+            "source": null,
+            "run_label": null,
+            "note": null
+          },
+          "k12": {
+            "state": "completed",
+            "steps": 10,
+            "first_bad": null,
+            "source": "edu-server",
+            "run_label": null,
+            "note": null
+          }
+        },
+        "confidence": {
+          "k3": {
+            "state": "completed",
+            "steps": 12,
+            "first_bad": null,
+            "source": null,
+            "run_label": null,
+            "note": null
+          },
+          "k12": {
+            "state": "completed",
+            "steps": 11,
+            "first_bad": null,
+            "source": "edu-server",
+            "run_label": null,
+            "note": null
+          }
+        }
+      },
+      {
+        "issue": "pr200987",
+        "title": "Clang optimizer crash in SCEVExpander for asm goto loop",
+        "reference": {
+          "state": "completed",
+          "steps": 11,
+          "first_bad": "329ef60f3e21",
+          "source": "aws",
+          "run_label": "aws10-parent-llm600k-topk3-fresh-c-20260716a"
+        },
+        "evidence": {
+          "k3": {
+            "state": "not_run",
+            "steps": null,
+            "first_bad": null,
+            "source": null,
+            "run_label": null,
+            "note": null
+          },
+          "k12": {
+            "state": "completed",
+            "steps": 12,
+            "first_bad": null,
+            "source": "edu-server",
+            "run_label": null,
+            "note": null
+          }
+        },
+        "causal": {
+          "k3": {
+            "state": "completed",
+            "steps": 11,
+            "first_bad": null,
+            "source": null,
+            "run_label": null,
+            "note": null
+          },
+          "k12": {
+            "state": "completed",
+            "steps": 10,
+            "first_bad": null,
+            "source": "edu-server",
+            "run_label": null,
+            "note": null
+          }
+        },
+        "posterior": {
+          "k3": {
+            "state": "completed",
+            "steps": 11,
+            "first_bad": null,
+            "source": null,
+            "run_label": null,
+            "note": null
+          },
+          "k12": {
+            "state": "not_run",
+            "steps": null,
+            "first_bad": null,
+            "source": null,
+            "run_label": null,
+            "note": null
+          }
+        },
+        "confidence": {
+          "k3": {
+            "state": "completed",
+            "steps": 12,
+            "first_bad": null,
+            "source": null,
+            "run_label": null,
+            "note": null
+          },
+          "k12": {
+            "state": "not_run",
+            "steps": null,
+            "first_bad": null,
+            "source": null,
+            "run_label": null,
+            "note": null
+          }
+        }
+      }
+    ]
   },
   "live_lanes": {
     "generated_at": "2026-07-16T02:46:00Z",

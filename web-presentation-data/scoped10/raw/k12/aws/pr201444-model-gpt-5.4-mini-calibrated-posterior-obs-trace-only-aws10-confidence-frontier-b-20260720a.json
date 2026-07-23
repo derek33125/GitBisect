@@ -1,0 +1,2262 @@
+{
+  "issue": "pr201444",
+  "scorer": "model",
+  "model_name": "gpt-5.4-mini",
+  "model_frontier": "topk",
+  "search_policy": "calibrated-posterior",
+  "hybrid_switch_window": 32,
+  "candidate_pruning": "off",
+  "heuristic_version": "tuned",
+  "calibrated_prior_power": 1.35,
+  "calibrated_prior_bonus": 1.5,
+  "weak_relevance_penalty": 0.05,
+  "weak_relevance_threshold": 0.8,
+  "build_success_power": 1.0,
+  "observation_prompt_mode": "trace-only",
+  "run_label": "aws10-confidence-frontier-b-20260720a",
+  "model_diff_mode": "parent",
+  "model_diff_extraction": "llm",
+  "model_top_k": 3,
+  "adaptive_top_k": null,
+  "confidence_adaptive_frontier": {
+    "threshold": 0.35
+  },
+  "model_cache_namespace": "confidence-frontier-035-20260720-aws-b",
+  "oracle_first_bad_sha": null,
+  "lambda_weight": 2.0,
+  "max_steps": 30,
+  "observation_path": "results/lm_bisect_observations/pr201444-aws10-confidence-frontier-b-20260720a.json",
+  "run_history_path": "/home/ubuntu/gitbisect-work/confidence-adaptive-20260720-896b595/results/lm_bisect_runs/pr201444-model-gpt-5.4-mini-calibrated-posterior-obs-trace-only-aws10-confidence-frontier-b-20260720a.json",
+  "good_commit": "e9f758a59b2f887acb07e26e2d480c7369a72009",
+  "bad_commit": "fb6153a65039b06319cb4b9ce2fafa84d75daa6b",
+  "initial_unresolved": 17742,
+  "status": "completed",
+  "steps": [
+    {
+      "step": 1,
+      "sha": "f9d2d8beeff07809ccc2bc60bcba743f7eae0fa7",
+      "subject": "[clang] Enable '-verify-directives' mode in C++ DR tests (#187219)",
+      "verdict": "good",
+      "source": "runner",
+      "summary": "verdict: good",
+      "unresolved_before": 17742,
+      "unresolved_after": 9553,
+      "model_top_k": 3,
+      "adaptive_top_k": null,
+      "confidence_adaptive_frontier": {
+        "threshold": 0.35
+      },
+      "model_frontier_decision": {
+        "configured_frontier": "topk",
+        "effective_frontier": "diverse",
+        "confidence": 0.0,
+        "threshold": 0.35,
+        "reason": "semantic scores are ambiguous; add posterior and midpoint anchors",
+        "top_semantic_candidates": [
+          {
+            "sha": "3e24a393571e83e8564562b2ec84fe701648da2f",
+            "semantic_score": 7.45,
+            "build_success_prob": 0.92
+          },
+          {
+            "sha": "7d39664a6ae8daaf186b65578492244d96a50bf2",
+            "semantic_score": 7.45,
+            "build_success_prob": 0.87
+          }
+        ],
+        "selected_frontier_shas": [
+          "3e24a393571e83e8564562b2ec84fe701648da2f",
+          "f9d2d8beeff07809ccc2bc60bcba743f7eae0fa7",
+          "b4f50cfd4a3a086db3f88271c9595056a877ef90"
+        ],
+        "observation_count": 0
+      },
+      "model_score_context": "v1-1cc1d6343998f910",
+      "model_score_context_payload": {
+        "version": "v1",
+        "unresolved_count": 17742,
+        "candidate_window_sha256": "3f243533b4d84878a3bbd5b824752ade56ef38b1ff518472759d09dc3fb01a72",
+        "observation_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "model_top_k": 3,
+        "model_frontier": "topk",
+        "model_diff_mode": "parent",
+        "model_diff_extraction": "llm",
+        "observation_prompt_mode": "trace-only",
+        "confidence_adaptive_frontier": {
+          "threshold": 0.35
+        }
+      },
+      "candidate_pruning": {
+        "mode": "off",
+        "before_count": 17742,
+        "after_count": 17742,
+        "pruned_count": 0,
+        "keep_prefixes": [],
+        "kept_reason_counts": {},
+        "prune_reason_counts": {},
+        "pruned_examples": []
+      },
+      "search_policy": "calibrated-posterior",
+      "selection_mode": "calibrated-posterior",
+      "selection": {
+        "utility": 0.959813,
+        "selection_score": 1.120698,
+        "semantic_score": 0.2,
+        "build_success_prob": 0.96,
+        "balance_score": 0.999743,
+        "suspicion_weight": 3.1e-05,
+        "feedback_bias": 0.0,
+        "evidence": [
+          "model-scored",
+          "Pure Clang test-harness change for -verify-directives in C++ DR tests, unrelated to X86 DAG combine",
+          "No backend lowering, SelectionDAG, or integer bit-test logic involved",
+          "features: clang test harness, verify-directives, front-end regression tests"
+        ],
+        "posterior_bad_mass": 0.499871,
+        "calibrated_suspicion_weight": 1.4e-05,
+        "calibrated_posterior_bad_mass": 0.510243,
+        "calibrated_posterior_info_gain": 0.999697,
+        "weak_relevance_penalty": 0.048,
+        "diff_mode": "parent",
+        "diff_extraction": "llm",
+        "diff_summary": "Summary: Switches a large set of Clang C++ DR tests from plain -verify to -verify-directives, making directive checking explicit across many standards-mode test files. The change is largely harness-level and test-only: it updates RUN lines in numerous CWG files, preserving the same semantic expectations while altering how expected diagnostics/directives are validated. One test also keeps an AST dump verification under the new mode.\nMechanisms: Clang test harness verification mode change; -verify-directives diagnostic directive checking; C++ standard-mode regression test execution\nTouched symbols: clang test RUN lines; %clang_cc1; -verify-directives\nRisk relevance: No backend lowering or SelectionDAG logic changes; Only changes test invocation flags for frontend conformance tests; Low direct relation to X86 DAG combine or integer lowering crash paths\nBuild risk: Broad test harness change across many files can affect test expectations and stability; May alter diagnostic parsing/verification behavior in clang test suites; Touches a large number of test files, increasing maintenance surface"
+      },
+      "top_candidates": [
+        {
+          "rank": 1,
+          "sha": "f9d2d8beeff07809ccc2bc60bcba743f7eae0fa7",
+          "subject": "[clang] Enable '-verify-directives' mode in C++ DR tests (#187219)",
+          "utility": 0.959813,
+          "selection_score": 1.120698,
+          "semantic_score": 0.2,
+          "build_success_prob": 0.96,
+          "feedback_bias": 0.0,
+          "posterior_bad_mass": 0.499871,
+          "calibrated_suspicion_weight": 1.4e-05,
+          "calibrated_posterior_bad_mass": 0.510243,
+          "calibrated_posterior_info_gain": 0.999697,
+          "weak_relevance_penalty": 0.048,
+          "diff_mode": "parent",
+          "diff_extraction": "llm",
+          "diff_summary": "Summary: Switches a large set of Clang C++ DR tests from plain -verify to -verify-directives, making directive checking explicit across many standards-mode test files. The change is largely harness-level and test-only: it updates RUN lines in numerous CWG files, preserving the same semantic expectations while altering how expected diagnostics/directives are validated. One test also keeps an AST dump verification under the new mode.\nMechanisms: Clang test harness verification mode change; -verify-directives diagnostic directive checking; C++ standard-mode regression test execution\nTouched symbols: clang test RUN lines; %clang_cc1; -verify-directives\nRisk relevance: No backend lowering or SelectionDAG logic changes; Only changes test invocation flags for frontend conformance tests; Low direct relation to X86 DAG combine or integer lowering crash paths\nBuild risk: Broad test harness change across many files can affect test expectations and stability; May alter diagnostic parsing/verification behavior in clang test suites; Touches a large number of test files, increasing maintenance surface"
+        },
+        {
+          "rank": 2,
+          "sha": "b4f50cfd4a3a086db3f88271c9595056a877ef90",
+          "subject": "[libc][math] Qualify ceil functions to constexpr (#184948)",
+          "utility": 0.875971,
+          "selection_score": 1.100962,
+          "semantic_score": 0.1,
+          "build_success_prob": 0.95,
+          "feedback_bias": 0.0,
+          "posterior_bad_mass": 0.538977,
+          "calibrated_suspicion_weight": 5e-06,
+          "calibrated_posterior_bad_mass": 0.550067,
+          "calibrated_posterior_info_gain": 0.992755,
+          "weak_relevance_penalty": 0.0475,
+          "diff_mode": "parent",
+          "diff_extraction": "llm",
+          "diff_summary": "Summary: Makes libc shared math ceil-related functions constexpr-capable and adjusts internal floating-point helper code to work in constant-evaluation contexts. The patch adds constexpr qualifiers to several FP utility operations, changes bit_cast/inlined copy helpers to avoid builtin-only paths under constant evaluation, and conditionally bypasses runtime builtin ceil/floor/trunc fast paths when evaluating at compile time. It also adds a new shared constexpr test target that exercises ceil/log and related wrappers in static_asserts, while moving the runtime log test back into the non-constexpr test file.\nMechanisms: constexpr enablement for shared math wrappers; constant-evaluation-specific builtin gating; FP utility rounding/comparison helpers; bit_cast / inline_copy constant-evaluation fallback; shared math constexpr test coverage\nTouched symbols: LIBC_NAMESPACE::shared::ceil; LIBC_NAMESPACE::shared::ceilf; LIBC_NAMESPACE::shared::ceilf16; LIBC_NAMESPACE::shared::ceilf128; LIBC_NAMESPACE::shared::ceilbf16; LIBC_NAMESPACE::shared::ceill; fputil::ceil; fputil::trunc\nRisk relevance: Primarily libc math and constexpr semantics, not LLVM backend codegen; Touches low-level floating-point support helpers and compiler-builtins gating, which can expose constant-evaluation corner cases; Introduces conditional compilation around builtins based on LIBC_HAS_CONSTANT_EVALUATION\nBuild risk: Adds a new unit-test target and reshuffles existing tests, affecting build graph and test discoverability; Expands constexpr use in headers, which may surface compile-time evaluation failures on some targets; Alters shared FP helper APIs with many instantiations and include dependencies"
+        },
+        {
+          "rank": 3,
+          "sha": "3e24a393571e83e8564562b2ec84fe701648da2f",
+          "subject": "[SelectionDAG] Optimize 32-bit udiv with 33-bit magic constants on 64-bit targets (#181288)",
+          "utility": 0.666809,
+          "selection_score": 1.0838,
+          "semantic_score": 7.6,
+          "build_success_prob": 0.82,
+          "feedback_bias": 0.0,
+          "posterior_bad_mass": 0.405629,
+          "calibrated_suspicion_weight": 0.001885,
+          "calibrated_posterior_bad_mass": 0.410949,
+          "calibrated_posterior_info_gain": 0.976996,
+          "diff_mode": "parent",
+          "diff_extraction": "llm",
+          "diff_summary": "Summary: Extends SelectionDAG unsigned-division-by-constant lowering to recognize a new widened 32-bit unsigned division path on 64-bit targets. The patch threads a new AllowWidenOptimization flag through DivisionByConstantInfo, computes a pre-shifted 33-bit/64-bit-friendly magic constant for certain add-form divisors, and teaches TargetLowering::BuildUDIV to emit a zero-extend plus 64x64->128 multiply-high sequence using MULHU or UMUL_LOHI instead of the traditional extra correction/shift steps. Test coverage is added and updated across AArch64, RISC-V, and X86 to reflect the new codegen shape for udiv/urem-by-constant patterns, including combined urem/udiv folding cases.\nMechanisms: SelectionDAG constant-division expansion; widened magic-number division optimization; 64-bit multiply-high lowering (MULHU / UMUL_LOHI); pre-shifted constant synthesis for add-form divisors; unsigned division/remainder combine and fold patterns\nTouched symbols: UnsignedDivisionByConstantInfo::get; UnsignedDivisionByConstantInfo::Widen; TargetLowering::BuildUDIV; ISD::MULHU; ISD::UMUL_LOHI; ISD::ZERO_EXTEND; ISD::TRUNCATE\nRisk relevance: Touches SelectionDAG lowering logic for integer division by constants, a common backend combine hotspot; Changes magic-constant width reasoning and post-shift elimination, which can interact with bit-width constraints and legalization assumptions; Introduces a new widened lowering path only for certain 32-bit divisors on 64-bit targets, increasing target-specific combinatorial complexity; Modifies constant-folding/codegen behavior in X86 and other backends that may share DAG combine patterns around udiv/urem\nBuild risk: Changes a shared support API signature and struct layout used by codegen; Updates multiple target-specific codegen tests, indicating broad backend impact; Adds new test files and new lowering paths that could fail on targets lacking MULHU/UMUL_LOHI legalization"
+        },
+        {
+          "rank": 4,
+          "sha": "19c04ce0d58fdccca523ec2b5377d5b5b1edb3a1",
+          "subject": "[X86] Fix fcmp+select to min/max lowering (#185594)",
+          "utility": 0.907261,
+          "selection_score": 0.922075,
+          "semantic_score": 6.45,
+          "build_success_prob": 0.92,
+          "feedback_bias": 0.0,
+          "posterior_bad_mass": 0.492086,
+          "calibrated_suspicion_weight": 0.001511,
+          "calibrated_posterior_bad_mass": 0.501934,
+          "calibrated_posterior_info_gain": 0.999989
+        },
+        {
+          "rank": 5,
+          "sha": "5de7c865dc82a72bc252ae506474316206d2b4ba",
+          "subject": "[X86][APX] Enable NDD tunings (#186049)",
+          "utility": 0.900632,
+          "selection_score": 0.921983,
+          "semantic_score": 6.25,
+          "build_success_prob": 0.92,
+          "feedback_bias": 0.0,
+          "posterior_bad_mass": 0.488521,
+          "calibrated_suspicion_weight": 0.001448,
+          "calibrated_posterior_bad_mass": 0.497644,
+          "calibrated_posterior_info_gain": 0.999984
+        }
+      ],
+      "evidence": [
+        "=== validated-bisect-runner ===",
+        "issue: pr201444",
+        "llvm-project: /home/ubuntu/gitbisect-work/worktrees/pr201444-aws10-confidence-frontier-b-20260720a",
+        "commit: f9d2d8beeff0",
+        "jobs: 4",
+        "build type: Release",
+        "assertions: ON",
+        "ccache dir: /home/ubuntu/gitbisect-work/confidence-adaptive-20260720-896b595/.ccache/pr201444-git-bisect",
+        "repro exit code: 0",
+        "verdict: good"
+      ],
+      "log_excerpt": "=== validated-bisect-runner ===\nissue: pr201444\nllvm-project: /home/ubuntu/gitbisect-work/worktrees/pr201444-aws10-confidence-frontier-b-20260720a\ncommit: f9d2d8beeff0\njobs: 4\nbuild type: Release\nassertions: ON\nccache dir: /home/ubuntu/gitbisect-work/confidence-adaptive-20260720-896b595/.ccache/pr201444-git-bisect\nrepro exit code: 0\nverdict: good",
+      "trace_excerpt": "=== validated-bisect-runner ===\nissue: pr201444\nllvm-project: /home/ubuntu/gitbisect-work/worktrees/pr201444-aws10-confidence-frontier-b-20260720a\ncommit: f9d2d8beeff0\njobs: 4\nbuild type: Release\nassertions: ON\nccache dir: /home/ubuntu/gitbisect-work/confidence-adaptive-20260720-896b595/.ccache/pr201444-git-bisect\nrepro exit code: 0\nverdict: good",
+      "runner_duration_sec": 3176.184
+    },
+    {
+      "step": 2,
+      "sha": "13e98d834101efd1794cdd026377c508293ee21b",
+      "subject": "[MC] Take MCAsmInfo by reference in MCContext and TargetMachine. NFC (#194280)",
+      "verdict": "good",
+      "source": "runner",
+      "summary": "verdict: good",
+      "unresolved_before": 9553,
+      "unresolved_after": 4673,
+      "model_top_k": 3,
+      "adaptive_top_k": null,
+      "confidence_adaptive_frontier": {
+        "threshold": 0.35
+      },
+      "model_frontier_decision": {
+        "configured_frontier": "topk",
+        "effective_frontier": "diverse",
+        "confidence": 0.026846,
+        "threshold": 0.35,
+        "reason": "semantic scores are ambiguous; add posterior and midpoint anchors",
+        "top_semantic_candidates": [
+          {
+            "sha": "7d39664a6ae8daaf186b65578492244d96a50bf2",
+            "semantic_score": 7.45,
+            "build_success_prob": 0.87
+          },
+          {
+            "sha": "fe105347e2b6092ef4ce9704bcbdbcf6ad7d3d6b",
+            "semantic_score": 7.25,
+            "build_success_prob": 0.92
+          }
+        ],
+        "selected_frontier_shas": [
+          "7d39664a6ae8daaf186b65578492244d96a50bf2",
+          "13e98d834101efd1794cdd026377c508293ee21b",
+          "1348766d1d686b8825bdaa2f6638c1783d76a4a7"
+        ],
+        "observation_count": 1
+      },
+      "model_score_context": "v1-b0a1ce88a6166ab8",
+      "model_score_context_payload": {
+        "version": "v1",
+        "unresolved_count": 9553,
+        "candidate_window_sha256": "2515008594ac5cf791e7cf61422fd4ad82590ccd7a06b87ce5aee995986b7dfd",
+        "observation_sha256": "a184b5d00ef8cf87c62a56b13a96bd97eef3b94589744bde09be3a6cbc07cefb",
+        "model_top_k": 3,
+        "model_frontier": "topk",
+        "model_diff_mode": "parent",
+        "model_diff_extraction": "llm",
+        "observation_prompt_mode": "trace-only",
+        "confidence_adaptive_frontier": {
+          "threshold": 0.35
+        }
+      },
+      "candidate_pruning": {
+        "mode": "off",
+        "before_count": 9553,
+        "after_count": 9553,
+        "pruned_count": 0,
+        "keep_prefixes": [],
+        "kept_reason_counts": {},
+        "prune_reason_counts": {},
+        "pruned_examples": []
+      },
+      "search_policy": "calibrated-posterior",
+      "selection_mode": "calibrated-posterior",
+      "selection": {
+        "utility": 0.927698,
+        "selection_score": 1.231775,
+        "semantic_score": 0.7,
+        "build_success_prob": 0.93,
+        "balance_score": 0.997088,
+        "suspicion_weight": 0.000219,
+        "feedback_bias": 1.0,
+        "evidence": [
+          "model-scored",
+          "Mostly MC/AsmPrinter API cleanup and reference semantics, far from SelectionDAG or X86 lowering logic",
+          "Could touch codegen plumbing broadly, but the reported crash is an instruction-selection assertion, not MC layer behavior",
+          "features: MCContext API change, TargetMachine MCAsmInfo contract, AsmPrinter plumbing, mechanical refactor"
+        ],
+        "posterior_bad_mass": 0.498544,
+        "calibrated_suspicion_weight": 0.000155,
+        "calibrated_posterior_bad_mass": 0.490937,
+        "calibrated_posterior_info_gain": 0.999763,
+        "diff_mode": "parent",
+        "diff_extraction": "llm",
+        "diff_summary": "Summary: This commit changes MCContext and TargetMachine APIs to take MCAsmInfo by reference instead of nullable pointer ownership-style access, then updates all call sites across MC, codegen, tools, tests, and several target backends to pass a dereferenced MCAsmInfo object. The substantive effect is removing repeated null checks/assertions and making MCAsmInfo availability an invariant at construction/use sites, while also propagating the new reference-returning TargetMachine::getMCAsmInfo() through frame lowering, exception handling, inline asm printing, disassembly, and object/DWARF helpers.\nMechanisms: API signature and ownership model change for MCAsmInfo in MCContext/TargetMachine; Propagation of reference-based access through MC and codegen helpers; Exception-handling and Windows-CFI queries updated to dereference references; Inline asm length / MC streamer / disassembler context construction paths updated\nTouched symbols: llvm::MCContext::MCContext; llvm::TargetMachine::getMCAsmInfo; llvm::CodeGenPassBuilder::addPassesToHandleExceptions; llvm::TargetPassConfig::addPassesToHandleExceptions; AsmPrinter::AsmPrinter; AsmPrinter::doInitialization; AsmPrinter::emitInlineAsm; CodeGenTargetMachineImpl::createMCStreamer\nRisk relevance: Touches X86 target lowering and frame-related logic that can influence SelectionDAG-generated code paths indirectly; Changes MCContext construction and lifetime assumptions, which can affect backend consumers during instruction selection/asm emission; Updates a large number of backend call sites around exception handling and Windows CFI, increasing chances of latent null/reference misuse; Includes X86ISelLowering.cpp and other target-specific lowering files in the API churn, so backend regressions are plausible even if the change is mechanical\nBuild risk: Broad API signature change from pointer to reference requires synchronized call-site updates across many libraries/tools/tests; Potential compilation breakage if any remaining callers still treat getMCAsmInfo() as nullable; Large surface area spans core LLVM, clang, lldb, bolt, mlir, and many unit tests, increasing integration risk; Assertions removed in favor of reference semantics can mask or relocate failures during debug builds"
+      },
+      "top_candidates": [
+        {
+          "rank": 1,
+          "sha": "13e98d834101efd1794cdd026377c508293ee21b",
+          "subject": "[MC] Take MCAsmInfo by reference in MCContext and TargetMachine. NFC (#194280)",
+          "utility": 0.927698,
+          "selection_score": 1.231775,
+          "semantic_score": 0.7,
+          "build_success_prob": 0.93,
+          "feedback_bias": 1.0,
+          "posterior_bad_mass": 0.498544,
+          "calibrated_suspicion_weight": 0.000155,
+          "calibrated_posterior_bad_mass": 0.490937,
+          "calibrated_posterior_info_gain": 0.999763,
+          "diff_mode": "parent",
+          "diff_extraction": "llm",
+          "diff_summary": "Summary: This commit changes MCContext and TargetMachine APIs to take MCAsmInfo by reference instead of nullable pointer ownership-style access, then updates all call sites across MC, codegen, tools, tests, and several target backends to pass a dereferenced MCAsmInfo object. The substantive effect is removing repeated null checks/assertions and making MCAsmInfo availability an invariant at construction/use sites, while also propagating the new reference-returning TargetMachine::getMCAsmInfo() through frame lowering, exception handling, inline asm printing, disassembly, and object/DWARF helpers.\nMechanisms: API signature and ownership model change for MCAsmInfo in MCContext/TargetMachine; Propagation of reference-based access through MC and codegen helpers; Exception-handling and Windows-CFI queries updated to dereference references; Inline asm length / MC streamer / disassembler context construction paths updated\nTouched symbols: llvm::MCContext::MCContext; llvm::TargetMachine::getMCAsmInfo; llvm::CodeGenPassBuilder::addPassesToHandleExceptions; llvm::TargetPassConfig::addPassesToHandleExceptions; AsmPrinter::AsmPrinter; AsmPrinter::doInitialization; AsmPrinter::emitInlineAsm; CodeGenTargetMachineImpl::createMCStreamer\nRisk relevance: Touches X86 target lowering and frame-related logic that can influence SelectionDAG-generated code paths indirectly; Changes MCContext construction and lifetime assumptions, which can affect backend consumers during instruction selection/asm emission; Updates a large number of backend call sites around exception handling and Windows CFI, increasing chances of latent null/reference misuse; Includes X86ISelLowering.cpp and other target-specific lowering files in the API churn, so backend regressions are plausible even if the change is mechanical\nBuild risk: Broad API signature change from pointer to reference requires synchronized call-site updates across many libraries/tools/tests; Potential compilation breakage if any remaining callers still treat getMCAsmInfo() as nullable; Large surface area spans core LLVM, clang, lldb, bolt, mlir, and many unit tests, increasing integration risk; Assertions removed in favor of reference semantics can mask or relocate failures during debug builds"
+        },
+        {
+          "rank": 2,
+          "sha": "1348766d1d686b8825bdaa2f6638c1783d76a4a7",
+          "subject": "[SLP]Initial support for non-power-of-2 vectorization",
+          "utility": 0.858193,
+          "selection_score": 1.169404,
+          "semantic_score": 1.1,
+          "build_success_prob": 0.88,
+          "feedback_bias": 1.0,
+          "posterior_bad_mass": 0.487274,
+          "calibrated_suspicion_weight": 0.000285,
+          "calibrated_posterior_bad_mass": 0.480126,
+          "calibrated_posterior_info_gain": 0.99886,
+          "diff_mode": "parent",
+          "diff_extraction": "llm",
+          "diff_summary": "Summary: Introduces initial SLPVectorizer support for non-power-of-2 vectorization by broadening the legality and profitability logic around vector factors, reordering, reduction handling, gathered loads, duplicate-scalar packing, and split-node formation. The pass is reworked to allow partial trailing slices, resize shuffle masks and cost calculations for shorter tails, and make ordering/reuse queries more localized. It also adds cleanup for dead intermediate vector instructions created along these new paths. The commit touches many vectorization heuristics and masks, so it changes the shape and ordering of generated vector IR substantially across targets.\nMechanisms: non-power-of-2 vector factor gating; partial-slice vectorization for tails; shuffle-mask resizing and reindexing; duplicate-scalar reuse vs packing profitability heuristics; gather/load lowering and split-node profitability; reduction-tree and reordering handling; dead-vector cleanup after transformation\nTouched symbols: SLPVectorizer.cpp; isAllowedNonPowerOf2VF; getNumberOfParts; BoUpSLP::hasSameNode; BoUpSLP::findReusedOrderedScalars; BoUpSLP::canVectorizeLoads; BoUpSLP::getReorderingData; BoUpSLP::reorderTopToBottom\nRisk relevance: large backend-visible reshaping of vector IR for many non-power-of-2 and near-full-register cases; changes how shuffle masks, lane indices, and tail-poison/undef handling are computed; modifies cost-model decisions for duplicates, gathers, loads, reductions, and split nodes; broadly affects vector width selection and ordering, which can expose latent SelectionDAG/codegen bugs; introduces new logic for partially filled vectors and slices, a common source of miscompile/assertion risk\nBuild risk: very broad test churn across multiple targets (X86, AArch64, RISCV, SystemZ, PhaseOrdering); new helper APIs and signature changes inside SLPVectorizer.cpp alter internal call sites; added logic relies on target cost queries, shuffle costs, and vector width helpers across many code paths; substantial test expectation updates indicate changed canonical IR and pass behavior; no direct X86 lowering files touched, so any failure would be indirect through backend-facing IR changes"
+        },
+        {
+          "rank": 3,
+          "sha": "e4b6407e06ef4326339d4d8970e46cf36ef925f4",
+          "subject": "[X86] combineKSHIFT - fold kshift(logicop(X,C1),C2) -> logicop(kshift(X,C2),kshift(C1,C2)) (#194343)",
+          "utility": 0.881964,
+          "selection_score": 0.923481,
+          "semantic_score": 6.25,
+          "build_success_prob": 0.92,
+          "feedback_bias": 1.0,
+          "posterior_bad_mass": 0.52254,
+          "calibrated_suspicion_weight": 0.002974,
+          "calibrated_posterior_bad_mass": 0.515278,
+          "calibrated_posterior_info_gain": 0.999326
+        },
+        {
+          "rank": 4,
+          "sha": "d36e5246866e6cf7ab2152770e43164157f78aff",
+          "subject": "[NewPM] Adds a port for KCFI (#194163)",
+          "utility": 0.907844,
+          "selection_score": 0.92329,
+          "semantic_score": 6.05,
+          "build_success_prob": 0.92,
+          "feedback_bias": 1.0,
+          "posterior_bad_mass": 0.491532,
+          "calibrated_suspicion_weight": 0.002846,
+          "calibrated_posterior_bad_mass": 0.484538,
+          "calibrated_posterior_info_gain": 0.99931
+        },
+        {
+          "rank": 5,
+          "sha": "38daaba8e723cfa38e699c64c8e0f2f306523984",
+          "subject": "[X86] Add constant pool comments for (V)GF2P8AFFINEQB instructions (#194572)",
+          "utility": 0.870167,
+          "selection_score": 0.922674,
+          "semantic_score": 6.25,
+          "build_success_prob": 0.92,
+          "feedback_bias": 1.0,
+          "posterior_bad_mass": 0.528926,
+          "calibrated_suspicion_weight": 0.002974,
+          "calibrated_posterior_bad_mass": 0.523152,
+          "calibrated_posterior_info_gain": 0.998453
+        }
+      ],
+      "evidence": [
+        "=== validated-bisect-runner ===",
+        "issue: pr201444",
+        "llvm-project: /home/ubuntu/gitbisect-work/worktrees/pr201444-aws10-confidence-frontier-b-20260720a",
+        "commit: 13e98d834101",
+        "jobs: 4",
+        "build type: Release",
+        "assertions: ON",
+        "ccache dir: /home/ubuntu/gitbisect-work/confidence-adaptive-20260720-896b595/.ccache/pr201444-git-bisect",
+        "repro exit code: 0",
+        "verdict: good"
+      ],
+      "log_excerpt": "=== validated-bisect-runner ===\nissue: pr201444\nllvm-project: /home/ubuntu/gitbisect-work/worktrees/pr201444-aws10-confidence-frontier-b-20260720a\ncommit: 13e98d834101\njobs: 4\nbuild type: Release\nassertions: ON\nccache dir: /home/ubuntu/gitbisect-work/confidence-adaptive-20260720-896b595/.ccache/pr201444-git-bisect\nrepro exit code: 0\nverdict: good",
+      "trace_excerpt": "=== validated-bisect-runner ===\nissue: pr201444\nllvm-project: /home/ubuntu/gitbisect-work/worktrees/pr201444-aws10-confidence-frontier-b-20260720a\ncommit: 13e98d834101\njobs: 4\nbuild type: Release\nassertions: ON\nccache dir: /home/ubuntu/gitbisect-work/confidence-adaptive-20260720-896b595/.ccache/pr201444-git-bisect\nrepro exit code: 0\nverdict: good",
+      "runner_duration_sec": 3172.059
+    },
+    {
+      "step": 3,
+      "sha": "18e73eedf6966e69dfc4cfa43fb9842e960e8497",
+      "subject": "[llvm] Add a tablegen !sort operator (#197303)",
+      "verdict": "good",
+      "source": "runner",
+      "summary": "verdict: good",
+      "unresolved_before": 4673,
+      "unresolved_after": 2424,
+      "model_top_k": 3,
+      "adaptive_top_k": null,
+      "confidence_adaptive_frontier": {
+        "threshold": 0.35
+      },
+      "model_frontier_decision": {
+        "configured_frontier": "topk",
+        "effective_frontier": "diverse",
+        "confidence": 0.028019,
+        "threshold": 0.35,
+        "reason": "semantic scores are ambiguous; add posterior and midpoint anchors",
+        "top_semantic_candidates": [
+          {
+            "sha": "535814f14f1d23f7ae1aa692c53d943bace471c4",
+            "semantic_score": 7.134,
+            "build_success_prob": 0.92
+          },
+          {
+            "sha": "696406fbd585e497ebc766f0f066fa660b4b57fc",
+            "semantic_score": 6.93411,
+            "build_success_prob": 0.92
+          }
+        ],
+        "selected_frontier_shas": [
+          "535814f14f1d23f7ae1aa692c53d943bace471c4",
+          "18e73eedf6966e69dfc4cfa43fb9842e960e8497",
+          "7fe369e441359e0320a6aea00fcf923e00d03851"
+        ],
+        "observation_count": 2
+      },
+      "model_score_context": "v1-6bd47efe6f1768ab",
+      "model_score_context_payload": {
+        "version": "v1",
+        "unresolved_count": 4673,
+        "candidate_window_sha256": "574cd70234c9919ca8de9604632688d584eb396528727d9466fe5c400cd2d67e",
+        "observation_sha256": "93eca259d3f87a44b347f083f54cfdc795126d9959408f22ec632958b31eb83c",
+        "model_top_k": 3,
+        "model_frontier": "topk",
+        "model_diff_mode": "parent",
+        "model_diff_extraction": "llm",
+        "observation_prompt_mode": "trace-only",
+        "confidence_adaptive_frontier": {
+          "threshold": 0.35
+        }
+      },
+      "candidate_pruning": {
+        "mode": "off",
+        "before_count": 4673,
+        "after_count": 4673,
+        "pruned_count": 0,
+        "keep_prefixes": [],
+        "kept_reason_counts": {},
+        "prune_reason_counts": {},
+        "pruned_examples": []
+      },
+      "search_policy": "calibrated-posterior",
+      "selection_mode": "calibrated-posterior",
+      "selection": {
+        "utility": 0.956765,
+        "selection_score": 1.21003,
+        "semantic_score": 0.4,
+        "build_success_prob": 0.96,
+        "balance_score": 0.99612,
+        "suspicion_weight": 0.000256,
+        "feedback_bias": 1.0,
+        "evidence": [
+          "model-scored",
+          "TableGen parser/record change is unrelated to X86 DAG combine and low-bits width adjustment logic",
+          "No direct overlap with SelectionDAG, X86ISelLowering, or bit-test lowering paths",
+          "features: TableGen language extension, parser/lexer change, stable list sort"
+        ],
+        "posterior_bad_mass": 0.49806,
+        "calibrated_suspicion_weight": 0.000149,
+        "calibrated_posterior_bad_mass": 0.504356,
+        "calibrated_posterior_info_gain": 0.999945,
+        "weak_relevance_penalty": 0.048,
+        "diff_mode": "parent",
+        "diff_extraction": "llm",
+        "diff_summary": "Summary: Adds a new TableGen ternary operator, !sort, with parser, lexer, record-folding, and documentation support. The implementation evaluates a key expression for each list element, requires keys to be uniformly string or integer-like, and performs a stable sort before rebuilding the list initializer. The change extends the list-comprehension parsing path shared with !foreach/!filter and introduces a dedicated regression test covering sorted output, stability, empty lists, and error handling.\nMechanisms: TableGen ternary operator extension; stable sort of list initializers by computed key; type-checking for key expressions (string vs integer); parser/lexer tokenization for new !sort syntax; list-comprehension parsing reuse\nTouched symbols: TernOpInit::SORT; SortHelper; TernOpInit::Fold; TernOpInit::resolveReferences; TernOpInit::getAsString; TGLexer::LexExclaim; TGParser::ParseOperationListComprehension; llvm/test/TableGen/sort.td\nRisk relevance: Affects TableGen expression parsing and folding, which can change generated backend tables; Introduces a new stable-sort path and key-type conversion logic; Extends shared parser code used by !foreach and !filter, increasing regression potential in unrelated TableGen features; Generated backend code from TableGen changes can indirectly perturb codegen behavior\nBuild risk: Touches core TableGen lexer/parser/record APIs used during build-time code generation; Adds a new public enum value and parser entry points; Introduces new regression test but no backend runtime code; Potentially affects many generated files through TableGen semantics"
+      },
+      "top_candidates": [
+        {
+          "rank": 1,
+          "sha": "18e73eedf6966e69dfc4cfa43fb9842e960e8497",
+          "subject": "[llvm] Add a tablegen !sort operator (#197303)",
+          "utility": 0.956765,
+          "selection_score": 1.21003,
+          "semantic_score": 0.4,
+          "build_success_prob": 0.96,
+          "feedback_bias": 1.0,
+          "posterior_bad_mass": 0.49806,
+          "calibrated_suspicion_weight": 0.000149,
+          "calibrated_posterior_bad_mass": 0.504356,
+          "calibrated_posterior_info_gain": 0.999945,
+          "weak_relevance_penalty": 0.048,
+          "diff_mode": "parent",
+          "diff_extraction": "llm",
+          "diff_summary": "Summary: Adds a new TableGen ternary operator, !sort, with parser, lexer, record-folding, and documentation support. The implementation evaluates a key expression for each list element, requires keys to be uniformly string or integer-like, and performs a stable sort before rebuilding the list initializer. The change extends the list-comprehension parsing path shared with !foreach/!filter and introduces a dedicated regression test covering sorted output, stability, empty lists, and error handling.\nMechanisms: TableGen ternary operator extension; stable sort of list initializers by computed key; type-checking for key expressions (string vs integer); parser/lexer tokenization for new !sort syntax; list-comprehension parsing reuse\nTouched symbols: TernOpInit::SORT; SortHelper; TernOpInit::Fold; TernOpInit::resolveReferences; TernOpInit::getAsString; TGLexer::LexExclaim; TGParser::ParseOperationListComprehension; llvm/test/TableGen/sort.td\nRisk relevance: Affects TableGen expression parsing and folding, which can change generated backend tables; Introduces a new stable-sort path and key-type conversion logic; Extends shared parser code used by !foreach and !filter, increasing regression potential in unrelated TableGen features; Generated backend code from TableGen changes can indirectly perturb codegen behavior\nBuild risk: Touches core TableGen lexer/parser/record APIs used during build-time code generation; Adds a new public enum value and parser entry points; Introduces new regression test but no backend runtime code; Potentially affects many generated files through TableGen semantics"
+        },
+        {
+          "rank": 2,
+          "sha": "7fe369e441359e0320a6aea00fcf923e00d03851",
+          "subject": "[AMDGPU][NFC] Add VMulU64Inst SubtargetFeature for v_mul_u64 support. (#197706)",
+          "utility": 0.815392,
+          "selection_score": 1.1415,
+          "semantic_score": 1.8,
+          "build_success_prob": 0.86,
+          "feedback_bias": 1.0,
+          "posterior_bad_mass": 0.527025,
+          "calibrated_suspicion_weight": 0.001137,
+          "calibrated_posterior_bad_mass": 0.539553,
+          "calibrated_posterior_info_gain": 0.995481,
+          "diff_mode": "parent",
+          "diff_extraction": "llm",
+          "diff_summary": "Summary: Renames and centralizes AMDGPU support for v_mul_u64 into a dedicated subtarget feature, replacing the older hasVectorMulU64 helper across legalizer, register-bank, lowering, and instruction-info code. The feature is wired into the GFX12.5 common feature set and then consulted by mul legalization and VALU/SGPR mapping decisions. This is mostly an internal capability-flag cleanup, but it touches several backend decision points that influence instruction selection and legalization for 64-bit multiplies.\nMechanisms: Subtarget feature flag introduction; legalization gating for 64-bit multiply; register-bank mapping policy changes; instruction selection/lowering feature checks\nTouched symbols: AMDGPU::FeatureVMulU64Inst; AMDGPULegalizerInfo::legalizeMul; AMDGPURegisterBankInfo::applyMappingImpl; AMDGPURegisterBankInfo::getInstrMapping; GCNSubtarget::hasVMulU64Inst; SITargetLowering::SITargetLowering; SIInstrInfo::moveToVALUImpl\nRisk relevance: Touches backend legalization and register-bank decisions, which can alter instruction selection behavior; Changes feature gating for 64-bit multiply support across multiple AMDGPU subsystems; Subtarget capability renames can introduce mismatches between lowering, legalizer, and instruction info; Backend legality decisions are sensitive to regression in type/feature predicates\nBuild risk: Removes an existing helper and renames call sites, so compile failures are possible if uses are missed; Adds a new subtarget feature definition and updates target feature sets; Backend-only change with no direct test additions in excerpt; May affect multiple codegen paths gated by the new feature"
+        },
+        {
+          "rank": 3,
+          "sha": "535814f14f1d23f7ae1aa692c53d943bace471c4",
+          "subject": "[SelectionDAG] Support vector types in llvm.convert.from.arbitrary.fp expansion (#196185)",
+          "utility": 0.510628,
+          "selection_score": 0.991229,
+          "semantic_score": 2.3,
+          "build_success_prob": 0.82,
+          "feedback_bias": 1.0,
+          "posterior_bad_mass": 0.310444,
+          "calibrated_suspicion_weight": 0.001582,
+          "calibrated_posterior_bad_mass": 0.317863,
+          "calibrated_posterior_info_gain": 0.902043,
+          "diff_mode": "parent",
+          "diff_extraction": "llm",
+          "diff_summary": "Summary: Moves CONVERT_FROM_ARBITRARY_FP expansion out of SelectionDAGLegalize::ExpandNode into a new TargetLowering hook and extends the bit-pattern conversion logic to handle vector destinations as well as scalars. The shared helper now builds element-wise integer-width conversion, classification, denormal handling, and final bitcast in TargetLowering::expandCONVERT_FROM_ARBITRARY_FP, with LegalizeVectorOps also using the same fallback and producing poison on failure. The commit adds new X86/AMDGPU/NVPTX vector tests for arbitrary-fp-to-float conversions, so the functional surface includes SelectionDAG legalization, vector legalization, and target-specific lowering of nonstandard FP formats.\nMechanisms: SelectionDAG legalization refactoring; TargetLowering hook for custom node expansion; vector-aware bit-pattern conversion; special-value classification (NaN/Inf/zero/denorm) during integer-to-float reconstruction; vector poison fallback on expansion failure\nTouched symbols: TargetLowering::expandCONVERT_FROM_ARBITRARY_FP; SelectionDAGLegalize::ExpandNode; VectorLegalizer::Expand; getSetCCResultType; ISD::CONVERT_FROM_ARBITRARY_FP; llvm.convert.from.arbitrary.fp; llvm/test/CodeGen/X86/arbitrary-fp-to-float.ll\nRisk relevance: Touches SelectionDAG combine/legalize paths where backend crashes often surface; Changes integer-width reasoning and vector/scalar type handling in lowering; Adds new control flow for special-value classification and denormal reconstruction; Exercises X86 codegen for arbitrary-fp conversions, which may interact with backend instruction selection and DAG combines\nBuild risk: New public declaration in TargetLowering.h changes a widely included header; Moves logic between legalization components, increasing compile-time coupling; Adds new vector test coverage for multiple backends, expanding backend-specific test surface; Depends on generic SelectionDAG utilities and vector types, which can expose target-specific legalization mismatches"
+        },
+        {
+          "rank": 4,
+          "sha": "6d42b9aa2adff7b2b133a54d71507b352383e4b4",
+          "subject": "[DebugInfo] Enforce DISubprogram type as required in LLParser (#196299)",
+          "utility": 0.8943,
+          "selection_score": 0.927827,
+          "semantic_score": 6.05,
+          "build_success_prob": 0.92,
+          "feedback_bias": 1.0,
+          "posterior_bad_mass": 0.482296,
+          "calibrated_suspicion_weight": 0.00584,
+          "calibrated_posterior_bad_mass": 0.490706,
+          "calibrated_posterior_info_gain": 0.999751
+        },
+        {
+          "rank": 5,
+          "sha": "a4acc5c28beab95b1ed9bdee3e75441546e5b30c",
+          "subject": "[X86] Improve lowering of i32/i64 minmax reductions (#197578)",
+          "utility": 0.912572,
+          "selection_score": 0.927344,
+          "semantic_score": 6.035714,
+          "build_success_prob": 0.92,
+          "feedback_bias": 0.965714,
+          "posterior_bad_mass": 0.507842,
+          "calibrated_suspicion_weight": 0.005821,
+          "calibrated_posterior_bad_mass": 0.516034,
+          "calibrated_posterior_info_gain": 0.999258
+        }
+      ],
+      "evidence": [
+        "=== validated-bisect-runner ===",
+        "issue: pr201444",
+        "llvm-project: /home/ubuntu/gitbisect-work/worktrees/pr201444-aws10-confidence-frontier-b-20260720a",
+        "commit: 18e73eedf696",
+        "jobs: 4",
+        "build type: Release",
+        "assertions: ON",
+        "ccache dir: /home/ubuntu/gitbisect-work/confidence-adaptive-20260720-896b595/.ccache/pr201444-git-bisect",
+        "repro exit code: 0",
+        "verdict: good"
+      ],
+      "log_excerpt": "=== validated-bisect-runner ===\nissue: pr201444\nllvm-project: /home/ubuntu/gitbisect-work/worktrees/pr201444-aws10-confidence-frontier-b-20260720a\ncommit: 18e73eedf696\njobs: 4\nbuild type: Release\nassertions: ON\nccache dir: /home/ubuntu/gitbisect-work/confidence-adaptive-20260720-896b595/.ccache/pr201444-git-bisect\nrepro exit code: 0\nverdict: good",
+      "trace_excerpt": "=== validated-bisect-runner ===\nissue: pr201444\nllvm-project: /home/ubuntu/gitbisect-work/worktrees/pr201444-aws10-confidence-frontier-b-20260720a\ncommit: 18e73eedf696\njobs: 4\nbuild type: Release\nassertions: ON\nccache dir: /home/ubuntu/gitbisect-work/confidence-adaptive-20260720-896b595/.ccache/pr201444-git-bisect\nrepro exit code: 0\nverdict: good",
+      "runner_duration_sec": 3224.317
+    },
+    {
+      "step": 4,
+      "sha": "69a5cf515fd317bcf918e48de9137dd8549870c5",
+      "subject": "[LifetimeSafety] Extend suggestions for `lifetimebound` to also warn on canonical declarations  (#198784)",
+      "verdict": "good",
+      "source": "runner",
+      "summary": "verdict: good",
+      "unresolved_before": 2424,
+      "unresolved_after": 1212,
+      "model_top_k": 3,
+      "adaptive_top_k": null,
+      "confidence_adaptive_frontier": {
+        "threshold": 0.35
+      },
+      "model_frontier_decision": {
+        "configured_frontier": "topk",
+        "effective_frontier": "diverse",
+        "confidence": 0.032984,
+        "threshold": 0.35,
+        "reason": "semantic scores are ambiguous; add posterior and midpoint anchors",
+        "top_semantic_candidates": [
+          {
+            "sha": "afcd7aa4c8169432bb9f0906f946dc97fd05857d",
+            "semantic_score": 6.67,
+            "build_success_prob": 0.92
+          },
+          {
+            "sha": "ff7e6bbb7f1187a839690b2832507038b5ea2fc3",
+            "semantic_score": 6.45,
+            "build_success_prob": 0.92
+          }
+        ],
+        "selected_frontier_shas": [
+          "afcd7aa4c8169432bb9f0906f946dc97fd05857d",
+          "0ee8a371b673bd864804fd5c0125fbd46dcee31a",
+          "69a5cf515fd317bcf918e48de9137dd8549870c5"
+        ],
+        "observation_count": 3
+      },
+      "model_score_context": "v1-fa99fcaa4576f221",
+      "model_score_context_payload": {
+        "version": "v1",
+        "unresolved_count": 2424,
+        "candidate_window_sha256": "e6710e14f7435250a5aa690eec676bf043ffaae9f05294bfb1c10e5d5c46d239",
+        "observation_sha256": "d23bfd4878ac2dc678631697902d7945265850d6ed5404caff84b5c3329df0a1",
+        "model_top_k": 3,
+        "model_frontier": "topk",
+        "model_diff_mode": "parent",
+        "model_diff_extraction": "llm",
+        "observation_prompt_mode": "trace-only",
+        "confidence_adaptive_frontier": {
+          "threshold": 0.35
+        }
+      },
+      "candidate_pruning": {
+        "mode": "off",
+        "before_count": 2424,
+        "after_count": 2424,
+        "pruned_count": 0,
+        "keep_prefixes": [],
+        "kept_reason_counts": {},
+        "prune_reason_counts": {},
+        "pruned_examples": []
+      },
+      "search_policy": "calibrated-posterior",
+      "selection_mode": "calibrated-posterior",
+      "selection": {
+        "utility": 0.923005,
+        "selection_score": 1.195837,
+        "semantic_score": 0.3,
+        "build_success_prob": 0.95,
+        "balance_score": 0.970841,
+        "suspicion_weight": 0.000383,
+        "feedback_bias": 1.0,
+        "evidence": [
+          "model-scored",
+          "Clang lifetime-safety diagnostic change, unrelated to X86 backend instruction selection",
+          "No overlap with SelectionDAG, X86 lowering, or integer-bit constraint logic",
+          "features: Clang static analysis, lifetimebound diagnostics, redeclaration handling, Sema tests, fix-it suggestions"
+        ],
+        "posterior_bad_mass": 0.51458,
+        "calibrated_suspicion_weight": 0.000204,
+        "calibrated_posterior_bad_mass": 0.52994,
+        "calibrated_posterior_info_gain": 0.997412,
+        "weak_relevance_penalty": 0.0475,
+        "diff_mode": "parent",
+        "diff_extraction": "llm",
+        "diff_summary": "Summary: Reworks Clang's lifetime-safety suggestion logic so misplaced lifetimebound diagnostics and fix-it suggestions are generated not only for the canonical declaration, but also for the earliest redeclaration in each relevant file. The checker now computes a set of target declarations per function/method, distinguishes intra-TU versus cross-TU placement, and emits warnings/suggestions for parameters and implicit-this across redeclaration chains and multiple headers. This expands the analysis from a single target declaration to a redeclaration-aware placement policy, with several tests updated to cover ordering, multi-header, and cross-translation-unit cases.\nMechanisms: Changes attribute-placement analysis from canonical-declaration-only to earliest-redeclaration-per-file targeting; Adds redeclaration traversal and file-based grouping to determine where lifetimebound should be suggested; Propagates warning scope separately for intra-TU and cross-TU targets; Updates misplaced-attribute reporting for parameters and implicit this across redecl chains; Extends test coverage for redeclaration ordering, header/source mixtures, and multi-header scenarios\nTouched symbols: LifetimeSafetyChecker::getTargetDeclsForAttr; LifetimeSafetyChecker::suggestWithScopeForParmVar; LifetimeSafetyChecker::suggestWithScopeForImplicitThis; getDirectImplicitObjectLifetimeBoundAttr; reportMisplacedLifetimebound; suggestLifetimeboundToParmVar; suggestLifetimeboundToImplicitThis\nRisk relevance: Alters a static analysis checker\u2019s declaration traversal and file scoping, which can change diagnostics and fix-it placement; Uses redeclaration order and file ID logic, making cross-TU behavior sensitive to source manager details; Expands reporting to additional declarations, potentially increasing diagnostic noise or mismatched notes\nBuild risk: Primarily Clang analysis/test code, so compile-time build risk is lower than backend changes; Multiple Sema test rewrites indicate changed diagnostic text and placement expectations; More complex redeclaration handling increases likelihood of corner-case analysis regressions"
+      },
+      "top_candidates": [
+        {
+          "rank": 1,
+          "sha": "69a5cf515fd317bcf918e48de9137dd8549870c5",
+          "subject": "[LifetimeSafety] Extend suggestions for `lifetimebound` to also warn on canonical declarations  (#198784)",
+          "utility": 0.923005,
+          "selection_score": 1.195837,
+          "semantic_score": 0.3,
+          "build_success_prob": 0.95,
+          "feedback_bias": 1.0,
+          "posterior_bad_mass": 0.51458,
+          "calibrated_suspicion_weight": 0.000204,
+          "calibrated_posterior_bad_mass": 0.52994,
+          "calibrated_posterior_info_gain": 0.997412,
+          "weak_relevance_penalty": 0.0475,
+          "diff_mode": "parent",
+          "diff_extraction": "llm",
+          "diff_summary": "Summary: Reworks Clang's lifetime-safety suggestion logic so misplaced lifetimebound diagnostics and fix-it suggestions are generated not only for the canonical declaration, but also for the earliest redeclaration in each relevant file. The checker now computes a set of target declarations per function/method, distinguishes intra-TU versus cross-TU placement, and emits warnings/suggestions for parameters and implicit-this across redeclaration chains and multiple headers. This expands the analysis from a single target declaration to a redeclaration-aware placement policy, with several tests updated to cover ordering, multi-header, and cross-translation-unit cases.\nMechanisms: Changes attribute-placement analysis from canonical-declaration-only to earliest-redeclaration-per-file targeting; Adds redeclaration traversal and file-based grouping to determine where lifetimebound should be suggested; Propagates warning scope separately for intra-TU and cross-TU targets; Updates misplaced-attribute reporting for parameters and implicit this across redecl chains; Extends test coverage for redeclaration ordering, header/source mixtures, and multi-header scenarios\nTouched symbols: LifetimeSafetyChecker::getTargetDeclsForAttr; LifetimeSafetyChecker::suggestWithScopeForParmVar; LifetimeSafetyChecker::suggestWithScopeForImplicitThis; getDirectImplicitObjectLifetimeBoundAttr; reportMisplacedLifetimebound; suggestLifetimeboundToParmVar; suggestLifetimeboundToImplicitThis\nRisk relevance: Alters a static analysis checker\u2019s declaration traversal and file scoping, which can change diagnostics and fix-it placement; Uses redeclaration order and file ID logic, making cross-TU behavior sensitive to source manager details; Expands reporting to additional declarations, potentially increasing diagnostic noise or mismatched notes\nBuild risk: Primarily Clang analysis/test code, so compile-time build risk is lower than backend changes; Multiple Sema test rewrites indicate changed diagnostic text and placement expectations; More complex redeclaration handling increases likelihood of corner-case analysis regressions"
+        },
+        {
+          "rank": 2,
+          "sha": "0ee8a371b673bd864804fd5c0125fbd46dcee31a",
+          "subject": "[X86] LowerFLDEXP: convert widened int exponent to FP before SCALEF (#199263)",
+          "utility": 0.826387,
+          "selection_score": 1.116418,
+          "semantic_score": 5.8,
+          "build_success_prob": 0.82,
+          "feedback_bias": 1.0,
+          "posterior_bad_mass": 0.503462,
+          "calibrated_suspicion_weight": 0.01113,
+          "calibrated_posterior_bad_mass": 0.51611,
+          "calibrated_posterior_info_gain": 0.999251,
+          "diff_mode": "parent",
+          "diff_extraction": "llm",
+          "diff_summary": "Summary: Adjusts X86 FLDEXP lowering so the widened integer exponent is first widened to a vector with matching lane count to the widened floating-point operand, then explicitly converted from integer to floating point before feeding SCALEF. This fixes the vector-shape mismatch in the lowering path for wide AVX-512 forms and changes the emitted instruction sequence for several ldexp/fmul-folding cases. The update is narrowly focused in X86ISelLowering but affects how integer exponents are legalized and converted for vector floating-point scaling.\nMechanisms: Changes FLDEXP lowering to widen the exponent by lane count instead of fixed 512-bit width; Inserts explicit SINT_TO_FP conversion before X86ISD::SCALEF; Aligns integer and floating-point vector types for wide-vector lowering; Adjusts codegen tests to match altered instruction sequences for AVX-512 and FP16 cases\nTouched symbols: LowerFLDEXP; widenSubVector; X86ISD::SCALEF; ISD::SINT_TO_FP\nRisk relevance: Modifies X86 target lowering for a vector arithmetic helper used in optimization and instruction selection; Changes type/width matching between integer exponents and FP operands, a common source of SelectionDAG legalization bugs; Touches AVX-512-specific lowering paths where lane-count and vector-width assumptions are subtle\nBuild risk: Backend codegen change with multiple X86 test expectation updates; Adds a new conversion node in a path that previously passed integers directly, increasing legalization sensitivity; AVX-512 and FP16 test diffs suggest altered instruction ordering and register pressure"
+        },
+        {
+          "rank": 3,
+          "sha": "fb9c9eb9d2d97cff5f19fbb0f9a7828afb4c4271",
+          "subject": "[X86][GISel] Fix carry-in for selectUAddSub. (#199261)",
+          "utility": 0.908694,
+          "selection_score": 0.934556,
+          "semantic_score": 6.231972,
+          "build_success_prob": 0.92,
+          "feedback_bias": 0.966197,
+          "posterior_bad_mass": 0.513883,
+          "calibrated_suspicion_weight": 0.012263,
+          "calibrated_posterior_bad_mass": 0.52958,
+          "calibrated_posterior_info_gain": 0.997474
+        },
+        {
+          "rank": 4,
+          "sha": "017f3525e8c4241701576ecc5083291eddaea63a",
+          "subject": "[X86] Lower vector 8-bit rotr(x, 1) to pavgb pattern (#198980)",
+          "utility": 0.910898,
+          "selection_score": 0.933796,
+          "semantic_score": 5.362394,
+          "build_success_prob": 0.92,
+          "feedback_bias": 0.966197,
+          "posterior_bad_mass": 0.488364,
+          "calibrated_suspicion_weight": 0.010011,
+          "calibrated_posterior_bad_mass": 0.497312,
+          "calibrated_posterior_info_gain": 0.999979
+        },
+        {
+          "rank": 5,
+          "sha": "12e366ae301a426e403d9cc29e41e1e2141987ff",
+          "subject": "[DAG] UDIV/SDIV exact nodes support DemandedElts + add test (#198715)",
+          "utility": 0.915336,
+          "selection_score": 0.928006,
+          "semantic_score": 3.58831,
+          "build_success_prob": 0.92,
+          "feedback_bias": 0.983099,
+          "posterior_bad_mass": 0.492947,
+          "calibrated_suspicion_weight": 0.00582,
+          "calibrated_posterior_bad_mass": 0.503132,
+          "calibrated_posterior_info_gain": 0.999972
+        }
+      ],
+      "evidence": [
+        "=== validated-bisect-runner ===",
+        "issue: pr201444",
+        "llvm-project: /home/ubuntu/gitbisect-work/worktrees/pr201444-aws10-confidence-frontier-b-20260720a",
+        "commit: 69a5cf515fd3",
+        "jobs: 4",
+        "build type: Release",
+        "assertions: ON",
+        "ccache dir: /home/ubuntu/gitbisect-work/confidence-adaptive-20260720-896b595/.ccache/pr201444-git-bisect",
+        "repro exit code: 0",
+        "verdict: good"
+      ],
+      "log_excerpt": "=== validated-bisect-runner ===\nissue: pr201444\nllvm-project: /home/ubuntu/gitbisect-work/worktrees/pr201444-aws10-confidence-frontier-b-20260720a\ncommit: 69a5cf515fd3\njobs: 4\nbuild type: Release\nassertions: ON\nccache dir: /home/ubuntu/gitbisect-work/confidence-adaptive-20260720-896b595/.ccache/pr201444-git-bisect\nrepro exit code: 0\nverdict: good",
+      "trace_excerpt": "=== validated-bisect-runner ===\nissue: pr201444\nllvm-project: /home/ubuntu/gitbisect-work/worktrees/pr201444-aws10-confidence-frontier-b-20260720a\ncommit: 69a5cf515fd3\njobs: 4\nbuild type: Release\nassertions: ON\nccache dir: /home/ubuntu/gitbisect-work/confidence-adaptive-20260720-896b595/.ccache/pr201444-git-bisect\nrepro exit code: 0\nverdict: good",
+      "runner_duration_sec": 3191.584
+    },
+    {
+      "step": 5,
+      "sha": "093c76a9b101e4ed14854daad66223463d86d2ba",
+      "subject": "[SelectionDAG] Preserve IR alignment on atomicrmw/cmpxchg MMOs (#200332)",
+      "verdict": "good",
+      "source": "runner",
+      "summary": "verdict: good",
+      "unresolved_before": 1212,
+      "unresolved_after": 489,
+      "model_top_k": 3,
+      "adaptive_top_k": null,
+      "confidence_adaptive_frontier": {
+        "threshold": 0.35
+      },
+      "model_frontier_decision": {
+        "configured_frontier": "topk",
+        "effective_frontier": "diverse",
+        "confidence": 0.004341,
+        "threshold": 0.35,
+        "reason": "semantic scores are ambiguous; add posterior and midpoint anchors",
+        "top_semantic_candidates": [
+          {
+            "sha": "ff7e6bbb7f1187a839690b2832507038b5ea2fc3",
+            "semantic_score": 6.45,
+            "build_success_prob": 0.92
+          },
+          {
+            "sha": "4448a1a7c095dc781495d631b73dcdff652436ba",
+            "semantic_score": 6.422,
+            "build_success_prob": 0.88
+          }
+        ],
+        "selected_frontier_shas": [
+          "ff7e6bbb7f1187a839690b2832507038b5ea2fc3",
+          "093c76a9b101e4ed14854daad66223463d86d2ba",
+          "13ccc7c5bfc6f878625a7ab019926d72f878d07a"
+        ],
+        "observation_count": 4
+      },
+      "model_score_context": "v1-52f31f91a12e4537",
+      "model_score_context_payload": {
+        "version": "v1",
+        "unresolved_count": 1212,
+        "candidate_window_sha256": "6ba3eff57c8bf313a808e4cc861386eb05f36aaed91f204316e1fa6cfcd981f0",
+        "observation_sha256": "cdf197056cb52cc7ef5d24b20ab78bcaf3ca0a41558d4a007fa7329d1f5c5e6b",
+        "model_top_k": 3,
+        "model_frontier": "topk",
+        "model_diff_mode": "parent",
+        "model_diff_extraction": "llm",
+        "observation_prompt_mode": "trace-only",
+        "confidence_adaptive_frontier": {
+          "threshold": 0.35
+        }
+      },
+      "candidate_pruning": {
+        "mode": "off",
+        "before_count": 1212,
+        "after_count": 1212,
+        "pruned_count": 0,
+        "keep_prefixes": [],
+        "kept_reason_counts": {},
+        "prune_reason_counts": {},
+        "pruned_examples": []
+      },
+      "search_policy": "calibrated-posterior",
+      "selection_mode": "calibrated-posterior",
+      "selection": {
+        "utility": 0.906976,
+        "selection_score": 1.213721,
+        "semantic_score": 6.8,
+        "build_success_prob": 0.88,
+        "balance_score": 0.994798,
+        "suspicion_weight": 0.018022,
+        "feedback_bias": 1.0,
+        "evidence": [
+          "model-scored",
+          "Directly changes SelectionDAGBuilder, a high-risk backend component close to the reported X86 instruction-selection crash.",
+          "Although the mechanism is atomic alignment rather than low-bits bit-test lowering, it is a substantive SelectionDAG lowering fix that could plausibly sit near a backend assertion boundary.",
+          "features: SelectionDAGBuilder lowering, X86 backend codegen, machine memoperand metadata propagation"
+        ],
+        "posterior_bad_mass": 0.497399,
+        "calibrated_suspicion_weight": 0.029681,
+        "calibrated_posterior_bad_mass": 0.438429,
+        "calibrated_posterior_info_gain": 0.989034,
+        "diff_mode": "parent",
+        "diff_extraction": "llm",
+        "diff_summary": "Summary: Fixes SelectionDAGBuilder to preserve the IR-specified alignment on atomicrmw and cmpxchg by threading `I.getAlign()` into the MachineMemOperand instead of recomputing a natural type alignment. This aligns atomic RMW/CAS lowering with the existing atomic load/store paths, preventing silent loss of over-alignment metadata and ensuring X86 post-isel memory operands carry the correct alignment information. The new X86 test checks both atomicrmw and cmpxchg MachineInstr annotations for the retained alignment.\nMechanisms: SelectionDAGBuilder MMO construction; atomicrmw/cmpxchg lowering metadata propagation; IR alignment to MachineMemOperand alignment preservation\nTouched symbols: SelectionDAGBuilder::visitAtomicCmpXchg; SelectionDAGBuilder::visitAtomicRMW; MachineMemOperand; I.getAlign; DAG.getEVTAlign; atomic-mmo-align.ll\nRisk relevance: Touches SelectionDAG lowering, a high-risk area for backend assertion failures and miscompiles; Changes machine memory operand alignment metadata, which can influence instruction selection and codegen legality checks; Affects atomic lowering paths that are often sensitive to target-specific X86 constraints\nBuild risk: Updates core codegen behavior in SelectionDAGBuilder and adds a target-specific regression test; Could change MIR/MI-dump expectations and affect multiple atomic lowering tests"
+      },
+      "top_candidates": [
+        {
+          "rank": 1,
+          "sha": "093c76a9b101e4ed14854daad66223463d86d2ba",
+          "subject": "[SelectionDAG] Preserve IR alignment on atomicrmw/cmpxchg MMOs (#200332)",
+          "utility": 0.906976,
+          "selection_score": 1.213721,
+          "semantic_score": 6.8,
+          "build_success_prob": 0.88,
+          "feedback_bias": 1.0,
+          "posterior_bad_mass": 0.497399,
+          "calibrated_suspicion_weight": 0.029681,
+          "calibrated_posterior_bad_mass": 0.438429,
+          "calibrated_posterior_info_gain": 0.989034,
+          "diff_mode": "parent",
+          "diff_extraction": "llm",
+          "diff_summary": "Summary: Fixes SelectionDAGBuilder to preserve the IR-specified alignment on atomicrmw and cmpxchg by threading `I.getAlign()` into the MachineMemOperand instead of recomputing a natural type alignment. This aligns atomic RMW/CAS lowering with the existing atomic load/store paths, preventing silent loss of over-alignment metadata and ensuring X86 post-isel memory operands carry the correct alignment information. The new X86 test checks both atomicrmw and cmpxchg MachineInstr annotations for the retained alignment.\nMechanisms: SelectionDAGBuilder MMO construction; atomicrmw/cmpxchg lowering metadata propagation; IR alignment to MachineMemOperand alignment preservation\nTouched symbols: SelectionDAGBuilder::visitAtomicCmpXchg; SelectionDAGBuilder::visitAtomicRMW; MachineMemOperand; I.getAlign; DAG.getEVTAlign; atomic-mmo-align.ll\nRisk relevance: Touches SelectionDAG lowering, a high-risk area for backend assertion failures and miscompiles; Changes machine memory operand alignment metadata, which can influence instruction selection and codegen legality checks; Affects atomic lowering paths that are often sensitive to target-specific X86 constraints\nBuild risk: Updates core codegen behavior in SelectionDAGBuilder and adds a target-specific regression test; Could change MIR/MI-dump expectations and affect multiple atomic lowering tests"
+        },
+        {
+          "rank": 2,
+          "sha": "13ccc7c5bfc6f878625a7ab019926d72f878d07a",
+          "subject": "[CIR] Handle vptr zero-init- (#200305)",
+          "utility": 0.750787,
+          "selection_score": 1.089022,
+          "semantic_score": 0.4,
+          "build_success_prob": 0.95,
+          "feedback_bias": 1.0,
+          "posterior_bad_mass": 0.394315,
+          "calibrated_suspicion_weight": 0.000648,
+          "calibrated_posterior_bad_mass": 0.328401,
+          "calibrated_posterior_info_gain": 0.913284,
+          "weak_relevance_penalty": 0.0475,
+          "diff_mode": "parent",
+          "diff_extraction": "llm",
+          "diff_summary": "Summary: Adds CIR builder support for zero-initializing vptr-typed fields by recognizing `cir::VPtrType` and returning a zero attribute for that type. The accompanying CIR/LLVM/OGCG test covers constructor null initialization for a class with a virtual base, ensuring vptr stores are emitted as zero-init before base construction and then overwritten with the proper vtable address point. This is a frontend/CIR codegen change centered on object initialization semantics rather than X86 lowering.\nMechanisms: CIR constant/zero-initialization handling for vptr types; constructor field initialization emission; vtable/vptr initialization sequencing\nTouched symbols: CIRBaseBuilder; cir::VPtrType; cir::ZeroAttr::get; ctor-null-init.cpp\nRisk relevance: Changes initialization semantics for virtual table pointers, which can alter downstream codegen patterns and object layout handling; Touches constructor lowering paths that may expose latent backend assumptions about zero-init versus explicit vptr stores\nBuild risk: Adds new CIR type-special-case logic and corresponding test coverage; May affect CIR/Clang codegen expectations for classes with virtual bases"
+        },
+        {
+          "rank": 3,
+          "sha": "813cf3358e5eefc4a9f7393ea373f50c943fd893",
+          "subject": "[X86] Fold XOR of VGF2P8AFFINEQB and its source (#198448)",
+          "utility": 0.694883,
+          "selection_score": 0.936599,
+          "semantic_score": 6.035714,
+          "build_success_prob": 0.92,
+          "feedback_bias": 0.965714,
+          "posterior_bad_mass": 0.634053,
+          "calibrated_suspicion_weight": 0.025268,
+          "calibrated_posterior_bad_mass": 0.581253,
+          "calibrated_posterior_info_gain": 0.980866
+        },
+        {
+          "rank": 4,
+          "sha": "6d2a90bd8bf321df0d1c3f2953fcc51ce5344b13",
+          "subject": "[X86] matchBinaryPermuteShuffle - match to X86ISD::SHLD funnel shift patterns (REAPPLIED) (#200604)",
+          "utility": 0.880481,
+          "selection_score": 0.934084,
+          "semantic_score": 3.524857,
+          "build_success_prob": 0.92,
+          "feedback_bias": 0.965714,
+          "posterior_bad_mass": 0.530254,
+          "calibrated_suspicion_weight": 0.012225,
+          "calibrated_posterior_bad_mass": 0.467909,
+          "calibrated_posterior_info_gain": 0.997027
+        },
+        {
+          "rank": 5,
+          "sha": "0b70118713e57c947914888310584589ffca664d",
+          "subject": "[SelectionDAG] Fix SplitVecRes_VP_REVERSE for sub-byte (i1) element types (#200625)",
+          "utility": 0.813668,
+          "selection_score": 0.932919,
+          "semantic_score": 2.900833,
+          "build_success_prob": 0.92,
+          "feedback_bias": 0.983333,
+          "posterior_bad_mass": 0.564486,
+          "calibrated_suspicion_weight": 0.009397,
+          "calibrated_posterior_bad_mass": 0.495733,
+          "calibrated_posterior_info_gain": 0.999947
+        }
+      ],
+      "evidence": [
+        "=== validated-bisect-runner ===",
+        "issue: pr201444",
+        "llvm-project: /home/ubuntu/gitbisect-work/worktrees/pr201444-aws10-confidence-frontier-b-20260720a",
+        "commit: 093c76a9b101",
+        "jobs: 4",
+        "build type: Release",
+        "assertions: ON",
+        "ccache dir: /home/ubuntu/gitbisect-work/confidence-adaptive-20260720-896b595/.ccache/pr201444-git-bisect",
+        "repro exit code: 0",
+        "verdict: good"
+      ],
+      "log_excerpt": "=== validated-bisect-runner ===\nissue: pr201444\nllvm-project: /home/ubuntu/gitbisect-work/worktrees/pr201444-aws10-confidence-frontier-b-20260720a\ncommit: 093c76a9b101\njobs: 4\nbuild type: Release\nassertions: ON\nccache dir: /home/ubuntu/gitbisect-work/confidence-adaptive-20260720-896b595/.ccache/pr201444-git-bisect\nrepro exit code: 0\nverdict: good",
+      "trace_excerpt": "=== validated-bisect-runner ===\nissue: pr201444\nllvm-project: /home/ubuntu/gitbisect-work/worktrees/pr201444-aws10-confidence-frontier-b-20260720a\ncommit: 093c76a9b101\njobs: 4\nbuild type: Release\nassertions: ON\nccache dir: /home/ubuntu/gitbisect-work/confidence-adaptive-20260720-896b595/.ccache/pr201444-git-bisect\nrepro exit code: 0\nverdict: good",
+      "runner_duration_sec": 3186.402
+    },
+    {
+      "step": 6,
+      "sha": "9e29f7ddc42e325aa34dcf58a5da800afa9f64ad",
+      "subject": "[X86] Remove extra MOV after widening atomic store (#197619)",
+      "verdict": "good",
+      "source": "runner",
+      "summary": "verdict: good",
+      "unresolved_before": 489,
+      "unresolved_after": 243,
+      "model_top_k": 3,
+      "adaptive_top_k": null,
+      "confidence_adaptive_frontier": {
+        "threshold": 0.35
+      },
+      "model_frontier_decision": {
+        "configured_frontier": "topk",
+        "effective_frontier": "diverse",
+        "confidence": 0.087846,
+        "threshold": 0.35,
+        "reason": "semantic scores are ambiguous; add posterior and midpoint anchors",
+        "top_semantic_candidates": [
+          {
+            "sha": "414b8b986705d24e415e8ef17bc8ddbbd6839712",
+            "semantic_score": 5.909091,
+            "build_success_prob": 0.92
+          },
+          {
+            "sha": "91b77dc685cf628cbf925e43e25f2f86a912b38b",
+            "semantic_score": 5.39,
+            "build_success_prob": 0.86
+          }
+        ],
+        "selected_frontier_shas": [
+          "414b8b986705d24e415e8ef17bc8ddbbd6839712",
+          "9e29f7ddc42e325aa34dcf58a5da800afa9f64ad",
+          "4b91251dd8af6a109c07c7a89bafab9be0dd829c"
+        ],
+        "observation_count": 5
+      },
+      "model_score_context": "v1-e2a96f462bd135e2",
+      "model_score_context_payload": {
+        "version": "v1",
+        "unresolved_count": 489,
+        "candidate_window_sha256": "49ba1f5b19ed01eedca0e9f62b652b59d998d7c6bfb01054389ff49fdb68c9d8",
+        "observation_sha256": "9c9297c2675f94c28f68dde7397edc9ab809fba1d5fb0fa6009a3ad4ea397bbc",
+        "model_top_k": 3,
+        "model_frontier": "topk",
+        "model_diff_mode": "parent",
+        "model_diff_extraction": "llm",
+        "observation_prompt_mode": "trace-only",
+        "confidence_adaptive_frontier": {
+          "threshold": 0.35
+        }
+      },
+      "candidate_pruning": {
+        "mode": "off",
+        "before_count": 489,
+        "after_count": 489,
+        "pruned_count": 0,
+        "keep_prefixes": [],
+        "kept_reason_counts": {},
+        "prune_reason_counts": {},
+        "pruned_examples": []
+      },
+      "search_policy": "calibrated-posterior",
+      "selection_mode": "calibrated-posterior",
+      "selection": {
+        "utility": 0.785948,
+        "selection_score": 1.124482,
+        "semantic_score": 5.7,
+        "build_success_prob": 0.78,
+        "balance_score": 0.931688,
+        "suspicion_weight": 0.040753,
+        "feedback_bias": 1.0,
+        "evidence": [
+          "model-scored",
+          "Directly changes llvm/lib/Target/X86/X86ISelLowering.cpp, the main subsystem named in the crash summary",
+          "Alters SelectionDAG store folding and width/truncation-related X86 lowering patterns, which is plausibly adjacent to low-bits/extension assertions",
+          "features: x86-isel-lowering, selectiondag-pattern-matching, store-folding-width-adjustment"
+        ],
+        "posterior_bad_mass": 0.534156,
+        "calibrated_suspicion_weight": 0.068244,
+        "calibrated_posterior_bad_mass": 0.550539,
+        "calibrated_posterior_info_gain": 0.992617,
+        "diff_mode": "parent",
+        "diff_extraction": "llm",
+        "diff_summary": "Summary: This X86 codegen change expands store-matching to cover atomic stores and introduces generic any_store PatFrags for multiple memory widths. X86 lowering is adjusted so operands may fold into atomic_store users, and several SSE/AVX/AVX512 instruction patterns are rewritten to use these shared fragments for vector element extract/truncation stores. The test updates reflect new folded store forms and different instruction selection for atomic and vector store cases across feature levels and optimization levels.\nMechanisms: SelectionDAG store folding for atomic_store users; Pattern matching unification via any_store PatFrags; Vector extract/truncation store lowering; Instruction selection changes for SSE/AVX/AVX512 store forms\nTouched symbols: X86::mayFoldIntoStore; any_store; any_store_8; any_store_16; any_store_32; any_store_64; any_store_128; VMOVPDI2DIZmr\nRisk relevance: Directly changes X86 target lowering and SelectionDAG pattern selection, the area implicated by backend assertion crashes; Introduces new folding into atomic stores, which can interact with width/extension reasoning and legality checks; Alters how vector extracts/truncations are matched to memory ops, potentially affecting low-bits and partial-width constraints\nBuild risk: Touches target .td patterns and lowering code, which can break instruction matching or test expectations; Extensive CodeGen test rewrites indicate observable codegen changes across multiple subtargets and opt levels; Feature-dependent assembly outputs changed, increasing risk of target-specific regressions"
+      },
+      "top_candidates": [
+        {
+          "rank": 1,
+          "sha": "9e29f7ddc42e325aa34dcf58a5da800afa9f64ad",
+          "subject": "[X86] Remove extra MOV after widening atomic store (#197619)",
+          "utility": 0.785948,
+          "selection_score": 1.124482,
+          "semantic_score": 5.7,
+          "build_success_prob": 0.78,
+          "feedback_bias": 1.0,
+          "posterior_bad_mass": 0.534156,
+          "calibrated_suspicion_weight": 0.068244,
+          "calibrated_posterior_bad_mass": 0.550539,
+          "calibrated_posterior_info_gain": 0.992617,
+          "diff_mode": "parent",
+          "diff_extraction": "llm",
+          "diff_summary": "Summary: This X86 codegen change expands store-matching to cover atomic stores and introduces generic any_store PatFrags for multiple memory widths. X86 lowering is adjusted so operands may fold into atomic_store users, and several SSE/AVX/AVX512 instruction patterns are rewritten to use these shared fragments for vector element extract/truncation stores. The test updates reflect new folded store forms and different instruction selection for atomic and vector store cases across feature levels and optimization levels.\nMechanisms: SelectionDAG store folding for atomic_store users; Pattern matching unification via any_store PatFrags; Vector extract/truncation store lowering; Instruction selection changes for SSE/AVX/AVX512 store forms\nTouched symbols: X86::mayFoldIntoStore; any_store; any_store_8; any_store_16; any_store_32; any_store_64; any_store_128; VMOVPDI2DIZmr\nRisk relevance: Directly changes X86 target lowering and SelectionDAG pattern selection, the area implicated by backend assertion crashes; Introduces new folding into atomic stores, which can interact with width/extension reasoning and legality checks; Alters how vector extracts/truncations are matched to memory ops, potentially affecting low-bits and partial-width constraints\nBuild risk: Touches target .td patterns and lowering code, which can break instruction matching or test expectations; Extensive CodeGen test rewrites indicate observable codegen changes across multiple subtargets and opt levels; Feature-dependent assembly outputs changed, increasing risk of target-specific regressions"
+        },
+        {
+          "rank": 2,
+          "sha": "4b91251dd8af6a109c07c7a89bafab9be0dd829c",
+          "subject": "[mlir] Remove unused DenseMapInfo::getTombstoneKey (#200633)",
+          "utility": 0.920355,
+          "selection_score": 1.102939,
+          "semantic_score": 0.2,
+          "build_success_prob": 0.93,
+          "feedback_bias": 1.0,
+          "posterior_bad_mass": 0.493403,
+          "calibrated_suspicion_weight": 0.000741,
+          "calibrated_posterior_bad_mass": 0.482295,
+          "calibrated_posterior_info_gain": 0.999095,
+          "weak_relevance_penalty": 0.0465,
+          "diff_mode": "parent",
+          "diff_extraction": "llm",
+          "diff_summary": "Summary: This change is a broad MLIR cleanup that removes many DenseMapInfo tombstone-key specializations and updates equality/sentinel checks to rely only on empty keys. It touches a wide range of MLIR IR, analysis, support, pass, and tablegen utilities, plus a few helper data structures that previously modeled both empty and tombstone states. The functional intent is to simplify DenseMap sentinel handling and eliminate now-unused tombstone plumbing, with a few accompanying comment/test-generation updates.\nMechanisms: DenseMapInfo sentinel policy simplification; Removal of tombstone-key construction and comparisons; Update of custom map equality predicates to only treat empty keys as sentinels; Minor generator/template cleanup in MLIR tablegen and docs\nTouched symbols: DenseMapInfo<mlir::Attribute>; DenseMapInfo<mlir::Value>; DenseMapInfo<mlir::Type>; DenseMapInfo<mlir::Location>; DenseMapInfo<mlir::OperationName>; DenseMapInfo<mlir::TypeID>; DenseMapInfo<mlir::remark::detail::Remark>; DenseMapInfo<mlir::tblgen::Constraint>\nRisk relevance: Large-scale sentinel semantics change across DenseMap users can alter equality/lookup behavior in backend-adjacent infrastructure; Affects shared MLIR core abstractions used by lowering and conversion pipelines; Touches map equivalence predicates that may influence canonicalization and analysis results indirectly\nBuild risk: Very wide header churn across MLIR can trigger compile-time breakage in many translation units; Template and DenseMapInfo API changes can require coordinated adjustments in multiple source files; Generated-code and documentation snippets were updated, suggesting broad mechanical refactoring"
+        },
+        {
+          "rank": 3,
+          "sha": "4aa9a9f6f6b9e04c64e18f2f23efbd3745982773",
+          "subject": "[X86] lowerShuffleAsBitMask - use getConstVector to create bitmask (#200889)",
+          "utility": 0.90158,
+          "selection_score": 0.96227,
+          "semantic_score": 3.33,
+          "build_success_prob": 0.92,
+          "feedback_bias": 0.6,
+          "posterior_bad_mass": 0.467718,
+          "calibrated_suspicion_weight": 0.033032,
+          "calibrated_posterior_bad_mass": 0.465527,
+          "calibrated_posterior_info_gain": 0.996568
+        },
+        {
+          "rank": 4,
+          "sha": "414b8b986705d24e415e8ef17bc8ddbbd6839712",
+          "subject": "[CodeGen][Transforms] Remove unused DenseMapInfo::getTombstoneKey (#200956)",
+          "utility": 0.463472,
+          "selection_score": 0.931399,
+          "semantic_score": 1.9,
+          "build_success_prob": 0.86,
+          "feedback_bias": 1.0,
+          "posterior_bad_mass": 0.737667,
+          "calibrated_suspicion_weight": 0.015486,
+          "calibrated_posterior_bad_mass": 0.760339,
+          "calibrated_posterior_info_gain": 0.794477,
+          "diff_mode": "parent",
+          "diff_extraction": "llm",
+          "diff_summary": "Summary: This LLVM-wide cleanup removes unused DenseMapInfo tombstone-key support from many code generation, debug-info, and optimization helpers. It simplifies sentinel handling in several map traits and equality functions so they only special-case empty keys, while deleting companion tombstone constants and assertions. The change spans core CodeGen data structures, DebugInfo hashing utilities, and several transform passes' DenseMapInfo customizations.\nMechanisms: DenseMapInfo tombstone-key removal; Sentinel comparison simplification to empty-key-only checks; Deletion of tombstone constants/state in debug and hashing helpers; Cleanup of custom hash/equality traits across passes\nTouched symbols: OffsetAndUnitID; MBBSectionID; MachineInstrExpressionTrait; MachineOperand; PoolEntry; Register; SDValue; TargetInstrInfo::RegSubRegPair\nRisk relevance: Touches SelectionDAGNodes and MachineOperand/SDValue-related traits that are closer to backend lowering infrastructure; Changes equality/sentinel assumptions in passes that consume instructions, PHIs, and expressions, which can perturb compiler analyses; Modifies debug-info and codegen utilities that share generic DenseMap behavior used throughout LLVM\nBuild risk: Very broad header and implementation churn across CodeGen, DebugInfo, and Transforms increases compile and link risk; Deletes static members and trait methods that may require coordinated header/source consistency; Multiple transformed equality/hash implementations can expose latent template or ODR issues"
+        },
+        {
+          "rank": 5,
+          "sha": "e6874781e5b678101ff5f220c3a0dd4df5d2cf29",
+          "subject": "[SelectionDAG] Widen <2 x T> vector types for atomic store (#197618)",
+          "utility": 0.906501,
+          "selection_score": 0.93106,
+          "semantic_score": 1.27,
+          "build_success_prob": 0.92,
+          "feedback_bias": 0.2,
+          "posterior_bad_mass": 0.483876,
+          "calibrated_suspicion_weight": 0.00899,
+          "calibrated_posterior_bad_mass": 0.477632,
+          "calibrated_posterior_info_gain": 0.998556
+        }
+      ],
+      "evidence": [
+        "=== validated-bisect-runner ===",
+        "issue: pr201444",
+        "llvm-project: /home/ubuntu/gitbisect-work/worktrees/pr201444-aws10-confidence-frontier-b-20260720a",
+        "commit: 9e29f7ddc42e",
+        "jobs: 4",
+        "build type: Release",
+        "assertions: ON",
+        "ccache dir: /home/ubuntu/gitbisect-work/confidence-adaptive-20260720-896b595/.ccache/pr201444-git-bisect",
+        "repro exit code: 0",
+        "verdict: good"
+      ],
+      "log_excerpt": "=== validated-bisect-runner ===\nissue: pr201444\nllvm-project: /home/ubuntu/gitbisect-work/worktrees/pr201444-aws10-confidence-frontier-b-20260720a\ncommit: 9e29f7ddc42e\njobs: 4\nbuild type: Release\nassertions: ON\nccache dir: /home/ubuntu/gitbisect-work/confidence-adaptive-20260720-896b595/.ccache/pr201444-git-bisect\nrepro exit code: 0\nverdict: good",
+      "trace_excerpt": "=== validated-bisect-runner ===\nissue: pr201444\nllvm-project: /home/ubuntu/gitbisect-work/worktrees/pr201444-aws10-confidence-frontier-b-20260720a\ncommit: 9e29f7ddc42e\njobs: 4\nbuild type: Release\nassertions: ON\nccache dir: /home/ubuntu/gitbisect-work/confidence-adaptive-20260720-896b595/.ccache/pr201444-git-bisect\nrepro exit code: 0\nverdict: good",
+      "runner_duration_sec": 3108.294
+    },
+    {
+      "step": 7,
+      "sha": "87b97d67d401938086edc0602f55fe284bffc24d",
+      "subject": "[clang-tools-extra][docs] Do not require myst_parser when building man pages (#201138)",
+      "verdict": "good",
+      "source": "runner",
+      "summary": "verdict: good",
+      "unresolved_before": 243,
+      "unresolved_after": 121,
+      "model_top_k": 3,
+      "adaptive_top_k": null,
+      "confidence_adaptive_frontier": {
+        "threshold": 0.35
+      },
+      "model_frontier_decision": {
+        "configured_frontier": "topk",
+        "effective_frontier": "diverse",
+        "confidence": 0.123626,
+        "threshold": 0.35,
+        "reason": "semantic scores are ambiguous; add posterior and midpoint anchors",
+        "top_semantic_candidates": [
+          {
+            "sha": "414b8b986705d24e415e8ef17bc8ddbbd6839712",
+            "semantic_score": 5.909091,
+            "build_success_prob": 0.92
+          },
+          {
+            "sha": "c4484e8422745ab8c1ada25a6bda5d69ef8da924",
+            "semantic_score": 5.178571,
+            "build_success_prob": 0.86
+          }
+        ],
+        "selected_frontier_shas": [
+          "414b8b986705d24e415e8ef17bc8ddbbd6839712",
+          "e0f5ce18c04a5c55e5eb4e35e5ab1f1980e15c31",
+          "87b97d67d401938086edc0602f55fe284bffc24d"
+        ],
+        "observation_count": 6
+      },
+      "model_score_context": "v1-1919fb696ff24394",
+      "model_score_context_payload": {
+        "version": "v1",
+        "unresolved_count": 243,
+        "candidate_window_sha256": "d23470ea49fc34806907c20779c92ab95db30eb0b4a47f1e50a46756a16d18f8",
+        "observation_sha256": "5a206f33333608f637b014876c4ecb81441e8e89a0b59449491b74924dc71ddd",
+        "model_top_k": 3,
+        "model_frontier": "topk",
+        "model_diff_mode": "parent",
+        "model_diff_extraction": "llm",
+        "observation_prompt_mode": "trace-only",
+        "confidence_adaptive_frontier": {
+          "threshold": 0.35
+        }
+      },
+      "candidate_pruning": {
+        "mode": "off",
+        "before_count": 243,
+        "after_count": 243,
+        "pruned_count": 0,
+        "keep_prefixes": [],
+        "kept_reason_counts": {},
+        "prune_reason_counts": {},
+        "pruned_examples": []
+      },
+      "search_policy": "calibrated-posterior",
+      "selection_mode": "calibrated-posterior",
+      "selection": {
+        "utility": 0.823629,
+        "selection_score": 1.09508,
+        "semantic_score": 0.1,
+        "build_success_prob": 0.98,
+        "balance_score": 0.83731,
+        "suspicion_weight": 0.001868,
+        "feedback_bias": 1.0,
+        "evidence": [
+          "model-scored",
+          "Documentation build configuration change only; unrelated to compiler code generation",
+          "No overlap with X86, SelectionDAG, or assertion/optimization crash mechanisms",
+          "features: docs build config, optional dependency handling, clang-tools-extra man-page build"
+        ],
+        "posterior_bad_mass": 0.581345,
+        "calibrated_suspicion_weight": 0.000921,
+        "calibrated_posterior_bad_mass": 0.636099,
+        "calibrated_posterior_info_gain": 0.945874,
+        "weak_relevance_penalty": 0.049,
+        "diff_mode": "parent",
+        "diff_extraction": "llm",
+        "diff_summary": "Summary: This change makes the clang-tools-extra documentation build more tolerant by only importing myst_parser when available and only requiring it for non-man-page builds. The extension list is narrowed to the always-needed Sphinx modules, and the configuration now conditionally appends myst_parser or raises only when markdown support is required. The main effect is a packaging/build-system adjustment, not a compiler or codegen logic change.\nMechanisms: Conditional optional dependency import; Sphinx extension list gating by builder type; Documentation build fallback path for man pages\nTouched symbols: conf.py; extensions; myst_parser; tags.has\nRisk relevance: No direct relation to SelectionDAG, X86 lowering, or compiler crash mechanisms; Only impacts documentation build configuration and dependency handling; Could change packaging behavior for docs workflows but not backend code generation\nBuild risk: Build-system behavior changes for docs, especially man-page versus markdown builds; Introduces optional import logic and conditional failure path; May affect packaged distributions that omit myst_parser"
+      },
+      "top_candidates": [
+        {
+          "rank": 1,
+          "sha": "87b97d67d401938086edc0602f55fe284bffc24d",
+          "subject": "[clang-tools-extra][docs] Do not require myst_parser when building man pages (#201138)",
+          "utility": 0.823629,
+          "selection_score": 1.09508,
+          "semantic_score": 0.1,
+          "build_success_prob": 0.98,
+          "feedback_bias": 1.0,
+          "posterior_bad_mass": 0.581345,
+          "calibrated_suspicion_weight": 0.000921,
+          "calibrated_posterior_bad_mass": 0.636099,
+          "calibrated_posterior_info_gain": 0.945874,
+          "weak_relevance_penalty": 0.049,
+          "diff_mode": "parent",
+          "diff_extraction": "llm",
+          "diff_summary": "Summary: This change makes the clang-tools-extra documentation build more tolerant by only importing myst_parser when available and only requiring it for non-man-page builds. The extension list is narrowed to the always-needed Sphinx modules, and the configuration now conditionally appends myst_parser or raises only when markdown support is required. The main effect is a packaging/build-system adjustment, not a compiler or codegen logic change.\nMechanisms: Conditional optional dependency import; Sphinx extension list gating by builder type; Documentation build fallback path for man pages\nTouched symbols: conf.py; extensions; myst_parser; tags.has\nRisk relevance: No direct relation to SelectionDAG, X86 lowering, or compiler crash mechanisms; Only impacts documentation build configuration and dependency handling; Could change packaging behavior for docs workflows but not backend code generation\nBuild risk: Build-system behavior changes for docs, especially man-page versus markdown builds; Introduces optional import logic and conditional failure path; May affect packaged distributions that omit myst_parser"
+        },
+        {
+          "rank": 2,
+          "sha": "e0f5ce18c04a5c55e5eb4e35e5ab1f1980e15c31",
+          "subject": "[IR][Analysis] Remove unused DenseMapInfo::getTombstoneKey (#200958)",
+          "utility": 0.774412,
+          "selection_score": 1.093656,
+          "semantic_score": 1.1,
+          "build_success_prob": 0.8,
+          "feedback_bias": 1.0,
+          "posterior_bad_mass": 0.464905,
+          "calibrated_suspicion_weight": 0.023462,
+          "calibrated_posterior_bad_mass": 0.52367,
+          "calibrated_posterior_info_gain": 0.998383,
+          "diff_mode": "parent",
+          "diff_extraction": "llm",
+          "diff_summary": "Summary: This change removes unused DenseMapInfo::getTombstoneKey specializations from IR and analysis infrastructure, replacing several empty-or-tombstone checks with empty-only checks. It also deletes associated sentinel storage and helper state from IR metadata/value wrapper types and simplifies map-trait predicates in memory analysis, scalar evolution, value handling, and LLVMContext internals. The substantive effect is a contraction of special-key handling for analysis/IR data structures, with some traits no longer reserving a second sentinel value.\nMechanisms: DenseMapInfo tombstone-key removal; Sentinel predicate simplification; Pointer-wrapper key trait cleanup; Removal of special sentinel storage in IR/context helpers\nTouched symbols: AACacheLoc; Attribute::AttrKind; IRInstructionDataTraits; MemoryLocation; UpwardDefsElem; SCEVUse; ScalarEvolution::FoldID; AttributeSet\nRisk relevance: Touches core IR and analysis keying logic used widely across optimization passes; Alters DenseMap special-key assumptions for pointer-like wrappers and IR metadata structures; Could expose latent bugs where code still compares against tombstones or relies on two-sentinel behavior; Affects analysis utilities that are upstream of many optimizations, so regressions can manifest broadly\nBuild risk: Very broad header/API churn across Analysis and IR layers; Removes multiple DenseMapInfo methods and static sentinel declarations, raising reference/ODR risk; May require coordinated changes in any out-of-tree code using these special keys; High probability of compile failures if any remaining code expects getTombstoneKey"
+        },
+        {
+          "rank": 3,
+          "sha": "414b8b986705d24e415e8ef17bc8ddbbd6839712",
+          "subject": "[CodeGen][Transforms] Remove unused DenseMapInfo::getTombstoneKey (#200956)",
+          "utility": 0.729453,
+          "selection_score": 1.086502,
+          "semantic_score": 1.4,
+          "build_success_prob": 0.78,
+          "feedback_bias": 1.0,
+          "posterior_bad_mass": 0.44436,
+          "calibrated_suspicion_weight": 0.032491,
+          "calibrated_posterior_bad_mass": 0.500208,
+          "calibrated_posterior_info_gain": 1.0,
+          "diff_mode": "parent",
+          "diff_extraction": "llm",
+          "diff_summary": "Summary: This change is a broad cleanup removing many now-unused DenseMapInfo::getTombstoneKey specializations and related tombstone-sentinel handling across CodeGen, debug info, and several transforms. It simplifies equality/sentinel checks to only recognize DenseMap empty keys, deletes tombstone-specific constants and helper constructors, and updates several map traits that previously depended on sentinel pairs or special placeholder values. The core mechanism change is a repository-wide narrowing of DenseMap key validity assumptions, with some code paths no longer distinguishing empty versus tombstone entries.\nMechanisms: DenseMapInfo special-key contract simplification; Removal of tombstone sentinel constructors/constants; Sentinel checks reduced from empty-or-tombstone to empty-only; Pointer/value wrapper hashing and equality trait updates\nTouched symbols: MachineInstrExpressionTrait; MachineOperand; SelectionDAGNodes::DenseMapInfo<SDValue>; StackMaps::parseOperand; InstructionMapper; IRPosition; DenseMapInfo<AA::ValueAndContext>; DenseMapInfo<AA::ValueScope>\nRisk relevance: Touches SelectionDAG-related headers and CodeGen sentinels, so mistakes could affect backend combine/isel data structures; Changes equality logic for several pointer-like DenseMap keys used during code generation and optimization; Removes tombstone handling from types that may still be assumed special by downstream code; Broad cross-component cleanup increases risk of subtle invariant mismatches rather than a targeted algorithmic fix\nBuild risk: Large API/trait cleanup across many headers and implementation files; Removes declarations/definitions of tombstone keys that downstream code may still reference indirectly; Potential compile breakage if any remaining users expect getTombstoneKey or tombstone-aware comparisons; High fan-out across codegen, transforms, and debug info increases integration risk"
+        },
+        {
+          "rank": 4,
+          "sha": "c4484e8422745ab8c1ada25a6bda5d69ef8da924",
+          "subject": "[CodeGen] De-type getMinimalPhysRegClass and related APIs (#197495)",
+          "utility": 0.536482,
+          "selection_score": 1.008095,
+          "semantic_score": 5.178571,
+          "build_success_prob": 0.86,
+          "feedback_bias": 0.828571,
+          "posterior_bad_mass": 0.261352,
+          "calibrated_suspicion_weight": 0.189965,
+          "calibrated_posterior_bad_mass": 0.327409,
+          "calibrated_posterior_info_gain": 0.912258
+        },
+        {
+          "rank": 5,
+          "sha": "f85f70fe78bd9d787d5414a79224c2e6b60fa472",
+          "subject": "[Target] Remove unused DenseMapInfo::getTombstoneKey (#200955)",
+          "utility": 0.813333,
+          "selection_score": 0.967385,
+          "semantic_score": 1.524545,
+          "build_success_prob": 0.92,
+          "feedback_bias": 0.781818,
+          "posterior_bad_mass": 0.418213,
+          "calibrated_suspicion_weight": 0.036453,
+          "calibrated_posterior_bad_mass": 0.467717,
+          "calibrated_posterior_info_gain": 0.996991
+        }
+      ],
+      "evidence": [
+        "=== validated-bisect-runner ===",
+        "issue: pr201444",
+        "llvm-project: /home/ubuntu/gitbisect-work/worktrees/pr201444-aws10-confidence-frontier-b-20260720a",
+        "commit: 87b97d67d401",
+        "jobs: 4",
+        "build type: Release",
+        "assertions: ON",
+        "ccache dir: /home/ubuntu/gitbisect-work/confidence-adaptive-20260720-896b595/.ccache/pr201444-git-bisect",
+        "repro exit code: 0",
+        "verdict: good"
+      ],
+      "log_excerpt": "=== validated-bisect-runner ===\nissue: pr201444\nllvm-project: /home/ubuntu/gitbisect-work/worktrees/pr201444-aws10-confidence-frontier-b-20260720a\ncommit: 87b97d67d401\njobs: 4\nbuild type: Release\nassertions: ON\nccache dir: /home/ubuntu/gitbisect-work/confidence-adaptive-20260720-896b595/.ccache/pr201444-git-bisect\nrepro exit code: 0\nverdict: good",
+      "trace_excerpt": "=== validated-bisect-runner ===\nissue: pr201444\nllvm-project: /home/ubuntu/gitbisect-work/worktrees/pr201444-aws10-confidence-frontier-b-20260720a\ncommit: 87b97d67d401\njobs: 4\nbuild type: Release\nassertions: ON\nccache dir: /home/ubuntu/gitbisect-work/confidence-adaptive-20260720-896b595/.ccache/pr201444-git-bisect\nrepro exit code: 0\nverdict: good",
+      "runner_duration_sec": 3001.701
+    },
+    {
+      "step": 8,
+      "sha": "f2a780bbe2d8f66bcffb76e9d5f008d581be7917",
+      "subject": "[lldb][test] Make delayed-definition-die-searching CU-layout agnostic (#201206)",
+      "verdict": "bad",
+      "source": "runner",
+      "summary": "verdict: bad",
+      "unresolved_before": 121,
+      "unresolved_after": 57,
+      "model_top_k": 3,
+      "adaptive_top_k": null,
+      "confidence_adaptive_frontier": {
+        "threshold": 0.35
+      },
+      "model_frontier_decision": {
+        "configured_frontier": "topk",
+        "effective_frontier": "diverse",
+        "confidence": 0.322925,
+        "threshold": 0.35,
+        "reason": "semantic scores are ambiguous; add posterior and midpoint anchors",
+        "top_semantic_candidates": [
+          {
+            "sha": "87d6941017aa6022ce00baa9f1dfae5a49b113f4",
+            "semantic_score": 1.875714,
+            "build_success_prob": 0.63
+          },
+          {
+            "sha": "9b92e0fe9b0066d58073ee81afa0e5823a474e1e",
+            "semantic_score": 1.27,
+            "build_success_prob": 0.92
+          }
+        ],
+        "selected_frontier_shas": [
+          "87d6941017aa6022ce00baa9f1dfae5a49b113f4",
+          "f2a780bbe2d8f66bcffb76e9d5f008d581be7917",
+          "f2dd83075571265427547b94e06aabda61aff974"
+        ],
+        "observation_count": 7
+      },
+      "model_score_context": "v1-7981f98dd7bb9458",
+      "model_score_context_payload": {
+        "version": "v1",
+        "unresolved_count": 121,
+        "candidate_window_sha256": "e08b50fe31d1182ba33861045e616b8878296551e72729c16eea3b5d919175c1",
+        "observation_sha256": "93c7a818eef33be40afab8928d8c5e815e6d4cf1f342b4e01100640e1b8386ce",
+        "model_top_k": 3,
+        "model_frontier": "topk",
+        "model_diff_mode": "parent",
+        "model_diff_extraction": "llm",
+        "observation_prompt_mode": "trace-only",
+        "confidence_adaptive_frontier": {
+          "threshold": 0.35
+        }
+      },
+      "candidate_pruning": {
+        "mode": "off",
+        "before_count": 121,
+        "after_count": 121,
+        "pruned_count": 0,
+        "keep_prefixes": [],
+        "kept_reason_counts": {},
+        "prune_reason_counts": {},
+        "pruned_examples": []
+      },
+      "search_policy": "calibrated-posterior",
+      "selection_mode": "calibrated-posterior",
+      "selection": {
+        "utility": 0.959628,
+        "selection_score": 1.158557,
+        "semantic_score": 0.2,
+        "build_success_prob": 0.97,
+        "balance_score": 0.971346,
+        "suspicion_weight": 0.009246,
+        "feedback_bias": 1.0,
+        "evidence": [
+          "model-scored",
+          "LLDB test-only change; no connection to X86 DAG combine or SelectionDAG crashing path.",
+          "Touches symbol-file DWARF test logic, far from the backend lowering assertion in the report.",
+          "features: lldb test refinement, DWARF type resolution, debugger-only change"
+        ],
+        "posterior_bad_mass": 0.514327,
+        "calibrated_suspicion_weight": 0.007042,
+        "calibrated_posterior_bad_mass": 0.538465,
+        "calibrated_posterior_info_gain": 0.995727,
+        "weak_relevance_penalty": 0.0485,
+        "diff_mode": "parent",
+        "diff_extraction": "llm",
+        "diff_summary": "Summary: This commit is a large refactor of LLVM's GUID handling and ThinLTO/PGO plumbing. It removes the old AssignGUID pass implementation and the bitcode-level GUID table, replaces lazy/metadata-based GUID retrieval with direct computation from global names, and rewires many consumers in LTO, FunctionImport, ThinLTO bitcode writer/reader, profile annotation, and import/merge utilities to use the new scheme. It also updates pass pipeline placement and numerous tests to stop expecting !guid metadata or the old GUIDLIST record. The main effect is to change when and how global identity is established across optimization and linking stages.\nMechanisms: GlobalValue GUID computation semantics; ThinLTO summary and bitcode serialization; LTO/FunctionImport prevailing symbol tracking; PGO contextual profile lookup by GUID; Pass pipeline insertion/removal for GUID assignment; Metadata-based identity replacement with direct name-derived GUIDs\nTouched symbols: AssignGUIDPass; PGOContextualProfile::getDefinedFunctionGUID; GlobalValue::getGUID; GlobalValue::getGUIDOrFallback; ModuleSummaryIndex::getOrInsertValueInfo; BitcodeReader::parseModule; ModuleSummaryIndexBitcodeReader::setValueGUID; LTO::addThinLTO\nRisk relevance: touches core IR identity used by LTO, ThinLTO, and import/export decisions; changes from metadata-backed GUIDs to recomputation from current names/linkage, which can alter behavior after cloning, import, merging, or internalization; rewires prevailing-module and summary lookups to use GUIDs directly, affecting symbol resolution consistency; modifies profile-guided code paths that may depend on stable GUID mapping across transformations\nBuild risk: removes and deletes a public header/source pair and a bitcode record, affecting many call sites; updates numerous tests and expected serialized indices, suggesting broad behavior change; changes pass ordering and default pipelines, which can surface latent ordering dependencies; large cross-component API signature changes around bitcode reading and LTO callbacks"
+      },
+      "top_candidates": [
+        {
+          "rank": 1,
+          "sha": "f2a780bbe2d8f66bcffb76e9d5f008d581be7917",
+          "subject": "[lldb][test] Make delayed-definition-die-searching CU-layout agnostic (#201206)",
+          "utility": 0.959628,
+          "selection_score": 1.158557,
+          "semantic_score": 0.2,
+          "build_success_prob": 0.97,
+          "feedback_bias": 1.0,
+          "posterior_bad_mass": 0.514327,
+          "calibrated_suspicion_weight": 0.007042,
+          "calibrated_posterior_bad_mass": 0.538465,
+          "calibrated_posterior_info_gain": 0.995727,
+          "weak_relevance_penalty": 0.0485,
+          "diff_mode": "parent",
+          "diff_extraction": "llm",
+          "diff_summary": "Summary: This commit is a large refactor of LLVM's GUID handling and ThinLTO/PGO plumbing. It removes the old AssignGUID pass implementation and the bitcode-level GUID table, replaces lazy/metadata-based GUID retrieval with direct computation from global names, and rewires many consumers in LTO, FunctionImport, ThinLTO bitcode writer/reader, profile annotation, and import/merge utilities to use the new scheme. It also updates pass pipeline placement and numerous tests to stop expecting !guid metadata or the old GUIDLIST record. The main effect is to change when and how global identity is established across optimization and linking stages.\nMechanisms: GlobalValue GUID computation semantics; ThinLTO summary and bitcode serialization; LTO/FunctionImport prevailing symbol tracking; PGO contextual profile lookup by GUID; Pass pipeline insertion/removal for GUID assignment; Metadata-based identity replacement with direct name-derived GUIDs\nTouched symbols: AssignGUIDPass; PGOContextualProfile::getDefinedFunctionGUID; GlobalValue::getGUID; GlobalValue::getGUIDOrFallback; ModuleSummaryIndex::getOrInsertValueInfo; BitcodeReader::parseModule; ModuleSummaryIndexBitcodeReader::setValueGUID; LTO::addThinLTO\nRisk relevance: touches core IR identity used by LTO, ThinLTO, and import/export decisions; changes from metadata-backed GUIDs to recomputation from current names/linkage, which can alter behavior after cloning, import, merging, or internalization; rewires prevailing-module and summary lookups to use GUIDs directly, affecting symbol resolution consistency; modifies profile-guided code paths that may depend on stable GUID mapping across transformations\nBuild risk: removes and deletes a public header/source pair and a bitcode record, affecting many call sites; updates numerous tests and expected serialized indices, suggesting broad behavior change; changes pass ordering and default pipelines, which can surface latent ordering dependencies; large cross-component API signature changes around bitcode reading and LTO callbacks"
+        },
+        {
+          "rank": 2,
+          "sha": "f2dd83075571265427547b94e06aabda61aff974",
+          "subject": "[RISCV][GISel] Add GPRPair to GPRB register bank and use getXLen() for GPRSize",
+          "utility": 0.799756,
+          "selection_score": 1.157794,
+          "semantic_score": 0.6,
+          "build_success_prob": 0.91,
+          "feedback_bias": 1.0,
+          "posterior_bad_mass": 0.583669,
+          "calibrated_suspicion_weight": 0.031031,
+          "calibrated_posterior_bad_mass": 0.606482,
+          "calibrated_posterior_info_gain": 0.967032,
+          "weak_relevance_penalty": 0.0455,
+          "diff_mode": "parent",
+          "diff_extraction": "llm",
+          "diff_summary": "Summary: This commit extends RISC-V GlobalISel register bank support so the GPR bank also accepts paired GPR registers, and it derives the generic GPR size directly from the subtarget XLEN instead of querying the bank's maximum size. The register bank mapping logic is updated to use the RISCVSubtarget interface, which makes the register-class sizing logic more explicit and tied to the target's architectural width.\nMechanisms: GlobalISel register bank mapping; Target width selection via XLEN; Register bank membership expansion for paired registers\nTouched symbols: RISCVRegisterBankInfo::getInstrMapping; RISCVSubtarget; RISCVRegisterBanks.td; GPRBRegBank\nRisk relevance: changes register bank compatibility and mapping decisions in instruction selection; tightly couples generic register sizing to subtarget width, which can affect operand legalization and bank selection; touches GISel lowering infrastructure where incorrect size assumptions can cause miscompiles\nBuild risk: TableGen register bank definition change may affect generated mappings; backend-only change can expose target-specific selection failures in tests; uses subtarget-specific APIs in mapping code, increasing dependency on correct subtarget initialization"
+        },
+        {
+          "rank": 3,
+          "sha": "87d6941017aa6022ce00baa9f1dfae5a49b113f4",
+          "subject": "Reverting PR #184065 and #200323 to address some interplay with CFI (#201194)",
+          "utility": 0.813892,
+          "selection_score": 1.111989,
+          "semantic_score": 0.4,
+          "build_success_prob": 0.84,
+          "feedback_bias": 1.0,
+          "posterior_bad_mass": 0.532818,
+          "calibrated_suspicion_weight": 0.017951,
+          "calibrated_posterior_bad_mass": 0.556416,
+          "calibrated_posterior_info_gain": 0.990797,
+          "diff_mode": "parent",
+          "diff_extraction": "llm",
+          "diff_summary": "Summary: This change broadly reverts an earlier GUID-metadata based infrastructure for ThinLTO/PGO/LTO and folds GUID computation back into direct name/linkage-based queries. It removes the standalone AssignGUID pass and its bitcode GUID table/metadata plumbing, updates consumers to use immediate GUID computation or a new helper for defined functions, and adjusts many LTO/ThinLTO/FunctionImport/WholeProgramDevirt/PGO paths and tests to stop depending on stored !guid metadata. The intent is to simplify symbol identity handling after an interplay issue with CFI, but it touches core IR, bitcode, LTO, and pass-pipeline machinery that commonly influences backend correctness and test behavior.\nMechanisms: Reverts GUID assignment as an IR metadata pass and deletes the pass implementation/header; Removes bitcode MODULE_CODE_GUIDLIST serialization/deserialization and module-side GUID lookup tables; Changes symbol identity consumers from getGUIDOrFallback/getGUIDIfAssigned/metadata lookup to direct getGUID or AssignGUIDPass::getGUID; Introduces PGOContextualProfile::getDefinedFunctionGUID to require defined-function GUID presence by metadata lookup; Moves/removes AssignGUIDPass injection from pass pipelines and tools, changing when ThinLTO/summary-related metadata is available; Updates GlobalMerge/ConstantMerge metadata-safety checks to only account for debug metadata, no longer treating guid metadata specially\nTouched symbols: AssignGUIDPass; AssignGUIDPass::run; AssignGUIDPass::getGUID; PGOContextualProfile::getDefinedFunctionGUID; PGOContextualProfile::isFunctionKnown; ModuleSummaryIndexBitcodeReader; BitcodeReader; ModuleBitcodeWriterBase::writeModuleLevelReferences\nRisk relevance: Touches core symbol identity and GUID-consistency logic across ThinLTO/LTO/PGO and function import; Removes fallback behavior for old bitcode and lazy-loaded modules, increasing sensitivity to ordering and module materialization; Alters metadata attached to globals/functions and the conditions under which globals are considered mergeable; Changes pass placement in optimization pipelines, which can expose latent ordering-dependent backend bugs; Modifies WholeProgramDevirt, indirect-call promotion, and jump-table lowering consumers that rely on stable function identity\nBuild risk: Deletes a public header/source pair and changes multiple include sites, so build breakage from stale dependencies is plausible; Removes test expectations and pass invocations across many suites, indicating broad pipeline/test churn; Changes bitcode record formats and reader/writer code paths, which can affect compatibility and round-trip tests; Updates numerous lit tests to accept different symbol annotations and numbering, suggesting output instability"
+        },
+        {
+          "rank": 4,
+          "sha": "9b92e0fe9b0066d58073ee81afa0e5823a474e1e",
+          "subject": "[SelectionDAG] Split vector types for atomic store (#197860)",
+          "utility": 0.964337,
+          "selection_score": 1.03754,
+          "semantic_score": 1.27,
+          "build_success_prob": 0.92,
+          "feedback_bias": 0.2,
+          "posterior_bad_mass": 0.469024,
+          "calibrated_suspicion_weight": 0.085395,
+          "calibrated_posterior_bad_mass": 0.489902,
+          "calibrated_posterior_info_gain": 0.999706
+        },
+        {
+          "rank": 5,
+          "sha": "162076fe779ea8e1d9008b42e3c5f5ea3ae473dc",
+          "subject": "[X86] Check useBWIRegs() instead of hasBWI() before creating x86_avx512_psad_bw_512 intrinsic. (#201167)",
+          "utility": 0.976653,
+          "selection_score": 0.97321,
+          "semantic_score": 0.73,
+          "build_success_prob": 0.92,
+          "feedback_bias": 0.2,
+          "posterior_bad_mass": 0.50277,
+          "calibrated_suspicion_weight": 0.040437,
+          "calibrated_posterior_bad_mass": 0.53034,
+          "calibrated_posterior_info_gain": 0.997342
+        }
+      ],
+      "evidence": [
+        "=== validated-bisect-runner ===",
+        "issue: pr201444",
+        "llvm-project: /home/ubuntu/gitbisect-work/worktrees/pr201444-aws10-confidence-frontier-b-20260720a",
+        "commit: f2a780bbe2d8",
+        "jobs: 4",
+        "build type: Release",
+        "assertions: ON",
+        "ccache dir: /home/ubuntu/gitbisect-work/confidence-adaptive-20260720-896b595/.ccache/pr201444-git-bisect",
+        "repro exit code: 134",
+        "verdict: bad"
+      ],
+      "log_excerpt": "=== validated-bisect-runner ===\nissue: pr201444\nllvm-project: /home/ubuntu/gitbisect-work/worktrees/pr201444-aws10-confidence-frontier-b-20260720a\ncommit: f2a780bbe2d8\njobs: 4\nbuild type: Release\nassertions: ON\nccache dir: /home/ubuntu/gitbisect-work/confidence-adaptive-20260720-896b595/.ccache/pr201444-git-bisect\nrepro exit code: 134\nverdict: bad",
+      "trace_excerpt": "=== validated-bisect-runner ===\nissue: pr201444\nllvm-project: /home/ubuntu/gitbisect-work/worktrees/pr201444-aws10-confidence-frontier-b-20260720a\ncommit: f2a780bbe2d8\njobs: 4\nbuild type: Release\nassertions: ON\nccache dir: /home/ubuntu/gitbisect-work/confidence-adaptive-20260720-896b595/.ccache/pr201444-git-bisect\nrepro exit code: 134\nverdict: bad",
+      "runner_duration_sec": 3156.638
+    },
+    {
+      "step": 9,
+      "sha": "6dfef47047def67fc141248eb8e7e2a67e4307e7",
+      "subject": "[clang] Treat unnamed bitfields as padding in `__builtin_clear_padding` (#201102)",
+      "verdict": "bad",
+      "source": "runner",
+      "summary": "verdict: bad",
+      "unresolved_before": 57,
+      "unresolved_after": 29,
+      "model_top_k": 3,
+      "adaptive_top_k": null,
+      "confidence_adaptive_frontier": {
+        "threshold": 0.35
+      },
+      "model_frontier_decision": {
+        "configured_frontier": "topk",
+        "effective_frontier": "diverse",
+        "confidence": 0.015748,
+        "threshold": 0.35,
+        "reason": "semantic scores are ambiguous; add posterior and midpoint anchors",
+        "top_semantic_candidates": [
+          {
+            "sha": "9b92e0fe9b0066d58073ee81afa0e5823a474e1e",
+            "semantic_score": 1.27,
+            "build_success_prob": 0.92
+          },
+          {
+            "sha": "6bcdd843e302063c4f0d36204686155149a6bb0a",
+            "semantic_score": 1.25,
+            "build_success_prob": 0.92
+          }
+        ],
+        "selected_frontier_shas": [
+          "9b92e0fe9b0066d58073ee81afa0e5823a474e1e",
+          "b65054f66b0a0d62c1a5fe0b3d7749696058d1c8",
+          "6dfef47047def67fc141248eb8e7e2a67e4307e7"
+        ],
+        "observation_count": 8
+      },
+      "model_score_context": "v1-c2c399a5f450813b",
+      "model_score_context_payload": {
+        "version": "v1",
+        "unresolved_count": 57,
+        "candidate_window_sha256": "703dc548d9cbe0ed5324137adbe7643d1683ad549c5bfe6dcc8de9ac14659898",
+        "observation_sha256": "5461b49524b506235e9cdff10056e8dc05f7354645bc507b451c6e68d721e2d3",
+        "model_top_k": 3,
+        "model_frontier": "topk",
+        "model_diff_mode": "parent",
+        "model_diff_extraction": "llm",
+        "observation_prompt_mode": "trace-only",
+        "confidence_adaptive_frontier": {
+          "threshold": 0.35
+        }
+      },
+      "candidate_pruning": {
+        "mode": "off",
+        "before_count": 57,
+        "after_count": 57,
+        "pruned_count": 0,
+        "keep_prefixes": [],
+        "kept_reason_counts": {},
+        "prune_reason_counts": {},
+        "pruned_examples": []
+      },
+      "search_policy": "calibrated-posterior",
+      "selection_mode": "calibrated-posterior",
+      "selection": {
+        "utility": 0.892968,
+        "selection_score": 1.151623,
+        "semantic_score": 1.2,
+        "build_success_prob": 0.96,
+        "balance_score": 0.816368,
+        "suspicion_weight": 0.069703,
+        "feedback_bias": 1.0,
+        "evidence": [
+          "model-scored",
+          "Bitfield/padding handling is vaguely related to width reasoning, but the diff is in Clang frontend codegen, not X86 DAG combine",
+          "No direct connection to peekThroughBitPosExtTrunc, combineBTToBitOpFlag, or the asserted low-bits constraint",
+          "features: Clang codegen, unnamed bitfield padding, __builtin_clear_padding"
+        ],
+        "posterior_bad_mass": 0.408184,
+        "calibrated_suspicion_weight": 0.059705,
+        "calibrated_posterior_bad_mass": 0.269409,
+        "calibrated_posterior_info_gain": 0.840616,
+        "diff_mode": "parent",
+        "diff_extraction": "llm",
+        "diff_summary": "Summary: Changes Clang\u2019s __builtin_clear_padding lowering to ignore unnamed bitfields when identifying padding, treating them as padding regions rather than fields to preserve. The codegen update adjusts the field-walk logic in CGBuiltin so anonymous bitfield members are skipped, and the libc++ test adds coverage for a struct with an unnamed bitfield to verify clearing padding yields bytewise equality. This is a frontend codegen semantic tweak around bitfield layout and padding handling, with some potential interaction with integer/bitfield width reasoning but no direct backend DAG involvement.\nMechanisms: padding detection in builtin lowering; record-field traversal; bitfield/struct layout interpretation\nTouched symbols: CGBuiltin.cpp padding field walk; __builtin_clear_padding; Field->isUnnamedBitField\nRisk relevance: Touches bitfield semantics and padding classification, which can affect generated IR/bitcasts for structured data; Relevant to width/bit masking reasoning in a broad sense, but not SelectionDAG or X86 lowering directly; Could influence codegen of aggregates containing anonymous bitfields\nBuild risk: Clang codegen behavior change may affect many tests relying on padding layout; Adds a libc++ test requiring correct builtin semantics across targets; No build-system changes"
+      },
+      "top_candidates": [
+        {
+          "rank": 1,
+          "sha": "6dfef47047def67fc141248eb8e7e2a67e4307e7",
+          "subject": "[clang] Treat unnamed bitfields as padding in `__builtin_clear_padding` (#201102)",
+          "utility": 0.892968,
+          "selection_score": 1.151623,
+          "semantic_score": 1.2,
+          "build_success_prob": 0.96,
+          "feedback_bias": 1.0,
+          "posterior_bad_mass": 0.408184,
+          "calibrated_suspicion_weight": 0.059705,
+          "calibrated_posterior_bad_mass": 0.269409,
+          "calibrated_posterior_info_gain": 0.840616,
+          "diff_mode": "parent",
+          "diff_extraction": "llm",
+          "diff_summary": "Summary: Changes Clang\u2019s __builtin_clear_padding lowering to ignore unnamed bitfields when identifying padding, treating them as padding regions rather than fields to preserve. The codegen update adjusts the field-walk logic in CGBuiltin so anonymous bitfield members are skipped, and the libc++ test adds coverage for a struct with an unnamed bitfield to verify clearing padding yields bytewise equality. This is a frontend codegen semantic tweak around bitfield layout and padding handling, with some potential interaction with integer/bitfield width reasoning but no direct backend DAG involvement.\nMechanisms: padding detection in builtin lowering; record-field traversal; bitfield/struct layout interpretation\nTouched symbols: CGBuiltin.cpp padding field walk; __builtin_clear_padding; Field->isUnnamedBitField\nRisk relevance: Touches bitfield semantics and padding classification, which can affect generated IR/bitcasts for structured data; Relevant to width/bit masking reasoning in a broad sense, but not SelectionDAG or X86 lowering directly; Could influence codegen of aggregates containing anonymous bitfields\nBuild risk: Clang codegen behavior change may affect many tests relying on padding layout; Adds a libc++ test requiring correct builtin semantics across targets; No build-system changes"
+        },
+        {
+          "rank": 2,
+          "sha": "1d77b84e5133bfd39489ed6f119beff91f9db194",
+          "subject": "[X86] incDecVectorConstant - use getConstVector (#201169)",
+          "utility": 0.944467,
+          "selection_score": 0.846537,
+          "semantic_score": 0.602,
+          "build_success_prob": 0.92,
+          "feedback_bias": 0.28,
+          "posterior_bad_mass": 0.479746,
+          "calibrated_suspicion_weight": 0.023527,
+          "calibrated_posterior_bad_mass": 0.306238,
+          "calibrated_posterior_info_gain": 0.888783
+        },
+        {
+          "rank": 3,
+          "sha": "1fe6d564523982d2efbd28334ef50fe449765eb5",
+          "subject": "Fix a warning and an uninitialized variable in benchmark (#200927)",
+          "utility": 0.866109,
+          "selection_score": 0.806933,
+          "semantic_score": 0.25,
+          "build_success_prob": 0.92,
+          "feedback_bias": 1.0,
+          "posterior_bad_mass": 0.542574,
+          "calibrated_suspicion_weight": 0.007183,
+          "calibrated_posterior_bad_mass": 0.33226,
+          "calibrated_posterior_info_gain": 0.917218,
+          "weak_relevance_penalty": 0.046
+        },
+        {
+          "rank": 4,
+          "sha": "3ca3bbcaf1dc8a8b4270cbd896d97e522b72f475",
+          "subject": "[Xtensa] Implement lowering Exception Selector and Pointer Registers. (#198043)",
+          "utility": 0.830543,
+          "selection_score": 0.80067,
+          "semantic_score": 0.04,
+          "build_success_prob": 0.92,
+          "feedback_bias": 0.8,
+          "posterior_bad_mass": 0.550706,
+          "calibrated_suspicion_weight": 0.000605,
+          "calibrated_posterior_bad_mass": 0.334501,
+          "calibrated_posterior_info_gain": 0.919459,
+          "weak_relevance_penalty": 0.046
+        },
+        {
+          "rank": 5,
+          "sha": "f31bc0a478a86e45b2e2745ed097509aca669f81",
+          "subject": "[docs] Rewrite SphinxQuickstartTemplate.md in MyST Markdown (#198896)",
+          "utility": 0.835804,
+          "selection_score": 0.800386,
+          "semantic_score": 0.05,
+          "build_success_prob": 0.92,
+          "feedback_bias": 1.0,
+          "posterior_bad_mass": 0.548382,
+          "calibrated_suspicion_weight": 0.000818,
+          "calibrated_posterior_bad_mass": 0.333895,
+          "calibrated_posterior_info_gain": 0.918857,
+          "weak_relevance_penalty": 0.046
+        }
+      ],
+      "evidence": [
+        "=== validated-bisect-runner ===",
+        "issue: pr201444",
+        "llvm-project: /home/ubuntu/gitbisect-work/worktrees/pr201444-aws10-confidence-frontier-b-20260720a",
+        "commit: 6dfef47047de",
+        "jobs: 4",
+        "build type: Release",
+        "assertions: ON",
+        "ccache dir: /home/ubuntu/gitbisect-work/confidence-adaptive-20260720-896b595/.ccache/pr201444-git-bisect",
+        "repro exit code: 134",
+        "verdict: bad"
+      ],
+      "log_excerpt": "=== validated-bisect-runner ===\nissue: pr201444\nllvm-project: /home/ubuntu/gitbisect-work/worktrees/pr201444-aws10-confidence-frontier-b-20260720a\ncommit: 6dfef47047de\njobs: 4\nbuild type: Release\nassertions: ON\nccache dir: /home/ubuntu/gitbisect-work/confidence-adaptive-20260720-896b595/.ccache/pr201444-git-bisect\nrepro exit code: 134\nverdict: bad",
+      "trace_excerpt": "=== validated-bisect-runner ===\nissue: pr201444\nllvm-project: /home/ubuntu/gitbisect-work/worktrees/pr201444-aws10-confidence-frontier-b-20260720a\ncommit: 6dfef47047de\njobs: 4\nbuild type: Release\nassertions: ON\nccache dir: /home/ubuntu/gitbisect-work/confidence-adaptive-20260720-896b595/.ccache/pr201444-git-bisect\nrepro exit code: 134\nverdict: bad",
+      "runner_duration_sec": 265.24
+    },
+    {
+      "step": 10,
+      "sha": "6bcdd843e302063c4f0d36204686155149a6bb0a",
+      "subject": "[X86] Merge BT with a matching BTR/BTS/BTC (#193612)",
+      "verdict": "bad",
+      "source": "runner",
+      "summary": "verdict: bad",
+      "unresolved_before": 29,
+      "unresolved_after": 4,
+      "model_top_k": 3,
+      "adaptive_top_k": null,
+      "confidence_adaptive_frontier": {
+        "threshold": 0.35
+      },
+      "model_frontier_decision": {
+        "configured_frontier": "topk",
+        "effective_frontier": "diverse",
+        "confidence": 0.16,
+        "threshold": 0.35,
+        "reason": "semantic scores are ambiguous; add posterior and midpoint anchors",
+        "top_semantic_candidates": [
+          {
+            "sha": "6bcdd843e302063c4f0d36204686155149a6bb0a",
+            "semantic_score": 1.25,
+            "build_success_prob": 0.92
+          },
+          {
+            "sha": "516867bc96ae3e3a40b296f038d24ee53cf0f5c0",
+            "semantic_score": 1.05,
+            "build_success_prob": 0.92
+          }
+        ],
+        "selected_frontier_shas": [
+          "6bcdd843e302063c4f0d36204686155149a6bb0a",
+          "9083fb24c709238b1f18f0486bcf014e490e1997",
+          "9f790fcc1f09ce4237801a7bb357d31a4c6050fb"
+        ],
+        "observation_count": 9
+      },
+      "model_score_context": "v1-da84ad27729b560f",
+      "model_score_context_payload": {
+        "version": "v1",
+        "unresolved_count": 29,
+        "candidate_window_sha256": "c9e7cc8a830370f5f1eb511a0d39a7776faaa27f483c767b6f48c9a6251d6aa8",
+        "observation_sha256": "4fc744dcee19fea76f731f27c67a7d009485ea1d96d20d3c5d8f89a836a3b713",
+        "model_top_k": 3,
+        "model_frontier": "topk",
+        "model_diff_mode": "parent",
+        "model_diff_extraction": "llm",
+        "observation_prompt_mode": "trace-only",
+        "confidence_adaptive_frontier": {
+          "threshold": 0.35
+        }
+      },
+      "candidate_pruning": {
+        "mode": "off",
+        "before_count": 29,
+        "after_count": 29,
+        "pruned_count": 0,
+        "keep_prefixes": [],
+        "kept_reason_counts": {},
+        "prune_reason_counts": {},
+        "pruned_examples": []
+      },
+      "search_policy": "calibrated-posterior",
+      "selection_mode": "calibrated-posterior",
+      "selection": {
+        "utility": 1.297952,
+        "selection_score": 1.357713,
+        "semantic_score": 7.9,
+        "build_success_prob": 0.78,
+        "balance_score": 0.745231,
+        "suspicion_weight": 0.61646,
+        "feedback_bias": 1.0,
+        "evidence": [
+          "model-scored",
+          "Directly changes X86ISelLowering.cpp and add a DAG combine around BT/bit-test lowering, matching the crash area and the reported combineBTToBitOpFlag / peekThroughBitPosExtTrunc terms.",
+          "The new logic reasons about low-bit preservation across trunc/zext and AND masks, which is a close match to the assertion about low bits surviving width adjustment.",
+          "features: X86 SelectionDAG combine, BT/BTR/BTS/BTC lowering, bit-position trunc/zext peeling, low-bit constraint reasoning"
+        ],
+        "posterior_bad_mass": 0.627384,
+        "calibrated_suspicion_weight": 0.820047,
+        "calibrated_posterior_bad_mass": 0.822465,
+        "calibrated_posterior_info_gain": 0.674655,
+        "diff_mode": "parent",
+        "diff_extraction": "llm",
+        "diff_summary": "Summary: Adds an X86 SelectionDAG combine that tries to fuse a BT flag test with a sibling bit-modifying operation on the same source value into a single flag-producing BTR/BTS/BTC node. The new logic peels through truncate/extend and benign AND masks on the bit-position operand, then rewrites uses so the modify op can supply both the updated value and CF. It also introduces TableGen patterns and regression tests covering fused and non-fused bit-test/bit-manipulation cases across i32/i64 and widened integer lowering paths.\nMechanisms: SelectionDAG combine for BT and bit-modify fusion; Bit-position canonicalization through trunc/extend and mask peeling; Flag-producing instruction selection for BTR/BTS/BTC; Use-rewriting / all-uses replacement in DAG combine\nTouched symbols: peekThroughBitPosExtTrunc; combineBTToBitOpFlag; combineBT; X86btr; X86bts; X86btc; BTR32rr; BTS32rr\nRisk relevance: Directly modifies X86 DAG-combine logic in the same lowering area implicated by bit-test assertions; Touches reasoning about low-bit constraints, width adjustment, and bit-index equivalence; Operates on BT/BTR/BTS/BTC flag semantics and user rerouting, which is fragile in backend combines; Extends combine behavior across promoted/truncated bit positions, a common source of crashy corner cases\nBuild risk: Adds new TableGen patterns for machine nodes, increasing instruction-selection surface area; Changes X86ISelLowering.cpp and fragment definitions, so any mismatch can affect codegen and tests; Large test updates plus a new regression file indicate broad behavior changes in backend output"
+      },
+      "top_candidates": [
+        {
+          "rank": 1,
+          "sha": "6bcdd843e302063c4f0d36204686155149a6bb0a",
+          "subject": "[X86] Merge BT with a matching BTR/BTS/BTC (#193612)",
+          "utility": 1.297952,
+          "selection_score": 1.357713,
+          "semantic_score": 7.9,
+          "build_success_prob": 0.78,
+          "feedback_bias": 1.0,
+          "posterior_bad_mass": 0.627384,
+          "calibrated_suspicion_weight": 0.820047,
+          "calibrated_posterior_bad_mass": 0.822465,
+          "calibrated_posterior_info_gain": 0.674655,
+          "diff_mode": "parent",
+          "diff_extraction": "llm",
+          "diff_summary": "Summary: Adds an X86 SelectionDAG combine that tries to fuse a BT flag test with a sibling bit-modifying operation on the same source value into a single flag-producing BTR/BTS/BTC node. The new logic peels through truncate/extend and benign AND masks on the bit-position operand, then rewrites uses so the modify op can supply both the updated value and CF. It also introduces TableGen patterns and regression tests covering fused and non-fused bit-test/bit-manipulation cases across i32/i64 and widened integer lowering paths.\nMechanisms: SelectionDAG combine for BT and bit-modify fusion; Bit-position canonicalization through trunc/extend and mask peeling; Flag-producing instruction selection for BTR/BTS/BTC; Use-rewriting / all-uses replacement in DAG combine\nTouched symbols: peekThroughBitPosExtTrunc; combineBTToBitOpFlag; combineBT; X86btr; X86bts; X86btc; BTR32rr; BTS32rr\nRisk relevance: Directly modifies X86 DAG-combine logic in the same lowering area implicated by bit-test assertions; Touches reasoning about low-bit constraints, width adjustment, and bit-index equivalence; Operates on BT/BTR/BTS/BTC flag semantics and user rerouting, which is fragile in backend combines; Extends combine behavior across promoted/truncated bit positions, a common source of crashy corner cases\nBuild risk: Adds new TableGen patterns for machine nodes, increasing instruction-selection surface area; Changes X86ISelLowering.cpp and fragment definitions, so any mismatch can affect codegen and tests; Large test updates plus a new regression file indicate broad behavior changes in backend output"
+        },
+        {
+          "rank": 2,
+          "sha": "9083fb24c709238b1f18f0486bcf014e490e1997",
+          "subject": "Revert \"[AArch64] Fix definition of system register move instructions\" (#201137)",
+          "utility": 0.520953,
+          "selection_score": 0.617918,
+          "semantic_score": 0.2,
+          "build_success_prob": 0.9,
+          "feedback_bias": 1.0,
+          "posterior_bad_mass": 0.719342,
+          "calibrated_suspicion_weight": 0.005734,
+          "calibrated_posterior_bad_mass": 0.855035,
+          "calibrated_posterior_info_gain": 0.597094,
+          "weak_relevance_penalty": 0.045,
+          "diff_mode": "parent",
+          "diff_extraction": "llm",
+          "diff_summary": "Summary: Reverts a prior AArch64 system-register encoding fix, restoring the older interpretation of the generic register operand and undoing the associated TableGen width changes from 15-bit to 16-bit system-register encodings. The revert also restores many AArch64 sysreg definitions and MC/disassembler expectations to the previous op0/op1/crn/crm/op2 layout, while adjusting LLDB and CodeGen tests to the reverted register encodings. The net effect is a broad rollback in AArch64 system register parsing, printing, and pseudo-expansion behavior.\nMechanisms: AArch64 generic system-register parsing/printing; MRS/MSR and MRRS/MSRR encoding width definition; System register TableGen operand/bitfield layout; MC/disassembler and CodeGen expectation rollback\nTouched symbols: getIntOperandFromRegisterString; AArch64SysReg::parseGenericRegister; AArch64SysReg::genericRegisterString; MRSI; MSRI; MRRS; MSRR; SysReg\nRisk relevance: Touches low-level AArch64 register encoding logic and width assumptions; Changes parsing/printing of generic system registers, which is sensitive to invalid-register diagnostics and assembler/disassembler consistency; Broad rollback across many sysreg tables can hide or reintroduce subtle encoding bugs; Impacts register-lowering paths used by special register intrinsics and SME/system-register operations\nBuild risk: Very large cross-cutting TableGen and test churn across LLVM, MC, LLDB, and CodeGen; Alters encoding widths and operand types, which can invalidate generated patterns and diagnostics; Test suite expectations changed for many architectures/features, increasing regression surface"
+        },
+        {
+          "rank": 3,
+          "sha": "d81e8afe7a51005f5fa58cf4b25ccfdb41f685b1",
+          "subject": "[AMDGPU] RewriteMFMAFormStage: fix SpillCost early-return missing reset (#199708)",
+          "utility": 0.677074,
+          "selection_score": 0.567769,
+          "semantic_score": 0.207143,
+          "build_success_prob": 0.92,
+          "feedback_bias": 0.828571,
+          "posterior_bad_mass": 0.643548,
+          "calibrated_suspicion_weight": 0.006012,
+          "calibrated_posterior_bad_mass": 0.828477,
+          "calibrated_posterior_info_gain": 0.661178,
+          "weak_relevance_penalty": 0.046
+        },
+        {
+          "rank": 4,
+          "sha": "e8f518d6613b950958618db9466a5936d844ff26",
+          "subject": "[VectorUtils] Replace maskIsAll{Zero,One}OrUndef with PatternMatch (#200040)",
+          "utility": 0.645578,
+          "selection_score": 0.554126,
+          "semantic_score": 0.222727,
+          "build_success_prob": 0.92,
+          "feedback_bias": 0.890909,
+          "posterior_bad_mass": 0.660928,
+          "calibrated_suspicion_weight": 0.00663,
+          "calibrated_posterior_bad_mass": 0.835107,
+          "calibrated_posterior_info_gain": 0.645888,
+          "weak_relevance_penalty": 0.046
+        },
+        {
+          "rank": 5,
+          "sha": "f834b7f55feb37191405bf28cca52f53f4c1873f",
+          "subject": "[OFFLOAD][L0] Move dataFence logic to L0Queue (#201046)",
+          "utility": 0.621525,
+          "selection_score": 0.547097,
+          "semantic_score": 0.05,
+          "build_success_prob": 0.92,
+          "feedback_bias": 1.0,
+          "posterior_bad_mass": 0.66483,
+          "calibrated_suspicion_weight": 0.000882,
+          "calibrated_posterior_bad_mass": 0.835989,
+          "calibrated_posterior_info_gain": 0.643818,
+          "weak_relevance_penalty": 0.046
+        }
+      ],
+      "evidence": [
+        "=== validated-bisect-runner ===",
+        "issue: pr201444",
+        "llvm-project: /home/ubuntu/gitbisect-work/worktrees/pr201444-aws10-confidence-frontier-b-20260720a",
+        "commit: 6bcdd843e302",
+        "jobs: 4",
+        "build type: Release",
+        "assertions: ON",
+        "ccache dir: /home/ubuntu/gitbisect-work/confidence-adaptive-20260720-896b595/.ccache/pr201444-git-bisect",
+        "repro exit code: 134",
+        "verdict: bad"
+      ],
+      "log_excerpt": "=== validated-bisect-runner ===\nissue: pr201444\nllvm-project: /home/ubuntu/gitbisect-work/worktrees/pr201444-aws10-confidence-frontier-b-20260720a\ncommit: 6bcdd843e302\njobs: 4\nbuild type: Release\nassertions: ON\nccache dir: /home/ubuntu/gitbisect-work/confidence-adaptive-20260720-896b595/.ccache/pr201444-git-bisect\nrepro exit code: 134\nverdict: bad",
+      "trace_excerpt": "=== validated-bisect-runner ===\nissue: pr201444\nllvm-project: /home/ubuntu/gitbisect-work/worktrees/pr201444-aws10-confidence-frontier-b-20260720a\ncommit: 6bcdd843e302\njobs: 4\nbuild type: Release\nassertions: ON\nccache dir: /home/ubuntu/gitbisect-work/confidence-adaptive-20260720-896b595/.ccache/pr201444-git-bisect\nrepro exit code: 134\nverdict: bad",
+      "runner_duration_sec": 225.616
+    },
+    {
+      "step": 11,
+      "sha": "8dd51399f8a9f13cbe35fb2060f05bd30acfb6f8",
+      "subject": "[lldb][NFC] Factor out helper code from MemoryCache (#201120)",
+      "verdict": "good",
+      "source": "runner",
+      "summary": "verdict: good",
+      "unresolved_before": 4,
+      "unresolved_after": 2,
+      "model_top_k": 3,
+      "adaptive_top_k": null,
+      "confidence_adaptive_frontier": {
+        "threshold": 0.35
+      },
+      "model_frontier_decision": {
+        "configured_frontier": "topk",
+        "effective_frontier": "topk",
+        "confidence": 0.995652,
+        "threshold": 0.35,
+        "reason": "semantic leader confidence meets threshold; use semantic top-k",
+        "top_semantic_candidates": [
+          {
+            "sha": "6bcdd843e302063c4f0d36204686155149a6bb0a",
+            "semantic_score": 11.5,
+            "build_success_prob": 0.92
+          },
+          {
+            "sha": "afd040cb4624c7c7f843367751e22d50b39250f5",
+            "semantic_score": 0.05,
+            "build_success_prob": 0.92
+          }
+        ],
+        "selected_frontier_shas": [
+          "6bcdd843e302063c4f0d36204686155149a6bb0a",
+          "afd040cb4624c7c7f843367751e22d50b39250f5",
+          "8dd51399f8a9f13cbe35fb2060f05bd30acfb6f8"
+        ],
+        "observation_count": 10
+      },
+      "model_score_context": "v1-d185017fdd2c1839",
+      "model_score_context_payload": {
+        "version": "v1",
+        "unresolved_count": 4,
+        "candidate_window_sha256": "a2724357f7a7a52a5c4dc998be33e6d8e45204d5160f4a1978a3b3019694327b",
+        "observation_sha256": "2c22f7301a351d6b943257bcad13f809fcb829a80c53c2385e46517bf68b455a",
+        "model_top_k": 3,
+        "model_frontier": "topk",
+        "model_diff_mode": "parent",
+        "model_diff_extraction": "llm",
+        "observation_prompt_mode": "trace-only",
+        "confidence_adaptive_frontier": {
+          "threshold": 0.35
+        }
+      },
+      "candidate_pruning": {
+        "mode": "off",
+        "before_count": 4,
+        "after_count": 4,
+        "pruned_count": 0,
+        "keep_prefixes": [],
+        "kept_reason_counts": {},
+        "prune_reason_counts": {},
+        "pruned_examples": []
+      },
+      "search_policy": "calibrated-posterior",
+      "selection_mode": "calibrated-posterior",
+      "selection": {
+        "utility": 0.097473,
+        "selection_score": 0.066192,
+        "semantic_score": 0.2,
+        "build_success_prob": 0.97,
+        "balance_score": 0.09589,
+        "suspicion_weight": 0.023972,
+        "feedback_bias": 1.0,
+        "evidence": [
+          "model-scored",
+          "LLDB MemoryCache refactor is unrelated to the X86 backend crash signature",
+          "No SelectionDAG, bit-test lowering, or integer low-bit constraint logic involved",
+          "features: lldb refactor, memory cache helper extraction, nfc change"
+        ],
+        "posterior_bad_mass": 0.047945,
+        "calibrated_suspicion_weight": 0.00689,
+        "calibrated_posterior_bad_mass": 0.013779,
+        "calibrated_posterior_info_gain": 0.104915,
+        "weak_relevance_penalty": 0.0485,
+        "diff_mode": "parent",
+        "diff_extraction": "llm",
+        "diff_summary": "Summary: This is an NFC refactor in LLDB's MemoryCache that factors the L1-cache lookup into a dedicated helper. The extracted routine encapsulates the 'single cache entry fully covers requested range' check and byte-offset computation, and Read() now delegates to it before memcpy'ing cached bytes.\nMechanisms: helper extraction / refactoring; L1 cache hit lookup and range containment check; byte offset computation into cached memory\nTouched symbols: lldb::MemoryCache; MemoryCache::FindL1CacheEntry; MemoryCache::Read\nRisk relevance: No LLVM backend, X86 lowering, or SelectionDAG involvement; No integer bit-position, truncation/extension, or flag-combine logic changes; Not related to the asserted low-bits width-adjustment path\nBuild risk: Limited to LLDB target memory caching code; Refactor may expose subtle const-correctness or range-handling issues, but no semantic change intended; Affect tests only if cache-hit behavior regressed"
+      },
+      "top_candidates": [
+        {
+          "rank": 1,
+          "sha": "8dd51399f8a9f13cbe35fb2060f05bd30acfb6f8",
+          "subject": "[lldb][NFC] Factor out helper code from MemoryCache (#201120)",
+          "utility": 0.097473,
+          "selection_score": 0.066192,
+          "semantic_score": 0.2,
+          "build_success_prob": 0.97,
+          "feedback_bias": 1.0,
+          "posterior_bad_mass": 0.047945,
+          "calibrated_suspicion_weight": 0.00689,
+          "calibrated_posterior_bad_mass": 0.013779,
+          "calibrated_posterior_info_gain": 0.104915,
+          "weak_relevance_penalty": 0.0485,
+          "diff_mode": "parent",
+          "diff_extraction": "llm",
+          "diff_summary": "Summary: This is an NFC refactor in LLDB's MemoryCache that factors the L1-cache lookup into a dedicated helper. The extracted routine encapsulates the 'single cache entry fully covers requested range' check and byte-offset computation, and Read() now delegates to it before memcpy'ing cached bytes.\nMechanisms: helper extraction / refactoring; L1 cache hit lookup and range containment check; byte offset computation into cached memory\nTouched symbols: lldb::MemoryCache; MemoryCache::FindL1CacheEntry; MemoryCache::Read\nRisk relevance: No LLVM backend, X86 lowering, or SelectionDAG involvement; No integer bit-position, truncation/extension, or flag-combine logic changes; Not related to the asserted low-bits width-adjustment path\nBuild risk: Limited to LLDB target memory caching code; Refactor may expose subtle const-correctness or range-handling issues, but no semantic change intended; Affect tests only if cache-hit behavior regressed"
+        },
+        {
+          "rank": 2,
+          "sha": "f813817e3495c5ab8e0dd7d3c471e531d83a630a",
+          "subject": "[SPIR-V] Select int-to-int convert opcode from source signedness (#201116)",
+          "utility": 0.094398,
+          "selection_score": 0.053094,
+          "semantic_score": 0.042917,
+          "build_success_prob": 0.88,
+          "feedback_bias": 0.858333,
+          "posterior_bad_mass": 0.053089,
+          "calibrated_suspicion_weight": 0.000863,
+          "calibrated_posterior_bad_mass": 0.014642,
+          "calibrated_posterior_info_gain": 0.110191,
+          "weak_relevance_penalty": 0.044
+        },
+        {
+          "rank": 3,
+          "sha": "afd040cb4624c7c7f843367751e22d50b39250f5",
+          "subject": "[OpenMP][OMPT] Remove unused var in archer (#201140)",
+          "utility": 0.049239,
+          "selection_score": 0.023374,
+          "semantic_score": 0.2,
+          "build_success_prob": 0.98,
+          "feedback_bias": 1.0,
+          "posterior_bad_mass": 0.023972,
+          "calibrated_suspicion_weight": 0.00689,
+          "calibrated_posterior_bad_mass": 0.00689,
+          "calibrated_posterior_info_gain": 0.059381,
+          "weak_relevance_penalty": 0.049,
+          "diff_mode": "parent",
+          "diff_extraction": "llm",
+          "diff_summary": "Summary: This change is unrelated to X86 code generation or SelectionDAG lowering. It removes an unused OMPT thread-data global and its initialization assignment from the OpenMP Archer tool, leaving the runtime/TSan integration logic otherwise unchanged.\nMechanisms: dead code elimination in OpenMP tooling; removal of unused global state\nTouched symbols: ompt_get_thread_data; ompt_tsan_initialize\nRisk relevance: No interaction with llvm/lib/Target/X86 or SelectionDAG combine logic; No bit-test lowering, integer width reasoning, or DAG pattern matching changes; Not relevant to the low-bits constraint assertion / peekThroughBitPosExtTrunc failure mode\nBuild risk: Limited to openmp/tools/archer/ompt-tsan.cpp; Low functional risk; likely compile-only cleanup; Could only affect OpenMP Archer build if the removed symbol was unexpectedly referenced elsewhere"
+        },
+        {
+          "rank": 4,
+          "sha": "6bcdd843e302063c4f0d36204686155149a6bb0a",
+          "subject": "[X86] Merge BT with a matching BTR/BTS/BTC (#193612)",
+          "utility": 0.0,
+          "selection_score": 0.0,
+          "semantic_score": 7.9,
+          "build_success_prob": 0.74,
+          "feedback_bias": 1.0,
+          "posterior_bad_mass": 1.0,
+          "calibrated_suspicion_weight": 0.985358,
+          "calibrated_posterior_bad_mass": 1.0,
+          "diff_mode": "parent",
+          "diff_extraction": "llm",
+          "diff_summary": "Summary: This X86 backend change adds a new SelectionDAG combine that tries to fuse a BT bit-test with a sibling bit-modifying operation on the same source value into a single flag-producing BTR/BTS/BTC node. The implementation introduces a bit-position peeking helper that strips TRUNCATE/ZERO_EXTEND/ANY_EXTEND and benign AND masks preserving the low log2(width) bits, then rewrites users through ReplaceAllUsesOfValueWith so the modify op can subsume the BT and directly produce CF. The patch also adds X86ISD SDNodes and TableGen patterns for the flag-producing BTR/BTS/BTC forms, plus tests covering positive fusion cases and negative cases where bit positions differ or masks are not safe to ignore.\nMechanisms: SelectionDAG combine for BT to bit-op fusion; peeled bit-position analysis through trunc/zext/anyext; mask subsumption check for low-bit constraints; shared CF-producing lowering for BTR/BTS/BTC; SDNode and Pat additions for X86 bit-modify-with-flags instructions; use-rewriting with ReplaceAllUsesOfValueWith\nTouched symbols: peekThroughBitPosExtTrunc; combineBTToBitOpFlag; combineBT; X86ISD::BT; X86ISD::BTR; X86ISD::BTS; X86ISD::BTC; BTR32rr\nRisk relevance: Directly touches llvm/lib/Target/X86/X86ISelLowering.cpp in the BT/bit-test combine path implicated by the crash; Adds new logic around bit-index width adjustment and low-bit preservation, matching the asserted 'low bits constraint must survive width adjustment' failure mode; Operates on SelectionDAG users and rewrites flag/value dependencies, which is a common source of combine-time crashes or miscompiles; Involves X86 bit-test lowering and implicit bit masking semantics, central to the reported assertion and peek-through helper name; Changes behavior for i32/i64 BT lowering and sibling bit-modify ops, so regressions may appear in O1 instruction selection\nBuild risk: Modifies core X86 backend lowering logic and TableGen patterns; Adds new test coverage in llvm/test/CodeGen/X86 that exercises register allocation and codegen shape changes; Potential risk of mismatched SDNode signatures or pattern coverage across 32-bit and 64-bit paths; May affect existing bt/btr/bts/btc combines and generated assembly expectations"
+        }
+      ],
+      "evidence": [
+        "=== validated-bisect-runner ===",
+        "issue: pr201444",
+        "llvm-project: /home/ubuntu/gitbisect-work/worktrees/pr201444-aws10-confidence-frontier-b-20260720a",
+        "commit: 8dd51399f8a9",
+        "jobs: 4",
+        "build type: Release",
+        "assertions: ON",
+        "ccache dir: /home/ubuntu/gitbisect-work/confidence-adaptive-20260720-896b595/.ccache/pr201444-git-bisect",
+        "repro exit code: 0",
+        "verdict: good"
+      ],
+      "log_excerpt": "=== validated-bisect-runner ===\nissue: pr201444\nllvm-project: /home/ubuntu/gitbisect-work/worktrees/pr201444-aws10-confidence-frontier-b-20260720a\ncommit: 8dd51399f8a9\njobs: 4\nbuild type: Release\nassertions: ON\nccache dir: /home/ubuntu/gitbisect-work/confidence-adaptive-20260720-896b595/.ccache/pr201444-git-bisect\nrepro exit code: 0\nverdict: good",
+      "trace_excerpt": "=== validated-bisect-runner ===\nissue: pr201444\nllvm-project: /home/ubuntu/gitbisect-work/worktrees/pr201444-aws10-confidence-frontier-b-20260720a\ncommit: 8dd51399f8a9\njobs: 4\nbuild type: Release\nassertions: ON\nccache dir: /home/ubuntu/gitbisect-work/confidence-adaptive-20260720-896b595/.ccache/pr201444-git-bisect\nrepro exit code: 0\nverdict: good",
+      "runner_duration_sec": 96.766
+    },
+    {
+      "step": 12,
+      "sha": "f813817e3495c5ab8e0dd7d3c471e531d83a630a",
+      "subject": "[SPIR-V] Select int-to-int convert opcode from source signedness (#201116)",
+      "verdict": "good",
+      "source": "runner",
+      "summary": "verdict: good",
+      "unresolved_before": 2,
+      "unresolved_after": 1,
+      "model_top_k": 2,
+      "adaptive_top_k": null,
+      "confidence_adaptive_frontier": {
+        "threshold": 0.35
+      },
+      "model_frontier_decision": {
+        "configured_frontier": "topk",
+        "effective_frontier": "topk",
+        "confidence": 0.996268,
+        "threshold": 0.35,
+        "reason": "semantic leader confidence meets threshold; use semantic top-k",
+        "top_semantic_candidates": [
+          {
+            "sha": "6bcdd843e302063c4f0d36204686155149a6bb0a",
+            "semantic_score": 11.5,
+            "build_success_prob": 0.92
+          },
+          {
+            "sha": "f813817e3495c5ab8e0dd7d3c471e531d83a630a",
+            "semantic_score": 0.042917,
+            "build_success_prob": 0.88
+          }
+        ],
+        "selected_frontier_shas": [
+          "6bcdd843e302063c4f0d36204686155149a6bb0a",
+          "f813817e3495c5ab8e0dd7d3c471e531d83a630a"
+        ],
+        "observation_count": 11
+      },
+      "model_score_context": "v1-924893ab90e72955",
+      "model_score_context_payload": {
+        "version": "v1",
+        "unresolved_count": 2,
+        "candidate_window_sha256": "8de07dd2f35135f399e81c878e46c795e21a97295c16729a2cb831b9f2b96e56",
+        "observation_sha256": "cdf9a84abae1c6b64aeff7ff5c07a253ce484a8949e76e387f0c50d7708d7f07",
+        "model_top_k": 2,
+        "model_frontier": "topk",
+        "model_diff_mode": "parent",
+        "model_diff_extraction": "llm",
+        "observation_prompt_mode": "trace-only",
+        "confidence_adaptive_frontier": {
+          "threshold": 0.35
+        }
+      },
+      "candidate_pruning": {
+        "mode": "off",
+        "before_count": 2,
+        "after_count": 2,
+        "pruned_count": 0,
+        "keep_prefixes": [],
+        "kept_reason_counts": {},
+        "prune_reason_counts": {},
+        "pruned_examples": []
+      },
+      "search_policy": "calibrated-posterior",
+      "selection_mode": "calibrated-posterior",
+      "selection": {
+        "utility": 0.099335,
+        "selection_score": -0.047,
+        "semantic_score": 0.4,
+        "build_success_prob": 0.94,
+        "balance_score": 0.096386,
+        "suspicion_weight": 0.048193,
+        "feedback_bias": 1.0,
+        "evidence": [
+          "model-scored",
+          "Backend-related, but only in SPIR-V lowering; no overlap with X86ISelLowering or SelectionDAG BT combine",
+          "Signedness-based convert selection is conceptually unrelated to the reported low-bits width-adjustment assertion",
+          "features: SPIR-V lowering, signedness-based opcode selection, convert intrinsic transcoding"
+        ],
+        "posterior_bad_mass": 0.048193,
+        "calibrated_suspicion_weight": 0.0,
+        "calibrated_posterior_bad_mass": 0.0,
+        "calibrated_posterior_info_gain": 0.0,
+        "weak_relevance_penalty": 0.047,
+        "diff_mode": "parent",
+        "diff_extraction": "llm",
+        "diff_summary": "Summary: Adjusts SPIR-V builtin transcoding so int-to-int convert opcodes are chosen from the source operand\u2019s signedness rather than the destination type. The change is confined to SPIR-V builtin lowering and adds a focused codegen test covering signed/unsigned source combinations for int-to-int and int-to-float conversions.\nMechanisms: builtin demangling and opcode selection in SPIR-V lowering; signedness inference from mangled builtin names; SelectionDAG-to-target opcode mapping for convert operations\nTouched symbols: generateConvertInst; SPIRV::OpSConvert; SPIRV::OpUConvert; SPIRV::OpConvertSToF; SPIRV::OpConvertUToF\nRisk relevance: Touches backend lowering logic, but in SPIR-V rather than X86 SelectionDAG combine; Changes semantics of integer width/signedness conversion selection, which can be a common source of miscompiles; No direct overlap with X86 bit-test lowering, BT/BTR/BTS/BTC combines, or low-bits width-adjustment assertions\nBuild risk: Adds a new SPIR-V codegen test and updates expected opcode selection; Backend test coverage relies on spirv-tools availability for one RUN line"
+      },
+      "top_candidates": [
+        {
+          "rank": 0,
+          "sha": "f813817e3495c5ab8e0dd7d3c471e531d83a630a",
+          "subject": "[SPIR-V] Select int-to-int convert opcode from source signedness (#201116)",
+          "utility": 0.099335,
+          "selection_score": -0.04699999999606602,
+          "semantic_score": 0.4,
+          "build_success_prob": 0.94,
+          "feedback_bias": 1.0,
+          "posterior_bad_mass": 0.048192771084337345,
+          "calibrated_suspicion_weight": 9.3576229688393e-14,
+          "calibrated_posterior_bad_mass": 9.3576229688393e-14,
+          "calibrated_posterior_info_gain": 4.185083302631741e-12,
+          "weak_relevance_penalty": 0.047,
+          "diff_mode": "parent",
+          "diff_extraction": "llm",
+          "diff_summary": "Summary: Adjusts SPIR-V builtin transcoding so int-to-int convert opcodes are chosen from the source operand\u2019s signedness rather than the destination type. The change is confined to SPIR-V builtin lowering and adds a focused codegen test covering signed/unsigned source combinations for int-to-int and int-to-float conversions.\nMechanisms: builtin demangling and opcode selection in SPIR-V lowering; signedness inference from mangled builtin names; SelectionDAG-to-target opcode mapping for convert operations\nTouched symbols: generateConvertInst; SPIRV::OpSConvert; SPIRV::OpUConvert; SPIRV::OpConvertSToF; SPIRV::OpConvertUToF\nRisk relevance: Touches backend lowering logic, but in SPIR-V rather than X86 SelectionDAG combine; Changes semantics of integer width/signedness conversion selection, which can be a common source of miscompiles; No direct overlap with X86 bit-test lowering, BT/BTR/BTS/BTC combines, or low-bits width-adjustment assertions\nBuild risk: Adds a new SPIR-V codegen test and updates expected opcode selection; Backend test coverage relies on spirv-tools availability for one RUN line"
+        },
+        {
+          "rank": 1,
+          "sha": "6bcdd843e302063c4f0d36204686155149a6bb0a",
+          "subject": "[X86] Merge BT with a matching BTR/BTS/BTC (#193612)",
+          "utility": 0.0,
+          "selection_score": 0.1925,
+          "semantic_score": 7.9,
+          "build_success_prob": 0.77,
+          "feedback_bias": 1.0,
+          "posterior_bad_mass": 1.0,
+          "calibrated_suspicion_weight": 1.0,
+          "calibrated_posterior_bad_mass": 1.0,
+          "diff_mode": "parent",
+          "diff_extraction": "llm",
+          "diff_summary": "Summary: Extends X86 DAG combining to fuse a BT bit-test with a sibling bit-modifying operation on the same source value into a single flag-producing BTR/BTS/BTC node. The combine peels through trunc/zext/anyext wrappers and AND masks that preserve the low bit-index bits, then rewires uses so the modify instruction supplies both the updated value and EFLAGS CF. Supporting target patterns and SDNode fragments are added, along with substantial X86 codegen tests for fused and non-fused cases across 32/64-bit and wider-integer lowering paths.\nMechanisms: X86 SelectionDAG combine for BT plus bit-modify fusion; bit-position peeking through TRUNCATE/ZERO_EXTEND/ANY_EXTEND and low-bit-preserving AND masks; replacement of separate BT with flag-producing BTR/BTS/BTC; target pattern matching for X86ISD bit-modify nodes\nTouched symbols: peekThroughBitPosExtTrunc; combineBTToBitOpFlag; combineBT; X86ISD::BT; X86ISD::BTR; X86ISD::BTS; X86ISD::BTC; SDNode<\"X86ISD::BTR\">\nRisk relevance: Directly touches X86ISelLowering and SelectionDAG combine logic around BT-bit operations, matching the crash area; Introduces new reasoning about low-bit preservation across width changes, exactly where the reported assertion mentions surviving width adjustment; Uses DAG user traversal and ReplaceAllUsesOfValueWith, which can expose combine-ordering and SSA/value-liveness bugs; Affects integer width/sign/zero-extension handling for bit positions, a high-risk area for backend asserts and miscompiles\nBuild risk: Adds new SDNodes and TableGen patterns, increasing dependence on consistent target fragment/pattern definitions; Large codegen test updates across many X86 integer widths and subtargets; Changes output instruction selection for many cases, so test baselines are broad and sensitive"
+        },
+        {
+          "rank": 2,
+          "sha": "f813817e3495c5ab8e0dd7d3c471e531d83a630a",
+          "subject": "[SPIR-V] Select int-to-int convert opcode from source signedness (#201116)",
+          "utility": 0.099335,
+          "selection_score": -0.047,
+          "semantic_score": 0.4,
+          "build_success_prob": 0.94,
+          "feedback_bias": 1.0,
+          "posterior_bad_mass": 0.048193,
+          "calibrated_suspicion_weight": 0.0,
+          "calibrated_posterior_bad_mass": 0.0,
+          "calibrated_posterior_info_gain": 0.0,
+          "weak_relevance_penalty": 0.047,
+          "diff_mode": "parent",
+          "diff_extraction": "llm",
+          "diff_summary": "Summary: Adjusts SPIR-V builtin transcoding so int-to-int convert opcodes are chosen from the source operand\u2019s signedness rather than the destination type. The change is confined to SPIR-V builtin lowering and adds a focused codegen test covering signed/unsigned source combinations for int-to-int and int-to-float conversions.\nMechanisms: builtin demangling and opcode selection in SPIR-V lowering; signedness inference from mangled builtin names; SelectionDAG-to-target opcode mapping for convert operations\nTouched symbols: generateConvertInst; SPIRV::OpSConvert; SPIRV::OpUConvert; SPIRV::OpConvertSToF; SPIRV::OpConvertUToF\nRisk relevance: Touches backend lowering logic, but in SPIR-V rather than X86 SelectionDAG combine; Changes semantics of integer width/signedness conversion selection, which can be a common source of miscompiles; No direct overlap with X86 bit-test lowering, BT/BTR/BTS/BTC combines, or low-bits width-adjustment assertions\nBuild risk: Adds a new SPIR-V codegen test and updates expected opcode selection; Backend test coverage relies on spirv-tools availability for one RUN line"
+        }
+      ],
+      "evidence": [
+        "=== validated-bisect-runner ===",
+        "issue: pr201444",
+        "llvm-project: /home/ubuntu/gitbisect-work/worktrees/pr201444-aws10-confidence-frontier-b-20260720a",
+        "commit: f813817e3495",
+        "jobs: 4",
+        "build type: Release",
+        "assertions: ON",
+        "ccache dir: /home/ubuntu/gitbisect-work/confidence-adaptive-20260720-896b595/.ccache/pr201444-git-bisect",
+        "repro exit code: 0",
+        "verdict: good"
+      ],
+      "log_excerpt": "=== validated-bisect-runner ===\nissue: pr201444\nllvm-project: /home/ubuntu/gitbisect-work/worktrees/pr201444-aws10-confidence-frontier-b-20260720a\ncommit: f813817e3495\njobs: 4\nbuild type: Release\nassertions: ON\nccache dir: /home/ubuntu/gitbisect-work/confidence-adaptive-20260720-896b595/.ccache/pr201444-git-bisect\nrepro exit code: 0\nverdict: good",
+      "trace_excerpt": "=== validated-bisect-runner ===\nissue: pr201444\nllvm-project: /home/ubuntu/gitbisect-work/worktrees/pr201444-aws10-confidence-frontier-b-20260720a\ncommit: f813817e3495\njobs: 4\nbuild type: Release\nassertions: ON\nccache dir: /home/ubuntu/gitbisect-work/confidence-adaptive-20260720-896b595/.ccache/pr201444-git-bisect\nrepro exit code: 0\nverdict: good",
+      "runner_duration_sec": 93.57
+    }
+  ],
+  "heuristic_keywords": [
+    "crash",
+    "assertion",
+    "X86ISelLowering",
+    "low bits constraint",
+    "peekThroughBitPosExtTrunc",
+    "combineBTToBitOpFlag",
+    "SelectionDAG",
+    "DAG combine",
+    "O1",
+    "backend"
+  ],
+  "model_usage": {
+    "requests": 27,
+    "prompt_tokens": 597074,
+    "completion_tokens": 20587,
+    "total_tokens": 617661,
+    "by_kind": {
+      "diff_extraction": {
+        "requests": 16,
+        "prompt_tokens": 564444,
+        "completion_tokens": 15845,
+        "total_tokens": 580289
+      },
+      "scoring": {
+        "requests": 11,
+        "prompt_tokens": 32630,
+        "completion_tokens": 4742,
+        "total_tokens": 37372
+      }
+    }
+  },
+  "steps_executed": 12,
+  "remaining_unresolved": 1,
+  "final_unresolved_window": [
+    "6bcdd843e302063c4f0d36204686155149a6bb0a"
+  ],
+  "first_bad_commit": "6bcdd843e302063c4f0d36204686155149a6bb0a",
+  "unresolved_window_path": "/home/ubuntu/gitbisect-work/confidence-adaptive-20260720-896b595/results/issues/pr201444/pr201444-model-gpt-5.4-mini-calibrated-posterior-obs-trace-only-aws10-confidence-frontier-b-20260720a-unresolved-window.json",
+  "runner_build_count": 12,
+  "runner_build_avg_duration_sec": 2158.198
+}

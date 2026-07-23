@@ -588,6 +588,51 @@ pre.formula .hl { color: var(--good); font-weight: 700; }
 .focused-card .name { color: var(--muted); font-size: 0.8rem; font-weight: 700; }
 .focused-card .big { margin: 4px 0; font-size: 1.7rem; font-weight: 700; }
 .focused-card .sub { color: var(--muted); font-size: 0.76rem; line-height: 1.4; }
+.variant-methods {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+.variant-method {
+  padding: 18px;
+  border: 1px solid var(--border);
+  border-top: 3px solid #b79bff;
+  border-radius: var(--radius);
+  background: linear-gradient(160deg, rgba(66, 45, 104, 0.26), var(--panel));
+}
+.variant-method h3 { margin: 0 0 8px; font-size: 1rem; }
+.variant-method p { margin: 0 0 14px; color: var(--muted); font-size: 0.86rem; }
+.variant-method dl { display: grid; grid-template-columns: 42px 1fr; gap: 7px 10px; margin: 0; font-size: 0.77rem; }
+.variant-method dt { color: #c3aaff; font-family: var(--mono); font-weight: 700; }
+.variant-method dd { margin: 0; color: var(--muted-2); }
+.variant-summary {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  margin: 16px 0;
+}
+.variant-summary-card {
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--panel);
+}
+.variant-summary-card h3 { margin: 0; padding: 14px 16px; border-bottom: 1px solid var(--border); font-size: 0.94rem; }
+.variant-arm { display: grid; grid-template-columns: 98px auto 1fr; gap: 5px 10px; align-items: baseline; padding: 11px 16px; }
+.variant-arm + .variant-arm { border-top: 1px solid rgba(38, 49, 74, 0.72); }
+.variant-arm strong { color: #c3aaff; font-family: var(--mono); font-size: 0.7rem; text-transform: uppercase; }
+.variant-arm b { font-size: 1.25rem; }
+.variant-arm span { color: var(--muted); font-size: 0.75rem; }
+.variant-arm small { grid-column: 1 / -1; color: var(--muted-2); font-size: 0.72rem; }
+.variant-table-wrap { max-height: 70vh; }
+.variant-table { min-width: 1220px; }
+.variant-table thead tr:first-child th { color: #c3aaff; }
+.variant-table th, .variant-table td { min-width: 92px; }
+.variant-table .cell-reference { color: #a8d9f0; }
+.variant-table small { font-size: 0.68rem; font-family: var(--mono); }
+.variant-state { color: var(--muted-2); font-size: 0.75rem; font-style: italic; }
+.variant-state.running { color: #e4c97f; font-style: normal; font-weight: 700; }
+.variant-state.invalid { color: var(--bad); font-style: normal; font-weight: 700; }
 .focused-note {
   margin: 14px 0;
   padding: 12px 14px;
@@ -961,6 +1006,7 @@ details[open] summary::before { transform: rotate(90deg); }
   .artifact-list { grid-template-columns: 1fr 1fr; }
   .live-grid, .runtime-flow-grid { grid-template-columns: 1fr; }
   .focused-cards, .keyword-vocab-grid { grid-template-columns: 1fr 1fr; }
+  .variant-methods, .variant-summary { grid-template-columns: 1fr; }
   .topk-sensitivity { grid-template-columns: 1fr; }
   .convergence-grid { grid-template-columns: 1fr; }
   .runtime-artifact-grid { grid-template-columns: 1fr; }

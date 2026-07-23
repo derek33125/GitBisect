@@ -1,0 +1,1910 @@
+{
+  "issue": "pr50304",
+  "scorer": "model",
+  "model_name": "gpt-5.4-mini",
+  "model_frontier": "topk",
+  "search_policy": "calibrated-posterior",
+  "hybrid_switch_window": 32,
+  "candidate_pruning": "off",
+  "heuristic_version": "tuned",
+  "calibrated_prior_power": 1.35,
+  "calibrated_prior_bonus": 1.5,
+  "weak_relevance_penalty": 0.05,
+  "weak_relevance_threshold": 0.8,
+  "build_success_power": 1.0,
+  "observation_prompt_mode": "trace-only",
+  "run_label": "aws10-confidence-frontier-c-20260720a",
+  "model_diff_mode": "parent",
+  "model_diff_extraction": "llm",
+  "model_top_k": 3,
+  "adaptive_top_k": null,
+  "confidence_adaptive_frontier": {
+    "threshold": 0.35
+  },
+  "model_cache_namespace": "confidence-frontier-035-20260720-aws-c",
+  "oracle_first_bad_sha": null,
+  "lambda_weight": 2.0,
+  "max_steps": 30,
+  "observation_path": "results/lm_bisect_observations/pr50304-aws10-confidence-frontier-c-20260720a.json",
+  "run_history_path": "/home/ubuntu/gitbisect-work/confidence-adaptive-20260720-896b595/results/lm_bisect_runs/pr50304-model-gpt-5.4-mini-calibrated-posterior-obs-trace-only-aws10-confidence-frontier-c-20260720a.json",
+  "good_commit": "8e464dd76befbc4a39a1d21968a3d5f543e29312",
+  "bad_commit": "4aa1c141bd674564aaee83516b7e338aa3aae9e3",
+  "initial_unresolved": 14311,
+  "status": "completed",
+  "steps": [
+    {
+      "step": 1,
+      "sha": "46b8ea2fff90b44b7ae558999721cf30f9b83aa9",
+      "subject": "[clang-tidy] Add check for implicit widening of multiplication result",
+      "verdict": "good",
+      "source": "runner",
+      "summary": "verdict: good",
+      "unresolved_before": 14311,
+      "unresolved_after": 7155,
+      "model_top_k": 3,
+      "adaptive_top_k": null,
+      "confidence_adaptive_frontier": {
+        "threshold": 0.35
+      },
+      "model_frontier_decision": {
+        "configured_frontier": "topk",
+        "effective_frontier": "diverse",
+        "confidence": 0.028369,
+        "threshold": 0.35,
+        "reason": "semantic scores are ambiguous; add posterior and midpoint anchors",
+        "top_semantic_candidates": [
+          {
+            "sha": "06829034ca64b8c83a5b20d8abe5ddbfe7af0004",
+            "semantic_score": 7.05,
+            "build_success_prob": 0.84
+          },
+          {
+            "sha": "395607af3cb80f25ee05420ea5ae0ad0be948533",
+            "semantic_score": 6.85,
+            "build_success_prob": 0.89
+          }
+        ],
+        "selected_frontier_shas": [
+          "06829034ca64b8c83a5b20d8abe5ddbfe7af0004",
+          "06eff02ba18b02bff3a8d5759cc4a5ee043e4112",
+          "46b8ea2fff90b44b7ae558999721cf30f9b83aa9"
+        ],
+        "observation_count": 0
+      },
+      "model_score_context": "v1-9178e22924a7bad2",
+      "model_score_context_payload": {
+        "version": "v1",
+        "unresolved_count": 14311,
+        "candidate_window_sha256": "20171c8350f1cc27f1cd789732cba761bbb678cc8fa0092bf7b966c8337e87de",
+        "observation_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "model_top_k": 3,
+        "model_frontier": "topk",
+        "model_diff_mode": "parent",
+        "model_diff_extraction": "llm",
+        "observation_prompt_mode": "trace-only",
+        "confidence_adaptive_frontier": {
+          "threshold": 0.35
+        }
+      },
+      "candidate_pruning": {
+        "mode": "off",
+        "before_count": 14311,
+        "after_count": 14311,
+        "pruned_count": 0,
+        "keep_prefixes": [],
+        "kept_reason_counts": {},
+        "prune_reason_counts": {},
+        "pruned_examples": []
+      },
+      "search_policy": "calibrated-posterior",
+      "selection_mode": "calibrated-posterior",
+      "selection": {
+        "utility": 0.901762,
+        "selection_score": 1.160811,
+        "semantic_score": 0.7,
+        "build_success_prob": 0.92,
+        "balance_score": 0.979854,
+        "suspicion_weight": 0.000164,
+        "feedback_bias": 0.0,
+        "evidence": [
+          "model-scored",
+          "Frontend clang-tidy checker addition, not an LLVM IR or APFloat/ConstantFold change",
+          "No direct overlap with EarlyCSE, ConstantFold, or floating-point semantics",
+          "features: clang-tidy checker, AST analysis, type-width diagnostics, frontend-only change"
+        ],
+        "posterior_bad_mass": 0.489927,
+        "calibrated_suspicion_weight": 0.000159,
+        "calibrated_posterior_bad_mass": 0.482468,
+        "calibrated_posterior_info_gain": 0.999113,
+        "weak_relevance_penalty": 0.046,
+        "diff_mode": "parent",
+        "diff_extraction": "llm",
+        "diff_summary": "Summary: Introduces a new clang-tidy bugprone check, bugprone-implicit-widening-of-multiplication-result, that diagnoses multiplication results implicitly widened by later casts or pointer arithmetic. The implementation adds AST matchers for implicit integral casts, array subscripts, and pointer-offset binary operators; computes source/target widths; suggests fix-its using either C-style casts or static_cast depending on language/options; and adds helper logic in ASTContext for corresponding signed/unsigned integer types, including vectors, enums, fixed-point types, and _ExtInt. The commit is primarily frontend-analysis oriented, with no direct LLVM IR transform changes, but it does extend type canonicalization utilities that other semantic checks may reuse.\nMechanisms: Adds clang-tidy ASTMatcher-based diagnostics for implicit widening after multiplication; Infers and compares integer widths to detect narrowing/widening mismatches; Generates fix-its for explicit casts and wider intermediate multiplication types; Extends ASTContext with getCorrespondingSignedType and updates getCorrespondingUnsignedType behavior\nTouched symbols: clang::tidy::bugprone::ImplicitWideningOfMultiplicationResultCheck; ImplicitWideningOfMultiplicationResultCheck::registerMatchers; ImplicitWideningOfMultiplicationResultCheck::check; ImplicitWideningOfMultiplicationResultCheck::handleImplicitCastExpr; ImplicitWideningOfMultiplicationResultCheck::handlePointerOffsetting; clang::ASTContext::getCorrespondingSignedType; clang::ASTContext::getCorrespondingUnsignedType\nRisk relevance: Touches semantic type conversion logic and integer-width reasoning, which can influence frontend analysis of constant expressions and casts; Adds new handling for _ExtInt, vectors, enums, and fixed-point types in type correspondence code; Uses AST matchers and explicit cast insertion around arithmetic expressions, an area prone to corner-case misclassification\nBuild risk: Adds a new checker, new tests, and new documentation, increasing test surface and build breadth; Modifies ASTContext public interface, requiring recompilation of dependent code; Introduces new source files and module registration/CMake wiring"
+      },
+      "top_candidates": [
+        {
+          "rank": 1,
+          "sha": "46b8ea2fff90b44b7ae558999721cf30f9b83aa9",
+          "subject": "[clang-tidy] Add check for implicit widening of multiplication result",
+          "utility": 0.901762,
+          "selection_score": 1.160811,
+          "semantic_score": 0.7,
+          "build_success_prob": 0.92,
+          "feedback_bias": 0.0,
+          "posterior_bad_mass": 0.489927,
+          "calibrated_suspicion_weight": 0.000159,
+          "calibrated_posterior_bad_mass": 0.482468,
+          "calibrated_posterior_info_gain": 0.999113,
+          "weak_relevance_penalty": 0.046,
+          "diff_mode": "parent",
+          "diff_extraction": "llm",
+          "diff_summary": "Summary: Introduces a new clang-tidy bugprone check, bugprone-implicit-widening-of-multiplication-result, that diagnoses multiplication results implicitly widened by later casts or pointer arithmetic. The implementation adds AST matchers for implicit integral casts, array subscripts, and pointer-offset binary operators; computes source/target widths; suggests fix-its using either C-style casts or static_cast depending on language/options; and adds helper logic in ASTContext for corresponding signed/unsigned integer types, including vectors, enums, fixed-point types, and _ExtInt. The commit is primarily frontend-analysis oriented, with no direct LLVM IR transform changes, but it does extend type canonicalization utilities that other semantic checks may reuse.\nMechanisms: Adds clang-tidy ASTMatcher-based diagnostics for implicit widening after multiplication; Infers and compares integer widths to detect narrowing/widening mismatches; Generates fix-its for explicit casts and wider intermediate multiplication types; Extends ASTContext with getCorrespondingSignedType and updates getCorrespondingUnsignedType behavior\nTouched symbols: clang::tidy::bugprone::ImplicitWideningOfMultiplicationResultCheck; ImplicitWideningOfMultiplicationResultCheck::registerMatchers; ImplicitWideningOfMultiplicationResultCheck::check; ImplicitWideningOfMultiplicationResultCheck::handleImplicitCastExpr; ImplicitWideningOfMultiplicationResultCheck::handlePointerOffsetting; clang::ASTContext::getCorrespondingSignedType; clang::ASTContext::getCorrespondingUnsignedType\nRisk relevance: Touches semantic type conversion logic and integer-width reasoning, which can influence frontend analysis of constant expressions and casts; Adds new handling for _ExtInt, vectors, enums, and fixed-point types in type correspondence code; Uses AST matchers and explicit cast insertion around arithmetic expressions, an area prone to corner-case misclassification\nBuild risk: Adds a new checker, new tests, and new documentation, increasing test surface and build breadth; Modifies ASTContext public interface, requiring recompilation of dependent code; Introduces new source files and module registration/CMake wiring"
+        },
+        {
+          "rank": 2,
+          "sha": "06eff02ba18b02bff3a8d5759cc4a5ee043e4112",
+          "subject": "[clang][deps] NFC: Improve documentation",
+          "utility": 0.989675,
+          "selection_score": 1.11797,
+          "semantic_score": 0.1,
+          "build_success_prob": 0.99,
+          "feedback_bias": 0.0,
+          "posterior_bad_mass": 0.499812,
+          "calibrated_suspicion_weight": 1.2e-05,
+          "calibrated_posterior_bad_mass": 0.490934,
+          "calibrated_posterior_info_gain": 0.999763,
+          "weak_relevance_penalty": 0.0495,
+          "diff_mode": "parent",
+          "diff_extraction": "llm",
+          "diff_summary": "Summary: Performs an NFC documentation cleanup in the dependency scanning tooling API comments, rewriting phrasing and correcting grammar/typos in the comments for FullDependencies and related parameters. No functional code, interfaces, or behavior change is present; this is purely a comment-level clarification in a clang header.\nMechanisms: Documentation/comment wording cleanup only\nTouched symbols: clang::tooling::dependencies::FullDependencies; DependencyScanningTool\nRisk relevance: No direct compiler logic, constant-folding, or floating-point semantics changes; No interaction with APFloat, ConstantFold, EarlyCSE, or IR transforms\nBuild risk: Header comment-only change with negligible build/runtime impact"
+        },
+        {
+          "rank": 3,
+          "sha": "effacc15999dde16de3e991f861769bc899aa910",
+          "subject": "[AArch64] Constant fold sve_convert_from_svbool(zero) to zero",
+          "utility": 0.867097,
+          "selection_score": 0.922359,
+          "semantic_score": 5.75,
+          "build_success_prob": 0.92,
+          "feedback_bias": 0.0,
+          "posterior_bad_mass": 0.530019,
+          "calibrated_suspicion_weight": 0.002737,
+          "calibrated_posterior_bad_mass": 0.523059,
+          "calibrated_posterior_info_gain": 0.998465
+        },
+        {
+          "rank": 4,
+          "sha": "bf147c465352ed69f6fdaace26e9566bc442ade2",
+          "subject": "[LSR] Fix for pre-indexed generated constant offset",
+          "utility": 0.916306,
+          "selection_score": 0.920964,
+          "semantic_score": 2.25,
+          "build_success_prob": 0.92,
+          "feedback_bias": 0.0,
+          "posterior_bad_mass": 0.502533,
+          "calibrated_suspicion_weight": 0.000771,
+          "calibrated_posterior_bad_mass": 0.493864,
+          "calibrated_posterior_info_gain": 0.999891
+        },
+        {
+          "rank": 5,
+          "sha": "3be2ba0ba38a1799d937a0ef302fb792d12d75a8",
+          "subject": "[SystemZ][z/OS][Windows] Add new functions that set Text/Binary mode for Stdin and Stdout based on OpenFlags",
+          "utility": 0.908077,
+          "selection_score": 0.920924,
+          "semantic_score": 2.05,
+          "build_success_prob": 0.92,
+          "feedback_bias": 0.0,
+          "posterior_bad_mass": 0.506954,
+          "calibrated_suspicion_weight": 0.00068,
+          "calibrated_posterior_bad_mass": 0.497697,
+          "calibrated_posterior_info_gain": 0.999985
+        }
+      ],
+      "evidence": [
+        "=== validated-bisect-runner ===",
+        "issue: pr50304",
+        "llvm-project: /home/ubuntu/gitbisect-work/worktrees/pr50304-aws10-confidence-frontier-c-20260720a",
+        "commit: 46b8ea2fff90",
+        "jobs: 4",
+        "build type: Release",
+        "assertions: ON",
+        "ccache dir: /home/ubuntu/gitbisect-work/confidence-adaptive-20260720-896b595/.ccache/pr50304-git-bisect",
+        "repro exit code: 0",
+        "verdict: good"
+      ],
+      "log_excerpt": "=== validated-bisect-runner ===\nissue: pr50304\nllvm-project: /home/ubuntu/gitbisect-work/worktrees/pr50304-aws10-confidence-frontier-c-20260720a\ncommit: 46b8ea2fff90\njobs: 4\nbuild type: Release\nassertions: ON\nccache dir: /home/ubuntu/gitbisect-work/confidence-adaptive-20260720-896b595/.ccache/pr50304-git-bisect\nrepro exit code: 0\nverdict: good",
+      "trace_excerpt": "=== validated-bisect-runner ===\nissue: pr50304\nllvm-project: /home/ubuntu/gitbisect-work/worktrees/pr50304-aws10-confidence-frontier-c-20260720a\ncommit: 46b8ea2fff90\njobs: 4\nbuild type: Release\nassertions: ON\nccache dir: /home/ubuntu/gitbisect-work/confidence-adaptive-20260720-896b595/.ccache/pr50304-git-bisect\nrepro exit code: 0\nverdict: good",
+      "runner_duration_sec": 2049.35
+    },
+    {
+      "step": 2,
+      "sha": "3ae7f7ae0a33961be48948205981aea91920d3aa",
+      "subject": "[CostModel][X86] Tweak fptoui v4f32->v4i32 + v8f32->v8i32 SSE/AVX costs",
+      "verdict": "good",
+      "source": "runner",
+      "summary": "verdict: good",
+      "unresolved_before": 7155,
+      "unresolved_after": 3442,
+      "model_top_k": 3,
+      "adaptive_top_k": null,
+      "confidence_adaptive_frontier": {
+        "threshold": 0.35
+      },
+      "model_frontier_decision": {
+        "configured_frontier": "topk",
+        "effective_frontier": "diverse",
+        "confidence": 0.058394,
+        "threshold": 0.35,
+        "reason": "semantic scores are ambiguous; add posterior and midpoint anchors",
+        "top_semantic_candidates": [
+          {
+            "sha": "395607af3cb80f25ee05420ea5ae0ad0be948533",
+            "semantic_score": 6.85,
+            "build_success_prob": 0.89
+          },
+          {
+            "sha": "5af8bacc940243038478da1c92c3481cbdfcece3",
+            "semantic_score": 6.45,
+            "build_success_prob": 0.92
+          }
+        ],
+        "selected_frontier_shas": [
+          "395607af3cb80f25ee05420ea5ae0ad0be948533",
+          "3ae7f7ae0a33961be48948205981aea91920d3aa",
+          "3d3abc22b3ef189813a3b9061c2a90ba86a32f44"
+        ],
+        "observation_count": 1
+      },
+      "model_score_context": "v1-55e1c5217f88a5c6",
+      "model_score_context_payload": {
+        "version": "v1",
+        "unresolved_count": 7155,
+        "candidate_window_sha256": "9db567d7f45588dbbdab702f78a19f6e3d7a85011b70b4e272a72987e8bc913e",
+        "observation_sha256": "8e74c3cc86879901b663e059f35ed3e98c47e70e58ba19e0797f4ce68d5dee2b",
+        "model_top_k": 3,
+        "model_frontier": "topk",
+        "model_diff_mode": "parent",
+        "model_diff_extraction": "llm",
+        "observation_prompt_mode": "trace-only",
+        "confidence_adaptive_frontier": {
+          "threshold": 0.35
+        }
+      },
+      "candidate_pruning": {
+        "mode": "off",
+        "before_count": 7155,
+        "after_count": 7155,
+        "pruned_count": 0,
+        "keep_prefixes": [],
+        "kept_reason_counts": {},
+        "prune_reason_counts": {},
+        "pruned_examples": []
+      },
+      "search_policy": "calibrated-posterior",
+      "selection_mode": "calibrated-posterior",
+      "selection": {
+        "utility": 0.900395,
+        "selection_score": 1.193092,
+        "semantic_score": 1.0,
+        "build_success_prob": 0.9,
+        "balance_score": 0.999516,
+        "suspicion_weight": 0.000462,
+        "feedback_bias": 1.0,
+        "evidence": [
+          "model-scored",
+          "Touches floating-point conversion cost modeling, but only in X86 backend heuristics",
+          "Relevant to fp cast profitability, not to APFloat semantics or ConstantFold assertions",
+          "features: X86 cost model, floating-point cast profitability, SLP vectorizer heuristics"
+        ],
+        "posterior_bad_mass": 0.499758,
+        "calibrated_suspicion_weight": 0.000501,
+        "calibrated_posterior_bad_mass": 0.489938,
+        "calibrated_posterior_info_gain": 0.999708,
+        "diff_mode": "parent",
+        "diff_extraction": "llm",
+        "diff_summary": "Summary: This commit retunes X86 target cost modeling for floating-point integer-to-float vector casts, lowering estimated costs for several UINT_TO_FP cases such as v4f32<-v4i32 and v8f32<-v8i32 on SSE/AVX paths. The accompanying tests update cost-model expectations and simplify SLP vectorizer checks, suggesting a shift in profitability heuristics for vector cast formation and alternative-cast combines on X86.\nMechanisms: TargetTransformInfo cost table adjustment; Vector cast profitability heuristics for UINT_TO_FP; SLP vectorizer pattern selection / cost sensitivity\nTouched symbols: X86TTIImpl::getCastInstrCost; ISD::UINT_TO_FP; llvm/test/Analysis/CostModel/X86/cast.ll; llvm/test/Analysis/CostModel/X86/uitofp.ll; llvm/test/Transforms/SLPVectorizer/X86/alternate-cast.ll\nRisk relevance: Touches floating-point conversion cost modeling, which can indirectly change optimization choices and expose codegen/combiner paths; Relevant to float-related optimization behavior, though not to APFloat semantics directly; May shift which vectorization or cast-splitting patterns are chosen at O1 and above\nBuild risk: Backend cost-model changes can require target-specific test updates; Potentially changes vectorization decisions, affecting many X86 codegen tests; Large expectation churn in cost-model and SLP tests indicates optimization heuristic instability"
+      },
+      "top_candidates": [
+        {
+          "rank": 1,
+          "sha": "3ae7f7ae0a33961be48948205981aea91920d3aa",
+          "subject": "[CostModel][X86] Tweak fptoui v4f32->v4i32 + v8f32->v8i32 SSE/AVX costs",
+          "utility": 0.900395,
+          "selection_score": 1.193092,
+          "semantic_score": 1.0,
+          "build_success_prob": 0.9,
+          "feedback_bias": 1.0,
+          "posterior_bad_mass": 0.499758,
+          "calibrated_suspicion_weight": 0.000501,
+          "calibrated_posterior_bad_mass": 0.489938,
+          "calibrated_posterior_info_gain": 0.999708,
+          "diff_mode": "parent",
+          "diff_extraction": "llm",
+          "diff_summary": "Summary: This commit retunes X86 target cost modeling for floating-point integer-to-float vector casts, lowering estimated costs for several UINT_TO_FP cases such as v4f32<-v4i32 and v8f32<-v8i32 on SSE/AVX paths. The accompanying tests update cost-model expectations and simplify SLP vectorizer checks, suggesting a shift in profitability heuristics for vector cast formation and alternative-cast combines on X86.\nMechanisms: TargetTransformInfo cost table adjustment; Vector cast profitability heuristics for UINT_TO_FP; SLP vectorizer pattern selection / cost sensitivity\nTouched symbols: X86TTIImpl::getCastInstrCost; ISD::UINT_TO_FP; llvm/test/Analysis/CostModel/X86/cast.ll; llvm/test/Analysis/CostModel/X86/uitofp.ll; llvm/test/Transforms/SLPVectorizer/X86/alternate-cast.ll\nRisk relevance: Touches floating-point conversion cost modeling, which can indirectly change optimization choices and expose codegen/combiner paths; Relevant to float-related optimization behavior, though not to APFloat semantics directly; May shift which vectorization or cast-splitting patterns are chosen at O1 and above\nBuild risk: Backend cost-model changes can require target-specific test updates; Potentially changes vectorization decisions, affecting many X86 codegen tests; Large expectation churn in cost-model and SLP tests indicates optimization heuristic instability"
+        },
+        {
+          "rank": 2,
+          "sha": "3d3abc22b3ef189813a3b9061c2a90ba86a32f44",
+          "subject": "Force visibility of llvm::Any to external",
+          "utility": 0.927939,
+          "selection_score": 1.092317,
+          "semantic_score": 0.2,
+          "build_success_prob": 0.97,
+          "feedback_bias": 1.0,
+          "posterior_bad_mass": 0.478231,
+          "calibrated_suspicion_weight": 5.7e-05,
+          "calibrated_posterior_bad_mass": 0.464811,
+          "calibrated_posterior_info_gain": 0.996424,
+          "weak_relevance_penalty": 0.0485,
+          "diff_mode": "parent",
+          "diff_extraction": "llm",
+          "diff_summary": "Summary: This is a small ABI/visibility change making llvm::Any externally visible via LLVM_EXTERNAL_VISIBILITY. The implementation comment explains the motivation: under hidden visibility, the Typeid<T>::Id static data member should still be merged across shared-library boundaries, so the class itself must be exported to preserve uniqueness and interoperability of type identification across DSOs.\nMechanisms: Symbol visibility / ABI export adjustment; DSO boundary type-identity consistency for llvm::Any\nTouched symbols: llvm::Any; Typeid<T>::Id\nRisk relevance: Primarily ABI/visibility related rather than optimization or constant-folding related; Can affect cross-DSO runtime behavior if type IDs are duplicated or not merged; No direct connection to APFloat, ConstantFold, or EarlyCSE crash paths\nBuild risk: Visibility changes can affect shared-library symbol exporting and linking; Potential build/test sensitivity on platforms using -fvisibility=hidden or split DSOs"
+        },
+        {
+          "rank": 3,
+          "sha": "395607af3cb80f25ee05420ea5ae0ad0be948533",
+          "subject": "Reapply [ConstantFold] Fold more operations to poison",
+          "utility": 0.637988,
+          "selection_score": 1.070859,
+          "semantic_score": 5.1,
+          "build_success_prob": 0.83,
+          "feedback_bias": 1.0,
+          "posterior_bad_mass": 0.382529,
+          "calibrated_suspicion_weight": 0.004523,
+          "calibrated_posterior_bad_mass": 0.3705,
+          "calibrated_posterior_info_gain": 0.951055,
+          "diff_mode": "parent",
+          "diff_extraction": "llm",
+          "diff_summary": "Summary: This commit broadens LLVM constant folding and constant-propagation behavior to model more operations as producing poison instead of undef, aligning binary ops, casts, insertelement, and GEP folding with newer poison semantics. The core implementation changes are in llvm/lib/IR/ConstantFold.cpp, where division/rem/shift-by-undef or zero, signed overflow cases, and oversized shifts now fold to PoisonValue; in-bounds GEP folding is also split so inbounds forms return poison while non-inbounds may remain undef. The patch is accompanied by wide test updates across InstCombine, InstSimplify, SROA, VectorCombine, and codegenprepare, indicating the change affects many simplification and folding pipelines rather than a single niche transform.\nMechanisms: Constant folding semantics update from undef to poison; Division/remainder/shift fold rules revised for poison propagation; Cast and insertelement constant-fold behavior changed; GEP folding distinguishes inbounds poison from non-inbounds undef; Vector lane folding and splat/poison propagation in constant expressions\nTouched symbols: llvm::ConstantFoldCastInstruction; llvm::ConstantFoldInsertElementInstruction; llvm::ConstantFoldBinaryInstruction; llvm::ConstantFoldGetElementPtr; ConstantExpr::getShl; ConstantExpr::getLShr; ConstantExpr::getAShr\nRisk relevance: Touches central IR constant folding logic that feeds many optimization passes; Changes behavior for division, remainder, shift, and GEP operations that often appear in simplify/fold paths; Widens poison propagation, which can alter whether later passes see constants, undef, or poison; Relevant to crash/regression signatures involving simplification after O1, even though no APFloat-specific code is directly edited; Extensive test churn suggests broad semantic impact rather than a localized fix\nBuild risk: Large test-update surface across InstCombine, InstSimplify, SROA, VectorCombine, and CodeGen; Potential for latent mismatches in analyses expecting undef instead of poison; Any downstream pass relying on old constant-fold results may need test or code adjustments"
+        },
+        {
+          "rank": 4,
+          "sha": "c162f086ba632ffaedfe92d63bf21571bc8ae4da",
+          "subject": "[APFloat] convertToDouble/Float can work on shorter types",
+          "utility": 0.914251,
+          "selection_score": 0.925491,
+          "semantic_score": 5.05,
+          "build_success_prob": 0.92,
+          "feedback_bias": 1.0,
+          "posterior_bad_mass": 0.494569,
+          "calibrated_suspicion_weight": 0.004464,
+          "calibrated_posterior_bad_mass": 0.484181,
+          "calibrated_posterior_info_gain": 0.999278
+        },
+        {
+          "rank": 5,
+          "sha": "f21f1eea05d65dbd6992fdb6b2bf1d5b4f657166",
+          "subject": "[FPEnv] EarlyCSE support for constrained intrinsics, default FP environment edition",
+          "utility": 0.902756,
+          "selection_score": 0.923836,
+          "semantic_score": 4.55,
+          "build_success_prob": 0.92,
+          "feedback_bias": 1.0,
+          "posterior_bad_mass": 0.488576,
+          "calibrated_suspicion_weight": 0.003878,
+          "calibrated_posterior_bad_mass": 0.476185,
+          "calibrated_posterior_info_gain": 0.998363
+        }
+      ],
+      "evidence": [
+        "=== validated-bisect-runner ===",
+        "issue: pr50304",
+        "llvm-project: /home/ubuntu/gitbisect-work/worktrees/pr50304-aws10-confidence-frontier-c-20260720a",
+        "commit: 3ae7f7ae0a33",
+        "jobs: 4",
+        "build type: Release",
+        "assertions: ON",
+        "ccache dir: /home/ubuntu/gitbisect-work/confidence-adaptive-20260720-896b595/.ccache/pr50304-git-bisect",
+        "repro exit code: 0",
+        "verdict: good"
+      ],
+      "log_excerpt": "=== validated-bisect-runner ===\nissue: pr50304\nllvm-project: /home/ubuntu/gitbisect-work/worktrees/pr50304-aws10-confidence-frontier-c-20260720a\ncommit: 3ae7f7ae0a33\njobs: 4\nbuild type: Release\nassertions: ON\nccache dir: /home/ubuntu/gitbisect-work/confidence-adaptive-20260720-896b595/.ccache/pr50304-git-bisect\nrepro exit code: 0\nverdict: good",
+      "trace_excerpt": "=== validated-bisect-runner ===\nissue: pr50304\nllvm-project: /home/ubuntu/gitbisect-work/worktrees/pr50304-aws10-confidence-frontier-c-20260720a\ncommit: 3ae7f7ae0a33\njobs: 4\nbuild type: Release\nassertions: ON\nccache dir: /home/ubuntu/gitbisect-work/confidence-adaptive-20260720-896b595/.ccache/pr50304-git-bisect\nrepro exit code: 0\nverdict: good",
+      "runner_duration_sec": 2015.637
+    },
+    {
+      "step": 3,
+      "sha": "859c924c5fd58865e824b02c8bea40e7cb55456e",
+      "subject": "[libc++] Remove unnecessary header in enable_view.h (which caused a cycle)",
+      "verdict": "bad",
+      "source": "runner",
+      "summary": "verdict: bad",
+      "unresolved_before": 3442,
+      "unresolved_after": 1676,
+      "model_top_k": 3,
+      "adaptive_top_k": null,
+      "confidence_adaptive_frontier": {
+        "threshold": 0.35
+      },
+      "model_frontier_decision": {
+        "configured_frontier": "topk",
+        "effective_frontier": "diverse",
+        "confidence": 0.012741,
+        "threshold": 0.35,
+        "reason": "semantic scores are ambiguous; add posterior and midpoint anchors",
+        "top_semantic_candidates": [
+          {
+            "sha": "5af8bacc940243038478da1c92c3481cbdfcece3",
+            "semantic_score": 5.59,
+            "build_success_prob": 0.92
+          },
+          {
+            "sha": "4c7f820b2b206bb7b4e32e575a78316701471203",
+            "semantic_score": 5.51878,
+            "build_success_prob": 0.8
+          }
+        ],
+        "selected_frontier_shas": [
+          "5af8bacc940243038478da1c92c3481cbdfcece3",
+          "859c924c5fd58865e824b02c8bea40e7cb55456e",
+          "5e6bfb661e8b51b440eda04d0be0c9a00b8713e9"
+        ],
+        "observation_count": 2
+      },
+      "model_score_context": "v1-604c53d022fdba80",
+      "model_score_context_payload": {
+        "version": "v1",
+        "unresolved_count": 3442,
+        "candidate_window_sha256": "cab8c166d752a6919f77a3ce407261b118329660982cab74a7616ae29858e8d8",
+        "observation_sha256": "84130271411c1581966494f79fe023127c23d3e3bf89d2753c7b996ba9691c86",
+        "model_top_k": 3,
+        "model_frontier": "topk",
+        "model_diff_mode": "parent",
+        "model_diff_extraction": "llm",
+        "observation_prompt_mode": "trace-only",
+        "confidence_adaptive_frontier": {
+          "threshold": 0.35
+        }
+      },
+      "candidate_pruning": {
+        "mode": "off",
+        "before_count": 3442,
+        "after_count": 3442,
+        "pruned_count": 0,
+        "keep_prefixes": [],
+        "kept_reason_counts": {},
+        "prune_reason_counts": {},
+        "pruned_examples": []
+      },
+      "search_policy": "calibrated-posterior",
+      "selection_mode": "calibrated-posterior",
+      "selection": {
+        "utility": 0.967793,
+        "selection_score": 1.107955,
+        "semantic_score": 0.2,
+        "build_success_prob": 0.97,
+        "balance_score": 0.997314,
+        "suspicion_weight": 0.000206,
+        "feedback_bias": 1.0,
+        "evidence": [
+          "model-scored",
+          "Libc++ include-cycle cleanup is unrelated to LLVM APFloat/ConstantFold/EarlyCSE crash mechanism",
+          "Touches only a single libc++ header, with no overlap in optimization or floating-point constant-folding codepaths",
+          "features: libc++, header cleanup, include cycle removal"
+        ],
+        "posterior_bad_mass": 0.498657,
+        "calibrated_suspicion_weight": 0.000131,
+        "calibrated_posterior_bad_mass": 0.501823,
+        "calibrated_posterior_info_gain": 0.99999,
+        "weak_relevance_penalty": 0.0485,
+        "diff_mode": "parent",
+        "diff_extraction": "llm",
+        "diff_summary": "Summary: This is a libc++ header cleanup that removes an unnecessary include from `enable_view.h` to break an include cycle. It only changes a single header in the ranges library and does not touch LLVM IR analysis, constant folding, APFloat, or optimization passes related to the reported crash.\nMechanisms: header dependency cleanup; include-cycle removal\nTouched symbols: libcxx/include/__ranges/enable_view.h\nRisk relevance: No overlap with ConstantFold/APFloat/EarlyCSE or floating-point semantics; Not in LLVM optimization pipeline or constant-evaluation codepaths implicated by the assertion; Build-system/header-order changes can still affect compilation boundaries indirectly\nBuild risk: Single-header include removal may change transitive dependencies; Potentially impacts include ordering or ODR-sensitive build behavior in libc++ users"
+      },
+      "top_candidates": [
+        {
+          "rank": 1,
+          "sha": "859c924c5fd58865e824b02c8bea40e7cb55456e",
+          "subject": "[libc++] Remove unnecessary header in enable_view.h (which caused a cycle)",
+          "utility": 0.967793,
+          "selection_score": 1.107955,
+          "semantic_score": 0.2,
+          "build_success_prob": 0.97,
+          "feedback_bias": 1.0,
+          "posterior_bad_mass": 0.498657,
+          "calibrated_suspicion_weight": 0.000131,
+          "calibrated_posterior_bad_mass": 0.501823,
+          "calibrated_posterior_info_gain": 0.99999,
+          "weak_relevance_penalty": 0.0485,
+          "diff_mode": "parent",
+          "diff_extraction": "llm",
+          "diff_summary": "Summary: This is a libc++ header cleanup that removes an unnecessary include from `enable_view.h` to break an include cycle. It only changes a single header in the ranges library and does not touch LLVM IR analysis, constant folding, APFloat, or optimization passes related to the reported crash.\nMechanisms: header dependency cleanup; include-cycle removal\nTouched symbols: libcxx/include/__ranges/enable_view.h\nRisk relevance: No overlap with ConstantFold/APFloat/EarlyCSE or floating-point semantics; Not in LLVM optimization pipeline or constant-evaluation codepaths implicated by the assertion; Build-system/header-order changes can still affect compilation boundaries indirectly\nBuild risk: Single-header include removal may change transitive dependencies; Potentially impacts include ordering or ODR-sensitive build behavior in libc++ users"
+        },
+        {
+          "rank": 2,
+          "sha": "5e6bfb661e8b51b440eda04d0be0c9a00b8713e9",
+          "subject": "[Analysis] Pass RecurrenceDescriptor as const reference. NFCI.",
+          "utility": 0.700556,
+          "selection_score": 0.963059,
+          "semantic_score": 1.3,
+          "build_success_prob": 0.72,
+          "feedback_bias": 1.0,
+          "posterior_bad_mass": 0.514801,
+          "calibrated_suspicion_weight": 0.001635,
+          "calibrated_posterior_bad_mass": 0.517916,
+          "calibrated_posterior_info_gain": 0.999074,
+          "diff_mode": "parent",
+          "diff_extraction": "llm",
+          "diff_summary": "Summary: This change is a refactoring/NFCI update that passes `RecurrenceDescriptor` by const reference through vectorization and reduction-related APIs and call sites. It touches legality checks, target transform info interfaces, loop utility reduction builders, and LoopVectorize cost/legalization code, but it does not alter the reduction algorithm itself or any floating-point constant-folding logic.\nMechanisms: API signature refactoring; const-correctness / copy-elision cleanup; loop vectorization reduction plumbing\nTouched symbols: TargetTransformInfo::isLegalToVectorizeReduction; AArch64TTIImpl::isLegalToVectorizeReduction; createTargetReduction; createOrderedReduction; LoopVectorizationLegality::canVectorizeFPMath; InnerLoopVectorizer::fixReduction; InnerLoopVectorizer::clearReductionWrapFlags; LoopVectorizationCostModel::getSmallestAndWidestTypes\nRisk relevance: Touches LoopVectorize and reduction legality paths, which can influence O1 codegen decisions; Involves floating-point vectorization legality (`canVectorizeFPMath`) and reduction handling; Could change call-site behavior through interface signature mismatches or subtle constness-related issues; No direct modification of APFloat, ConstantFold, or ConstantFolding.cpp\nBuild risk: Wide API signature churn across headers and multiple target backends; May require rebuilding many translation units due to interface changes; Potential for backend-specific compile errors if declarations/definitions diverge"
+        },
+        {
+          "rank": 3,
+          "sha": "3c1f0e9ef89f7c49fdf383e6b01a61be04614a38",
+          "subject": "[InstSimplify] Add constant fold for extractelement + splat for scalable vectors",
+          "utility": 0.909972,
+          "selection_score": 0.928718,
+          "semantic_score": 3.55,
+          "build_success_prob": 0.92,
+          "feedback_bias": 1.0,
+          "posterior_bad_mass": 0.490962,
+          "calibrated_suspicion_weight": 0.006346,
+          "calibrated_posterior_bad_mass": 0.496148,
+          "calibrated_posterior_info_gain": 0.999957
+        },
+        {
+          "rank": 4,
+          "sha": "4c9471581fa07331b9ec8e4ab1ea312fba43c0b6",
+          "subject": "[Attributor] Set floating point loads and stores as nofree in AANoFreeFloating",
+          "utility": 0.87708,
+          "selection_score": 0.92305,
+          "semantic_score": 2.2525,
+          "build_success_prob": 0.92,
+          "feedback_bias": 0.85,
+          "posterior_bad_mass": 0.474474,
+          "calibrated_suspicion_weight": 0.003434,
+          "calibrated_posterior_bad_mass": 0.474848,
+          "calibrated_posterior_info_gain": 0.998174
+        },
+        {
+          "rank": 5,
+          "sha": "7629b2a09c169bfd7f7295deb3678f3fa7755eee",
+          "subject": "[LI] Add a cover function for checking if a loop is mustprogress [nfc]",
+          "utility": 0.922469,
+          "selection_score": 0.922843,
+          "semantic_score": 1.559091,
+          "build_success_prob": 0.92,
+          "feedback_bias": 0.890909,
+          "posterior_bad_mass": 0.500262,
+          "calibrated_suspicion_weight": 0.00209,
+          "calibrated_posterior_bad_mass": 0.503913,
+          "calibrated_posterior_info_gain": 0.999956
+        }
+      ],
+      "evidence": [
+        "=== validated-bisect-runner ===",
+        "issue: pr50304",
+        "llvm-project: /home/ubuntu/gitbisect-work/worktrees/pr50304-aws10-confidence-frontier-c-20260720a",
+        "commit: 859c924c5fd5",
+        "jobs: 4",
+        "build type: Release",
+        "assertions: ON",
+        "ccache dir: /home/ubuntu/gitbisect-work/confidence-adaptive-20260720-896b595/.ccache/pr50304-git-bisect",
+        "repro exit code: 134",
+        "verdict: bad"
+      ],
+      "log_excerpt": "=== validated-bisect-runner ===\nissue: pr50304\nllvm-project: /home/ubuntu/gitbisect-work/worktrees/pr50304-aws10-confidence-frontier-c-20260720a\ncommit: 859c924c5fd5\njobs: 4\nbuild type: Release\nassertions: ON\nccache dir: /home/ubuntu/gitbisect-work/confidence-adaptive-20260720-896b595/.ccache/pr50304-git-bisect\nrepro exit code: 134\nverdict: bad",
+      "trace_excerpt": "=== validated-bisect-runner ===\nissue: pr50304\nllvm-project: /home/ubuntu/gitbisect-work/worktrees/pr50304-aws10-confidence-frontier-c-20260720a\ncommit: 859c924c5fd5\njobs: 4\nbuild type: Release\nassertions: ON\nccache dir: /home/ubuntu/gitbisect-work/confidence-adaptive-20260720-896b595/.ccache/pr50304-git-bisect\nrepro exit code: 134\nverdict: bad",
+      "runner_duration_sec": 2057.556
+    },
+    {
+      "step": 4,
+      "sha": "936ca1e21a91843c76b20c6c857aaddd5fa3d42a",
+      "subject": "WindowsSupport.h: do not depend on private config header",
+      "verdict": "bad",
+      "source": "runner",
+      "summary": "verdict: bad",
+      "unresolved_before": 1676,
+      "unresolved_after": 838,
+      "model_top_k": 3,
+      "adaptive_top_k": null,
+      "confidence_adaptive_frontier": {
+        "threshold": 0.35
+      },
+      "model_frontier_decision": {
+        "configured_frontier": "topk",
+        "effective_frontier": "diverse",
+        "confidence": 0.154123,
+        "threshold": 0.35,
+        "reason": "semantic scores are ambiguous; add posterior and midpoint anchors",
+        "top_semantic_candidates": [
+          {
+            "sha": "8ff36aab69ece2cc91ba30f82847d19fe877a7ab",
+            "semantic_score": 4.764286,
+            "build_success_prob": 0.88
+          },
+          {
+            "sha": "ca7eaa0a54938bfe9aeed7ebc64202f0b6f2ce0d",
+            "semantic_score": 4.03,
+            "build_success_prob": 0.92
+          }
+        ],
+        "selected_frontier_shas": [
+          "8ff36aab69ece2cc91ba30f82847d19fe877a7ab",
+          "eb2393659113696adf2bd770917f3109d1455c76",
+          "936ca1e21a91843c76b20c6c857aaddd5fa3d42a"
+        ],
+        "observation_count": 3
+      },
+      "model_score_context": "v1-50ae9d33ea155d59",
+      "model_score_context_payload": {
+        "version": "v1",
+        "unresolved_count": 1676,
+        "candidate_window_sha256": "8ff7a40d57ed1e03b8f7dcb69945483a89e7cbb1860cba6fac93096b70734541",
+        "observation_sha256": "f0b2f42fefccf34a80733f10ddbcba60b709848e450f9de0f0c6f37becf982df",
+        "model_top_k": 3,
+        "model_frontier": "topk",
+        "model_diff_mode": "parent",
+        "model_diff_extraction": "llm",
+        "observation_prompt_mode": "trace-only",
+        "confidence_adaptive_frontier": {
+          "threshold": 0.35
+        }
+      },
+      "candidate_pruning": {
+        "mode": "off",
+        "before_count": 1676,
+        "after_count": 1676,
+        "pruned_count": 0,
+        "keep_prefixes": [],
+        "kept_reason_counts": {},
+        "prune_reason_counts": {},
+        "pruned_examples": []
+      },
+      "search_policy": "calibrated-posterior",
+      "selection_mode": "calibrated-posterior",
+      "selection": {
+        "utility": 0.856077,
+        "selection_score": 1.203241,
+        "semantic_score": 0.5,
+        "build_success_prob": 0.98,
+        "balance_score": 0.871765,
+        "suspicion_weight": 0.001023,
+        "feedback_bias": 1.0,
+        "evidence": [
+          "model-scored",
+          "Pure header include cleanup unrelated to floating-point constant folding or APFloat semantics",
+          "No plausible connection to the reported assertion in ConstantFold/EarlyCSE",
+          "features: header include change, WindowsSupport, build plumbing"
+        ],
+        "posterior_bad_mass": 0.564118,
+        "calibrated_suspicion_weight": 0.000878,
+        "calibrated_posterior_bad_mass": 0.566737,
+        "calibrated_posterior_info_gain": 0.987111,
+        "weak_relevance_penalty": 0.049,
+        "diff_mode": "parent",
+        "diff_extraction": "llm",
+        "diff_summary": "Summary: Switches a Windows support header from including the private generated configuration header to the public llvm-config header. This reduces dependency on internal build configuration plumbing and makes the header less tied to a specific generated config file layout.\nMechanisms: Header include dependency adjustment; Build configuration header substitution\nTouched symbols: llvm/Support/Windows/WindowsSupport.h\nRisk relevance: Affects preprocessing and header availability across build configurations; Can expose include-path or macro-definition mismatches when config headers differ\nBuild risk: Build-system sensitivity due to changing from private config header to public config header; May affect downstream consumers or non-standard build setups that relied on the old include"
+      },
+      "top_candidates": [
+        {
+          "rank": 1,
+          "sha": "936ca1e21a91843c76b20c6c857aaddd5fa3d42a",
+          "subject": "WindowsSupport.h: do not depend on private config header",
+          "utility": 0.856077,
+          "selection_score": 1.203241,
+          "semantic_score": 0.5,
+          "build_success_prob": 0.98,
+          "feedback_bias": 1.0,
+          "posterior_bad_mass": 0.564118,
+          "calibrated_suspicion_weight": 0.000878,
+          "calibrated_posterior_bad_mass": 0.566737,
+          "calibrated_posterior_info_gain": 0.987111,
+          "weak_relevance_penalty": 0.049,
+          "diff_mode": "parent",
+          "diff_extraction": "llm",
+          "diff_summary": "Summary: Switches a Windows support header from including the private generated configuration header to the public llvm-config header. This reduces dependency on internal build configuration plumbing and makes the header less tied to a specific generated config file layout.\nMechanisms: Header include dependency adjustment; Build configuration header substitution\nTouched symbols: llvm/Support/Windows/WindowsSupport.h\nRisk relevance: Affects preprocessing and header availability across build configurations; Can expose include-path or macro-definition mismatches when config headers differ\nBuild risk: Build-system sensitivity due to changing from private config header to public config header; May affect downstream consumers or non-standard build setups that relied on the old include"
+        },
+        {
+          "rank": 2,
+          "sha": "eb2393659113696adf2bd770917f3109d1455c76",
+          "subject": "[RISCV] Support vector conversions between fp and i1",
+          "utility": 0.862417,
+          "selection_score": 1.156681,
+          "semantic_score": 1.6,
+          "build_success_prob": 0.86,
+          "feedback_bias": 1.0,
+          "posterior_bad_mass": 0.498145,
+          "calibrated_suspicion_weight": 0.004223,
+          "calibrated_posterior_bad_mass": 0.504342,
+          "calibrated_posterior_info_gain": 0.999946,
+          "diff_mode": "parent",
+          "diff_extraction": "llm",
+          "diff_summary": "Summary: Extends RISCV SelectionDAG lowering for RVV fixed-length and scalable vector conversions involving floating-point and i1 element types. The backend now marks sint/uint-to-fp and fp-to-sint/fp-to-uint vector ops as custom in more vector-length/LMUL configurations, enabling a new lowering path that uses native RVV narrowing/widening conversion instructions and vector masking/merge sequences instead of scalarization and spill-based expansion. The test updates replace many target-specific multi-step lowering expectations with direct vector conversion instructions across fp16/fp32/fp64 and i1 cases.\nMechanisms: SelectionDAG operation action changes for vector fp/int conversions; Custom lowering path for RVV element-size distance handling; Use of native RVV conversion ops (vfncvt/vfcvt) plus masking/merge sequences for i1; Fixed-length vector legalization changes across multiple LMUL settings\nTouched symbols: RISCVTargetLowering::RISCVTargetLowering; setOperationAction; ISD::SINT_TO_FP; ISD::UINT_TO_FP; ISD::FP_TO_SINT; ISD::FP_TO_UINT; llvm/test/CodeGen/RISCV/rvv/fixed-vectors-fp2i.ll; llvm/test/CodeGen/RISCV/rvv/fixed-vectors-i2fp.ll\nRisk relevance: Touches lowering of float/int conversions, which are often sensitive to constant semantics and legalization corner cases; Introduces new custom lowering paths and instruction selection decisions for vector conversions; Changes handling for i1 vector conversions, which can stress mask materialization and type-legalization; Covers fp16/fp32/fp64 and scalable/fixed-length vectors, increasing breadth of affected code paths\nBuild risk: Large backend-only test rewrites indicate broad codegen behavior changes; Depends on RVV availability and target-specific instruction selection support; May alter legalization for multiple vector widths/LMULs, increasing chance of target-only regressions"
+        },
+        {
+          "rank": 3,
+          "sha": "7161bb87c914684562bfb20fec7d60e533150f7a",
+          "subject": "[InsCombine] Fix a few remaining vec transforms to use poison instead of undef",
+          "utility": 0.918894,
+          "selection_score": 0.926752,
+          "semantic_score": 1.862,
+          "build_success_prob": 0.92,
+          "feedback_bias": 0.76,
+          "posterior_bad_mass": 0.504376,
+          "calibrated_suspicion_weight": 0.005182,
+          "calibrated_posterior_bad_mass": 0.512219,
+          "calibrated_posterior_info_gain": 0.999569
+        },
+        {
+          "rank": 4,
+          "sha": "d350dd8ba26fa6a6199f328f1026f1aca5f7f095",
+          "subject": "[test] Properly match parameter/argument ABI attributes",
+          "utility": 0.895971,
+          "selection_score": 0.926603,
+          "semantic_score": 2.05,
+          "build_success_prob": 0.92,
+          "feedback_bias": 1.0,
+          "posterior_bad_mass": 0.517108,
+          "calibrated_suspicion_weight": 0.005901,
+          "calibrated_posterior_bad_mass": 0.523978,
+          "calibrated_posterior_info_gain": 0.99834
+        },
+        {
+          "rank": 5,
+          "sha": "7bb8bfa0622b8ee55c3f748004dcf4d83d48cf97",
+          "subject": "[InstCombine] fix miscompile from vector select substitution",
+          "utility": 0.897221,
+          "selection_score": 0.924214,
+          "semantic_score": 1.291818,
+          "build_success_prob": 0.92,
+          "feedback_bias": 0.890909,
+          "posterior_bad_mass": 0.485057,
+          "calibrated_suspicion_weight": 0.003163,
+          "calibrated_posterior_bad_mass": 0.492463,
+          "calibrated_posterior_info_gain": 0.999836
+        }
+      ],
+      "evidence": [
+        "=== validated-bisect-runner ===",
+        "issue: pr50304",
+        "llvm-project: /home/ubuntu/gitbisect-work/worktrees/pr50304-aws10-confidence-frontier-c-20260720a",
+        "commit: 936ca1e21a91",
+        "jobs: 4",
+        "build type: Release",
+        "assertions: ON",
+        "ccache dir: /home/ubuntu/gitbisect-work/confidence-adaptive-20260720-896b595/.ccache/pr50304-git-bisect",
+        "repro exit code: 134",
+        "verdict: bad"
+      ],
+      "log_excerpt": "=== validated-bisect-runner ===\nissue: pr50304\nllvm-project: /home/ubuntu/gitbisect-work/worktrees/pr50304-aws10-confidence-frontier-c-20260720a\ncommit: 936ca1e21a91\njobs: 4\nbuild type: Release\nassertions: ON\nccache dir: /home/ubuntu/gitbisect-work/confidence-adaptive-20260720-896b595/.ccache/pr50304-git-bisect\nrepro exit code: 134\nverdict: bad",
+      "trace_excerpt": "=== validated-bisect-runner ===\nissue: pr50304\nllvm-project: /home/ubuntu/gitbisect-work/worktrees/pr50304-aws10-confidence-frontier-c-20260720a\ncommit: 936ca1e21a91\njobs: 4\nbuild type: Release\nassertions: ON\nccache dir: /home/ubuntu/gitbisect-work/confidence-adaptive-20260720-896b595/.ccache/pr50304-git-bisect\nrepro exit code: 134\nverdict: bad",
+      "runner_duration_sec": 2019.861
+    },
+    {
+      "step": 5,
+      "sha": "ca7eaa0a54938bfe9aeed7ebc64202f0b6f2ce0d",
+      "subject": "[InstSimplify] allow undef element match in vector select condition value",
+      "verdict": "bad",
+      "source": "runner",
+      "summary": "verdict: bad",
+      "unresolved_before": 838,
+      "unresolved_after": 321,
+      "model_top_k": 3,
+      "adaptive_top_k": null,
+      "confidence_adaptive_frontier": {
+        "threshold": 0.35
+      },
+      "model_frontier_decision": {
+        "configured_frontier": "topk",
+        "effective_frontier": "diverse",
+        "confidence": 0.172043,
+        "threshold": 0.35,
+        "reason": "semantic scores are ambiguous; add posterior and midpoint anchors",
+        "top_semantic_candidates": [
+          {
+            "sha": "ca7eaa0a54938bfe9aeed7ebc64202f0b6f2ce0d",
+            "semantic_score": 4.03,
+            "build_success_prob": 0.92
+          },
+          {
+            "sha": "a0e71f1832d194baffb25a4e7394b623d2bf97cb",
+            "semantic_score": 3.336667,
+            "build_success_prob": 0.92
+          }
+        ],
+        "selected_frontier_shas": [
+          "ca7eaa0a54938bfe9aeed7ebc64202f0b6f2ce0d",
+          "564eb20e0deecd173a7b990dcfd0e57fb045c522",
+          "b6f6501b2412ffaf5d7dce539de3c382b1cf9b64"
+        ],
+        "observation_count": 4
+      },
+      "model_score_context": "v1-214fc1b384f68b8a",
+      "model_score_context_payload": {
+        "version": "v1",
+        "unresolved_count": 838,
+        "candidate_window_sha256": "7dce9f4f24865158a6b6b0c85d2c60a7862570683a77b6007e58c49a06ce5f85",
+        "observation_sha256": "7eb8e123c4985ef2f24d631b14f72682323793e90e750ca1d304b869138b4132",
+        "model_top_k": 3,
+        "model_frontier": "topk",
+        "model_diff_mode": "parent",
+        "model_diff_extraction": "llm",
+        "observation_prompt_mode": "trace-only",
+        "confidence_adaptive_frontier": {
+          "threshold": 0.35
+        }
+      },
+      "candidate_pruning": {
+        "mode": "off",
+        "before_count": 838,
+        "after_count": 838,
+        "pruned_count": 0,
+        "keep_prefixes": [],
+        "kept_reason_counts": {},
+        "prune_reason_counts": {},
+        "pruned_examples": []
+      },
+      "search_policy": "calibrated-posterior",
+      "selection_mode": "calibrated-posterior",
+      "selection": {
+        "utility": 0.90716,
+        "selection_score": 1.332897,
+        "semantic_score": 2.9,
+        "build_success_prob": 0.97,
+        "balance_score": 0.915796,
+        "suspicion_weight": 0.010603,
+        "feedback_bias": 1.0,
+        "evidence": [
+          "model-scored",
+          "Touches InstSimplify constant folding logic, which is adjacent to the reported ConstantFold/APFloat crash path",
+          "Mechanism is vector select undef/poison matching, not floating-point semantics or APFloat representability",
+          "features: InstructionSimplify, constant folding, undef/poison semantics, select canonicalization"
+        ],
+        "posterior_bad_mass": 0.457898,
+        "calibrated_suspicion_weight": 0.016863,
+        "calibrated_posterior_bad_mass": 0.490761,
+        "calibrated_posterior_info_gain": 0.999754,
+        "diff_mode": "parent",
+        "diff_extraction": "llm",
+        "diff_summary": "Summary: Extends InstSimplify's select folding to recognize vector constant conditions that contain undef/poison elements as long as the defined lanes match the expected true/false pattern. The change replaces strict all-ones/null checks with pattern matching on constant vectors, allowing more selects to fold away in cases where only some lanes are defined. Associated tests in InstSimplify and InstCombine were updated to expect direct returns of the selected operand or constant vector rather than retaining the select.\nMechanisms: InstructionSimplify select canonicalization; Constant-vector pattern matching with undef/poison-tolerant lane comparison; Vector select fold elimination\nTouched symbols: SimplifySelectInst; match; m_One; m_Zero\nRisk relevance: Touches constant folding/simplification logic that can feed later optimization passes; Changes handling of vector constants with undef/poison lanes, a common source of semantic edge cases; May alter which IR patterns are eliminated before downstream passes like EarlyCSE/InstCombine\nBuild risk: Core analysis library change in llvm/lib/Analysis/InstructionSimplify.cpp; Test expectation updates in InstSimplify/InstCombine for vector select behavior; Potentially sensitive to poison/undef semantics across optimization pipelines"
+      },
+      "top_candidates": [
+        {
+          "rank": 1,
+          "sha": "ca7eaa0a54938bfe9aeed7ebc64202f0b6f2ce0d",
+          "subject": "[InstSimplify] allow undef element match in vector select condition value",
+          "utility": 0.90716,
+          "selection_score": 1.332897,
+          "semantic_score": 2.9,
+          "build_success_prob": 0.97,
+          "feedback_bias": 1.0,
+          "posterior_bad_mass": 0.457898,
+          "calibrated_suspicion_weight": 0.016863,
+          "calibrated_posterior_bad_mass": 0.490761,
+          "calibrated_posterior_info_gain": 0.999754,
+          "diff_mode": "parent",
+          "diff_extraction": "llm",
+          "diff_summary": "Summary: Extends InstSimplify's select folding to recognize vector constant conditions that contain undef/poison elements as long as the defined lanes match the expected true/false pattern. The change replaces strict all-ones/null checks with pattern matching on constant vectors, allowing more selects to fold away in cases where only some lanes are defined. Associated tests in InstSimplify and InstCombine were updated to expect direct returns of the selected operand or constant vector rather than retaining the select.\nMechanisms: InstructionSimplify select canonicalization; Constant-vector pattern matching with undef/poison-tolerant lane comparison; Vector select fold elimination\nTouched symbols: SimplifySelectInst; match; m_One; m_Zero\nRisk relevance: Touches constant folding/simplification logic that can feed later optimization passes; Changes handling of vector constants with undef/poison lanes, a common source of semantic edge cases; May alter which IR patterns are eliminated before downstream passes like EarlyCSE/InstCombine\nBuild risk: Core analysis library change in llvm/lib/Analysis/InstructionSimplify.cpp; Test expectation updates in InstSimplify/InstCombine for vector select behavior; Potentially sensitive to poison/undef semantics across optimization pipelines"
+        },
+        {
+          "rank": 2,
+          "sha": "564eb20e0deecd173a7b990dcfd0e57fb045c522",
+          "subject": "Revert \"[lldb] Avoid format string in LLDB_SCOPED_TIMER\"",
+          "utility": 0.977857,
+          "selection_score": 1.101716,
+          "semantic_score": 0.2,
+          "build_success_prob": 0.98,
+          "feedback_bias": 1.0,
+          "posterior_bad_mass": 0.498178,
+          "calibrated_suspicion_weight": 0.000456,
+          "calibrated_posterior_bad_mass": 0.52729,
+          "calibrated_posterior_info_gain": 0.99785,
+          "weak_relevance_penalty": 0.049,
+          "diff_mode": "parent",
+          "diff_extraction": "llm",
+          "diff_summary": "Summary: Reverts an LLDB timer macro change so the scoped timer again passes LLVM_PRETTY_FUNCTION through a format string argument. The commit restores the prior varargs-style constructor call and adds a comment noting that LLVM_PRETTY_FUNCTION may not be a string literal, indicating the change is about formatting safety rather than compiler optimization behavior.\nMechanisms: Macro argument formatting for scoped timer construction; Varargs string formatting restoration\nTouched symbols: LLDB_SCOPED_TIMER; Timer\nRisk relevance: Unrelated to LLVM IR constant folding, APFloat, or optimization passes implicated by the crash; Does not touch floating-point semantics, ConstantFold, or EarlyCSE\nBuild risk: LLDB-only header change in a utility macro; Possible compile-time sensitivity around format-string usage and macro expansion"
+        },
+        {
+          "rank": 3,
+          "sha": "b6f6501b2412ffaf5d7dce539de3c382b1cf9b64",
+          "subject": "[CostModel][AArch64] Add tests for bitreverse. NFC.",
+          "utility": 0.852503,
+          "selection_score": 1.071493,
+          "semantic_score": 0.1,
+          "build_success_prob": 0.99,
+          "feedback_bias": 1.0,
+          "posterior_bad_mass": 0.569757,
+          "calibrated_suspicion_weight": 0.000179,
+          "calibrated_posterior_bad_mass": 0.600713,
+          "calibrated_posterior_info_gain": 0.970532,
+          "weak_relevance_penalty": 0.0495,
+          "diff_mode": "parent",
+          "diff_extraction": "llm",
+          "diff_summary": "Summary: Adds new AArch64 cost-model tests for scalar and vector llvm.bitreverse intrinsics, covering multiple element widths and vector lengths. The change is test-only and records expected estimated costs for each intrinsic form under the AArch64 target, broadening coverage for TargetTransformInfo cost accounting without modifying optimization logic.\nMechanisms: Target cost modeling; AArch64 intrinsic cost estimation; Scalar and vector bitreverse analysis\nTouched symbols: llvm.bitreverse.i8; llvm.bitreverse.i16; llvm.bitreverse.i32; llvm.bitreverse.i64; llvm.bitreverse.v2i64; llvm.bitreverse.v4i32; llvm.bitreverse.v8i16; llvm.bitreverse.v16i8\nRisk relevance: Does not touch APFloat, ConstantFold, IR constants, or select simplification; Relevant only as a test/analysis addition, not a likely source of the reported assertion; May still affect optimizer test coverage for AArch64-specific intrinsic handling\nBuild risk: New analysis test file increases test-suite surface area; Target-specific RUN line requires AArch64 cost-model support; No production code changes; low compile-risk but possible lit expectation fragility"
+        },
+        {
+          "rank": 4,
+          "sha": "9c766f4090d19e3e2f56e87164177f8c3eba4b96",
+          "subject": "[InstCombine] Fold extractelement + vector GEP with one use",
+          "utility": 0.917499,
+          "selection_score": 0.929147,
+          "semantic_score": 1.9125,
+          "build_success_prob": 0.92,
+          "feedback_bias": 0.85,
+          "posterior_bad_mass": 0.508237,
+          "calibrated_suspicion_weight": 0.009613,
+          "calibrated_posterior_bad_mass": 0.53909,
+          "calibrated_posterior_info_gain": 0.995587
+        },
+        {
+          "rank": 5,
+          "sha": "9c91614959f31d743470c1cb2f4828abd8fcb517",
+          "subject": "[CVP] Guard against poison in common phi value transform (PR50399)",
+          "utility": 0.859966,
+          "selection_score": 0.925966,
+          "semantic_score": 1.0625,
+          "build_success_prob": 0.92,
+          "feedback_bias": 0.85,
+          "posterior_bad_mass": 0.46377,
+          "calibrated_suspicion_weight": 0.004348,
+          "calibrated_posterior_bad_mass": 0.496472,
+          "calibrated_posterior_info_gain": 0.999964
+        }
+      ],
+      "evidence": [
+        "=== validated-bisect-runner ===",
+        "issue: pr50304",
+        "llvm-project: /home/ubuntu/gitbisect-work/worktrees/pr50304-aws10-confidence-frontier-c-20260720a",
+        "commit: ca7eaa0a5493",
+        "jobs: 4",
+        "build type: Release",
+        "assertions: ON",
+        "ccache dir: /home/ubuntu/gitbisect-work/confidence-adaptive-20260720-896b595/.ccache/pr50304-git-bisect",
+        "repro exit code: 134",
+        "verdict: bad"
+      ],
+      "log_excerpt": "=== validated-bisect-runner ===\nissue: pr50304\nllvm-project: /home/ubuntu/gitbisect-work/worktrees/pr50304-aws10-confidence-frontier-c-20260720a\ncommit: ca7eaa0a5493\njobs: 4\nbuild type: Release\nassertions: ON\nccache dir: /home/ubuntu/gitbisect-work/confidence-adaptive-20260720-896b595/.ccache/pr50304-git-bisect\nrepro exit code: 134\nverdict: bad",
+      "trace_excerpt": "=== validated-bisect-runner ===\nissue: pr50304\nllvm-project: /home/ubuntu/gitbisect-work/worktrees/pr50304-aws10-confidence-frontier-c-20260720a\ncommit: ca7eaa0a5493\njobs: 4\nbuild type: Release\nassertions: ON\nccache dir: /home/ubuntu/gitbisect-work/confidence-adaptive-20260720-896b595/.ccache/pr50304-git-bisect\nrepro exit code: 134\nverdict: bad",
+      "runner_duration_sec": 1981.122
+    },
+    {
+      "step": 6,
+      "sha": "a0e71f1832d194baffb25a4e7394b623d2bf97cb",
+      "subject": "[ConstProp] propagate poison from vector reduction element(s) to result",
+      "verdict": "bad",
+      "source": "runner",
+      "summary": "verdict: bad",
+      "unresolved_before": 321,
+      "unresolved_after": 168,
+      "model_top_k": 3,
+      "adaptive_top_k": null,
+      "confidence_adaptive_frontier": {
+        "threshold": 0.35
+      },
+      "model_frontier_decision": {
+        "configured_frontier": "topk",
+        "effective_frontier": "topk",
+        "confidence": 0.491398,
+        "threshold": 0.35,
+        "reason": "semantic leader confidence meets threshold; use semantic top-k",
+        "top_semantic_candidates": [
+          {
+            "sha": "ca7eaa0a54938bfe9aeed7ebc64202f0b6f2ce0d",
+            "semantic_score": 12.4,
+            "build_success_prob": 0.92
+          },
+          {
+            "sha": "a0e71f1832d194baffb25a4e7394b623d2bf97cb",
+            "semantic_score": 6.306667,
+            "build_success_prob": 0.92
+          }
+        ],
+        "selected_frontier_shas": [
+          "ca7eaa0a54938bfe9aeed7ebc64202f0b6f2ce0d",
+          "a0e71f1832d194baffb25a4e7394b623d2bf97cb",
+          "8607a023574f29cbb0b3fdd26f36872ca6b4af5e"
+        ],
+        "observation_count": 5
+      },
+      "model_score_context": "v1-3d140063beb95b32",
+      "model_score_context_payload": {
+        "version": "v1",
+        "unresolved_count": 321,
+        "candidate_window_sha256": "e26ea16ff22437669a1e4b3460cc0d9d0b2336b6b72e234f9ceca0143de7dba8",
+        "observation_sha256": "8b78e36c86cea24f7ef6f25177b0f45b9ac33ea72defb10686a790aedff7702b",
+        "model_top_k": 3,
+        "model_frontier": "topk",
+        "model_diff_mode": "parent",
+        "model_diff_extraction": "llm",
+        "observation_prompt_mode": "trace-only",
+        "confidence_adaptive_frontier": {
+          "threshold": 0.35
+        }
+      },
+      "candidate_pruning": {
+        "mode": "off",
+        "before_count": 321,
+        "after_count": 321,
+        "pruned_count": 0,
+        "keep_prefixes": [],
+        "kept_reason_counts": {},
+        "prune_reason_counts": {},
+        "pruned_examples": []
+      },
+      "search_policy": "calibrated-posterior",
+      "selection_mode": "calibrated-posterior",
+      "selection": {
+        "utility": 0.848465,
+        "selection_score": 1.313353,
+        "semantic_score": 6.7,
+        "build_success_prob": 0.92,
+        "balance_score": 0.845558,
+        "suspicion_weight": 0.045347,
+        "feedback_bias": 1.0,
+        "evidence": [
+          "model-scored",
+          "Touches llvm/lib/Analysis/ConstantFolding.cpp, a direct match for the ConstantFold part of the crash signature",
+          "Changes constant folding semantics for poison propagation in a core evaluator, which is closer to the reported APFloat/representability failure than the other candidates",
+          "features: constant folding, poison propagation, llvm/lib/Analysis/ConstantFolding.cpp"
+        ],
+        "posterior_bad_mass": 0.577221,
+        "calibrated_suspicion_weight": 0.080044,
+        "calibrated_posterior_bad_mass": 0.599771,
+        "calibrated_posterior_info_gain": 0.971084,
+        "diff_mode": "parent",
+        "diff_extraction": "llm",
+        "diff_summary": "Summary: Tightens constant folding for vector reduction intrinsics so that a reduction constant with any poison element is treated as poison, not just an all-poison operand. The change is localized to LLVM's constant folder and updates InstSimplify tests to expect immediate poison results from reduction operations when any lane is poison, expanding the propagation semantics for vector-reduce folding.\nMechanisms: constant folding of vector reduction intrinsics; poison propagation through constant evaluation; vector lane semantics inspection via containsPoisonElement()\nTouched symbols: constantFoldVectorReduce; llvm.vector.reduce.add; llvm.vector.reduce.mul; llvm.vector.reduce.and; llvm.vector.reduce.or; llvm.vector.reduce.xor; llvm.vector.reduce.smin; llvm.vector.reduce.smax\nRisk relevance: Touches llvm/lib/Analysis/ConstantFolding.cpp, directly in the constant-evaluation path implicated by APFloat/ConstantFold crashes; Changes how poison is recognized in constant folding, which can alter whether a fold occurs and what value is produced; Affects reduction intrinsics under InstSimplify/constant propagation, a region sensitive to miscompiles from incorrect constant semantics\nBuild risk: Updates IR tests for vector reductions, so behavior changes are intentionally observable in optimization pipelines; Potential interaction with other poison/undef handling in constant folder may require broader test coverage"
+      },
+      "top_candidates": [
+        {
+          "rank": 1,
+          "sha": "a0e71f1832d194baffb25a4e7394b623d2bf97cb",
+          "subject": "[ConstProp] propagate poison from vector reduction element(s) to result",
+          "utility": 0.848465,
+          "selection_score": 1.313353,
+          "semantic_score": 6.7,
+          "build_success_prob": 0.92,
+          "feedback_bias": 1.0,
+          "posterior_bad_mass": 0.577221,
+          "calibrated_suspicion_weight": 0.080044,
+          "calibrated_posterior_bad_mass": 0.599771,
+          "calibrated_posterior_info_gain": 0.971084,
+          "diff_mode": "parent",
+          "diff_extraction": "llm",
+          "diff_summary": "Summary: Tightens constant folding for vector reduction intrinsics so that a reduction constant with any poison element is treated as poison, not just an all-poison operand. The change is localized to LLVM's constant folder and updates InstSimplify tests to expect immediate poison results from reduction operations when any lane is poison, expanding the propagation semantics for vector-reduce folding.\nMechanisms: constant folding of vector reduction intrinsics; poison propagation through constant evaluation; vector lane semantics inspection via containsPoisonElement()\nTouched symbols: constantFoldVectorReduce; llvm.vector.reduce.add; llvm.vector.reduce.mul; llvm.vector.reduce.and; llvm.vector.reduce.or; llvm.vector.reduce.xor; llvm.vector.reduce.smin; llvm.vector.reduce.smax\nRisk relevance: Touches llvm/lib/Analysis/ConstantFolding.cpp, directly in the constant-evaluation path implicated by APFloat/ConstantFold crashes; Changes how poison is recognized in constant folding, which can alter whether a fold occurs and what value is produced; Affects reduction intrinsics under InstSimplify/constant propagation, a region sensitive to miscompiles from incorrect constant semantics\nBuild risk: Updates IR tests for vector reductions, so behavior changes are intentionally observable in optimization pipelines; Potential interaction with other poison/undef handling in constant folder may require broader test coverage"
+        },
+        {
+          "rank": 2,
+          "sha": "3dd206367116b5519d984fe023d098ca3bbe2307",
+          "subject": "[ConstProp] add tests for vector reductions with poison elements; NFC",
+          "utility": 0.901461,
+          "selection_score": 0.963828,
+          "semantic_score": 3.44,
+          "build_success_prob": 0.92,
+          "feedback_bias": 1.6,
+          "posterior_bad_mass": 0.531874,
+          "calibrated_suspicion_weight": 0.032545,
+          "calibrated_posterior_bad_mass": 0.519727,
+          "calibrated_posterior_info_gain": 0.998877
+        },
+        {
+          "rank": 3,
+          "sha": "65d3dd7c883fd46c855afe71a2f04cf84750e730",
+          "subject": "[VPlan] Add first VPlan version of sinkScalarOperands.",
+          "utility": 0.931433,
+          "selection_score": 0.944503,
+          "semantic_score": 2.225714,
+          "build_success_prob": 0.92,
+          "feedback_bias": 1.085714,
+          "posterior_bad_mass": 0.508591,
+          "calibrated_suspicion_weight": 0.018081,
+          "calibrated_posterior_bad_mass": 0.487183,
+          "calibrated_posterior_info_gain": 0.999526
+        },
+        {
+          "rank": 4,
+          "sha": "4e8c28b6fbec95b47c435810ab5fc3b43c2935db",
+          "subject": "Recommit \"[VectorCombine] Scalarize vector load/extract.\"",
+          "utility": 0.881853,
+          "selection_score": 0.939622,
+          "semantic_score": 2.3875,
+          "build_success_prob": 0.92,
+          "feedback_bias": 1.364286,
+          "posterior_bad_mass": 0.464264,
+          "calibrated_suspicion_weight": 0.019877,
+          "calibrated_posterior_bad_mass": 0.446607,
+          "calibrated_posterior_info_gain": 0.991759
+        },
+        {
+          "rank": 5,
+          "sha": "1ad4f887bd7692a9e63fb42586f0ece366f2fe01",
+          "subject": "[CostModel][X86] Improve accuracy of vector non-uniform shift costs on XOP/AVX2 targets",
+          "utility": 0.914986,
+          "selection_score": 0.92765,
+          "semantic_score": 1.178571,
+          "build_success_prob": 0.92,
+          "feedback_bias": 0.714286,
+          "posterior_bad_mass": 0.489466,
+          "calibrated_suspicion_weight": 0.007664,
+          "calibrated_posterior_bad_mass": 0.466997,
+          "calibrated_posterior_info_gain": 0.996855
+        }
+      ],
+      "evidence": [
+        "=== validated-bisect-runner ===",
+        "issue: pr50304",
+        "llvm-project: /home/ubuntu/gitbisect-work/worktrees/pr50304-aws10-confidence-frontier-c-20260720a",
+        "commit: a0e71f1832d1",
+        "jobs: 4",
+        "build type: Release",
+        "assertions: ON",
+        "ccache dir: /home/ubuntu/gitbisect-work/confidence-adaptive-20260720-896b595/.ccache/pr50304-git-bisect",
+        "repro exit code: 134",
+        "verdict: bad"
+      ],
+      "log_excerpt": "=== validated-bisect-runner ===\nissue: pr50304\nllvm-project: /home/ubuntu/gitbisect-work/worktrees/pr50304-aws10-confidence-frontier-c-20260720a\ncommit: a0e71f1832d1\njobs: 4\nbuild type: Release\nassertions: ON\nccache dir: /home/ubuntu/gitbisect-work/confidence-adaptive-20260720-896b595/.ccache/pr50304-git-bisect\nrepro exit code: 134\nverdict: bad",
+      "trace_excerpt": "=== validated-bisect-runner ===\nissue: pr50304\nllvm-project: /home/ubuntu/gitbisect-work/worktrees/pr50304-aws10-confidence-frontier-c-20260720a\ncommit: a0e71f1832d1\njobs: 4\nbuild type: Release\nassertions: ON\nccache dir: /home/ubuntu/gitbisect-work/confidence-adaptive-20260720-896b595/.ccache/pr50304-git-bisect\nrepro exit code: 134\nverdict: bad",
+      "runner_duration_sec": 1881.282
+    },
+    {
+      "step": 7,
+      "sha": "c9c05a91c4843c243d508c39bdfbc5e26f311af2",
+      "subject": "[ConstantFolding] Use APFloat for constant folding. NFC",
+      "verdict": "bad",
+      "source": "runner",
+      "summary": "verdict: bad",
+      "unresolved_before": 168,
+      "unresolved_after": 69,
+      "model_top_k": 3,
+      "adaptive_top_k": null,
+      "confidence_adaptive_frontier": {
+        "threshold": 0.35
+      },
+      "model_frontier_decision": {
+        "configured_frontier": "topk",
+        "effective_frontier": "topk",
+        "confidence": 0.563247,
+        "threshold": 0.35,
+        "reason": "semantic leader confidence meets threshold; use semantic top-k",
+        "top_semantic_candidates": [
+          {
+            "sha": "a0e71f1832d194baffb25a4e7394b623d2bf97cb",
+            "semantic_score": 10.266667,
+            "build_success_prob": 0.92
+          },
+          {
+            "sha": "c9c05a91c4843c243d508c39bdfbc5e26f311af2",
+            "semantic_score": 4.484,
+            "build_success_prob": 0.92
+          }
+        ],
+        "selected_frontier_shas": [
+          "a0e71f1832d194baffb25a4e7394b623d2bf97cb",
+          "c9c05a91c4843c243d508c39bdfbc5e26f311af2",
+          "3dd206367116b5519d984fe023d098ca3bbe2307"
+        ],
+        "observation_count": 6
+      },
+      "model_score_context": "v1-fba5a7682b661cf4",
+      "model_score_context_payload": {
+        "version": "v1",
+        "unresolved_count": 168,
+        "candidate_window_sha256": "aea1e90640f41abf8b4b5fd086c6e485004cff2a52c46d241b093cafca962092",
+        "observation_sha256": "fefeab0ebb93e92f1cf3cee778092d0b878172f94e518e43761ee685c89920e5",
+        "model_top_k": 3,
+        "model_frontier": "topk",
+        "model_diff_mode": "parent",
+        "model_diff_extraction": "llm",
+        "observation_prompt_mode": "trace-only",
+        "confidence_adaptive_frontier": {
+          "threshold": 0.35
+        }
+      },
+      "candidate_pruning": {
+        "mode": "off",
+        "before_count": 168,
+        "after_count": 168,
+        "pruned_count": 0,
+        "keep_prefixes": [],
+        "kept_reason_counts": {},
+        "prune_reason_counts": {},
+        "pruned_examples": []
+      },
+      "search_policy": "calibrated-posterior",
+      "selection_mode": "calibrated-posterior",
+      "selection": {
+        "utility": 0.670658,
+        "selection_score": 1.242755,
+        "semantic_score": 7.4,
+        "build_success_prob": 0.87,
+        "balance_score": 0.658356,
+        "suspicion_weight": 0.085451,
+        "feedback_bias": 1.0,
+        "evidence": [
+          "model-scored",
+          "Directly changes llvm/lib/Analysis/ConstantFolding.cpp, one of the highest-risk paths named by the crash",
+          "Switches floating-point constant folding to APFloat and alters representability/special-value checks, closely matching the APFloat/ConstantFold assertion theme",
+          "features: ConstantFolding.cpp, APFloat-based folding, floating-point representability checks, scalar intrinsic constant folding"
+        ],
+        "posterior_bad_mass": 0.329178,
+        "calibrated_suspicion_weight": 0.145095,
+        "calibrated_posterior_bad_mass": 0.326406,
+        "calibrated_posterior_info_gain": 0.911212,
+        "diff_mode": "parent",
+        "diff_extraction": "llm",
+        "diff_summary": "Summary: Refactors floating-point constant folding in llvm/lib/Analysis/ConstantFolding.cpp to operate on APFloat operands rather than raw doubles in several call-folding paths. The change preserves the existing NativeFP/libm-style evaluation for many scalar math intrinsics, but now extracts APFloat values from constants, converts to double only at the call boundary, and feeds APFloat-based values through checks and intrinsic-specific handling. It also updates several fold/noop queries to use exact APFloat semantics, which changes the representability and special-value handling surface in constant folding and math-lib simplification.\nMechanisms: APFloat-based constant folding instead of double-based folding; Intrinsic scalar math call folding; Exact floating-point predicate checks (negative/zero/representable semantics); Constant fold/noop queries for libm-like calls\nTouched symbols: ConstantFoldFP; ConstantFoldBinaryFP; ConstantFoldScalarCall1; ConstantFoldScalarCall2; ConstantFoldScalarCall3; isMathLibCallNoop; ConstantFoldAMDGCNCubeIntrinsic; minnum\nRisk relevance: Directly touches APFloat and constant folding code implicated by representability assertions; Changes how floating-point constants are converted and compared during folding; Alters handling of special values and exact predicates around zero/negative inputs; Affects intrinsic folding paths used during -O1 simplification and EarlyCSE-adjacent constant propagation\nBuild risk: Wide refactor in a core analysis file with many call sites updated; Potential behavior drift from switching scalar fold inputs from double to APFloat; Uses APFloat conversion APIs that may interact with semantics/precision assumptions; Affects multiple intrinsic cases in one patch, increasing regression surface"
+      },
+      "top_candidates": [
+        {
+          "rank": 1,
+          "sha": "c9c05a91c4843c243d508c39bdfbc5e26f311af2",
+          "subject": "[ConstantFolding] Use APFloat for constant folding. NFC",
+          "utility": 0.670658,
+          "selection_score": 1.242755,
+          "semantic_score": 7.4,
+          "build_success_prob": 0.87,
+          "feedback_bias": 1.0,
+          "posterior_bad_mass": 0.329178,
+          "calibrated_suspicion_weight": 0.145095,
+          "calibrated_posterior_bad_mass": 0.326406,
+          "calibrated_posterior_info_gain": 0.911212,
+          "diff_mode": "parent",
+          "diff_extraction": "llm",
+          "diff_summary": "Summary: Refactors floating-point constant folding in llvm/lib/Analysis/ConstantFolding.cpp to operate on APFloat operands rather than raw doubles in several call-folding paths. The change preserves the existing NativeFP/libm-style evaluation for many scalar math intrinsics, but now extracts APFloat values from constants, converts to double only at the call boundary, and feeds APFloat-based values through checks and intrinsic-specific handling. It also updates several fold/noop queries to use exact APFloat semantics, which changes the representability and special-value handling surface in constant folding and math-lib simplification.\nMechanisms: APFloat-based constant folding instead of double-based folding; Intrinsic scalar math call folding; Exact floating-point predicate checks (negative/zero/representable semantics); Constant fold/noop queries for libm-like calls\nTouched symbols: ConstantFoldFP; ConstantFoldBinaryFP; ConstantFoldScalarCall1; ConstantFoldScalarCall2; ConstantFoldScalarCall3; isMathLibCallNoop; ConstantFoldAMDGCNCubeIntrinsic; minnum\nRisk relevance: Directly touches APFloat and constant folding code implicated by representability assertions; Changes how floating-point constants are converted and compared during folding; Alters handling of special values and exact predicates around zero/negative inputs; Affects intrinsic folding paths used during -O1 simplification and EarlyCSE-adjacent constant propagation\nBuild risk: Wide refactor in a core analysis file with many call sites updated; Potential behavior drift from switching scalar fold inputs from double to APFloat; Uses APFloat conversion APIs that may interact with semantics/precision assumptions; Affects multiple intrinsic cases in one patch, increasing regression surface"
+        },
+        {
+          "rank": 2,
+          "sha": "cb3bc9d81d05724e85434665a2384a8dd812d74c",
+          "subject": "[InstSimplify] add more tests for rem-mul-div; NFC",
+          "utility": 0.910688,
+          "selection_score": 0.963116,
+          "semantic_score": 2.38,
+          "build_success_prob": 0.92,
+          "feedback_bias": 1.36,
+          "posterior_bad_mass": 0.530848,
+          "calibrated_suspicion_weight": 0.031374,
+          "calibrated_posterior_bad_mass": 0.508038,
+          "calibrated_posterior_info_gain": 0.999814
+        },
+        {
+          "rank": 3,
+          "sha": "b4fd512c36ca344a3ff69350219e8b0a67e9472a",
+          "subject": "[Windows] Use TerminateProcess to exit without running destructors",
+          "utility": 0.91801,
+          "selection_score": 0.951395,
+          "semantic_score": 2.108,
+          "build_success_prob": 0.92,
+          "feedback_bias": 1.36,
+          "posterior_bad_mass": 0.475757,
+          "calibrated_suspicion_weight": 0.026633,
+          "calibrated_posterior_bad_mass": 0.455971,
+          "calibrated_posterior_info_gain": 0.994399
+        },
+        {
+          "rank": 4,
+          "sha": "e93ac1e2de66e8feae3cec3b6c0707b14c79dfeb",
+          "subject": "[Attributor][FIX] Account for undef in the constant value lattice",
+          "utility": 0.706005,
+          "selection_score": 0.938544,
+          "semantic_score": 2.41875,
+          "build_success_prob": 0.92,
+          "feedback_bias": 1.075,
+          "posterior_bad_mass": 0.636601,
+          "calibrated_suspicion_weight": 0.032065,
+          "calibrated_posterior_bad_mass": 0.595824,
+          "calibrated_posterior_info_gain": 0.973341
+        },
+        {
+          "rank": 5,
+          "sha": "1e6630311c4634bcaa2c5b091a9c31874f3309a3",
+          "subject": "NFC: cleaned up and renamed scalable-vf-analysis.ll -> scalable-vectorization.ll",
+          "utility": 0.826427,
+          "selection_score": 0.935253,
+          "semantic_score": 1.25,
+          "build_success_prob": 0.92,
+          "feedback_bias": 1.0,
+          "posterior_bad_mass": 0.563458,
+          "calibrated_suspicion_weight": 0.013153,
+          "calibrated_posterior_bad_mass": 0.532709,
+          "calibrated_posterior_info_gain": 0.996911
+        }
+      ],
+      "evidence": [
+        "=== validated-bisect-runner ===",
+        "issue: pr50304",
+        "llvm-project: /home/ubuntu/gitbisect-work/worktrees/pr50304-aws10-confidence-frontier-c-20260720a",
+        "commit: c9c05a91c484",
+        "jobs: 4",
+        "build type: Release",
+        "assertions: ON",
+        "ccache dir: /home/ubuntu/gitbisect-work/confidence-adaptive-20260720-896b595/.ccache/pr50304-git-bisect",
+        "repro exit code: 134",
+        "verdict: bad"
+      ],
+      "log_excerpt": "=== validated-bisect-runner ===\nissue: pr50304\nllvm-project: /home/ubuntu/gitbisect-work/worktrees/pr50304-aws10-confidence-frontier-c-20260720a\ncommit: c9c05a91c484\njobs: 4\nbuild type: Release\nassertions: ON\nccache dir: /home/ubuntu/gitbisect-work/confidence-adaptive-20260720-896b595/.ccache/pr50304-git-bisect\nrepro exit code: 134\nverdict: bad",
+      "trace_excerpt": "=== validated-bisect-runner ===\nissue: pr50304\nllvm-project: /home/ubuntu/gitbisect-work/worktrees/pr50304-aws10-confidence-frontier-c-20260720a\ncommit: c9c05a91c484\njobs: 4\nbuild type: Release\nassertions: ON\nccache dir: /home/ubuntu/gitbisect-work/confidence-adaptive-20260720-896b595/.ccache/pr50304-git-bisect\nrepro exit code: 134\nverdict: bad",
+      "runner_duration_sec": 689.067
+    },
+    {
+      "step": 8,
+      "sha": "3c4b79481d457b60a1c80fbdac5335be681a9dbe",
+      "subject": "[InstSimplify] add tests for rem-of-mul; NFC",
+      "verdict": "good",
+      "source": "runner",
+      "summary": "verdict: good",
+      "unresolved_before": 69,
+      "unresolved_after": 26,
+      "model_top_k": 3,
+      "adaptive_top_k": null,
+      "confidence_adaptive_frontier": {
+        "threshold": 0.35
+      },
+      "model_frontier_decision": {
+        "configured_frontier": "topk",
+        "effective_frontier": "topk",
+        "confidence": 0.6897,
+        "threshold": 0.35,
+        "reason": "semantic leader confidence meets threshold; use semantic top-k",
+        "top_semantic_candidates": [
+          {
+            "sha": "c9c05a91c4843c243d508c39bdfbc5e26f311af2",
+            "semantic_score": 7.67,
+            "build_success_prob": 0.92
+          },
+          {
+            "sha": "3c4b79481d457b60a1c80fbdac5335be681a9dbe",
+            "semantic_score": 2.38,
+            "build_success_prob": 0.92
+          }
+        ],
+        "selected_frontier_shas": [
+          "c9c05a91c4843c243d508c39bdfbc5e26f311af2",
+          "3c4b79481d457b60a1c80fbdac5335be681a9dbe",
+          "f7788e1bff223a58292b8b1d0818dac63b713ead"
+        ],
+        "observation_count": 7
+      },
+      "model_score_context": "v1-708b2c0480cf2004",
+      "model_score_context_payload": {
+        "version": "v1",
+        "unresolved_count": 69,
+        "candidate_window_sha256": "41881b9b1a0c220441afc6fe75140cb7fdec4a66ca7b180f6a8b3ba05f616bbe",
+        "observation_sha256": "830198c29ba25eb704c0f8a947b9ec6ec83f67781d1e1772fae718d632818ff9",
+        "model_top_k": 3,
+        "model_frontier": "topk",
+        "model_diff_mode": "parent",
+        "model_diff_extraction": "llm",
+        "observation_prompt_mode": "trace-only",
+        "confidence_adaptive_frontier": {
+          "threshold": 0.35
+        }
+      },
+      "candidate_pruning": {
+        "mode": "off",
+        "before_count": 69,
+        "after_count": 69,
+        "pruned_count": 0,
+        "keep_prefixes": [],
+        "kept_reason_counts": {},
+        "prune_reason_counts": {},
+        "pruned_examples": []
+      },
+      "search_policy": "calibrated-posterior",
+      "selection_mode": "calibrated-posterior",
+      "selection": {
+        "utility": 0.912285,
+        "selection_score": 1.1214,
+        "semantic_score": 0.4,
+        "build_success_prob": 0.97,
+        "balance_score": 0.913039,
+        "suspicion_weight": 0.015038,
+        "feedback_bias": 1.0,
+        "evidence": [
+          "model-scored",
+          "Test-only InstSimplify coverage for integer remainder patterns; no APFloat, ConstantFold, or EarlyCSE mechanism overlap",
+          "NFC regression test addition is far from the floating-point representability assertion described in the crash",
+          "features: InstSimplify test-only change, integer remainder simplification, no production code changes"
+        ],
+        "posterior_bad_mass": 0.456519,
+        "calibrated_suspicion_weight": 0.00934,
+        "calibrated_posterior_bad_mass": 0.317844,
+        "calibrated_posterior_info_gain": 0.902021,
+        "diff_mode": "parent",
+        "diff_extraction": "llm",
+        "diff_summary": "Summary: Adds InstSimplify regression coverage for remainder-of-multiplication patterns, including signed and unsigned remainder, commuted operands, and vector forms. The new tests document that simplification should not over-rewrite `%` by a multiplied value when the multiplier has nsw/nuw flags or when the operands are vectors, while preserving existing poison/metadata expectations in the test output.\nMechanisms: InstSimplify pattern coverage for rem-of-mul expressions; Signed/unsigned remainder reasoning with nsw/nuw multiplication flags; Vector IR simplification behavior\nTouched symbols: rem.ll; srem_of_mul_nsw; srem_of_mul_nsw_vec_commuted; srem_of_mul_nuw; srem_of_mul; urem_of_mul_nsw; urem_of_mul_nuw; urem_of_mul_nuw_vec_commuted\nRisk relevance: Touches integer simplification rules for remainder and multiplication provenance; Exercises commuted operand matching and vector forms, which can expose matcher or canonicalization bugs; No direct APFloat/ConstantFold/EarlyCSE interaction visible in this commit\nBuild risk: Test-only change in LLVM IR lit checks; Adds multiple new check lines and function cases, increasing test maintenance surface; No production code changes, so low compile-time risk"
+      },
+      "top_candidates": [
+        {
+          "rank": 1,
+          "sha": "3c4b79481d457b60a1c80fbdac5335be681a9dbe",
+          "subject": "[InstSimplify] add tests for rem-of-mul; NFC",
+          "utility": 0.912285,
+          "selection_score": 1.1214,
+          "semantic_score": 0.4,
+          "build_success_prob": 0.97,
+          "feedback_bias": 1.0,
+          "posterior_bad_mass": 0.456519,
+          "calibrated_suspicion_weight": 0.00934,
+          "calibrated_posterior_bad_mass": 0.317844,
+          "calibrated_posterior_info_gain": 0.902021,
+          "diff_mode": "parent",
+          "diff_extraction": "llm",
+          "diff_summary": "Summary: Adds InstSimplify regression coverage for remainder-of-multiplication patterns, including signed and unsigned remainder, commuted operands, and vector forms. The new tests document that simplification should not over-rewrite `%` by a multiplied value when the multiplier has nsw/nuw flags or when the operands are vectors, while preserving existing poison/metadata expectations in the test output.\nMechanisms: InstSimplify pattern coverage for rem-of-mul expressions; Signed/unsigned remainder reasoning with nsw/nuw multiplication flags; Vector IR simplification behavior\nTouched symbols: rem.ll; srem_of_mul_nsw; srem_of_mul_nsw_vec_commuted; srem_of_mul_nuw; srem_of_mul; urem_of_mul_nsw; urem_of_mul_nuw; urem_of_mul_nuw_vec_commuted\nRisk relevance: Touches integer simplification rules for remainder and multiplication provenance; Exercises commuted operand matching and vector forms, which can expose matcher or canonicalization bugs; No direct APFloat/ConstantFold/EarlyCSE interaction visible in this commit\nBuild risk: Test-only change in LLVM IR lit checks; Adds multiple new check lines and function cases, increasing test maintenance surface; No production code changes, so low compile-time risk"
+        },
+        {
+          "rank": 2,
+          "sha": "f7788e1bff223a58292b8b1d0818dac63b713ead",
+          "subject": "Revert \"[NewPM] Only invalidate modified functions' analyses in CGSCC passes\"",
+          "utility": 0.550558,
+          "selection_score": 1.017947,
+          "semantic_score": 1.2,
+          "build_success_prob": 0.73,
+          "feedback_bias": 1.0,
+          "posterior_bad_mass": 0.654115,
+          "calibrated_suspicion_weight": 0.04116,
+          "calibrated_posterior_bad_mass": 0.458422,
+          "calibrated_posterior_info_gain": 0.995006,
+          "diff_mode": "parent",
+          "diff_extraction": "llm",
+          "diff_summary": "Summary: Reverts a NewPM CGSCC analysis invalidation policy change and restores broader invalidation/analysis-running behavior in several interprocedural optimization passes. The revert adjusts CGSCC pass manager preservation defaults, rewrites ArgumentPromotion and FunctionAttrs to use different change-tracking and invalidation flows, and removes early manual invalidation in Inliner, with corresponding updates to analysis-tracing tests.\nMechanisms: CGSCC preserved-analyses and invalidation policy; Function-analysis invalidation in interprocedural passes; Attribute inference bookkeeping and change tracking; Inlining/argument promotion interaction with analysis preservation\nTouched symbols: incorporateNewSCCRange; PreservedAnalyses; ArgumentPromotionPass::run; FunctionAnalysisManagerCGSCCProxy; FunctionAttrs.cpp; AttributeInferer::run; deriveAttrsInPostOrder; addReadAttrs\nRisk relevance: Changes when analyses are invalidated and recomputed across SCC boundaries, a common source of stale-analysis miscompilations and crashes; Touches inliner and argument-promotion behavior, which can alter CFG/AA/DominatorTree state seen by later passes; Reworks FunctionAttrs change detection and preservation semantics, potentially affecting downstream simplification and optimization ordering; Builds a new profile of analysis running/invalidation that can expose pass-manager correctness bugs\nBuild risk: Large refactor across multiple IPO sources increases compile and test surface; Deletes and updates analysis-invalidation tests and expected debug-pass-manager output; Changes return types and control flow in FunctionAttrs helpers, which can affect local invariants and assertions"
+        },
+        {
+          "rank": 3,
+          "sha": "7a29a1230148385e93493891cc7eb7f7f3b4a6cb",
+          "subject": "[Verifier] Move some atomicrmw/cmpxchg checks to instruction creation",
+          "utility": 0.988417,
+          "selection_score": 0.906024,
+          "semantic_score": 1.05,
+          "build_success_prob": 0.92,
+          "feedback_bias": 1.0,
+          "posterior_bad_mass": 0.497875,
+          "calibrated_suspicion_weight": 0.034371,
+          "calibrated_posterior_bad_mass": 0.352779,
+          "calibrated_posterior_info_gain": 0.936525
+        },
+        {
+          "rank": 4,
+          "sha": "fda4300da8296ed831b3975a49f217a630045760",
+          "subject": "[ORC] Fix race condtition in CoreAPIsTest.",
+          "utility": 0.574391,
+          "selection_score": 0.879631,
+          "semantic_score": 0.25,
+          "build_success_prob": 0.92,
+          "feedback_bias": 1.0,
+          "posterior_bad_mass": 0.693591,
+          "calibrated_suspicion_weight": 0.004952,
+          "calibrated_posterior_bad_mass": 0.478795,
+          "calibrated_posterior_info_gain": 0.998702,
+          "weak_relevance_penalty": 0.046
+        },
+        {
+          "rank": 5,
+          "sha": "5d9ea36baffe682649923d29161cc58ca3d1a243",
+          "subject": "[UpdateTestChecks] Default --x86_scrub_rip to False",
+          "utility": 0.595534,
+          "selection_score": 0.878924,
+          "semantic_score": 0.25,
+          "build_success_prob": 0.92,
+          "feedback_bias": 1.0,
+          "posterior_bad_mass": 0.682312,
+          "calibrated_suspicion_weight": 0.004952,
+          "calibrated_posterior_bad_mass": 0.473279,
+          "calibrated_posterior_info_gain": 0.997939,
+          "weak_relevance_penalty": 0.046
+        }
+      ],
+      "evidence": [
+        "=== validated-bisect-runner ===",
+        "issue: pr50304",
+        "llvm-project: /home/ubuntu/gitbisect-work/worktrees/pr50304-aws10-confidence-frontier-c-20260720a",
+        "commit: 3c4b79481d45",
+        "jobs: 4",
+        "build type: Release",
+        "assertions: ON",
+        "ccache dir: /home/ubuntu/gitbisect-work/confidence-adaptive-20260720-896b595/.ccache/pr50304-git-bisect",
+        "repro exit code: 0",
+        "verdict: good"
+      ],
+      "log_excerpt": "=== validated-bisect-runner ===\nissue: pr50304\nllvm-project: /home/ubuntu/gitbisect-work/worktrees/pr50304-aws10-confidence-frontier-c-20260720a\ncommit: 3c4b79481d45\njobs: 4\nbuild type: Release\nassertions: ON\nccache dir: /home/ubuntu/gitbisect-work/confidence-adaptive-20260720-896b595/.ccache/pr50304-git-bisect\nrepro exit code: 0\nverdict: good",
+      "trace_excerpt": "=== validated-bisect-runner ===\nissue: pr50304\nllvm-project: /home/ubuntu/gitbisect-work/worktrees/pr50304-aws10-confidence-frontier-c-20260720a\ncommit: 3c4b79481d45\njobs: 4\nbuild type: Release\nassertions: ON\nccache dir: /home/ubuntu/gitbisect-work/confidence-adaptive-20260720-896b595/.ccache/pr50304-git-bisect\nrepro exit code: 0\nverdict: good",
+      "runner_duration_sec": 1162.018
+    },
+    {
+      "step": 9,
+      "sha": "f7788e1bff223a58292b8b1d0818dac63b713ead",
+      "subject": "Revert \"[NewPM] Only invalidate modified functions' analyses in CGSCC passes\"",
+      "verdict": "good",
+      "source": "runner",
+      "summary": "verdict: good",
+      "unresolved_before": 26,
+      "unresolved_after": 9,
+      "model_top_k": 3,
+      "adaptive_top_k": null,
+      "confidence_adaptive_frontier": {
+        "threshold": 0.35
+      },
+      "model_frontier_decision": {
+        "configured_frontier": "topk",
+        "effective_frontier": "topk",
+        "confidence": 0.749022,
+        "threshold": 0.35,
+        "reason": "semantic leader confidence meets threshold; use semantic top-k",
+        "top_semantic_candidates": [
+          {
+            "sha": "c9c05a91c4843c243d508c39bdfbc5e26f311af2",
+            "semantic_score": 7.67,
+            "build_success_prob": 0.92
+          },
+          {
+            "sha": "f7788e1bff223a58292b8b1d0818dac63b713ead",
+            "semantic_score": 1.925,
+            "build_success_prob": 0.87
+          }
+        ],
+        "selected_frontier_shas": [
+          "c9c05a91c4843c243d508c39bdfbc5e26f311af2",
+          "f7788e1bff223a58292b8b1d0818dac63b713ead",
+          "7a29a1230148385e93493891cc7eb7f7f3b4a6cb"
+        ],
+        "observation_count": 8
+      },
+      "model_score_context": "v1-033aaa24172322a6",
+      "model_score_context_payload": {
+        "version": "v1",
+        "unresolved_count": 26,
+        "candidate_window_sha256": "d721b8cf0d28c6f7e056d9389308a383f3931c49290843c51ed785017f78b334",
+        "observation_sha256": "edf3a49ee56c75f21f36f99767066918c8034a608f3d5b28527e3ef18091abcf",
+        "model_top_k": 3,
+        "model_frontier": "topk",
+        "model_diff_mode": "parent",
+        "model_diff_extraction": "llm",
+        "observation_prompt_mode": "trace-only",
+        "confidence_adaptive_frontier": {
+          "threshold": 0.35
+        }
+      },
+      "candidate_pruning": {
+        "mode": "off",
+        "before_count": 26,
+        "after_count": 26,
+        "pruned_count": 0,
+        "keep_prefixes": [],
+        "kept_reason_counts": {},
+        "prune_reason_counts": {},
+        "pruned_examples": []
+      },
+      "search_policy": "calibrated-posterior",
+      "selection_mode": "calibrated-posterior",
+      "selection": {
+        "utility": 0.568898,
+        "selection_score": 0.648981,
+        "semantic_score": 0.55,
+        "build_success_prob": 0.89,
+        "balance_score": 0.589399,
+        "suspicion_weight": 0.042257,
+        "feedback_bias": 1.0,
+        "evidence": [
+          "model-scored",
+          "Changes CGSCC analysis invalidation and IPO pass-manager behavior, only loosely related to an optimization-time crash",
+          "No direct connection to APFloat, constant folding, or the floating-point assertion path described in the issue",
+          "features: CGSCC pass manager, analysis invalidation, IPO pipeline behavior"
+        ],
+        "posterior_bad_mass": 0.2947,
+        "calibrated_suspicion_weight": 0.022973,
+        "calibrated_posterior_bad_mass": 0.136287,
+        "calibrated_posterior_info_gain": 0.574431,
+        "weak_relevance_penalty": 0.0445,
+        "diff_mode": "parent",
+        "diff_extraction": "llm",
+        "diff_summary": "Summary: Reverts the NewPM CGSCC analysis-invalidation optimization and restores broader invalidation behavior after CGSCC-pass mutations. The change rewires multiple IPO passes to stop tracking and selectively invalidating only modified functions, and instead returns more conservative preserved-analysis sets at the CGSCC boundary. It also updates tests that assert when analyses are invalidated and rerun in inliner/argument-promotion related pipelines, reflecting a shift back toward safer but less incremental analysis management.\nMechanisms: CGSCC analysis invalidation policy rollback; Function-analysis preservation boundary adjustment; Incremental invalidation behavior in IPO passes; PreservedAnalyses contract changes for call graph SCC passes\nTouched symbols: incorporateNewSCCRange; ArgumentPromotionPass::run; PostOrderFunctionAttrsPass::run; InlinerPass::run; deriveAttrsInPostOrder; FunctionAnalysisManagerCGSCCProxy; PreservedAnalyses; CGSCCPassManager\nRisk relevance: Touches pass manager invalidation, which can expose stale-analysis bugs and nondeterministic miscompiles/crashes; Changes when DominatorTree/AA/MemorySSA/Loop analyses are dropped and recomputed; Relevant to O1/O3 optimization stability because it affects CGSCC-driven inlining and attribute inference; Could influence transform ordering and analysis reuse, but not directly APFloat/ConstantFold semantics\nBuild risk: Large cross-pass behavior change with many test expectation updates; Adjusts analysis-manager interactions in multiple IPO passes, increasing risk of subtle pass-manager integration failures; Deletes a dedicated invalidation test while updating pipeline/debug-output tests; Potentially affects opt debug output and analysis-preservation assumptions in downstream tests"
+      },
+      "top_candidates": [
+        {
+          "rank": 1,
+          "sha": "f7788e1bff223a58292b8b1d0818dac63b713ead",
+          "subject": "Revert \"[NewPM] Only invalidate modified functions' analyses in CGSCC passes\"",
+          "utility": 0.568898,
+          "selection_score": 0.648981,
+          "semantic_score": 0.55,
+          "build_success_prob": 0.89,
+          "feedback_bias": 1.0,
+          "posterior_bad_mass": 0.2947,
+          "calibrated_suspicion_weight": 0.022973,
+          "calibrated_posterior_bad_mass": 0.136287,
+          "calibrated_posterior_info_gain": 0.574431,
+          "weak_relevance_penalty": 0.0445,
+          "diff_mode": "parent",
+          "diff_extraction": "llm",
+          "diff_summary": "Summary: Reverts the NewPM CGSCC analysis-invalidation optimization and restores broader invalidation behavior after CGSCC-pass mutations. The change rewires multiple IPO passes to stop tracking and selectively invalidating only modified functions, and instead returns more conservative preserved-analysis sets at the CGSCC boundary. It also updates tests that assert when analyses are invalidated and rerun in inliner/argument-promotion related pipelines, reflecting a shift back toward safer but less incremental analysis management.\nMechanisms: CGSCC analysis invalidation policy rollback; Function-analysis preservation boundary adjustment; Incremental invalidation behavior in IPO passes; PreservedAnalyses contract changes for call graph SCC passes\nTouched symbols: incorporateNewSCCRange; ArgumentPromotionPass::run; PostOrderFunctionAttrsPass::run; InlinerPass::run; deriveAttrsInPostOrder; FunctionAnalysisManagerCGSCCProxy; PreservedAnalyses; CGSCCPassManager\nRisk relevance: Touches pass manager invalidation, which can expose stale-analysis bugs and nondeterministic miscompiles/crashes; Changes when DominatorTree/AA/MemorySSA/Loop analyses are dropped and recomputed; Relevant to O1/O3 optimization stability because it affects CGSCC-driven inlining and attribute inference; Could influence transform ordering and analysis reuse, but not directly APFloat/ConstantFold semantics\nBuild risk: Large cross-pass behavior change with many test expectation updates; Adjusts analysis-manager interactions in multiple IPO passes, increasing risk of subtle pass-manager integration failures; Deletes a dedicated invalidation test while updating pipeline/debug-output tests; Potentially affects opt debug output and analysis-preservation assumptions in downstream tests"
+        },
+        {
+          "rank": 2,
+          "sha": "86008477a4eb9ecac27f469539c4ac5e0fce44dc",
+          "subject": "[Polly] Avoid compiler warning. NFC.",
+          "utility": 0.745848,
+          "selection_score": 0.577715,
+          "semantic_score": 0.05,
+          "build_success_prob": 0.92,
+          "feedback_bias": 1.0,
+          "posterior_bad_mass": 0.402262,
+          "calibrated_suspicion_weight": 0.000902,
+          "calibrated_posterior_bad_mass": 0.178613,
+          "calibrated_posterior_info_gain": 0.677034,
+          "weak_relevance_penalty": 0.046
+        },
+        {
+          "rank": 3,
+          "sha": "4272fca2db9c27ab836082f796d281e5e68b0638",
+          "subject": "[ORC] Check for underflow on SymbolStringPtr ref-counts.",
+          "utility": 0.738726,
+          "selection_score": 0.575881,
+          "semantic_score": 0.05,
+          "build_success_prob": 0.92,
+          "feedback_bias": 1.0,
+          "posterior_bad_mass": 0.39842,
+          "calibrated_suspicion_weight": 0.000902,
+          "calibrated_posterior_bad_mass": 0.177711,
+          "calibrated_posterior_info_gain": 0.675044,
+          "weak_relevance_penalty": 0.046
+        },
+        {
+          "rank": 4,
+          "sha": "fda4300da8296ed831b3975a49f217a630045760",
+          "subject": "[ORC] Fix race condtition in CoreAPIsTest.",
+          "utility": 0.717216,
+          "selection_score": 0.5639,
+          "semantic_score": 0.25,
+          "build_success_prob": 0.92,
+          "feedback_bias": 1.0,
+          "posterior_bad_mass": 0.375371,
+          "calibrated_suspicion_weight": 0.007924,
+          "calibrated_posterior_bad_mass": 0.168885,
+          "calibrated_posterior_info_gain": 0.655148,
+          "weak_relevance_penalty": 0.046
+        },
+        {
+          "rank": 5,
+          "sha": "20634ece159ba60c694149fef95ca13f8a10cc63",
+          "subject": "[ORC] Fix debugging output: printDescription should not have a newline.",
+          "utility": 0.721136,
+          "selection_score": 0.55532,
+          "semantic_score": 0.25,
+          "build_success_prob": 0.88,
+          "feedback_bias": 1.0,
+          "posterior_bad_mass": 0.394579,
+          "calibrated_suspicion_weight": 0.007924,
+          "calibrated_posterior_bad_mass": 0.176809,
+          "calibrated_posterior_info_gain": 0.673046,
+          "weak_relevance_penalty": 0.044
+        }
+      ],
+      "evidence": [
+        "=== validated-bisect-runner ===",
+        "issue: pr50304",
+        "llvm-project: /home/ubuntu/gitbisect-work/worktrees/pr50304-aws10-confidence-frontier-c-20260720a",
+        "commit: f7788e1bff22",
+        "jobs: 4",
+        "build type: Release",
+        "assertions: ON",
+        "ccache dir: /home/ubuntu/gitbisect-work/confidence-adaptive-20260720-896b595/.ccache/pr50304-git-bisect",
+        "repro exit code: 0",
+        "verdict: good"
+      ],
+      "log_excerpt": "=== validated-bisect-runner ===\nissue: pr50304\nllvm-project: /home/ubuntu/gitbisect-work/worktrees/pr50304-aws10-confidence-frontier-c-20260720a\ncommit: f7788e1bff22\njobs: 4\nbuild type: Release\nassertions: ON\nccache dir: /home/ubuntu/gitbisect-work/confidence-adaptive-20260720-896b595/.ccache/pr50304-git-bisect\nrepro exit code: 0\nverdict: good",
+      "trace_excerpt": "=== validated-bisect-runner ===\nissue: pr50304\nllvm-project: /home/ubuntu/gitbisect-work/worktrees/pr50304-aws10-confidence-frontier-c-20260720a\ncommit: f7788e1bff22\njobs: 4\nbuild type: Release\nassertions: ON\nccache dir: /home/ubuntu/gitbisect-work/confidence-adaptive-20260720-896b595/.ccache/pr50304-git-bisect\nrepro exit code: 0\nverdict: good",
+      "runner_duration_sec": 53.529
+    },
+    {
+      "step": 10,
+      "sha": "86008477a4eb9ecac27f469539c4ac5e0fce44dc",
+      "subject": "[Polly] Avoid compiler warning. NFC.",
+      "verdict": "good",
+      "source": "runner",
+      "summary": "verdict: good",
+      "unresolved_before": 9,
+      "unresolved_after": 1,
+      "model_top_k": 3,
+      "adaptive_top_k": null,
+      "confidence_adaptive_frontier": {
+        "threshold": 0.35
+      },
+      "model_frontier_decision": {
+        "configured_frontier": "topk",
+        "effective_frontier": "topk",
+        "confidence": 0.967405,
+        "threshold": 0.35,
+        "reason": "semantic leader confidence meets threshold; use semantic top-k",
+        "top_semantic_candidates": [
+          {
+            "sha": "c9c05a91c4843c243d508c39bdfbc5e26f311af2",
+            "semantic_score": 7.67,
+            "build_success_prob": 0.92
+          },
+          {
+            "sha": "e162dc6f281e817e6dd000be71bfaf6bad358d79",
+            "semantic_score": 0.25,
+            "build_success_prob": 0.92
+          }
+        ],
+        "selected_frontier_shas": [
+          "c9c05a91c4843c243d508c39bdfbc5e26f311af2",
+          "e162dc6f281e817e6dd000be71bfaf6bad358d79",
+          "5d9ea36baffe682649923d29161cc58ca3d1a243"
+        ],
+        "observation_count": 9
+      },
+      "model_score_context": "v1-64c13e0509804e38",
+      "model_score_context_payload": {
+        "version": "v1",
+        "unresolved_count": 9,
+        "candidate_window_sha256": "d92caf76bcc3f6571aa0d56bbbe39a6f7c1ba90db32a11bb7a63f65511ca5b02",
+        "observation_sha256": "f7016edd806eabc706335c6b4c132537c0e0ede275b413a9fdff43d1c31a29a2",
+        "model_top_k": 3,
+        "model_frontier": "topk",
+        "model_diff_mode": "parent",
+        "model_diff_extraction": "llm",
+        "observation_prompt_mode": "trace-only",
+        "confidence_adaptive_frontier": {
+          "threshold": 0.35
+        }
+      },
+      "candidate_pruning": {
+        "mode": "off",
+        "before_count": 9,
+        "after_count": 9,
+        "pruned_count": 0,
+        "keep_prefixes": [],
+        "kept_reason_counts": {},
+        "prune_reason_counts": {},
+        "pruned_examples": []
+      },
+      "search_policy": "calibrated-posterior",
+      "selection_mode": "calibrated-posterior",
+      "selection": {
+        "utility": 0.279968,
+        "selection_score": 0.210854,
+        "semantic_score": 0.05,
+        "build_success_prob": 0.92,
+        "balance_score": 0.301075,
+        "suspicion_weight": 0.005376,
+        "feedback_bias": 1.0,
+        "evidence": [
+          "no strong semantic matches",
+          "no obvious build-risk indicators",
+          "features: path:polly/lib/Support/RegisterPasses.cpp"
+        ],
+        "posterior_bad_mass": 0.150538,
+        "calibrated_suspicion_weight": 0.001024,
+        "calibrated_posterior_bad_mass": 0.048214,
+        "calibrated_posterior_info_gain": 0.278761,
+        "weak_relevance_penalty": 0.046
+      },
+      "top_candidates": [
+        {
+          "rank": 1,
+          "sha": "86008477a4eb9ecac27f469539c4ac5e0fce44dc",
+          "subject": "[Polly] Avoid compiler warning. NFC.",
+          "utility": 0.279968,
+          "selection_score": 0.210854,
+          "semantic_score": 0.05,
+          "build_success_prob": 0.92,
+          "feedback_bias": 1.0,
+          "posterior_bad_mass": 0.150538,
+          "calibrated_suspicion_weight": 0.001024,
+          "calibrated_posterior_bad_mass": 0.048214,
+          "calibrated_posterior_info_gain": 0.278761,
+          "weak_relevance_penalty": 0.046
+        },
+        {
+          "rank": 2,
+          "sha": "4272fca2db9c27ab836082f796d281e5e68b0638",
+          "subject": "[ORC] Check for underflow on SymbolStringPtr ref-counts.",
+          "utility": 0.269969,
+          "selection_score": 0.206778,
+          "semantic_score": 0.05,
+          "build_success_prob": 0.92,
+          "feedback_bias": 1.0,
+          "posterior_bad_mass": 0.145161,
+          "calibrated_suspicion_weight": 0.001024,
+          "calibrated_posterior_bad_mass": 0.04719,
+          "calibrated_posterior_info_gain": 0.274337,
+          "weak_relevance_penalty": 0.046
+        },
+        {
+          "rank": 3,
+          "sha": "20634ece159ba60c694149fef95ca13f8a10cc63",
+          "subject": "[ORC] Fix debugging output: printDescription should not have a newline.",
+          "utility": 0.259248,
+          "selection_score": 0.196699,
+          "semantic_score": 0.25,
+          "build_success_prob": 0.88,
+          "feedback_bias": 1.0,
+          "posterior_bad_mass": 0.139785,
+          "calibrated_suspicion_weight": 0.008994,
+          "calibrated_posterior_bad_mass": 0.046166,
+          "calibrated_posterior_info_gain": 0.26988,
+          "weak_relevance_penalty": 0.044
+        },
+        {
+          "rank": 4,
+          "sha": "5d9ea36baffe682649923d29161cc58ca3d1a243",
+          "subject": "[UpdateTestChecks] Default --x86_scrub_rip to False",
+          "utility": 0.159677,
+          "selection_score": 0.174941,
+          "semantic_score": 0.3,
+          "build_success_prob": 0.93,
+          "feedback_bias": 1.0,
+          "posterior_bad_mass": 0.080645,
+          "calibrated_suspicion_weight": 0.011504,
+          "calibrated_posterior_bad_mass": 0.027153,
+          "calibrated_posterior_info_gain": 0.179908,
+          "weak_relevance_penalty": 0.0465,
+          "diff_mode": "parent",
+          "diff_extraction": "llm",
+          "diff_summary": "Summary: Updates the UpdateTestChecks infrastructure to default x86 RIP scrubbing off, then refreshes many x86 codegen check lines to use explicit symbol names, GOTPCREL forms, and target-specific local-label patterns. The patch also broadens x86 constant-pool regex handling, adds dedicated tests for function names containing '$' and for constant pool scrubbing, and removes an older duplicate x86 function-name input/test pair. Most of the diff is test harness and expectation maintenance around assembly text normalization rather than compiler code generation logic.\nMechanisms: assembly text scrubbing / regex normalization; test check generation policy change; x86 constant-pool and RIP-relative pattern matching; FileCheck expectation regeneration for codegen tests\nTouched symbols: update_llc_test_checks.py; scrub_asm_x86; SCRUB_X86_LCP_RE; SCRUB_X86_RIP_RE; llvm/test/tools/UpdateTestChecks/update_llc_test_checks/*; llvm/test/CodeGen/X86/*\nRisk relevance: modifies many x86 assembly expectations but not optimization or constant folding implementation; changes handling of x86 label/symbol scrubbing, which can expose test parsing regressions; broad update across numerous checks increases chance of test-only fallout, but not a direct path to APFloat/ConstantFold assertions\nBuild risk: touches Python test-generation tooling and a large number of lit/FileCheck tests; default behavior change in UpdateTestChecks can alter generated expected output across targets; removes and adds test inputs, increasing churn in test maintenance"
+        },
+        {
+          "rank": 5,
+          "sha": "fda4300da8296ed831b3975a49f217a630045760",
+          "subject": "[ORC] Fix race condtition in CoreAPIsTest.",
+          "utility": 0.218911,
+          "selection_score": 0.167681,
+          "semantic_score": 0.25,
+          "build_success_prob": 0.92,
+          "feedback_bias": 1.0,
+          "posterior_bad_mass": 0.112903,
+          "calibrated_suspicion_weight": 0.008994,
+          "calibrated_posterior_bad_mass": 0.037171,
+          "calibrated_posterior_info_gain": 0.22917,
+          "weak_relevance_penalty": 0.046
+        }
+      ],
+      "evidence": [
+        "=== validated-bisect-runner ===",
+        "issue: pr50304",
+        "llvm-project: /home/ubuntu/gitbisect-work/worktrees/pr50304-aws10-confidence-frontier-c-20260720a",
+        "commit: 86008477a4eb",
+        "jobs: 4",
+        "build type: Release",
+        "assertions: ON",
+        "ccache dir: /home/ubuntu/gitbisect-work/confidence-adaptive-20260720-896b595/.ccache/pr50304-git-bisect",
+        "repro exit code: 0",
+        "verdict: good"
+      ],
+      "log_excerpt": "=== validated-bisect-runner ===\nissue: pr50304\nllvm-project: /home/ubuntu/gitbisect-work/worktrees/pr50304-aws10-confidence-frontier-c-20260720a\ncommit: 86008477a4eb\njobs: 4\nbuild type: Release\nassertions: ON\nccache dir: /home/ubuntu/gitbisect-work/confidence-adaptive-20260720-896b595/.ccache/pr50304-git-bisect\nrepro exit code: 0\nverdict: good",
+      "trace_excerpt": "=== validated-bisect-runner ===\nissue: pr50304\nllvm-project: /home/ubuntu/gitbisect-work/worktrees/pr50304-aws10-confidence-frontier-c-20260720a\ncommit: 86008477a4eb\njobs: 4\nbuild type: Release\nassertions: ON\nccache dir: /home/ubuntu/gitbisect-work/confidence-adaptive-20260720-896b595/.ccache/pr50304-git-bisect\nrepro exit code: 0\nverdict: good",
+      "runner_duration_sec": 54.946
+    }
+  ],
+  "heuristic_keywords": [
+    "crash",
+    "assertion",
+    "APFloat",
+    "ConstantFold",
+    "getSemantics",
+    "isRepresentableBy",
+    "EarlyCSE",
+    "floating point",
+    "O1"
+  ],
+  "model_usage": {
+    "requests": 18,
+    "prompt_tokens": 268811,
+    "completion_tokens": 14641,
+    "total_tokens": 283452,
+    "by_kind": {
+      "diff_extraction": {
+        "requests": 9,
+        "prompt_tokens": 245949,
+        "completion_tokens": 10800,
+        "total_tokens": 256749
+      },
+      "scoring": {
+        "requests": 9,
+        "prompt_tokens": 22862,
+        "completion_tokens": 3841,
+        "total_tokens": 26703
+      }
+    }
+  },
+  "steps_executed": 10,
+  "remaining_unresolved": 1,
+  "final_unresolved_window": [
+    "c9c05a91c4843c243d508c39bdfbc5e26f311af2"
+  ],
+  "first_bad_commit": "c9c05a91c4843c243d508c39bdfbc5e26f311af2",
+  "unresolved_window_path": "/home/ubuntu/gitbisect-work/confidence-adaptive-20260720-896b595/results/issues/pr50304/pr50304-model-gpt-5.4-mini-calibrated-posterior-obs-trace-only-aws10-confidence-frontier-c-20260720a-unresolved-window.json",
+  "runner_build_count": 10,
+  "runner_build_avg_duration_sec": 1396.437
+}

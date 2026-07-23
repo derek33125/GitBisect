@@ -1,0 +1,2126 @@
+{
+  "issue": "pr204559",
+  "scorer": "model",
+  "model_name": "gpt-5.4-mini",
+  "model_frontier": "topk",
+  "search_policy": "calibrated-posterior",
+  "hybrid_switch_window": 32,
+  "candidate_pruning": "off",
+  "heuristic_version": "tuned",
+  "calibrated_prior_power": 1.35,
+  "calibrated_prior_bonus": 1.5,
+  "weak_relevance_penalty": 0.05,
+  "weak_relevance_threshold": 0.8,
+  "build_success_power": 1.0,
+  "observation_prompt_mode": "trace-only",
+  "run_label": "aws10-confidence-frontier-a-20260720a",
+  "model_diff_mode": "parent",
+  "model_diff_extraction": "llm",
+  "model_top_k": 3,
+  "adaptive_top_k": null,
+  "confidence_adaptive_frontier": {
+    "threshold": 0.35
+  },
+  "model_cache_namespace": "confidence-frontier-035-20260720-aws-a",
+  "oracle_first_bad_sha": null,
+  "lambda_weight": 2.0,
+  "max_steps": 30,
+  "observation_path": "results/lm_bisect_observations/pr204559-aws10-confidence-frontier-a-20260720a.json",
+  "run_history_path": "/home/ubuntu/gitbisect-work/confidence-adaptive-20260720-896b595/results/lm_bisect_runs/pr204559-model-gpt-5.4-mini-calibrated-posterior-obs-trace-only-aws10-confidence-frontier-a-20260720a.json",
+  "good_commit": "e9f758a59b2f887acb07e26e2d480c7369a72009",
+  "bad_commit": "baad7c3238b3203c974787fc4881453b6b23a0b6",
+  "initial_unresolved": 19791,
+  "status": "completed",
+  "steps": [
+    {
+      "step": 1,
+      "sha": "9f500046511e6e85345d9229bb2d4d2e627bb9d4",
+      "subject": "[MLIR][XeGPU] Enhance the peephole optimization to remove the convert_layout after multi-reduction rewrite (#188849)",
+      "verdict": "good",
+      "source": "runner",
+      "summary": "verdict: good",
+      "unresolved_before": 19791,
+      "unresolved_after": 9695,
+      "model_top_k": 3,
+      "adaptive_top_k": null,
+      "confidence_adaptive_frontier": {
+        "threshold": 0.35
+      },
+      "model_frontier_decision": {
+        "configured_frontier": "topk",
+        "effective_frontier": "diverse",
+        "confidence": 0.030075,
+        "threshold": 0.35,
+        "reason": "semantic scores are ambiguous; add posterior and midpoint anchors",
+        "top_semantic_candidates": [
+          {
+            "sha": "8baf7cc34b004f27d1e1727f8c5a1de55bc07528",
+            "semantic_score": 6.65,
+            "build_success_prob": 0.92
+          },
+          {
+            "sha": "d518f8ff67407fc49d2c37cba575297d5dc7e713",
+            "semantic_score": 6.45,
+            "build_success_prob": 0.77
+          }
+        ],
+        "selected_frontier_shas": [
+          "8baf7cc34b004f27d1e1727f8c5a1de55bc07528",
+          "9f500046511e6e85345d9229bb2d4d2e627bb9d4",
+          "e891812cacde0c6561b73173d24d37309aeb93dc"
+        ],
+        "observation_count": 0
+      },
+      "model_score_context": "v1-f23d37810d09567f",
+      "model_score_context_payload": {
+        "version": "v1",
+        "unresolved_count": 19791,
+        "candidate_window_sha256": "9acd0107a09d893d61521ebc115c4dfae8927ffb66970729a851bbe8d23c81d4",
+        "observation_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "model_top_k": 3,
+        "model_frontier": "topk",
+        "model_diff_mode": "parent",
+        "model_diff_extraction": "llm",
+        "observation_prompt_mode": "trace-only",
+        "confidence_adaptive_frontier": {
+          "threshold": 0.35
+        }
+      },
+      "candidate_pruning": {
+        "mode": "off",
+        "before_count": 19791,
+        "after_count": 19791,
+        "pruned_count": 0,
+        "keep_prefixes": [],
+        "kept_reason_counts": {},
+        "prune_reason_counts": {},
+        "pruned_examples": []
+      },
+      "search_policy": "calibrated-posterior",
+      "selection_mode": "calibrated-posterior",
+      "selection": {
+        "utility": 0.980048,
+        "selection_score": 1.210025,
+        "semantic_score": 0.4,
+        "build_success_prob": 0.98,
+        "balance_score": 0.999918,
+        "suspicion_weight": 6.6e-05,
+        "feedback_bias": 0.0,
+        "evidence": [
+          "model-scored",
+          "Touches MLIR XeGPU peephole optimization, not LLVM MemorySSA or scalar optimizer passes",
+          "Only superficial overlap via reduction/layout simplification; mechanism is unrelated to clobber-walker verification",
+          "features: MLIR transformation, peephole optimization, layout conversion elimination, reduction canonicalization"
+        ],
+        "posterior_bad_mass": 0.499959,
+        "calibrated_suspicion_weight": 4.8e-05,
+        "calibrated_posterior_bad_mass": 0.488815,
+        "calibrated_posterior_info_gain": 0.999639,
+        "weak_relevance_penalty": 0.049,
+        "diff_mode": "parent",
+        "diff_extraction": "llm",
+        "diff_summary": "Summary: Extends the XeGPU peephole optimizer so a scalar result produced by multi-reduction rewriting can drop an immediately following convert_layout, relying on later layout propagation to restore any needed layout. It also adds a cleanup walk that strips temporary DistributeLayoutAttr metadata after patterns run. The change simplifies layout-carrying IR around reduction-to-scalar cases and updates tests to expect layout-free bitcasts, constants, broadcasts, and a new scalar-reduction-convert_layout scenario.\nMechanisms: Pattern-based peephole elimination of redundant convert_layout after scalar reduction; Post-pass cleanup of discardable layout attributes; Layout propagation deferral/reconstruction strategy; IR simplification around vector.multi_reduction and vector.broadcast\nTouched symbols: MultiRed2dOpPattern; XeGPUPeepHoleOptimizerPass; xegpu::ConvertLayoutOp; xegpu::DistributeLayoutAttr; mlir/test/Dialect/XeGPU/peephole-optimize.mlir\nRisk relevance: Alters canonicalization around reduction results and layout conversion placement; Touches IR use-replacement logic, which can expose SSA/update bugs; Introduces a new scalar-reduction path that explicitly removes convert_layout; Could affect downstream passes that rely on temporary layout annotations\nBuild risk: MLIR transformation and pretty-print test updates only; Potential sensitivity to IR shape and attribute cleanup ordering; New regression test exercises a previously unhandled reduction-to-scalar case"
+      },
+      "top_candidates": [
+        {
+          "rank": 1,
+          "sha": "9f500046511e6e85345d9229bb2d4d2e627bb9d4",
+          "subject": "[MLIR][XeGPU] Enhance the peephole optimization to remove the convert_layout after multi-reduction rewrite (#188849)",
+          "utility": 0.980048,
+          "selection_score": 1.210025,
+          "semantic_score": 0.4,
+          "build_success_prob": 0.98,
+          "feedback_bias": 0.0,
+          "posterior_bad_mass": 0.499959,
+          "calibrated_suspicion_weight": 4.8e-05,
+          "calibrated_posterior_bad_mass": 0.488815,
+          "calibrated_posterior_info_gain": 0.999639,
+          "weak_relevance_penalty": 0.049,
+          "diff_mode": "parent",
+          "diff_extraction": "llm",
+          "diff_summary": "Summary: Extends the XeGPU peephole optimizer so a scalar result produced by multi-reduction rewriting can drop an immediately following convert_layout, relying on later layout propagation to restore any needed layout. It also adds a cleanup walk that strips temporary DistributeLayoutAttr metadata after patterns run. The change simplifies layout-carrying IR around reduction-to-scalar cases and updates tests to expect layout-free bitcasts, constants, broadcasts, and a new scalar-reduction-convert_layout scenario.\nMechanisms: Pattern-based peephole elimination of redundant convert_layout after scalar reduction; Post-pass cleanup of discardable layout attributes; Layout propagation deferral/reconstruction strategy; IR simplification around vector.multi_reduction and vector.broadcast\nTouched symbols: MultiRed2dOpPattern; XeGPUPeepHoleOptimizerPass; xegpu::ConvertLayoutOp; xegpu::DistributeLayoutAttr; mlir/test/Dialect/XeGPU/peephole-optimize.mlir\nRisk relevance: Alters canonicalization around reduction results and layout conversion placement; Touches IR use-replacement logic, which can expose SSA/update bugs; Introduces a new scalar-reduction path that explicitly removes convert_layout; Could affect downstream passes that rely on temporary layout annotations\nBuild risk: MLIR transformation and pretty-print test updates only; Potential sensitivity to IR shape and attribute cleanup ordering; New regression test exercises a previously unhandled reduction-to-scalar case"
+        },
+        {
+          "rank": 2,
+          "sha": "e891812cacde0c6561b73173d24d37309aeb93dc",
+          "subject": "[RISCV] Remove codegen for vp_minimum, vp_maximum (#189550)",
+          "utility": 0.941141,
+          "selection_score": 1.101239,
+          "semantic_score": 0.2,
+          "build_success_prob": 0.96,
+          "feedback_bias": 0.0,
+          "posterior_bad_mass": 0.490145,
+          "calibrated_suspicion_weight": 1.9e-05,
+          "calibrated_posterior_bad_mass": 0.479448,
+          "calibrated_posterior_info_gain": 0.998781,
+          "weak_relevance_penalty": 0.048,
+          "diff_mode": "parent",
+          "diff_extraction": "llm",
+          "diff_summary": "Summary: Removes RISC-V codegen support for VP minimum/maximum lowering paths and adjusts related vector-predication expansion so vp minimum/maximum are no longer treated as targets for specialized lowering. The change prunes ISD/Intrinsic support from RISCVTargetLowering and RISCVTTI, reroutes FP min/max expansion through the default masked FP-call machinery, and rewrites many RVV codegen tests to the new expansion shape and vsetvli behavior. This is a backend-only change focused on lowering legality and predication strategy, not MemorySSA.\nMechanisms: SelectionDAG lowering for VP_FMINIMUM/VP_FMAXIMUM removal; Vector predication expansion fallback to generic min/max handling; TargetTransformInfo intrinsic support pruning; RISC-V RVV fixed/scalable vector codegen pattern changes; Mask/VL materialization and vsetvli selection changes\nTouched symbols: CachingVPExpander::expandPredicationToFPCall; RISCVTargetLowering::RISCVTargetLowering; RISCVTargetLowering::lowerFMAXIMUM_FMINIMUM; RISCVTargetLowering::LowerOperation; RISCVTargetTransformInfo; llvm/test/CodeGen/RISCV/rvv/fmaximum-vp.ll; llvm/test/CodeGen/RISCV/rvv/fminimum-vp.ll\nRisk relevance: Touches compiler lowering and legality decisions for masked FP min/max operations; Removes previously supported VP opcodes, which can alter fallback paths and expose latent verifier or lowering bugs; Changes code generation for many vector widths, including spill/reload-heavy wide RVV cases; Alters mask handling and explicit VL setup, increasing backend correctness sensitivity\nBuild risk: Large backend-only diff across codegen and target-specific tests; Many rewritten FileCheck expectations for RVV instruction selection; Potential test fragility from altered register allocation/spill shapes and vsetvli encodings"
+        },
+        {
+          "rank": 3,
+          "sha": "8baf7cc34b004f27d1e1727f8c5a1de55bc07528",
+          "subject": "[LICM] Improve hoist-safety checks for dominated MemorySSA accesses (#169379)",
+          "utility": 0.572293,
+          "selection_score": 1.089332,
+          "semantic_score": 6.9,
+          "build_success_prob": 0.87,
+          "feedback_bias": 0.0,
+          "posterior_bad_mass": 0.671841,
+          "calibrated_suspicion_weight": 0.002241,
+          "calibrated_posterior_bad_mass": 0.65962,
+          "calibrated_posterior_info_gain": 0.925182,
+          "diff_mode": "parent",
+          "diff_extraction": "llm",
+          "diff_summary": "Summary: Refines LICM hoist-safety checks for MemorySSA-backed analysis so accesses already dominated by the instruction's defining memory access are skipped when considering conflicting read/write pairs, but only for non-sink hoisting. The patch tightens the no-conflict predicate used during hoisting decisions, aiming to avoid overly conservative or incorrect conflict detection around dominated MemorySSA accesses. The accompanying tests expand coverage for hoisting from inaccessible memory, invariant stores, guards, and MemorySSA phi behavior.\nMechanisms: MemorySSA dominance-aware conflict filtering; Loop-invariant code motion hoist-safety predicate tightening; Inaccessible-memory aliasing and call-hoisting reasoning; Store hoisting / guarded hoisting legality updates\nTouched symbols: noConflictingReadWrites; MemorySSA::dominates; LICM; llvm/test/Analysis/MemorySSA/pr43427.ll; llvm/test/Analysis/MemorySSA/pr43438.ll; llvm/test/Transforms/LICM/call-hoisting.ll; llvm/test/Transforms/LICM/guards.ll; llvm/test/Transforms/LICM/invariant.start.ll\nRisk relevance: Directly changes MemorySSA-based hoist safety, aligning with dominance/update-sensitive crash surfaces; Uses MSSA->dominates in the hoist predicate, which is close to verifier and clobber-walker correctness concerns; Affects when reads/writes/calls are considered conflicting, which can cascade into invalid motion and broken SSA; The issue context mentions MemorySSA verifier assertions at -O1, making this kind of dominance-based filter highly relevant\nBuild risk: Touches LICM core analysis and many optimization tests; Adds a new MemorySSA-focused hoisting test with inaccessible memory calls; Changes expected IR ordering and promoted load/store shapes in several LICM tests; Potentially impacts multiple loop optimization pipelines and their test baselines"
+        },
+        {
+          "rank": 4,
+          "sha": "8e61085291c6f41815a7f1af4702807e61c2bf3f",
+          "subject": "[Matrix] Place allocas in function entry. (#190032)",
+          "utility": 0.907771,
+          "selection_score": 0.921097,
+          "semantic_score": 3.25,
+          "build_success_prob": 0.92,
+          "feedback_bias": 0.0,
+          "posterior_bad_mass": 0.507173,
+          "calibrated_suspicion_weight": 0.000811,
+          "calibrated_posterior_bad_mass": 0.497101,
+          "calibrated_posterior_info_gain": 0.999976
+        },
+        {
+          "rank": 5,
+          "sha": "97dbf38c9c495ce9fb958137957cb7794ef3285b",
+          "subject": "[SCEVExpander] Add SCEVUseVisitor and use it in SCEVExpander (NFC) (#188863)",
+          "utility": 0.909483,
+          "selection_score": 0.921077,
+          "semantic_score": 3.25,
+          "build_success_prob": 0.92,
+          "feedback_bias": 0.0,
+          "posterior_bad_mass": 0.506244,
+          "calibrated_suspicion_weight": 0.000811,
+          "calibrated_posterior_bad_mass": 0.496023,
+          "calibrated_posterior_info_gain": 0.999954
+        }
+      ],
+      "evidence": [
+        "=== validated-bisect-runner ===",
+        "issue: pr204559",
+        "llvm-project: /home/ubuntu/gitbisect-work/worktrees/pr204559-aws10-confidence-frontier-a-20260720a",
+        "commit: 9f500046511e",
+        "jobs: 4",
+        "build type: Release",
+        "assertions: ON",
+        "ccache dir: /home/ubuntu/gitbisect-work/confidence-adaptive-20260720-896b595/.ccache/pr204559-git-bisect",
+        "repro exit code: 0",
+        "verdict: good"
+      ],
+      "log_excerpt": "=== validated-bisect-runner ===\nissue: pr204559\nllvm-project: /home/ubuntu/gitbisect-work/worktrees/pr204559-aws10-confidence-frontier-a-20260720a\ncommit: 9f500046511e\njobs: 4\nbuild type: Release\nassertions: ON\nccache dir: /home/ubuntu/gitbisect-work/confidence-adaptive-20260720-896b595/.ccache/pr204559-git-bisect\nrepro exit code: 0\nverdict: good",
+      "trace_excerpt": "=== validated-bisect-runner ===\nissue: pr204559\nllvm-project: /home/ubuntu/gitbisect-work/worktrees/pr204559-aws10-confidence-frontier-a-20260720a\ncommit: 9f500046511e\njobs: 4\nbuild type: Release\nassertions: ON\nccache dir: /home/ubuntu/gitbisect-work/confidence-adaptive-20260720-896b595/.ccache/pr204559-git-bisect\nrepro exit code: 0\nverdict: good",
+      "runner_duration_sec": 3169.224
+    },
+    {
+      "step": 2,
+      "sha": "aefb53a2aa5bd4cf7c124752418aa4004fcd5e3e",
+      "subject": "[AMDGPU] AMDGPULibCalls: Set new intrinsic calling convention to C (#197364)",
+      "verdict": "good",
+      "source": "runner",
+      "summary": "verdict: good",
+      "unresolved_before": 9695,
+      "unresolved_after": 4616,
+      "model_top_k": 3,
+      "adaptive_top_k": null,
+      "confidence_adaptive_frontier": {
+        "threshold": 0.35
+      },
+      "model_frontier_decision": {
+        "configured_frontier": "topk",
+        "effective_frontier": "diverse",
+        "confidence": 0.06015,
+        "threshold": 0.35,
+        "reason": "semantic scores are ambiguous; add posterior and midpoint anchors",
+        "top_semantic_candidates": [
+          {
+            "sha": "8baf7cc34b004f27d1e1727f8c5a1de55bc07528",
+            "semantic_score": 6.65,
+            "build_success_prob": 0.92
+          },
+          {
+            "sha": "414b8b986705d24e415e8ef17bc8ddbbd6839712",
+            "semantic_score": 6.25,
+            "build_success_prob": 0.92
+          }
+        ],
+        "selected_frontier_shas": [
+          "8baf7cc34b004f27d1e1727f8c5a1de55bc07528",
+          "aefb53a2aa5bd4cf7c124752418aa4004fcd5e3e",
+          "64a8f3645cab2ce09c454067c1b3c02eddb78cab"
+        ],
+        "observation_count": 1
+      },
+      "model_score_context": "v1-da4613398b50bb61",
+      "model_score_context_payload": {
+        "version": "v1",
+        "unresolved_count": 9695,
+        "candidate_window_sha256": "4ae30c964c22a5986d235984f703a61fcc498f05ccd4df5e9a48a6ca720372df",
+        "observation_sha256": "bc29c9037e17d3af510372c60451e174d3169d83b18a173be558c19c54189259",
+        "model_top_k": 3,
+        "model_frontier": "topk",
+        "model_diff_mode": "parent",
+        "model_diff_extraction": "llm",
+        "observation_prompt_mode": "trace-only",
+        "confidence_adaptive_frontier": {
+          "threshold": 0.35
+        }
+      },
+      "candidate_pruning": {
+        "mode": "off",
+        "before_count": 9695,
+        "after_count": 9695,
+        "pruned_count": 0,
+        "keep_prefixes": [],
+        "kept_reason_counts": {},
+        "prune_reason_counts": {},
+        "pruned_examples": []
+      },
+      "search_policy": "calibrated-posterior",
+      "selection_mode": "calibrated-posterior",
+      "selection": {
+        "utility": 0.940171,
+        "selection_score": 1.162325,
+        "semantic_score": 0.4,
+        "build_success_prob": 0.94,
+        "balance_score": 0.999918,
+        "suspicion_weight": 0.000132,
+        "feedback_bias": 1.0,
+        "evidence": [
+          "model-scored",
+          "Backend AMDGPU libcall-to-intrinsic rewrite, not MemorySSA or scalar optimization verification",
+          "Only a distant connection via IR mutation and call handling, with no dominance/clobber-walker involvement",
+          "features: AMDGPU codegen, intrinsic call lowering, calling convention fix"
+        ],
+        "posterior_bad_mass": 0.500041,
+        "calibrated_suspicion_weight": 9.4e-05,
+        "calibrated_posterior_bad_mass": 0.491053,
+        "calibrated_posterior_info_gain": 0.999769,
+        "weak_relevance_penalty": 0.047,
+        "diff_mode": "parent",
+        "diff_extraction": "llm",
+        "diff_summary": "Summary: Adjusts AMDGPU libcall simplification so newly created intrinsic calls use the C calling convention instead of inheriting a non-C convention from the replaced libcall. The change is applied when replacing library calls with simple intrinsics, making the generated call ABI-compatible with the intrinsic lowering path. A new test case covers a fastcc fabs libcall being rewritten to llvm.fabs with canonical calling convention, and existing metadata-preservation checks are updated to new FileCheck variable naming.\nMechanisms: Calling convention normalization on intrinsic replacement; Libcall-to-intrinsic simplification in AMDGPU codegen; Backend IR mutation affecting call ABI attributes\nTouched symbols: AMDGPULibCalls::replaceLibCallWithSimpleIntrinsic; CI->setCallingConv(CallingConv::C); llvm.fabs.f32; amdgpu-simplify-libcall-fabs.ll\nRisk relevance: Touches call lowering and IR rewrite semantics, which can influence optimizer/codegen correctness; Changes function call ABI metadata on newly synthesized intrinsics, a potential source of miscompilation if mismatched; Involves backend transformation of library calls, though not MemorySSA-specific\nBuild risk: Codegen-visible change with test coverage for calling-convention-sensitive lowering; May affect targets or paths that rely on exact intrinsic call attributes"
+      },
+      "top_candidates": [
+        {
+          "rank": 1,
+          "sha": "aefb53a2aa5bd4cf7c124752418aa4004fcd5e3e",
+          "subject": "[AMDGPU] AMDGPULibCalls: Set new intrinsic calling convention to C (#197364)",
+          "utility": 0.940171,
+          "selection_score": 1.162325,
+          "semantic_score": 0.4,
+          "build_success_prob": 0.94,
+          "feedback_bias": 1.0,
+          "posterior_bad_mass": 0.500041,
+          "calibrated_suspicion_weight": 9.4e-05,
+          "calibrated_posterior_bad_mass": 0.491053,
+          "calibrated_posterior_info_gain": 0.999769,
+          "weak_relevance_penalty": 0.047,
+          "diff_mode": "parent",
+          "diff_extraction": "llm",
+          "diff_summary": "Summary: Adjusts AMDGPU libcall simplification so newly created intrinsic calls use the C calling convention instead of inheriting a non-C convention from the replaced libcall. The change is applied when replacing library calls with simple intrinsics, making the generated call ABI-compatible with the intrinsic lowering path. A new test case covers a fastcc fabs libcall being rewritten to llvm.fabs with canonical calling convention, and existing metadata-preservation checks are updated to new FileCheck variable naming.\nMechanisms: Calling convention normalization on intrinsic replacement; Libcall-to-intrinsic simplification in AMDGPU codegen; Backend IR mutation affecting call ABI attributes\nTouched symbols: AMDGPULibCalls::replaceLibCallWithSimpleIntrinsic; CI->setCallingConv(CallingConv::C); llvm.fabs.f32; amdgpu-simplify-libcall-fabs.ll\nRisk relevance: Touches call lowering and IR rewrite semantics, which can influence optimizer/codegen correctness; Changes function call ABI metadata on newly synthesized intrinsics, a potential source of miscompilation if mismatched; Involves backend transformation of library calls, though not MemorySSA-specific\nBuild risk: Codegen-visible change with test coverage for calling-convention-sensitive lowering; May affect targets or paths that rely on exact intrinsic call attributes"
+        },
+        {
+          "rank": 2,
+          "sha": "64a8f3645cab2ce09c454067c1b3c02eddb78cab",
+          "subject": "[lldb] Fix missing status in CommandObjectBreakpointCommand (#197024)",
+          "utility": 0.930325,
+          "selection_score": 1.114282,
+          "semantic_score": 0.2,
+          "build_success_prob": 0.97,
+          "feedback_bias": 1.0,
+          "posterior_bad_mass": 0.479486,
+          "calibrated_suspicion_weight": 3.7e-05,
+          "calibrated_posterior_bad_mass": 0.472083,
+          "calibrated_posterior_info_gain": 0.99775,
+          "weak_relevance_penalty": 0.0485,
+          "diff_mode": "parent",
+          "diff_extraction": "llm",
+          "diff_summary": "Summary: Fixes command execution status reporting in LLDB's breakpoint command handling. The change ensures interactive input flows return eReturnStatusStarted while the IOHandler is still gathering commands, and returns eReturnStatusSuccessFinishNoResult when one-liner or non-interactive command completion is appropriate. This is a control-flow/status bookkeeping fix in the command layer, not a semantic breakpoint engine change.\nMechanisms: Command result status propagation for interactive vs one-liner breakpoint command input; IOHandler-driven deferred completion path; Return-status selection based on command mode\nTouched symbols: CommandObjectBreakpointCommand; eReturnStatusStarted; eReturnStatusSuccessFinishNoResult\nRisk relevance: Not related to LLVM MemorySSA, dominance, or optimizer verification crash paths; Affects LLDB command UI state rather than compiler IR analysis\nBuild risk: Local LLDB source-only change with low compiler-optimization interaction; Could affect command scripting/test expectations due to altered result status"
+        },
+        {
+          "rank": 3,
+          "sha": "8baf7cc34b004f27d1e1727f8c5a1de55bc07528",
+          "subject": "[LICM] Improve hoist-safety checks for dominated MemorySSA accesses (#169379)",
+          "utility": 0.573073,
+          "selection_score": 1.034832,
+          "semantic_score": 6.9,
+          "build_success_prob": 0.83,
+          "feedback_bias": 1.0,
+          "posterior_bad_mass": 0.343662,
+          "calibrated_suspicion_weight": 0.004388,
+          "calibrated_posterior_bad_mass": 0.334103,
+          "calibrated_posterior_info_gain": 0.919063,
+          "diff_mode": "parent",
+          "diff_extraction": "llm",
+          "diff_summary": "Summary: Tightens LICM's MemorySSA-based hoist-safety reasoning by skipping dominated MemorySSA accesses when checking for conflicting reads/writes, but only for non-sinking cases. The core change is in the noConflictingReadWrites path, where the pass now consults MSSA->dominates(IMD, &MA) to ignore accesses already dominated by the instruction being moved, reducing false conflict detection while preserving sink behavior. The commit also updates a broad set of LICM and MemorySSA tests to match changed hoisting/promotion decisions and altered MemorySSA shape, indicating sensitivity in dominance, clobber reasoning, and loop-invariant memory motion.\nMechanisms: LICM hoist legality check refinement for MemorySSA-backed alias/conflict scanning; Dominance-aware filtering of MemorySSA accesses during conflict analysis; Loop-invariant load/store/call hoisting behavior changes driven by MemorySSA queries; Test expectation updates for MemorySSA graph construction and LICM transformation output\nTouched symbols: noConflictingReadWrites; MemorySSA::dominates; LICM.cpp; MemorySSA printer/test checks; loop-mssa(licm)\nRisk relevance: Directly touches MemorySSA-dominance-based legality logic, which is close to clobber-walker verification and OtherClobbers-style reasoning; Changes when accesses are considered conflicting, affecting hoisting decisions and memory dependence correctness at -O1; Involves the same subsystem family as crashes/assertions around MemorySSA dominance and verification; Updates multiple MemorySSA and LICM tests, suggesting observable behavior changes in memory motion and clobber analysis\nBuild risk: Modifies a hot optimization pass with deep dependence on analysis invariants; Can alter IR transforms enough to invalidate downstream tests that inspect exact MemorySSA numbering/order; Broad test churn across LICM and MemorySSA indicates fragile behavior surface"
+        },
+        {
+          "rank": 4,
+          "sha": "e89f7b58ce769b44c3f9d072cce8e995ab9ea3af",
+          "subject": "[LLVM] Add FastMathFlags operand to simplifySelectInst. (#197138)",
+          "utility": 0.916063,
+          "selection_score": 0.922126,
+          "semantic_score": 3.25,
+          "build_success_prob": 0.92,
+          "feedback_bias": 1.0,
+          "posterior_bad_mass": 0.503203,
+          "calibrated_suspicion_weight": 0.001588,
+          "calibrated_posterior_bad_mass": 0.495026,
+          "calibrated_posterior_info_gain": 0.999929
+        },
+        {
+          "rank": 5,
+          "sha": "c0bbc06c692efac81c28a232f0f91198a36356b0",
+          "subject": "[LV] Handle FSub Partial Reductions (#197134)",
+          "utility": 0.918614,
+          "selection_score": 0.922067,
+          "semantic_score": 3.25,
+          "build_success_prob": 0.92,
+          "feedback_bias": 1.0,
+          "posterior_bad_mass": 0.50182,
+          "calibrated_suspicion_weight": 0.001588,
+          "calibrated_posterior_bad_mass": 0.493167,
+          "calibrated_posterior_info_gain": 0.999865
+        }
+      ],
+      "evidence": [
+        "=== validated-bisect-runner ===",
+        "issue: pr204559",
+        "llvm-project: /home/ubuntu/gitbisect-work/worktrees/pr204559-aws10-confidence-frontier-a-20260720a",
+        "commit: aefb53a2aa5b",
+        "jobs: 4",
+        "build type: Release",
+        "assertions: ON",
+        "ccache dir: /home/ubuntu/gitbisect-work/confidence-adaptive-20260720-896b595/.ccache/pr204559-git-bisect",
+        "repro exit code: 0",
+        "verdict: good"
+      ],
+      "log_excerpt": "=== validated-bisect-runner ===\nissue: pr204559\nllvm-project: /home/ubuntu/gitbisect-work/worktrees/pr204559-aws10-confidence-frontier-a-20260720a\ncommit: aefb53a2aa5b\njobs: 4\nbuild type: Release\nassertions: ON\nccache dir: /home/ubuntu/gitbisect-work/confidence-adaptive-20260720-896b595/.ccache/pr204559-git-bisect\nrepro exit code: 0\nverdict: good",
+      "trace_excerpt": "=== validated-bisect-runner ===\nissue: pr204559\nllvm-project: /home/ubuntu/gitbisect-work/worktrees/pr204559-aws10-confidence-frontier-a-20260720a\ncommit: aefb53a2aa5b\njobs: 4\nbuild type: Release\nassertions: ON\nccache dir: /home/ubuntu/gitbisect-work/confidence-adaptive-20260720-896b595/.ccache/pr204559-git-bisect\nrepro exit code: 0\nverdict: good",
+      "runner_duration_sec": 3171.001
+    },
+    {
+      "step": 3,
+      "sha": "f341dab9edfa97d7a4a01f9bc0fe981055dc5cc9",
+      "subject": "[clang][RISCV][Zicfilp] Force user to use `-mcf-branch-label-scheme=unlabeled` (#152122)",
+      "verdict": "good",
+      "source": "runner",
+      "summary": "verdict: good",
+      "unresolved_before": 4616,
+      "unresolved_after": 2219,
+      "model_top_k": 3,
+      "adaptive_top_k": null,
+      "confidence_adaptive_frontier": {
+        "threshold": 0.35
+      },
+      "model_frontier_decision": {
+        "configured_frontier": "topk",
+        "effective_frontier": "diverse",
+        "confidence": 0.033274,
+        "threshold": 0.35,
+        "reason": "semantic scores are ambiguous; add posterior and midpoint anchors",
+        "top_semantic_candidates": [
+          {
+            "sha": "87d6941017aa6022ce00baa9f1dfae5a49b113f4",
+            "semantic_score": 6.130952,
+            "build_success_prob": 0.63
+          },
+          {
+            "sha": "7938535a54b51a4ca84821b7766d68049c9aa895",
+            "semantic_score": 5.926949,
+            "build_success_prob": 0.68
+          }
+        ],
+        "selected_frontier_shas": [
+          "87d6941017aa6022ce00baa9f1dfae5a49b113f4",
+          "f341dab9edfa97d7a4a01f9bc0fe981055dc5cc9",
+          "8b66d829fbcc37eeb8a2a2e14dfc7bf40ee067e1"
+        ],
+        "observation_count": 2
+      },
+      "model_score_context": "v1-544a6fbafd70c9e8",
+      "model_score_context_payload": {
+        "version": "v1",
+        "unresolved_count": 4616,
+        "candidate_window_sha256": "a19b67182deb7790411c5811c5b7b67ee189341d5dc761af90cd0a71e29c4168",
+        "observation_sha256": "fb557a18c4aee9898f246bb3bd210eabfc2da099a17ebc27ae02d5eeffc4b408",
+        "model_top_k": 3,
+        "model_frontier": "topk",
+        "model_diff_mode": "parent",
+        "model_diff_extraction": "llm",
+        "observation_prompt_mode": "trace-only",
+        "confidence_adaptive_frontier": {
+          "threshold": 0.35
+        }
+      },
+      "candidate_pruning": {
+        "mode": "off",
+        "before_count": 4616,
+        "after_count": 4616,
+        "pruned_count": 0,
+        "keep_prefixes": [],
+        "kept_reason_counts": {},
+        "prune_reason_counts": {},
+        "pruned_examples": []
+      },
+      "search_policy": "calibrated-posterior",
+      "selection_mode": "calibrated-posterior",
+      "selection": {
+        "utility": 0.967149,
+        "selection_score": 1.195603,
+        "semantic_score": 0.25,
+        "build_success_prob": 0.97,
+        "balance_score": 0.996676,
+        "suspicion_weight": 0.000193,
+        "feedback_bias": 1.0,
+        "evidence": [
+          "model-scored",
+          "Frontend target-option validation for RISC-V CFI, unrelated to MemorySSA verification",
+          "Touches diagnostics and target gating only; no optimizer or memory dependence reasoning",
+          "features: target feature validation, diagnostic emission, RISC-V CFI"
+        ],
+        "posterior_bad_mass": 0.501662,
+        "calibrated_suspicion_weight": 0.000123,
+        "calibrated_posterior_bad_mass": 0.485398,
+        "calibrated_posterior_info_gain": 0.999385,
+        "weak_relevance_penalty": 0.0485,
+        "diff_mode": "parent",
+        "diff_extraction": "llm",
+        "diff_summary": "Summary: Clang RISC-V target validation is tightened for control-flow branch label schemes. A new diagnostic suggests switching from unsupported func-sig labeling to unlabeled, and RISCVTargetInfo now rejects func-sig while still allowing unlabeled/default with target-specific messaging. Tests are updated to expect errors instead of successful compilation for unsupported combinations.\nMechanisms: target option validation; diagnostic suggestion emission; RISCV cf-protection scheme gating\nTouched symbols: RISCVTargetInfo::checkCFBranchLabelSchemeSupported; err_opt_unsupported_with_suggest; riscv-cf-protection.c\nRisk relevance: Changes compiler option handling and target feature validation; Touches diagnostic paths rather than optimization/analysis internals; No MemorySSA interaction\nBuild risk: Target-specific frontend behavior; Test expectation flips from success to failure; Potentially affects command-line compatibility"
+      },
+      "top_candidates": [
+        {
+          "rank": 1,
+          "sha": "f341dab9edfa97d7a4a01f9bc0fe981055dc5cc9",
+          "subject": "[clang][RISCV][Zicfilp] Force user to use `-mcf-branch-label-scheme=unlabeled` (#152122)",
+          "utility": 0.967149,
+          "selection_score": 1.195603,
+          "semantic_score": 0.25,
+          "build_success_prob": 0.97,
+          "feedback_bias": 1.0,
+          "posterior_bad_mass": 0.501662,
+          "calibrated_suspicion_weight": 0.000123,
+          "calibrated_posterior_bad_mass": 0.485398,
+          "calibrated_posterior_info_gain": 0.999385,
+          "weak_relevance_penalty": 0.0485,
+          "diff_mode": "parent",
+          "diff_extraction": "llm",
+          "diff_summary": "Summary: Clang RISC-V target validation is tightened for control-flow branch label schemes. A new diagnostic suggests switching from unsupported func-sig labeling to unlabeled, and RISCVTargetInfo now rejects func-sig while still allowing unlabeled/default with target-specific messaging. Tests are updated to expect errors instead of successful compilation for unsupported combinations.\nMechanisms: target option validation; diagnostic suggestion emission; RISCV cf-protection scheme gating\nTouched symbols: RISCVTargetInfo::checkCFBranchLabelSchemeSupported; err_opt_unsupported_with_suggest; riscv-cf-protection.c\nRisk relevance: Changes compiler option handling and target feature validation; Touches diagnostic paths rather than optimization/analysis internals; No MemorySSA interaction\nBuild risk: Target-specific frontend behavior; Test expectation flips from success to failure; Potentially affects command-line compatibility"
+        },
+        {
+          "rank": 2,
+          "sha": "87d6941017aa6022ce00baa9f1dfae5a49b113f4",
+          "subject": "Reverting PR #184065 and #200323 to address some interplay with CFI (#201194)",
+          "utility": 0.83381,
+          "selection_score": 1.165798,
+          "semantic_score": 0.9,
+          "build_success_prob": 0.88,
+          "feedback_bias": 1.0,
+          "posterior_bad_mass": 0.526901,
+          "calibrated_suspicion_weight": 0.000693,
+          "calibrated_posterior_bad_mass": 0.51629,
+          "calibrated_posterior_info_gain": 0.999234,
+          "diff_mode": "parent",
+          "diff_extraction": "llm",
+          "diff_summary": "Summary: Large refactor removes the old GUID-metadata subsystem and replaces it with a new GUID assignment mechanism centered on AssignGUIDPass and function metadata. Many ThinLTO/LTO, function import, bitcode reader/writer, and profile-related call sites are switched from getGUIDOrFallback()/assigned metadata to direct GUID computation or metadata lookup through AssignGUIDPass. The patch also changes pass pipeline placement of AssignGUIDPass and updates numerous tests to reflect removed !guid metadata and GUIDLIST records.\nMechanisms: GUID metadata removal and replacement; ThinLTO summary/index GUID resolution; pass pipeline insertion/removal; bitcode reader/writer format simplification; function import / LTO liveness using direct GUIDs; contextual profile keyed by assigned GUID metadata\nTouched symbols: AssignGUIDPass; GlobalValue::getGUID; GlobalValue::getGUIDOrFallback; GlobalValue::getGUIDIfAssigned; GlobalObject::hasMetadataOtherThanDebugLoc; PGOContextualProfile::getDefinedFunctionGUID; CtxProfAnalysis::run; BitcodeModule::readSummary\nRisk relevance: Massive change to GUID provenance used by ThinLTO, devirtualization, function import, and PGO; Touches metadata-based identity, summary matching, and prevailing-symbol reasoning; Reworks when GUIDs are available and how callers query them, which can perturb optimization invariants; Modifies pass ordering around GUID assignment and index materialization; Contains multiple direct replacements of fallback GUID logic with stricter assumptions\nBuild risk: Deletes public/private GUID APIs and AssignGUID implementation files; Changes bitcode record formats by removing MODULE_CODE_GUIDLIST; Extensive test updates across LTO/ThinLTO/PGO/bitcode pipelines; Large cross-component ripple through Clang, LLVM, and LLD"
+        },
+        {
+          "rank": 3,
+          "sha": "8b66d829fbcc37eeb8a2a2e14dfc7bf40ee067e1",
+          "subject": "[Docs] Update coding standard for TD files (#200848)",
+          "utility": 0.93812,
+          "selection_score": 1.135596,
+          "semantic_score": 0.1,
+          "build_success_prob": 0.99,
+          "feedback_bias": 1.0,
+          "posterior_bad_mass": 0.473725,
+          "calibrated_suspicion_weight": 3.6e-05,
+          "calibrated_posterior_bad_mass": 0.452352,
+          "calibrated_posterior_info_gain": 0.993439,
+          "weak_relevance_penalty": 0.0495,
+          "diff_mode": "parent",
+          "diff_extraction": "llm",
+          "diff_summary": "Summary: Docs-only change updating formatting guidance for TableGen files. It adds .td files to clang-format ignore lists and revises LLVM coding standards to explicitly exempt TableGen from the 80-column/reformatting rule, emphasizing localized edits to avoid churn. No compiler or analysis code is touched.\nMechanisms: documentation policy update; formatting exclusion for TableGen files\nTouched symbols: CodingStandards.rst; .clang-format-ignore\nRisk relevance: No IR/analysis/optimizer behavior change; No MemorySSA or dominance-related code paths\nBuild risk: Docs and ignore-list only; Very low runtime/build impact"
+        },
+        {
+          "rank": 4,
+          "sha": "414b8b986705d24e415e8ef17bc8ddbbd6839712",
+          "subject": "[CodeGen][Transforms] Remove unused DenseMapInfo::getTombstoneKey (#200956)",
+          "utility": 0.91202,
+          "selection_score": 0.932062,
+          "semantic_score": 5.892857,
+          "build_success_prob": 0.92,
+          "feedback_bias": 0.942857,
+          "posterior_bad_mass": 0.508801,
+          "calibrated_suspicion_weight": 0.008765,
+          "calibrated_posterior_bad_mass": 0.49648,
+          "calibrated_posterior_info_gain": 0.999964
+        },
+        {
+          "rank": 5,
+          "sha": "e0f5ce18c04a5c55e5eb4e35e5ab1f1980e15c31",
+          "subject": "[IR][Analysis] Remove unused DenseMapInfo::getTombstoneKey (#200958)",
+          "utility": 0.903677,
+          "selection_score": 0.926819,
+          "semantic_score": 3.856667,
+          "build_success_prob": 0.92,
+          "feedback_bias": 0.866667,
+          "posterior_bad_mass": 0.511775,
+          "calibrated_suspicion_weight": 0.004945,
+          "calibrated_posterior_bad_mass": 0.501426,
+          "calibrated_posterior_info_gain": 0.999994
+        }
+      ],
+      "evidence": [
+        "=== validated-bisect-runner ===",
+        "issue: pr204559",
+        "llvm-project: /home/ubuntu/gitbisect-work/worktrees/pr204559-aws10-confidence-frontier-a-20260720a",
+        "commit: f341dab9edfa",
+        "jobs: 4",
+        "build type: Release",
+        "assertions: ON",
+        "ccache dir: /home/ubuntu/gitbisect-work/confidence-adaptive-20260720-896b595/.ccache/pr204559-git-bisect",
+        "repro exit code: 0",
+        "verdict: good"
+      ],
+      "log_excerpt": "=== validated-bisect-runner ===\nissue: pr204559\nllvm-project: /home/ubuntu/gitbisect-work/worktrees/pr204559-aws10-confidence-frontier-a-20260720a\ncommit: f341dab9edfa\njobs: 4\nbuild type: Release\nassertions: ON\nccache dir: /home/ubuntu/gitbisect-work/confidence-adaptive-20260720-896b595/.ccache/pr204559-git-bisect\nrepro exit code: 0\nverdict: good",
+      "trace_excerpt": "=== validated-bisect-runner ===\nissue: pr204559\nllvm-project: /home/ubuntu/gitbisect-work/worktrees/pr204559-aws10-confidence-frontier-a-20260720a\ncommit: f341dab9edfa\njobs: 4\nbuild type: Release\nassertions: ON\nccache dir: /home/ubuntu/gitbisect-work/confidence-adaptive-20260720-896b595/.ccache/pr204559-git-bisect\nrepro exit code: 0\nverdict: good",
+      "runner_duration_sec": 3192.449
+    },
+    {
+      "step": 4,
+      "sha": "ef7d2c97b4e5158a230aca54100b15cd3b9fa815",
+      "subject": "[gn] port 108b06f1797b3a6 (llvm-readtapi driver_executable) (#202826)",
+      "verdict": "good",
+      "source": "runner",
+      "summary": "verdict: good",
+      "unresolved_before": 2219,
+      "unresolved_after": 1141,
+      "model_top_k": 3,
+      "adaptive_top_k": null,
+      "confidence_adaptive_frontier": {
+        "threshold": 0.35
+      },
+      "model_frontier_decision": {
+        "configured_frontier": "topk",
+        "effective_frontier": "diverse",
+        "confidence": 0.038835,
+        "threshold": 0.35,
+        "reason": "semantic scores are ambiguous; add posterior and midpoint anchors",
+        "top_semantic_candidates": [
+          {
+            "sha": "87d6941017aa6022ce00baa9f1dfae5a49b113f4",
+            "semantic_score": 6.130952,
+            "build_success_prob": 0.63
+          },
+          {
+            "sha": "414b8b986705d24e415e8ef17bc8ddbbd6839712",
+            "semantic_score": 5.892857,
+            "build_success_prob": 0.92
+          }
+        ],
+        "selected_frontier_shas": [
+          "87d6941017aa6022ce00baa9f1dfae5a49b113f4",
+          "ef7d2c97b4e5158a230aca54100b15cd3b9fa815",
+          "e1110dabc49d10c9353d6af7555c56f55fb0cca8"
+        ],
+        "observation_count": 3
+      },
+      "model_score_context": "v1-7a177e707c88f709",
+      "model_score_context_payload": {
+        "version": "v1",
+        "unresolved_count": 2219,
+        "candidate_window_sha256": "2019f22e4d8124a8ce47050f78573658bc64d1b2470e6ad39c664550aaf0e920",
+        "observation_sha256": "1ce18f34d4c9e6248e35cf48745491c3faf695d5678ef2be92d86add9aeb4eb6",
+        "model_top_k": 3,
+        "model_frontier": "topk",
+        "model_diff_mode": "parent",
+        "model_diff_extraction": "llm",
+        "observation_prompt_mode": "trace-only",
+        "confidence_adaptive_frontier": {
+          "threshold": 0.35
+        }
+      },
+      "candidate_pruning": {
+        "mode": "off",
+        "before_count": 2219,
+        "after_count": 2219,
+        "pruned_count": 0,
+        "keep_prefixes": [],
+        "kept_reason_counts": {},
+        "prune_reason_counts": {},
+        "pruned_examples": []
+      },
+      "search_policy": "calibrated-posterior",
+      "selection_mode": "calibrated-posterior",
+      "selection": {
+        "utility": 0.962994,
+        "selection_score": 1.123565,
+        "semantic_score": 0.1,
+        "build_success_prob": 0.97,
+        "balance_score": 0.99247,
+        "suspicion_weight": 0.000155,
+        "feedback_bias": 1.0,
+        "evidence": [
+          "model-scored",
+          "GN build-file-only port with no LLVM analysis or optimizer logic changes",
+          "No plausible connection to MemorySSA clobber walker verification or -O1 crash mechanism",
+          "features: GN build rule change, tool packaging, non-semantic build-only change"
+        ],
+        "posterior_bad_mass": 0.496235,
+        "calibrated_suspicion_weight": 6.9e-05,
+        "calibrated_posterior_bad_mass": 0.512653,
+        "calibrated_posterior_info_gain": 0.999538,
+        "weak_relevance_penalty": 0.0485,
+        "diff_mode": "parent",
+        "diff_extraction": "llm",
+        "diff_summary": "Summary: This GN-only change ports llvm-readtapi\u2019s build rule to use the driver_executable template instead of a plain executable target. The substantive effect is build-system integration rather than compiler logic: it changes how the tool is modeled and linked in GN secondary build files without touching LLVM IR or analysis code.\nMechanisms: Switch GN target type to driver_executable; Import driver_executable build helper\nTouched symbols: llvm-readtapi BUILD.gn target\nRisk relevance: No compiler-analysis semantics changed; Build-configuration-only change, unlikely to affect MemorySSA or optimization correctness\nBuild risk: Affects GN build graph and tool packaging; Could break GN-only builds or driver executable expectations"
+      },
+      "top_candidates": [
+        {
+          "rank": 1,
+          "sha": "ef7d2c97b4e5158a230aca54100b15cd3b9fa815",
+          "subject": "[gn] port 108b06f1797b3a6 (llvm-readtapi driver_executable) (#202826)",
+          "utility": 0.962994,
+          "selection_score": 1.123565,
+          "semantic_score": 0.1,
+          "build_success_prob": 0.97,
+          "feedback_bias": 1.0,
+          "posterior_bad_mass": 0.496235,
+          "calibrated_suspicion_weight": 6.9e-05,
+          "calibrated_posterior_bad_mass": 0.512653,
+          "calibrated_posterior_info_gain": 0.999538,
+          "weak_relevance_penalty": 0.0485,
+          "diff_mode": "parent",
+          "diff_extraction": "llm",
+          "diff_summary": "Summary: This GN-only change ports llvm-readtapi\u2019s build rule to use the driver_executable template instead of a plain executable target. The substantive effect is build-system integration rather than compiler logic: it changes how the tool is modeled and linked in GN secondary build files without touching LLVM IR or analysis code.\nMechanisms: Switch GN target type to driver_executable; Import driver_executable build helper\nTouched symbols: llvm-readtapi BUILD.gn target\nRisk relevance: No compiler-analysis semantics changed; Build-configuration-only change, unlikely to affect MemorySSA or optimization correctness\nBuild risk: Affects GN build graph and tool packaging; Could break GN-only builds or driver executable expectations"
+        },
+        {
+          "rank": 2,
+          "sha": "e1110dabc49d10c9353d6af7555c56f55fb0cca8",
+          "subject": "[Flang][OpenMP][Sema] Add OpenMP warning when mapping local descriptors to device on enter without a corresponding exit (#201060)",
+          "utility": 0.933313,
+          "selection_score": 1.114093,
+          "semantic_score": 0.2,
+          "build_success_prob": 0.95,
+          "feedback_bias": 1.0,
+          "posterior_bad_mass": 0.509087,
+          "calibrated_suspicion_weight": 0.000177,
+          "calibrated_posterior_bad_mass": 0.523348,
+          "calibrated_posterior_info_gain": 0.998427,
+          "weak_relevance_penalty": 0.0475,
+          "diff_mode": "parent",
+          "diff_extraction": "llm",
+          "diff_summary": "Summary: This Flang OpenMP change adds semantic checking for TARGET ENTER DATA mappings of variables whose descriptors are stack-created or otherwise temporary, and warns when no corresponding TARGET EXIT DATA appears in the same scope. It introduces descriptor-classification logic for assumed-shape, assumed-rank, allocatable, and pointer cases, tracks enter/exit mappings per subprogram scope, and emits version-dependent diagnostics including a newer OpenMP 6.1 message that suggests ref_ptee. The change is localized to Flang semantic analysis and tests, with no direct LLVM optimizer interaction.\nMechanisms: Classify symbols that lower to temporary stack descriptors; Track TARGET ENTER DATA vs TARGET EXIT DATA mappings within a subprogram scope; Emit usage warnings conditionally based on OpenMP version; Suppress warning when reference modifiers are present\nTouched symbols: HasTemporaryStackDescriptor; OmpStructureChecker::CheckTempDescriptorMappings; OmpStructureChecker::Enter(const parser::OmpClause::Map &); OmpStructureChecker::Enter(const parser::EndSubroutineStmt &); OmpStructureChecker::Enter(const parser::EndFunctionStmt &); OmpStructureChecker::Enter(const parser::EndMpSubprogramStmt &)\nRisk relevance: Semantic checker logic and scope tracking can be sensitive to control-flow and nesting edge cases; Descriptor classification errors could create false positives/negatives in OpenMP diagnostics; Version-dependent warning text/behavior increases test fragility\nBuild risk: Adds new public declarations and internal state to Flang semantic headers; Introduces new OpenMP diagnostic tests for multiple versions; Touches parser/semantic code paths and warning expectations"
+        },
+        {
+          "rank": 3,
+          "sha": "d7d9601c182889ec5e25492fb94d22a70c03fc2b",
+          "subject": "[Loads] Migrate isDereferenceable APIs to SimplifyQuery (#202553)",
+          "utility": 0.849882,
+          "selection_score": 0.938346,
+          "semantic_score": 5.128462,
+          "build_success_prob": 0.92,
+          "feedback_bias": 0.907692,
+          "posterior_bad_mass": 0.45467,
+          "calibrated_suspicion_weight": 0.014124,
+          "calibrated_posterior_bad_mass": 0.479454,
+          "calibrated_posterior_info_gain": 0.998782
+        },
+        {
+          "rank": 4,
+          "sha": "5997a17bdaec757775a71bbe9e390f1f8e737178",
+          "subject": "[JumpThreading] Fix lifetime markers when alloca requires SSA renaming (#188147)",
+          "utility": 0.89404,
+          "selection_score": 0.925313,
+          "semantic_score": 1.96,
+          "build_success_prob": 0.92,
+          "feedback_bias": 0.8,
+          "posterior_bad_mass": 0.482959,
+          "calibrated_suspicion_weight": 0.003855,
+          "calibrated_posterior_bad_mass": 0.501579,
+          "calibrated_posterior_info_gain": 0.999993
+        },
+        {
+          "rank": 5,
+          "sha": "087df2c6a34542baf1b3acbf0088074c79769003",
+          "subject": "[LoopInterchange] Bail out if inner latch branch cond is not CmpInst (#202726)",
+          "utility": 0.900878,
+          "selection_score": 0.924875,
+          "semantic_score": 1.862,
+          "build_success_prob": 0.92,
+          "feedback_bias": 0.76,
+          "posterior_bad_mass": 0.4868,
+          "calibrated_suspicion_weight": 0.003597,
+          "calibrated_posterior_bad_mass": 0.505764,
+          "calibrated_posterior_info_gain": 0.999904
+        }
+      ],
+      "evidence": [
+        "=== validated-bisect-runner ===",
+        "issue: pr204559",
+        "llvm-project: /home/ubuntu/gitbisect-work/worktrees/pr204559-aws10-confidence-frontier-a-20260720a",
+        "commit: ef7d2c97b4e5",
+        "jobs: 4",
+        "build type: Release",
+        "assertions: ON",
+        "ccache dir: /home/ubuntu/gitbisect-work/confidence-adaptive-20260720-896b595/.ccache/pr204559-git-bisect",
+        "repro exit code: 0",
+        "verdict: good"
+      ],
+      "log_excerpt": "=== validated-bisect-runner ===\nissue: pr204559\nllvm-project: /home/ubuntu/gitbisect-work/worktrees/pr204559-aws10-confidence-frontier-a-20260720a\ncommit: ef7d2c97b4e5\njobs: 4\nbuild type: Release\nassertions: ON\nccache dir: /home/ubuntu/gitbisect-work/confidence-adaptive-20260720-896b595/.ccache/pr204559-git-bisect\nrepro exit code: 0\nverdict: good",
+      "trace_excerpt": "=== validated-bisect-runner ===\nissue: pr204559\nllvm-project: /home/ubuntu/gitbisect-work/worktrees/pr204559-aws10-confidence-frontier-a-20260720a\ncommit: ef7d2c97b4e5\njobs: 4\nbuild type: Release\nassertions: ON\nccache dir: /home/ubuntu/gitbisect-work/confidence-adaptive-20260720-896b595/.ccache/pr204559-git-bisect\nrepro exit code: 0\nverdict: good",
+      "runner_duration_sec": 3216.466
+    },
+    {
+      "step": 5,
+      "sha": "e26e9ba06f46f9619bb6d2df40850a54559640ce",
+      "subject": "[Loads][NFC] Add isDereferenceablePointer overload taking a size (#203905)",
+      "verdict": "good",
+      "source": "runner",
+      "summary": "verdict: good",
+      "unresolved_before": 1141,
+      "unresolved_after": 446,
+      "model_top_k": 3,
+      "adaptive_top_k": null,
+      "confidence_adaptive_frontier": {
+        "threshold": 0.35
+      },
+      "model_frontier_decision": {
+        "configured_frontier": "topk",
+        "effective_frontier": "diverse",
+        "confidence": 0.035304,
+        "threshold": 0.35,
+        "reason": "semantic scores are ambiguous; add posterior and midpoint anchors",
+        "top_semantic_candidates": [
+          {
+            "sha": "e26e9ba06f46f9619bb6d2df40850a54559640ce",
+            "semantic_score": 4.896667,
+            "build_success_prob": 0.92
+          },
+          {
+            "sha": "d7e30d2170ef03d503b69a5bef0734f6a585d5e3",
+            "semantic_score": 4.723793,
+            "build_success_prob": 0.82
+          }
+        ],
+        "selected_frontier_shas": [
+          "e26e9ba06f46f9619bb6d2df40850a54559640ce",
+          "3df63e9edfc08d293f7b4232f3897c5d1cb16a2e",
+          "76aed382055b0c07a9ce89d9273cc1f70daecf17"
+        ],
+        "observation_count": 4
+      },
+      "model_score_context": "v1-81245dec7eae6092",
+      "model_score_context_payload": {
+        "version": "v1",
+        "unresolved_count": 1141,
+        "candidate_window_sha256": "2f5f3c131fd508daabf9a2736b572897a8910067d5638970d0530807579aac72",
+        "observation_sha256": "5ca96bd49680cbb91c5778feca3693c7ea123479b0eaae8fab959563b0697c63",
+        "model_top_k": 3,
+        "model_frontier": "topk",
+        "model_diff_mode": "parent",
+        "model_diff_extraction": "llm",
+        "observation_prompt_mode": "trace-only",
+        "confidence_adaptive_frontier": {
+          "threshold": 0.35
+        }
+      },
+      "candidate_pruning": {
+        "mode": "off",
+        "before_count": 1141,
+        "after_count": 1141,
+        "pruned_count": 0,
+        "keep_prefixes": [],
+        "kept_reason_counts": {},
+        "prune_reason_counts": {},
+        "pruned_examples": []
+      },
+      "search_policy": "calibrated-posterior",
+      "selection_mode": "calibrated-posterior",
+      "selection": {
+        "utility": 0.717688,
+        "selection_score": 1.191064,
+        "semantic_score": 2.7,
+        "build_success_prob": 0.9,
+        "balance_score": 0.784293,
+        "suspicion_weight": 0.008376,
+        "feedback_bias": 1.0,
+        "evidence": [
+          "model-scored",
+          "Touches shared memory-dereferenceability reasoning used by optimizer passes",
+          "Could affect legality decisions in scalar transforms, but does not directly mention MemorySSA or clobber-walker verification",
+          "features: dereferenceability analysis, shared optimizer helper API, scalar transform consumers"
+        ],
+        "posterior_bad_mass": 0.607853,
+        "calibrated_suspicion_weight": 0.012389,
+        "calibrated_posterior_bad_mass": 0.604086,
+        "calibrated_posterior_info_gain": 0.96851,
+        "diff_mode": "parent",
+        "diff_extraction": "llm",
+        "diff_summary": "Summary: Refactors dereferenceability querying by introducing an overload of isDereferenceablePointer that accepts an explicit size APInt, then updates several consumers to use that helper instead of calling isDereferenceableAndAlignedPointer with alignment 1. The change is mostly API cleanup/NFC but it centralizes the size-based dereferenceability check used by analyses and transforms such as InstCombine, MemCpyOptimizer, MergeICmps, SimplifyLibCalls, and MachinePointerInfo. Because it touches memory-safety reasoning helpers shared across optimization passes, it has broad downstream relevance to dereferenceability-dependent transforms and alias/memory-precondition decisions.\nMechanisms: API addition for size-based dereferenceability queries; delegation from pointer-size helper to aligned pointer helper with Align(1); call-site replacement across several optimization and codegen consumers\nTouched symbols: isDereferenceablePointer(const Value *, const APInt &, const SimplifyQuery &, bool); isDereferenceablePointer(const Value *, Type *, const SimplifyQuery &, bool); isDereferenceableAndAlignedPointer; MachinePointerInfo::isDereferenceable; InstCombinerImpl::visitCallInst; MemCpyOptPass::performCallSlotOptzn; BCECmpChain::isDereferenceable; canTransformToMemCmp\nRisk relevance: Touches shared memory-dereferenceability reasoning used by multiple optimizer passes; A bug here could alter legality decisions for loads, memcpy optimizations, and cmp simplification; Although labeled NFC, replacing direct helper calls can still expose latent behavior differences in memory dependence reasoning\nBuild risk: Public header/API change in llvm/include/llvm/Analysis/Loads.h; Requires consistent updates across analysis, scalar transforms, codegen, and tests/consumers; Broad compile surface across multiple translation units increases integration risk"
+      },
+      "top_candidates": [
+        {
+          "rank": 1,
+          "sha": "e26e9ba06f46f9619bb6d2df40850a54559640ce",
+          "subject": "[Loads][NFC] Add isDereferenceablePointer overload taking a size (#203905)",
+          "utility": 0.717688,
+          "selection_score": 1.191064,
+          "semantic_score": 2.7,
+          "build_success_prob": 0.9,
+          "feedback_bias": 1.0,
+          "posterior_bad_mass": 0.607853,
+          "calibrated_suspicion_weight": 0.012389,
+          "calibrated_posterior_bad_mass": 0.604086,
+          "calibrated_posterior_info_gain": 0.96851,
+          "diff_mode": "parent",
+          "diff_extraction": "llm",
+          "diff_summary": "Summary: Refactors dereferenceability querying by introducing an overload of isDereferenceablePointer that accepts an explicit size APInt, then updates several consumers to use that helper instead of calling isDereferenceableAndAlignedPointer with alignment 1. The change is mostly API cleanup/NFC but it centralizes the size-based dereferenceability check used by analyses and transforms such as InstCombine, MemCpyOptimizer, MergeICmps, SimplifyLibCalls, and MachinePointerInfo. Because it touches memory-safety reasoning helpers shared across optimization passes, it has broad downstream relevance to dereferenceability-dependent transforms and alias/memory-precondition decisions.\nMechanisms: API addition for size-based dereferenceability queries; delegation from pointer-size helper to aligned pointer helper with Align(1); call-site replacement across several optimization and codegen consumers\nTouched symbols: isDereferenceablePointer(const Value *, const APInt &, const SimplifyQuery &, bool); isDereferenceablePointer(const Value *, Type *, const SimplifyQuery &, bool); isDereferenceableAndAlignedPointer; MachinePointerInfo::isDereferenceable; InstCombinerImpl::visitCallInst; MemCpyOptPass::performCallSlotOptzn; BCECmpChain::isDereferenceable; canTransformToMemCmp\nRisk relevance: Touches shared memory-dereferenceability reasoning used by multiple optimizer passes; A bug here could alter legality decisions for loads, memcpy optimizations, and cmp simplification; Although labeled NFC, replacing direct helper calls can still expose latent behavior differences in memory dependence reasoning\nBuild risk: Public header/API change in llvm/include/llvm/Analysis/Loads.h; Requires consistent updates across analysis, scalar transforms, codegen, and tests/consumers; Broad compile surface across multiple translation units increases integration risk"
+        },
+        {
+          "rank": 2,
+          "sha": "3df63e9edfc08d293f7b4232f3897c5d1cb16a2e",
+          "subject": "[BOLT] Zero alignment padding when reusing old text section (#202375)",
+          "utility": 0.936528,
+          "selection_score": 1.158973,
+          "semantic_score": 0.25,
+          "build_success_prob": 0.94,
+          "feedback_bias": 1.0,
+          "posterior_bad_mass": 0.502618,
+          "calibrated_suspicion_weight": 0.000499,
+          "calibrated_posterior_bad_mass": 0.491713,
+          "calibrated_posterior_info_gain": 0.999802,
+          "weak_relevance_penalty": 0.047,
+          "diff_mode": "parent",
+          "diff_extraction": "llm",
+          "diff_summary": "Summary: Adds BOLT support for zeroing alignment padding when rewriting binaries with --use-old-text. The new helper scans section file offsets, identifies executable allocatable sections that are rewritten in place, and overwrites the padding between the rewritten text end and the next file-backed section with zeros to avoid stale bytes from the input binary. This changes low-level binary layout/writing behavior and is exercised by a new AArch64 regression test that checks both section contents and the padding bytes.\nMechanisms: binary section offset scanning and ordering; post-write file padding sanitization; in-place text reuse under --use-old-text\nTouched symbols: RewriteInstance::zeroPaddingForReusedSections; RewriteInstance::rewriteFile; bolt::BinarySection\nRisk relevance: Low-level binary rewriting can affect output correctness and file layout; Touches section offset and size handling, which is sensitive to stale-data and alignment bugs; Could influence post-link tool stability rather than LLVM IR optimization semantics\nBuild risk: BOLT-only code path and test; Depends on ELF section metadata and file seeking/writing behavior; Introduces new file I/O manipulation that could be platform- or format-sensitive"
+        },
+        {
+          "rank": 3,
+          "sha": "76aed382055b0c07a9ce89d9273cc1f70daecf17",
+          "subject": "[clang-tidy] Avoid non-const-parameter fix-it conflicts with overloads (#202490)",
+          "utility": 0.920642,
+          "selection_score": 1.130422,
+          "semantic_score": 0.2,
+          "build_success_prob": 0.97,
+          "feedback_bias": 1.0,
+          "posterior_bad_mass": 0.47397,
+          "calibrated_suspicion_weight": 0.000369,
+          "calibrated_posterior_bad_mass": 0.465987,
+          "calibrated_posterior_info_gain": 0.996659,
+          "weak_relevance_penalty": 0.0485,
+          "diff_mode": "parent",
+          "diff_extraction": "llm",
+          "diff_summary": "Summary: Updates the clang-tidy readability/non-const-parameter check to suppress fix-it diagnostics when making a pointer parameter const would collide with an existing overload or related declaration in the same scope. The implementation simulates the transformed function signature, walks parent-scope lookup results (including using-shadow targets), and compares function types ignoring exception specifications before emitting a fix-it. This is a diagnostic-only change in clang-tools-extra, with no LLVM IR or optimization-analysis impact.\nMechanisms: clang-tidy fix-it conflict detection for function overload sets; synthetic parameter-type mutation and overload signature comparison; lookup through parent scope and using-shadow resolution\nTouched symbols: NonConstParameterCheck::diagnoseNonConstParameters; wouldConflictWithExistingDecl; readability::NonConstParameterCheck\nRisk relevance: Does not touch MemorySSA, dominance, clobber walking, or optimizer memory dependence reasoning; No analysis/update logic in llvm/lib/Analysis or llvm/lib/Transforms; Potentially relevant only as a frontend diagnostic behavioral change, not a compiler crash mechanism\nBuild risk: clang-tools-extra-only change; Adds overload-resolution-sensitive logic that depends on AST lookup behavior; Extends test coverage and release notes, indicating intended diagnostic behavior change"
+        },
+        {
+          "rank": 4,
+          "sha": "0b6faeeaadc5791797e3708c4084f2be74212ca4",
+          "subject": "[LoopInterchange] Reject inner-latch lcssa PHI feeding the exit condition (#202863)",
+          "utility": 0.865489,
+          "selection_score": 0.929178,
+          "semantic_score": 1.862,
+          "build_success_prob": 0.92,
+          "feedback_bias": 0.76,
+          "posterior_bad_mass": 0.534998,
+          "calibrated_suspicion_weight": 0.007502,
+          "calibrated_posterior_bad_mass": 0.52091,
+          "calibrated_posterior_info_gain": 0.998738
+        },
+        {
+          "rank": 5,
+          "sha": "aaa414e4e053a6195a33e82012b8e1141536b7f4",
+          "subject": "[Valuetracking] Use all FPClasses ordering information for min/max (#199651)",
+          "utility": 0.847677,
+          "selection_score": 0.928917,
+          "semantic_score": 2.05,
+          "build_success_prob": 0.92,
+          "feedback_bias": 1.0,
+          "posterior_bad_mass": 0.545092,
+          "calibrated_suspicion_weight": 0.008542,
+          "calibrated_posterior_bad_mass": 0.532665,
+          "calibrated_posterior_info_gain": 0.996919
+        }
+      ],
+      "evidence": [
+        "=== validated-bisect-runner ===",
+        "issue: pr204559",
+        "llvm-project: /home/ubuntu/gitbisect-work/worktrees/pr204559-aws10-confidence-frontier-a-20260720a",
+        "commit: e26e9ba06f46",
+        "jobs: 4",
+        "build type: Release",
+        "assertions: ON",
+        "ccache dir: /home/ubuntu/gitbisect-work/confidence-adaptive-20260720-896b595/.ccache/pr204559-git-bisect",
+        "repro exit code: 0",
+        "verdict: good"
+      ],
+      "log_excerpt": "=== validated-bisect-runner ===\nissue: pr204559\nllvm-project: /home/ubuntu/gitbisect-work/worktrees/pr204559-aws10-confidence-frontier-a-20260720a\ncommit: e26e9ba06f46\njobs: 4\nbuild type: Release\nassertions: ON\nccache dir: /home/ubuntu/gitbisect-work/confidence-adaptive-20260720-896b595/.ccache/pr204559-git-bisect\nrepro exit code: 0\nverdict: good",
+      "trace_excerpt": "=== validated-bisect-runner ===\nissue: pr204559\nllvm-project: /home/ubuntu/gitbisect-work/worktrees/pr204559-aws10-confidence-frontier-a-20260720a\ncommit: e26e9ba06f46\njobs: 4\nbuild type: Release\nassertions: ON\nccache dir: /home/ubuntu/gitbisect-work/confidence-adaptive-20260720-896b595/.ccache/pr204559-git-bisect\nrepro exit code: 0\nverdict: good",
+      "runner_duration_sec": 3213.448
+    },
+    {
+      "step": 6,
+      "sha": "b2cb99971fb498a7ff458b3a1a4a4edf3c3bafd3",
+      "subject": "[scudo] Use the unmap function on MemMap object. (#204001)",
+      "verdict": "good",
+      "source": "runner",
+      "summary": "verdict: good",
+      "unresolved_before": 446,
+      "unresolved_after": 223,
+      "model_top_k": 3,
+      "adaptive_top_k": null,
+      "confidence_adaptive_frontier": {
+        "threshold": 0.35
+      },
+      "model_frontier_decision": {
+        "configured_frontier": "topk",
+        "effective_frontier": "diverse",
+        "confidence": 0.317318,
+        "threshold": 0.35,
+        "reason": "semantic scores are ambiguous; add posterior and midpoint anchors",
+        "top_semantic_candidates": [
+          {
+            "sha": "d7e30d2170ef03d503b69a5bef0734f6a585d5e3",
+            "semantic_score": 4.352581,
+            "build_success_prob": 0.82
+          },
+          {
+            "sha": "8cf8aa030ed07b904c2b6dbd72947ec32f2ed1a6",
+            "semantic_score": 2.971429,
+            "build_success_prob": 0.88
+          }
+        ],
+        "selected_frontier_shas": [
+          "d7e30d2170ef03d503b69a5bef0734f6a585d5e3",
+          "8bea2ff77716f38575ea71eb38318ae19adad0d6",
+          "b2cb99971fb498a7ff458b3a1a4a4edf3c3bafd3"
+        ],
+        "observation_count": 5
+      },
+      "model_score_context": "v1-45bae96f2494e39f",
+      "model_score_context_payload": {
+        "version": "v1",
+        "unresolved_count": 446,
+        "candidate_window_sha256": "45a8a7e76f88e75b6cec729f0a7bcaf641fefd0bbec7d4f5378030cda328a2c4",
+        "observation_sha256": "e5907ec75145ad128260d30e11334950926805eab0266f0a27c29b52eebff199",
+        "model_top_k": 3,
+        "model_frontier": "topk",
+        "model_diff_mode": "parent",
+        "model_diff_extraction": "llm",
+        "observation_prompt_mode": "trace-only",
+        "confidence_adaptive_frontier": {
+          "threshold": 0.35
+        }
+      },
+      "candidate_pruning": {
+        "mode": "off",
+        "before_count": 446,
+        "after_count": 446,
+        "pruned_count": 0,
+        "keep_prefixes": [],
+        "kept_reason_counts": {},
+        "prune_reason_counts": {},
+        "pruned_examples": []
+      },
+      "search_policy": "calibrated-posterior",
+      "selection_mode": "calibrated-posterior",
+      "selection": {
+        "utility": 0.917392,
+        "selection_score": 1.133057,
+        "semantic_score": 0.2,
+        "build_success_prob": 0.97,
+        "balance_score": 0.94266,
+        "suspicion_weight": 0.001647,
+        "feedback_bias": 1.0,
+        "evidence": [
+          "model-scored",
+          "Changes scudo allocator unmap behavior in compiler-rt, unrelated to LLVM MemorySSA or -O1 optimization assertions",
+          "No overlap with MemorySSA.cpp, ClobberWalker::verifyOptResult, or dominance/memory dependence reasoning",
+          "features: compiler-rt allocator teardown, MemMap unmap API usage, unrelated to LLVM analysis"
+        ],
+        "posterior_bad_mass": 0.47133,
+        "calibrated_suspicion_weight": 0.00101,
+        "calibrated_posterior_bad_mass": 0.458807,
+        "calibrated_posterior_info_gain": 0.995098,
+        "weak_relevance_penalty": 0.0485,
+        "diff_mode": "parent",
+        "diff_extraction": "llm",
+        "diff_summary": "Summary: Scudo secondary allocator cleanup: switches one deallocation path from a free function call to the MemMap object's member unmap() API. The change is confined to compiler-rt and does not touch LLVM analysis, optimization, or MemorySSA-related code paths.\nMechanisms: allocator memory unmapping API usage; MemMap ownership / teardown semantics\nTouched symbols: MapAllocator<Config>::allocate; MemMap::unmap\nRisk relevance: No direct overlap with MemorySSA, dominance, or optimizer memory dependence reasoning; Only changes allocator release mechanism in compiler-rt, so unlikely to explain a clang -O1 analysis crash\nBuild risk: Local API call-site change in standalone scudo code; Potential for runtime allocator regressions, but minimal impact on LLVM/Clang build or analysis tests"
+      },
+      "top_candidates": [
+        {
+          "rank": 1,
+          "sha": "b2cb99971fb498a7ff458b3a1a4a4edf3c3bafd3",
+          "subject": "[scudo] Use the unmap function on MemMap object. (#204001)",
+          "utility": 0.917392,
+          "selection_score": 1.133057,
+          "semantic_score": 0.2,
+          "build_success_prob": 0.97,
+          "feedback_bias": 1.0,
+          "posterior_bad_mass": 0.47133,
+          "calibrated_suspicion_weight": 0.00101,
+          "calibrated_posterior_bad_mass": 0.458807,
+          "calibrated_posterior_info_gain": 0.995098,
+          "weak_relevance_penalty": 0.0485,
+          "diff_mode": "parent",
+          "diff_extraction": "llm",
+          "diff_summary": "Summary: Scudo secondary allocator cleanup: switches one deallocation path from a free function call to the MemMap object's member unmap() API. The change is confined to compiler-rt and does not touch LLVM analysis, optimization, or MemorySSA-related code paths.\nMechanisms: allocator memory unmapping API usage; MemMap ownership / teardown semantics\nTouched symbols: MapAllocator<Config>::allocate; MemMap::unmap\nRisk relevance: No direct overlap with MemorySSA, dominance, or optimizer memory dependence reasoning; Only changes allocator release mechanism in compiler-rt, so unlikely to explain a clang -O1 analysis crash\nBuild risk: Local API call-site change in standalone scudo code; Potential for runtime allocator regressions, but minimal impact on LLVM/Clang build or analysis tests"
+        },
+        {
+          "rank": 2,
+          "sha": "8bea2ff77716f38575ea71eb38318ae19adad0d6",
+          "subject": "Reland \"[clang][ssaf] Track target triple in TU and LU summaries. #204027\" (#204259)",
+          "utility": 0.833123,
+          "selection_score": 1.064551,
+          "semantic_score": 0.7,
+          "build_success_prob": 0.84,
+          "feedback_bias": 1.0,
+          "posterior_bad_mass": 0.509745,
+          "calibrated_suspicion_weight": 0.005483,
+          "calibrated_posterior_bad_mass": 0.485593,
+          "calibrated_posterior_info_gain": 0.999401,
+          "weak_relevance_penalty": 0.042,
+          "diff_mode": "parent",
+          "diff_extraction": "llm",
+          "diff_summary": "Summary: Relands scalable static analysis framework updates that thread a target triple through translation-unit and link-unit summaries, encodings, extractors, and JSON serialization. The commit adds validation that serialized target triples are normalized, requires target_triple fields in many JSON inputs/outputs, and propagates the compiler target from the frontend into summary objects and the linker. It also updates tests and build linkage to use llvm::Triple/TargetParser.\nMechanisms: summary metadata propagation; JSON serialization/deserialization validation; target triple normalization checks; frontend-to-summary context threading; linker consistency enforcement\nTouched symbols: EntityLinker; LUSummary; LUSummaryEncoding; TUSummary; TUSummaryEncoding; validateNormalizedTargetTriple; readLUSummary; readLUSummaryEncoding\nRisk relevance: Touches serialization and linker plumbing for analysis summaries, which can affect analysis correctness and test inputs; Introduces stricter validation of normalized triples and required fields, increasing failure surface in tooling paths; Changes the data model for summary objects, but still outside MemorySSA and optimizer dependence reasoning\nBuild risk: Broad header/API signature changes across clang SSAF components; New TargetParser link requirements in multiple CMakeLists; Large test data churn and new negative tests for missing/not-normalized target triples; Potential source compatibility break for callers constructing summary/linker objects"
+        },
+        {
+          "rank": 3,
+          "sha": "a23bf51952f375bcdedcca326619a040ec3c4897",
+          "subject": "[SROA] Extend tree-structured merge to handle init + RMW pattern (#194441)",
+          "utility": 0.869261,
+          "selection_score": 0.941475,
+          "semantic_score": 1.925,
+          "build_success_prob": 0.92,
+          "feedback_bias": 0.7,
+          "posterior_bad_mass": 0.457908,
+          "calibrated_suspicion_weight": 0.021484,
+          "calibrated_posterior_bad_mass": 0.445438,
+          "calibrated_posterior_info_gain": 0.991393
+        },
+        {
+          "rank": 4,
+          "sha": "37881c63a952d554ab69d8ac31f8d1037b032c59",
+          "subject": "[llvm] Replace unordered_{map,set} with Dense{Map,Set} in local maps (#204277)",
+          "utility": 0.883151,
+          "selection_score": 0.939703,
+          "semantic_score": 1.426923,
+          "build_success_prob": 0.92,
+          "feedback_bias": 0.815385,
+          "posterior_bad_mass": 0.531047,
+          "calibrated_suspicion_weight": 0.014341,
+          "calibrated_posterior_bad_mass": 0.505681,
+          "calibrated_posterior_info_gain": 0.999907
+        },
+        {
+          "rank": 5,
+          "sha": "7e69b169965d78dbd5c2343ce4aa89eeb9fda131",
+          "subject": "[InstCombine] Fold X == Identity ? Y : min/max(X, Y) (#202748)",
+          "utility": 0.792505,
+          "selection_score": 0.935842,
+          "semantic_score": 1.64,
+          "build_success_prob": 0.92,
+          "feedback_bias": 0.8,
+          "posterior_bad_mass": 0.580618,
+          "calibrated_suspicion_weight": 0.017305,
+          "calibrated_posterior_bad_mass": 0.554277,
+          "calibrated_posterior_info_gain": 0.991483
+        }
+      ],
+      "evidence": [
+        "=== validated-bisect-runner ===",
+        "issue: pr204559",
+        "llvm-project: /home/ubuntu/gitbisect-work/worktrees/pr204559-aws10-confidence-frontier-a-20260720a",
+        "commit: b2cb99971fb4",
+        "jobs: 4",
+        "build type: Release",
+        "assertions: ON",
+        "ccache dir: /home/ubuntu/gitbisect-work/confidence-adaptive-20260720-896b595/.ccache/pr204559-git-bisect",
+        "repro exit code: 0",
+        "verdict: good"
+      ],
+      "log_excerpt": "=== validated-bisect-runner ===\nissue: pr204559\nllvm-project: /home/ubuntu/gitbisect-work/worktrees/pr204559-aws10-confidence-frontier-a-20260720a\ncommit: b2cb99971fb4\njobs: 4\nbuild type: Release\nassertions: ON\nccache dir: /home/ubuntu/gitbisect-work/confidence-adaptive-20260720-896b595/.ccache/pr204559-git-bisect\nrepro exit code: 0\nverdict: good",
+      "trace_excerpt": "=== validated-bisect-runner ===\nissue: pr204559\nllvm-project: /home/ubuntu/gitbisect-work/worktrees/pr204559-aws10-confidence-frontier-a-20260720a\ncommit: b2cb99971fb4\njobs: 4\nbuild type: Release\nassertions: ON\nccache dir: /home/ubuntu/gitbisect-work/confidence-adaptive-20260720-896b595/.ccache/pr204559-git-bisect\nrepro exit code: 0\nverdict: good",
+      "runner_duration_sec": 2988.106
+    },
+    {
+      "step": 7,
+      "sha": "e12ce86b96bd008d9adf682005c00e133c7daf5b",
+      "subject": "[lldb][gdb-remote] Send argv[0] in remote target's separator style on launch (#204134)",
+      "verdict": "good",
+      "source": "runner",
+      "summary": "verdict: good",
+      "unresolved_before": 223,
+      "unresolved_after": 110,
+      "model_top_k": 3,
+      "adaptive_top_k": null,
+      "confidence_adaptive_frontier": {
+        "threshold": 0.35
+      },
+      "model_frontier_decision": {
+        "configured_frontier": "topk",
+        "effective_frontier": "diverse",
+        "confidence": 0.317318,
+        "threshold": 0.35,
+        "reason": "semantic scores are ambiguous; add posterior and midpoint anchors",
+        "top_semantic_candidates": [
+          {
+            "sha": "d7e30d2170ef03d503b69a5bef0734f6a585d5e3",
+            "semantic_score": 4.352581,
+            "build_success_prob": 0.82
+          },
+          {
+            "sha": "8cf8aa030ed07b904c2b6dbd72947ec32f2ed1a6",
+            "semantic_score": 2.971429,
+            "build_success_prob": 0.88
+          }
+        ],
+        "selected_frontier_shas": [
+          "d7e30d2170ef03d503b69a5bef0734f6a585d5e3",
+          "e12ce86b96bd008d9adf682005c00e133c7daf5b",
+          "24f4fbf89d7e1c6e7b00efde469adb0a8c529cd2"
+        ],
+        "observation_count": 6
+      },
+      "model_score_context": "v1-9db63120596874ae",
+      "model_score_context_payload": {
+        "version": "v1",
+        "unresolved_count": 223,
+        "candidate_window_sha256": "e085b720728d860258beeecbc512746ad680e9e70221c9f36ab22fc891b59e9d",
+        "observation_sha256": "9db633f168c65532af567c309ca6c0c8f2bded6d8b2bfeb7420b2f4e00abb403",
+        "model_top_k": 3,
+        "model_frontier": "topk",
+        "model_diff_mode": "parent",
+        "model_diff_extraction": "llm",
+        "observation_prompt_mode": "trace-only",
+        "confidence_adaptive_frontier": {
+          "threshold": 0.35
+        }
+      },
+      "candidate_pruning": {
+        "mode": "off",
+        "before_count": 223,
+        "after_count": 223,
+        "pruned_count": 0,
+        "keep_prefixes": [],
+        "kept_reason_counts": {},
+        "prune_reason_counts": {},
+        "pruned_examples": []
+      },
+      "search_policy": "calibrated-posterior",
+      "selection_mode": "calibrated-posterior",
+      "selection": {
+        "utility": 0.913751,
+        "selection_score": 1.10547,
+        "semantic_score": 0.1,
+        "build_success_prob": 0.97,
+        "balance_score": 0.938992,
+        "suspicion_weight": 0.001607,
+        "feedback_bias": 1.0,
+        "evidence": [
+          "model-scored",
+          "LLDB remote launch path handling only; unrelated to LLVM optimization passes or MemorySSA verification.",
+          "No overlap with the reported crash mechanism beyond being an LLVM-project commit.",
+          "features: LLDB gdb-remote, launch argument normalization, debugger-only change"
+        ],
+        "posterior_bad_mass": 0.469496,
+        "calibrated_suspicion_weight": 0.000766,
+        "calibrated_posterior_bad_mass": 0.445937,
+        "calibrated_posterior_info_gain": 0.99155,
+        "weak_relevance_penalty": 0.0485,
+        "diff_mode": "parent",
+        "diff_extraction": "llm",
+        "diff_summary": "Summary: Adjusts LLDB gdb-remote launch argument handling so argv[0] is rewritten using the remote target's path separator and triple-aware normalization when the remote OS is known. The code now constructs a remote FileSpec from the executable path and remote triple before replacing the first argument, falling back to the previous path-denormalized form only when the triple has no OS.\nMechanisms: remote path canonicalization; launch argument rewriting based on target triple; FileSpec conversion between local and remote separator styles\nTouched symbols: ProcessGDBRemote::DoLaunch; FileSpec; llvm::Triple\nRisk relevance: Debugger launch-path semantics only; not related to LLVM IR, MemorySSA, or optimizer dominance reasoning.; Could affect remote launch behavior and argument fidelity, but not compiler crashes in -O1 optimization passes.\nBuild risk: LLDB-only code path with platform-specific behavior changes.; Potential test fragility in gdb-remote launch tests due to separator/path normalization differences."
+      },
+      "top_candidates": [
+        {
+          "rank": 1,
+          "sha": "e12ce86b96bd008d9adf682005c00e133c7daf5b",
+          "subject": "[lldb][gdb-remote] Send argv[0] in remote target's separator style on launch (#204134)",
+          "utility": 0.913751,
+          "selection_score": 1.10547,
+          "semantic_score": 0.1,
+          "build_success_prob": 0.97,
+          "feedback_bias": 1.0,
+          "posterior_bad_mass": 0.469496,
+          "calibrated_suspicion_weight": 0.000766,
+          "calibrated_posterior_bad_mass": 0.445937,
+          "calibrated_posterior_info_gain": 0.99155,
+          "weak_relevance_penalty": 0.0485,
+          "diff_mode": "parent",
+          "diff_extraction": "llm",
+          "diff_summary": "Summary: Adjusts LLDB gdb-remote launch argument handling so argv[0] is rewritten using the remote target's path separator and triple-aware normalization when the remote OS is known. The code now constructs a remote FileSpec from the executable path and remote triple before replacing the first argument, falling back to the previous path-denormalized form only when the triple has no OS.\nMechanisms: remote path canonicalization; launch argument rewriting based on target triple; FileSpec conversion between local and remote separator styles\nTouched symbols: ProcessGDBRemote::DoLaunch; FileSpec; llvm::Triple\nRisk relevance: Debugger launch-path semantics only; not related to LLVM IR, MemorySSA, or optimizer dominance reasoning.; Could affect remote launch behavior and argument fidelity, but not compiler crashes in -O1 optimization passes.\nBuild risk: LLDB-only code path with platform-specific behavior changes.; Potential test fragility in gdb-remote launch tests due to separator/path normalization differences."
+        },
+        {
+          "rank": 2,
+          "sha": "24f4fbf89d7e1c6e7b00efde469adb0a8c529cd2",
+          "subject": "Revert \"[AMDGPU] Add compiler-rt checks for the GPU runtime\" (#204370)",
+          "utility": 0.891847,
+          "selection_score": 1.080916,
+          "semantic_score": 0.1,
+          "build_success_prob": 0.95,
+          "feedback_bias": 1.0,
+          "posterior_bad_mass": 0.467889,
+          "calibrated_suspicion_weight": 0.000766,
+          "calibrated_posterior_bad_mass": 0.445171,
+          "calibrated_posterior_info_gain": 0.991308,
+          "weak_relevance_penalty": 0.0475,
+          "diff_mode": "parent",
+          "diff_extraction": "llm",
+          "diff_summary": "Summary: Reverts an offload CI change by removing an extra compiler-rt check from the AMDGPU OpenMP runtime pipeline. The patch only changes the CI script to stop running the check-compiler-rt-amdgcn-amd-amdhsa Ninja target under HSA_ENABLE_SDMA=0, restoring the previous narrower validation set.\nMechanisms: CI workflow reduction; test coverage rollback for AMDGPU runtime validation\nTouched symbols: openmp-offload-amdgpu-libc-runtime.py\nRisk relevance: No compiler or optimizer IR change; unrelated to MemorySSA or -O1 crash mechanics.; Only affects offload CI validation coverage, not code generation or analysis behavior.\nBuild risk: Reduces CI test coverage for compiler-rt on AMDGPU offload builds.; May mask regressions in runtime packaging or build integration by skipping a validation step."
+        },
+        {
+          "rank": 3,
+          "sha": "5a5d0fb1e471b3a1e842aee1f993e885c8d19713",
+          "subject": "[SimpleLoopUnswitch] Generalize the notion of trivial unswitching (#193989)",
+          "utility": 0.829905,
+          "selection_score": 0.984399,
+          "semantic_score": 2.622,
+          "build_success_prob": 0.92,
+          "feedback_bias": 0.76,
+          "posterior_bad_mass": 0.584027,
+          "calibrated_suspicion_weight": 0.063017,
+          "calibrated_posterior_bad_mass": 0.587897,
+          "calibrated_posterior_info_gain": 0.977592
+        },
+        {
+          "rank": 4,
+          "sha": "0176227cffbada32744b28eff72482b742e1bae9",
+          "subject": "[SimplifyCFG] Use context instruction in foldBranchToCommonDest() (#203516)",
+          "utility": 0.912566,
+          "selection_score": 0.965761,
+          "semantic_score": 1.65,
+          "build_success_prob": 0.92,
+          "feedback_bias": 0.733333,
+          "posterior_bad_mass": 0.529023,
+          "calibrated_suspicion_weight": 0.033721,
+          "calibrated_posterior_bad_mass": 0.516661,
+          "calibrated_posterior_info_gain": 0.999199
+        },
+        {
+          "rank": 5,
+          "sha": "980e9487c6291a6c377a13b6a775205237f29bae",
+          "subject": "[AArch64] Update Cost model for CLMUL (#202965)",
+          "utility": 0.960479,
+          "selection_score": 0.96497,
+          "semantic_score": 1.64,
+          "build_success_prob": 0.92,
+          "feedback_bias": 0.8,
+          "posterior_bad_mass": 0.495857,
+          "calibrated_suspicion_weight": 0.033446,
+          "calibrated_posterior_bad_mass": 0.479383,
+          "calibrated_posterior_info_gain": 0.998773
+        }
+      ],
+      "evidence": [
+        "=== validated-bisect-runner ===",
+        "issue: pr204559",
+        "llvm-project: /home/ubuntu/gitbisect-work/worktrees/pr204559-aws10-confidence-frontier-a-20260720a",
+        "commit: e12ce86b96bd",
+        "jobs: 4",
+        "build type: Release",
+        "assertions: ON",
+        "ccache dir: /home/ubuntu/gitbisect-work/confidence-adaptive-20260720-896b595/.ccache/pr204559-git-bisect",
+        "repro exit code: 0",
+        "verdict: good"
+      ],
+      "log_excerpt": "=== validated-bisect-runner ===\nissue: pr204559\nllvm-project: /home/ubuntu/gitbisect-work/worktrees/pr204559-aws10-confidence-frontier-a-20260720a\ncommit: e12ce86b96bd\njobs: 4\nbuild type: Release\nassertions: ON\nccache dir: /home/ubuntu/gitbisect-work/confidence-adaptive-20260720-896b595/.ccache/pr204559-git-bisect\nrepro exit code: 0\nverdict: good",
+      "trace_excerpt": "=== validated-bisect-runner ===\nissue: pr204559\nllvm-project: /home/ubuntu/gitbisect-work/worktrees/pr204559-aws10-confidence-frontier-a-20260720a\ncommit: e12ce86b96bd\njobs: 4\nbuild type: Release\nassertions: ON\nccache dir: /home/ubuntu/gitbisect-work/confidence-adaptive-20260720-896b595/.ccache/pr204559-git-bisect\nrepro exit code: 0\nverdict: good",
+      "runner_duration_sec": 2816.262
+    },
+    {
+      "step": 8,
+      "sha": "8cf8aa030ed07b904c2b6dbd72947ec32f2ed1a6",
+      "subject": "AMDGPU/Tests: Remove redundant explicit data layouts from AMDGPU tests (#203447)",
+      "verdict": "bad",
+      "source": "runner",
+      "summary": "verdict: bad",
+      "unresolved_before": 110,
+      "unresolved_after": 59,
+      "model_top_k": 3,
+      "adaptive_top_k": null,
+      "confidence_adaptive_frontier": {
+        "threshold": 0.35
+      },
+      "model_frontier_decision": {
+        "configured_frontier": "topk",
+        "effective_frontier": "diverse",
+        "confidence": 0.117596,
+        "threshold": 0.35,
+        "reason": "semantic scores are ambiguous; add posterior and midpoint anchors",
+        "top_semantic_candidates": [
+          {
+            "sha": "8cf8aa030ed07b904c2b6dbd72947ec32f2ed1a6",
+            "semantic_score": 2.971429,
+            "build_success_prob": 0.88
+          },
+          {
+            "sha": "5a5d0fb1e471b3a1e842aee1f993e885c8d19713",
+            "semantic_score": 2.622,
+            "build_success_prob": 0.92
+          }
+        ],
+        "selected_frontier_shas": [
+          "8cf8aa030ed07b904c2b6dbd72947ec32f2ed1a6",
+          "cddebef5a9cefe4006fa54129a99f650a9c03d29",
+          "2f6dedc94c649dfb46c7d9e21a8ec45db51c1424"
+        ],
+        "observation_count": 7
+      },
+      "model_score_context": "v1-65359a8ea25f4192",
+      "model_score_context_payload": {
+        "version": "v1",
+        "unresolved_count": 110,
+        "candidate_window_sha256": "121d7861488ca5ffa3381dde7804c64f74652b79469265ae739506ab037ec5e1",
+        "observation_sha256": "b80b9184ccfa7322d19601801f0982cd8a8d31e138870c2dd3eb9b9336491850",
+        "model_top_k": 3,
+        "model_frontier": "topk",
+        "model_diff_mode": "parent",
+        "model_diff_extraction": "llm",
+        "observation_prompt_mode": "trace-only",
+        "confidence_adaptive_frontier": {
+          "threshold": 0.35
+        }
+      },
+      "candidate_pruning": {
+        "mode": "off",
+        "before_count": 110,
+        "after_count": 110,
+        "pruned_count": 0,
+        "keep_prefixes": [],
+        "kept_reason_counts": {},
+        "prune_reason_counts": {},
+        "pruned_examples": []
+      },
+      "search_policy": "calibrated-posterior",
+      "selection_mode": "calibrated-posterior",
+      "selection": {
+        "utility": 0.881309,
+        "selection_score": 1.315644,
+        "semantic_score": 1.6,
+        "build_success_prob": 0.95,
+        "balance_score": 0.841085,
+        "suspicion_weight": 0.051486,
+        "feedback_bias": 1.0,
+        "evidence": [
+          "model-scored",
+          "Touches llvm/test/Analysis/MemorySSA/ptr-const-mem.ll, giving weak subsystem overlap",
+          "Edits are test-only datalayout cleanup, not MemorySSA algorithm or verifier logic",
+          "features: MemorySSA test coverage, test input normalization, datalayout removal"
+        ],
+        "posterior_bad_mass": 0.579458,
+        "calibrated_suspicion_weight": 0.06447,
+        "calibrated_posterior_bad_mass": 0.604897,
+        "calibrated_posterior_info_gain": 0.968014,
+        "diff_mode": "parent",
+        "diff_extraction": "llm",
+        "diff_summary": "Summary: Cleans up many AMDGPU-oriented tests by removing explicit target datalayout settings and relying more on the target triple or default layout behavior. The only analysis-adjacent file touched is a MemorySSA test, but the edits shown are test harness normalization rather than algorithmic changes. The overall commit primarily shifts test inputs and RUN lines to avoid redundant layout specification across AMDGPU and OpenMP coverage.\nMechanisms: test input normalization; target datalayout removal; RUN-line simplification; default target layout reliance\nTouched symbols: MemorySSA test coverage; amdgpu-promote-alloca; infer-address-spaces; openmp-opt; loop-unroll; EarlyCSE\nRisk relevance: touches a MemorySSA test file, but as test-only cleanup; broad coverage across memory-related and OpenMP/AMDGPU transforms may expose layout-sensitive behavior; removal of explicit datalayout can change how passes are exercised in tests\nBuild risk: many test files modified, increasing chance of expectation drift; test behavior now depends more on implicit default datalayout/triple semantics; potentially fragile across targets/backends due to layout assumptions"
+      },
+      "top_candidates": [
+        {
+          "rank": 1,
+          "sha": "8cf8aa030ed07b904c2b6dbd72947ec32f2ed1a6",
+          "subject": "AMDGPU/Tests: Remove redundant explicit data layouts from AMDGPU tests (#203447)",
+          "utility": 0.881309,
+          "selection_score": 1.315644,
+          "semantic_score": 1.6,
+          "build_success_prob": 0.95,
+          "feedback_bias": 1.0,
+          "posterior_bad_mass": 0.579458,
+          "calibrated_suspicion_weight": 0.06447,
+          "calibrated_posterior_bad_mass": 0.604897,
+          "calibrated_posterior_info_gain": 0.968014,
+          "diff_mode": "parent",
+          "diff_extraction": "llm",
+          "diff_summary": "Summary: Cleans up many AMDGPU-oriented tests by removing explicit target datalayout settings and relying more on the target triple or default layout behavior. The only analysis-adjacent file touched is a MemorySSA test, but the edits shown are test harness normalization rather than algorithmic changes. The overall commit primarily shifts test inputs and RUN lines to avoid redundant layout specification across AMDGPU and OpenMP coverage.\nMechanisms: test input normalization; target datalayout removal; RUN-line simplification; default target layout reliance\nTouched symbols: MemorySSA test coverage; amdgpu-promote-alloca; infer-address-spaces; openmp-opt; loop-unroll; EarlyCSE\nRisk relevance: touches a MemorySSA test file, but as test-only cleanup; broad coverage across memory-related and OpenMP/AMDGPU transforms may expose layout-sensitive behavior; removal of explicit datalayout can change how passes are exercised in tests\nBuild risk: many test files modified, increasing chance of expectation drift; test behavior now depends more on implicit default datalayout/triple semantics; potentially fragile across targets/backends due to layout assumptions"
+        },
+        {
+          "rank": 2,
+          "sha": "cddebef5a9cefe4006fa54129a99f650a9c03d29",
+          "subject": "[CtxProf] emit fatal usage error when flatten-prethinlink runs without guid metadata (#194383)",
+          "utility": 0.964277,
+          "selection_score": 1.211066,
+          "semantic_score": 0.3,
+          "build_success_prob": 0.97,
+          "feedback_bias": 1.0,
+          "posterior_bad_mass": 0.512365,
+          "calibrated_suspicion_weight": 0.006728,
+          "calibrated_posterior_bad_mass": 0.531674,
+          "calibrated_posterior_info_gain": 0.997103,
+          "weak_relevance_penalty": 0.0485,
+          "diff_mode": "parent",
+          "diff_extraction": "llm",
+          "diff_summary": "Summary: Replaces an internal assertion in CtxProf GUID assignment with a fatal user-facing error when required GUID metadata is missing during flatten-prethinlink. The functional change is limited to pass precondition enforcement in llvm/lib/Analysis/CtxProfAnalysis.cpp and adds a regression test covering the missing-metadata failure mode. This is a diagnostics/control-flow change in an analysis pass rather than an optimization or MemorySSA change.\nMechanisms: pass precondition validation; fatal error reporting instead of assert; GUID metadata presence check\nTouched symbols: AssignGUIDPass::getGUID; reportFatalUsageError; ctx-prof-flatten-prethinlink\nRisk relevance: changes assert-to-error behavior in analysis infrastructure; affects pass execution gating when metadata is absent; could alter failure mode but not memory dependence reasoning\nBuild risk: new lit test for error text and failure handling; affects analysis pass diagnostics only"
+        },
+        {
+          "rank": 3,
+          "sha": "2f6dedc94c649dfb46c7d9e21a8ec45db51c1424",
+          "subject": "[Bazel] Fixes 6bf6e39 (#204429)",
+          "utility": 0.965039,
+          "selection_score": 1.161185,
+          "semantic_score": 0.2,
+          "build_success_prob": 0.99,
+          "feedback_bias": 1.0,
+          "posterior_bad_mass": 0.5188,
+          "calibrated_suspicion_weight": 0.003892,
+          "calibrated_posterior_bad_mass": 0.535566,
+          "calibrated_posterior_info_gain": 0.996347,
+          "weak_relevance_penalty": 0.0495,
+          "diff_mode": "parent",
+          "diff_extraction": "llm",
+          "diff_summary": "Summary: Updates Bazel overlay definitions for libc by adding missing support libraries and wiring dependencies for sysinfo/prlimit-related headers and resource macros. The change is in the build configuration layer only, expanding target definitions and compatibility constraints for Linux-specific libc support code. It does not touch LLVM optimization or analysis logic.\nMechanisms: Bazel target graph adjustment; library dependency wiring; platform-conditional target compatibility\nTouched symbols: libc_support_library; __support_osutil_linux_syscall_wrappers_sysinfo; hdr_sys_resource_macros\nRisk relevance: no impact on MemorySSA, dominance, or optimizer memory reasoning; build-system change can affect test availability or configuration resolution\nBuild risk: Bazel overlay update may affect hermetic builds; introduces new Linux-only target compatibility conditions; adds/updates libc dependency edges"
+        },
+        {
+          "rank": 4,
+          "sha": "a2f4a1cabb083337ccb17c77cafb36d94c1ef52b",
+          "subject": "[VPlan] Also expand SCEVUDivExpr in expandSCEVExpr. (#203093)",
+          "utility": 0.948182,
+          "selection_score": 1.011963,
+          "semantic_score": 1.64,
+          "build_success_prob": 0.92,
+          "feedback_bias": 0.8,
+          "posterior_bad_mass": 0.466119,
+          "calibrated_suspicion_weight": 0.066655,
+          "calibrated_posterior_bad_mass": 0.502668,
+          "calibrated_posterior_info_gain": 0.999979
+        },
+        {
+          "rank": 5,
+          "sha": "1ed7b780dad381b0cddc02a93124b09fab9280f4",
+          "subject": "[HotColdSplit] Do not add cold attribute to unchanged functions (#204003)",
+          "utility": 0.633305,
+          "selection_score": 0.952143,
+          "semantic_score": 1.558,
+          "build_success_prob": 0.92,
+          "feedback_bias": 0.76,
+          "posterior_bad_mass": 0.312821,
+          "calibrated_suspicion_weight": 0.062196,
+          "calibrated_posterior_bad_mass": 0.364836,
+          "calibrated_posterior_info_gain": 0.946624
+        }
+      ],
+      "evidence": [
+        "=== validated-bisect-runner ===",
+        "issue: pr204559",
+        "llvm-project: /home/ubuntu/gitbisect-work/worktrees/pr204559-aws10-confidence-frontier-a-20260720a",
+        "commit: 8cf8aa030ed0",
+        "jobs: 4",
+        "build type: Release",
+        "assertions: ON",
+        "ccache dir: /home/ubuntu/gitbisect-work/confidence-adaptive-20260720-896b595/.ccache/pr204559-git-bisect",
+        "repro exit code: 134",
+        "verdict: bad"
+      ],
+      "log_excerpt": "=== validated-bisect-runner ===\nissue: pr204559\nllvm-project: /home/ubuntu/gitbisect-work/worktrees/pr204559-aws10-confidence-frontier-a-20260720a\ncommit: 8cf8aa030ed0\njobs: 4\nbuild type: Release\nassertions: ON\nccache dir: /home/ubuntu/gitbisect-work/confidence-adaptive-20260720-896b595/.ccache/pr204559-git-bisect\nrepro exit code: 134\nverdict: bad",
+      "trace_excerpt": "=== validated-bisect-runner ===\nissue: pr204559\nllvm-project: /home/ubuntu/gitbisect-work/worktrees/pr204559-aws10-confidence-frontier-a-20260720a\ncommit: 8cf8aa030ed0\njobs: 4\nbuild type: Release\nassertions: ON\nccache dir: /home/ubuntu/gitbisect-work/confidence-adaptive-20260720-896b595/.ccache/pr204559-git-bisect\nrepro exit code: 134\nverdict: bad",
+      "runner_duration_sec": 2157.222
+    },
+    {
+      "step": 9,
+      "sha": "5a5d0fb1e471b3a1e842aee1f993e885c8d19713",
+      "subject": "[SimpleLoopUnswitch] Generalize the notion of trivial unswitching (#193989)",
+      "verdict": "bad",
+      "source": "runner",
+      "summary": "verdict: bad",
+      "unresolved_before": 59,
+      "unresolved_after": 13,
+      "model_top_k": 3,
+      "adaptive_top_k": null,
+      "confidence_adaptive_frontier": {
+        "threshold": 0.35
+      },
+      "model_frontier_decision": {
+        "configured_frontier": "topk",
+        "effective_frontier": "topk",
+        "confidence": 0.702769,
+        "threshold": 0.35,
+        "reason": "semantic leader confidence meets threshold; use semantic top-k",
+        "top_semantic_candidates": [
+          {
+            "sha": "8cf8aa030ed07b904c2b6dbd72947ec32f2ed1a6",
+            "semantic_score": 8.821429,
+            "build_success_prob": 0.88
+          },
+          {
+            "sha": "5a5d0fb1e471b3a1e842aee1f993e885c8d19713",
+            "semantic_score": 2.622,
+            "build_success_prob": 0.92
+          }
+        ],
+        "selected_frontier_shas": [
+          "8cf8aa030ed07b904c2b6dbd72947ec32f2ed1a6",
+          "5a5d0fb1e471b3a1e842aee1f993e885c8d19713",
+          "0176227cffbada32744b28eff72482b742e1bae9"
+        ],
+        "observation_count": 8
+      },
+      "model_score_context": "v1-e1b4bed65f41cd9f",
+      "model_score_context_payload": {
+        "version": "v1",
+        "unresolved_count": 59,
+        "candidate_window_sha256": "433d2c4d831e1d436c5ae28034bd5640fb798b1f8def28c6ede15143e8ea6de0",
+        "observation_sha256": "c543ef595a72e4b403a5e2f125738c4f174ff5f1b95d3b6695fa6bcb8cc0eb96",
+        "model_top_k": 3,
+        "model_frontier": "topk",
+        "model_diff_mode": "parent",
+        "model_diff_extraction": "llm",
+        "observation_prompt_mode": "trace-only",
+        "confidence_adaptive_frontier": {
+          "threshold": 0.35
+        }
+      },
+      "candidate_pruning": {
+        "mode": "off",
+        "before_count": 59,
+        "after_count": 59,
+        "pruned_count": 0,
+        "keep_prefixes": [],
+        "kept_reason_counts": {},
+        "prune_reason_counts": {},
+        "pruned_examples": []
+      },
+      "search_policy": "calibrated-posterior",
+      "selection_mode": "calibrated-posterior",
+      "selection": {
+        "utility": 1.358138,
+        "selection_score": 1.673743,
+        "semantic_score": 5.8,
+        "build_success_prob": 0.9,
+        "balance_score": 0.970155,
+        "suspicion_weight": 0.277732,
+        "feedback_bias": 1.0,
+        "evidence": [
+          "model-scored",
+          "Directly rewires loop CFG and updates PHIs, DominatorTree, and MSSAU, which is close to the kind of analysis inconsistency that can trigger MemorySSA verification failures",
+          "Scalar loop unswitching is a plausible -O1 source of clobber-walker / dominance mismatches even though the crash is not explicitly in this pass",
+          "features: SimpleLoopUnswitch, MSSAU and DominatorTree updates, loop CFG rewiring and PHI adjustment"
+        ],
+        "posterior_bad_mass": 0.514922,
+        "calibrated_suspicion_weight": 0.439764,
+        "calibrated_posterior_bad_mass": 0.659398,
+        "calibrated_posterior_info_gain": 0.925394,
+        "diff_mode": "parent",
+        "diff_extraction": "llm",
+        "diff_summary": "Summary: SimpleLoopUnswitch was generalized so a loop-invariant branch can be treated as \"trivial\" not only when one successor is a loop exit, but also when one successor is the loop latch and that latch has no side effects. The pass now conditionally rewires the latch edge to the unique latch exit block, updates PHIs and dominator information, and gates the rewrite on finiteness via ScalarEvolution backedge-count reasoning. The implementation also tracks whether the branch was modified before the unswitching logic proceeds, and new tests cover cold-function heuristics, AMDGPU/uniform unswitching, and a large set of perfect-nest / latch-bypass edge cases, including negative cases with side effects, multiple exits, and exit-block PHIs.\nMechanisms: Trivial loop unswitching generalization to latch-bypass rewrites; CFG rewiring from latch successor to unique latch exit block; PHI incoming-edge adjustment for the bypassed latch and exit block; DominatorTree / MSSAU update application after CFG edits; ScalarEvolution constant max backedge count used as finiteness guard; Cold-function code-size policy interaction for trivial vs non-trivial unswitching\nTouched symbols: SimpleLoopUnswitch.cpp; unswitchTrivialBranch; areLoopExitPHIsLoopInvariant; getLoopLatch; getUniqueLatchExitBlock; MSSAU; DominatorTree; ScalarEvolution\nRisk relevance: Directly changes loop CFG and dominance/PHI invariants, which are frequent triggers for verifier failures and analysis mismatches; Uses a new path that mutates the latch and exit structure before completing unswitching, increasing risk of inconsistent MemorySSA or dominator state if any update is incomplete; Relies on side-effect checks and finiteness reasoning to preserve semantics, both of which can be fragile in optimization pipelines; The commit is in a scalar loop transform that can significantly reshape control flow at -O1/-O2 and affect MemorySSA-backed passes downstream\nBuild risk: Substantial new test coverage with many IR patterns and updated FileCheck names increases maintenance sensitivity; Added state tracking and assertions around branch modification/unswitching path, which can expose latent pass invariants during debug builds; Changes interact with MSSAU/DT update APIs, so build issues may appear where analysis update contracts differ across configurations"
+      },
+      "top_candidates": [
+        {
+          "rank": 1,
+          "sha": "5a5d0fb1e471b3a1e842aee1f993e885c8d19713",
+          "subject": "[SimpleLoopUnswitch] Generalize the notion of trivial unswitching (#193989)",
+          "utility": 1.358138,
+          "selection_score": 1.673743,
+          "semantic_score": 5.8,
+          "build_success_prob": 0.9,
+          "feedback_bias": 1.0,
+          "posterior_bad_mass": 0.514922,
+          "calibrated_suspicion_weight": 0.439764,
+          "calibrated_posterior_bad_mass": 0.659398,
+          "calibrated_posterior_info_gain": 0.925394,
+          "diff_mode": "parent",
+          "diff_extraction": "llm",
+          "diff_summary": "Summary: SimpleLoopUnswitch was generalized so a loop-invariant branch can be treated as \"trivial\" not only when one successor is a loop exit, but also when one successor is the loop latch and that latch has no side effects. The pass now conditionally rewires the latch edge to the unique latch exit block, updates PHIs and dominator information, and gates the rewrite on finiteness via ScalarEvolution backedge-count reasoning. The implementation also tracks whether the branch was modified before the unswitching logic proceeds, and new tests cover cold-function heuristics, AMDGPU/uniform unswitching, and a large set of perfect-nest / latch-bypass edge cases, including negative cases with side effects, multiple exits, and exit-block PHIs.\nMechanisms: Trivial loop unswitching generalization to latch-bypass rewrites; CFG rewiring from latch successor to unique latch exit block; PHI incoming-edge adjustment for the bypassed latch and exit block; DominatorTree / MSSAU update application after CFG edits; ScalarEvolution constant max backedge count used as finiteness guard; Cold-function code-size policy interaction for trivial vs non-trivial unswitching\nTouched symbols: SimpleLoopUnswitch.cpp; unswitchTrivialBranch; areLoopExitPHIsLoopInvariant; getLoopLatch; getUniqueLatchExitBlock; MSSAU; DominatorTree; ScalarEvolution\nRisk relevance: Directly changes loop CFG and dominance/PHI invariants, which are frequent triggers for verifier failures and analysis mismatches; Uses a new path that mutates the latch and exit structure before completing unswitching, increasing risk of inconsistent MemorySSA or dominator state if any update is incomplete; Relies on side-effect checks and finiteness reasoning to preserve semantics, both of which can be fragile in optimization pipelines; The commit is in a scalar loop transform that can significantly reshape control flow at -O1/-O2 and affect MemorySSA-backed passes downstream\nBuild risk: Substantial new test coverage with many IR patterns and updated FileCheck names increases maintenance sensitivity; Added state tracking and assertions around branch modification/unswitching path, which can expose latent pass invariants during debug builds; Changes interact with MSSAU/DT update APIs, so build issues may appear where analysis update contracts differ across configurations"
+        },
+        {
+          "rank": 2,
+          "sha": "0176227cffbada32744b28eff72482b742e1bae9",
+          "subject": "[SimplifyCFG] Use context instruction in foldBranchToCommonDest() (#203516)",
+          "utility": 0.444318,
+          "selection_score": 1.014686,
+          "semantic_score": 2.1,
+          "build_success_prob": 0.93,
+          "feedback_bias": 1.0,
+          "posterior_bad_mass": 0.198882,
+          "calibrated_suspicion_weight": 0.111581,
+          "calibrated_posterior_bad_mass": 0.199995,
+          "calibrated_posterior_info_gain": 0.721918,
+          "diff_mode": "parent",
+          "diff_extraction": "llm",
+          "diff_summary": "Summary: SimplifyCFG\u2019s branch-to-common-destination folding was taught to use a context instruction and AssumptionCache when deciding whether to speculate instructions out of a predecessor block. The helper signature in Local.h and call sites were extended so speculative safety can consult predecessor context, and the optimization now only forms a context instruction for the simple single-predecessor case. The new tests exercise dereferenceable loads and assume-derived dereferenceability across one- and two-predecessor CFG shapes, including cases where speculation should be blocked when the needed assumption is not available on all incoming edges.\nMechanisms: Speculative instruction motion during CFG simplification; Context-sensitive safety checks via isSafeToSpeculativelyExecute(..., ContextI, AC); AssumptionCache use to prove dereferenceability for hoisted loads; Predicate folding / select formation when merging branches to a common destination\nTouched symbols: foldBranchToCommonDest; isSafeToSpeculativelyExecute; SimplifyCFGOpt::simplifyCondBranch; AssumptionCache; CondBrInst; DomTreeUpdater\nRisk relevance: Changes whether loads and other instructions are speculated across CFG edges, which can alter memory dependence reasoning and dominance assumptions; Introduces context-sensitive safety for transformations that move memory operations, a common source of verifier-only or miscompile regressions; Touches branch folding in a scalar optimizer, which can interact with MemorySSA / clobber reasoning indirectly through altered control flow and insertion points; New behavior depends on predecessor count and assumption placement, increasing edge-case sensitivity\nBuild risk: Public helper signature changed in llvm/include/llvm/Transforms/Utils/Local.h, requiring coordinated call-site updates; Optimization tests added for multiple CFG shapes and assume metadata, increasing likelihood of brittle IR pattern expectations; SimplifyCFG control-flow rewrite paths are sensitive to DTU/analysis invalidation and can affect many downstream passes"
+        },
+        {
+          "rank": 3,
+          "sha": "1ed7b780dad381b0cddc02a93124b09fab9280f4",
+          "subject": "[HotColdSplit] Do not add cold attribute to unchanged functions (#204003)",
+          "utility": 0.762861,
+          "selection_score": 0.817285,
+          "semantic_score": 1.558,
+          "build_success_prob": 0.92,
+          "feedback_bias": 0.76,
+          "posterior_bad_mass": 0.639232,
+          "calibrated_suspicion_weight": 0.074569,
+          "calibrated_posterior_bad_mass": 0.757615,
+          "calibrated_posterior_info_gain": 0.798984
+        },
+        {
+          "rank": 4,
+          "sha": "b949373c0542fc95f4db969d5b2c4ad3d2d8971c",
+          "subject": "[M68k] Do not allow addressing modes k and q as MOVE targets (llvm#200826) (#201653)",
+          "utility": 0.883844,
+          "selection_score": 0.805916,
+          "semantic_score": 0.19,
+          "build_success_prob": 0.92,
+          "feedback_bias": 0.76,
+          "posterior_bad_mass": 0.528234,
+          "calibrated_suspicion_weight": 0.004354,
+          "calibrated_posterior_bad_mass": 0.664966,
+          "calibrated_posterior_info_gain": 0.919987,
+          "weak_relevance_penalty": 0.046
+        },
+        {
+          "rank": 5,
+          "sha": "c625725b06987f05e8742df291da082a964dab03",
+          "subject": "[NVPTX] Properly emit narrow ptrtoint in aggregate initializers. (#201217)",
+          "utility": 0.892431,
+          "selection_score": 0.80556,
+          "semantic_score": 0.038,
+          "build_success_prob": 0.92,
+          "feedback_bias": 0.76,
+          "posterior_bad_mass": 0.516742,
+          "calibrated_suspicion_weight": 0.000496,
+          "calibrated_posterior_bad_mass": 0.659894,
+          "calibrated_posterior_info_gain": 0.92492,
+          "weak_relevance_penalty": 0.046
+        }
+      ],
+      "evidence": [
+        "=== validated-bisect-runner ===",
+        "issue: pr204559",
+        "llvm-project: /home/ubuntu/gitbisect-work/worktrees/pr204559-aws10-confidence-frontier-a-20260720a",
+        "commit: 5a5d0fb1e471",
+        "jobs: 4",
+        "build type: Release",
+        "assertions: ON",
+        "ccache dir: /home/ubuntu/gitbisect-work/confidence-adaptive-20260720-896b595/.ccache/pr204559-git-bisect",
+        "repro exit code: 134",
+        "verdict: bad"
+      ],
+      "log_excerpt": "=== validated-bisect-runner ===\nissue: pr204559\nllvm-project: /home/ubuntu/gitbisect-work/worktrees/pr204559-aws10-confidence-frontier-a-20260720a\ncommit: 5a5d0fb1e471\njobs: 4\nbuild type: Release\nassertions: ON\nccache dir: /home/ubuntu/gitbisect-work/confidence-adaptive-20260720-896b595/.ccache/pr204559-git-bisect\nrepro exit code: 134\nverdict: bad",
+      "trace_excerpt": "=== validated-bisect-runner ===\nissue: pr204559\nllvm-project: /home/ubuntu/gitbisect-work/worktrees/pr204559-aws10-confidence-frontier-a-20260720a\ncommit: 5a5d0fb1e471\njobs: 4\nbuild type: Release\nassertions: ON\nccache dir: /home/ubuntu/gitbisect-work/confidence-adaptive-20260720-896b595/.ccache/pr204559-git-bisect\nrepro exit code: 134\nverdict: bad",
+      "runner_duration_sec": 269.752
+    },
+    {
+      "step": 10,
+      "sha": "0176227cffbada32744b28eff72482b742e1bae9",
+      "subject": "[SimplifyCFG] Use context instruction in foldBranchToCommonDest() (#203516)",
+      "verdict": "good",
+      "source": "runner",
+      "summary": "verdict: good",
+      "unresolved_before": 13,
+      "unresolved_after": 5,
+      "model_top_k": 3,
+      "adaptive_top_k": null,
+      "confidence_adaptive_frontier": {
+        "threshold": 0.35
+      },
+      "model_frontier_decision": {
+        "configured_frontier": "topk",
+        "effective_frontier": "topk",
+        "confidence": 0.755859,
+        "threshold": 0.35,
+        "reason": "semantic leader confidence meets threshold; use semantic top-k",
+        "top_semantic_candidates": [
+          {
+            "sha": "5a5d0fb1e471b3a1e842aee1f993e885c8d19713",
+            "semantic_score": 8.832,
+            "build_success_prob": 0.92
+          },
+          {
+            "sha": "0176227cffbada32744b28eff72482b742e1bae9",
+            "semantic_score": 2.15625,
+            "build_success_prob": 0.92
+          }
+        ],
+        "selected_frontier_shas": [
+          "5a5d0fb1e471b3a1e842aee1f993e885c8d19713",
+          "0176227cffbada32744b28eff72482b742e1bae9",
+          "980e9487c6291a6c377a13b6a775205237f29bae"
+        ],
+        "observation_count": 9
+      },
+      "model_score_context": "v1-abb8223a772dc62c",
+      "model_score_context_payload": {
+        "version": "v1",
+        "unresolved_count": 13,
+        "candidate_window_sha256": "997b2f68d5c547ca61a07dc61a3b9f833acd0c09b8481774b553f80e8c189223",
+        "observation_sha256": "9657dafa0ed2bec47250fa86b4fdc81c4efbfccf7a1c7381de0c75ea9a3145b3",
+        "model_top_k": 3,
+        "model_frontier": "topk",
+        "model_diff_mode": "parent",
+        "model_diff_extraction": "llm",
+        "observation_prompt_mode": "trace-only",
+        "confidence_adaptive_frontier": {
+          "threshold": 0.35
+        }
+      },
+      "candidate_pruning": {
+        "mode": "off",
+        "before_count": 13,
+        "after_count": 13,
+        "pruned_count": 0,
+        "keep_prefixes": [],
+        "kept_reason_counts": {},
+        "prune_reason_counts": {},
+        "pruned_examples": []
+      },
+      "search_policy": "calibrated-posterior",
+      "selection_mode": "calibrated-posterior",
+      "selection": {
+        "utility": 0.780235,
+        "selection_score": 1.091388,
+        "semantic_score": 2.7,
+        "build_success_prob": 0.91,
+        "balance_score": 0.590004,
+        "suspicion_weight": 0.226607,
+        "feedback_bias": 1.0,
+        "evidence": [
+          "model-scored",
+          "SimplifyCFG speculation changes can affect memory-placement and dominance facts, which are adjacent to MemorySSA verification issues.",
+          "However, the patch is about folding branches to common destinations, not directly about MemorySSA updater logic or clobber-walker verification.",
+          "features: SimplifyCFG branch folding, context-sensitive speculative execution, AssumptionCache threading"
+        ],
+        "posterior_bad_mass": 0.295002,
+        "calibrated_suspicion_weight": 0.188706,
+        "calibrated_posterior_bad_mass": 0.213309,
+        "calibrated_posterior_info_gain": 0.74776,
+        "diff_mode": "parent",
+        "diff_extraction": "llm",
+        "diff_summary": "Summary: The change teaches SimplifyCFG\u2019s branch-to-common-destination folding to use a context instruction and assumption cache when checking whether instructions can be speculatively executed. This narrows speculation to the simple single-predecessor case, so safety checks such as dereferenceability and other context-sensitive memory facts can be evaluated against the predecessor terminator before hoisting instructions into the predecessor block. The update also threads AssumptionCache through the folding entry point and adds regression coverage for loads guarded by dereferenceable pointers and llvm.assume, including multi-predecessor cases where speculation should or should not occur.\nMechanisms: Context-sensitive speculative execution safety checks in CFG simplification; Use of predecessor terminator as the context instruction for isSafeToSpeculativelyExecute; Threading AssumptionCache through foldBranchToCommonDest and SimplifyCFG call sites; Restricting speculation behavior based on predecessor count / common-destination shape; Regression tests for dereferenceable loads and assume-provided pointer facts\nTouched symbols: foldBranchToCommonDest; SimplifyCFGOpt::simplifyCondBranch; isSafeToSpeculativelyExecute; AssumptionCache; CondBrInst; DomTreeUpdater; llvm.assume\nRisk relevance: Touches a transformation that hoists/speculates instructions across branches, which can alter memory dependence reasoning and instruction placement.; Adds context-dependent safety logic, increasing the chance of misclassifying loads or other side-effecting instructions as speculatable.; Uses AssumptionCache and predecessor terminator context, both of which can affect optimization legality when pointer dereferenceability is only conditionally known.; Changes CFG simplification behavior in cases with one versus multiple predecessors, so corner cases around dominance and control-flow joins are relevant to verifier crashes/regressions.; Memory-related speculation changes are high risk for downstream passes that rely on preserved dominance and correct clobber/memory facts.\nBuild risk: Public header signature change in llvm/include/llvm/Transforms/Utils/Local.h requires consistent caller updates.; SimplifyCFG.cpp call site signature update may affect other out-of-tree or internal callers.; New regression tests expand coverage for assume metadata and dereferenceable pointer handling, which can be sensitive to target-independent IR canonicalization.; Behavioral change may alter test output in SimplifyCFG and nearby passes depending on optimization level and context."
+      },
+      "top_candidates": [
+        {
+          "rank": 1,
+          "sha": "0176227cffbada32744b28eff72482b742e1bae9",
+          "subject": "[SimplifyCFG] Use context instruction in foldBranchToCommonDest() (#203516)",
+          "utility": 0.780235,
+          "selection_score": 1.091388,
+          "semantic_score": 2.7,
+          "build_success_prob": 0.91,
+          "feedback_bias": 1.0,
+          "posterior_bad_mass": 0.295002,
+          "calibrated_suspicion_weight": 0.188706,
+          "calibrated_posterior_bad_mass": 0.213309,
+          "calibrated_posterior_info_gain": 0.74776,
+          "diff_mode": "parent",
+          "diff_extraction": "llm",
+          "diff_summary": "Summary: The change teaches SimplifyCFG\u2019s branch-to-common-destination folding to use a context instruction and assumption cache when checking whether instructions can be speculatively executed. This narrows speculation to the simple single-predecessor case, so safety checks such as dereferenceability and other context-sensitive memory facts can be evaluated against the predecessor terminator before hoisting instructions into the predecessor block. The update also threads AssumptionCache through the folding entry point and adds regression coverage for loads guarded by dereferenceable pointers and llvm.assume, including multi-predecessor cases where speculation should or should not occur.\nMechanisms: Context-sensitive speculative execution safety checks in CFG simplification; Use of predecessor terminator as the context instruction for isSafeToSpeculativelyExecute; Threading AssumptionCache through foldBranchToCommonDest and SimplifyCFG call sites; Restricting speculation behavior based on predecessor count / common-destination shape; Regression tests for dereferenceable loads and assume-provided pointer facts\nTouched symbols: foldBranchToCommonDest; SimplifyCFGOpt::simplifyCondBranch; isSafeToSpeculativelyExecute; AssumptionCache; CondBrInst; DomTreeUpdater; llvm.assume\nRisk relevance: Touches a transformation that hoists/speculates instructions across branches, which can alter memory dependence reasoning and instruction placement.; Adds context-dependent safety logic, increasing the chance of misclassifying loads or other side-effecting instructions as speculatable.; Uses AssumptionCache and predecessor terminator context, both of which can affect optimization legality when pointer dereferenceability is only conditionally known.; Changes CFG simplification behavior in cases with one versus multiple predecessors, so corner cases around dominance and control-flow joins are relevant to verifier crashes/regressions.; Memory-related speculation changes are high risk for downstream passes that rely on preserved dominance and correct clobber/memory facts.\nBuild risk: Public header signature change in llvm/include/llvm/Transforms/Utils/Local.h requires consistent caller updates.; SimplifyCFG.cpp call site signature update may affect other out-of-tree or internal callers.; New regression tests expand coverage for assume metadata and dereferenceable pointer handling, which can be sensitive to target-independent IR canonicalization.; Behavioral change may alter test output in SimplifyCFG and nearby passes depending on optimization level and context."
+        },
+        {
+          "rank": 2,
+          "sha": "96127e6a8c4dfb80caa5018a9300b3ed5a7b28aa",
+          "subject": "[Offload] Fix pessimistic max block count sizing on AMDGPU (#204242)",
+          "utility": 0.694309,
+          "selection_score": 0.689044,
+          "semantic_score": 0.25,
+          "build_success_prob": 0.92,
+          "feedback_bias": 1.0,
+          "posterior_bad_mass": 0.362144,
+          "calibrated_suspicion_weight": 0.007597,
+          "calibrated_posterior_bad_mass": 0.236966,
+          "calibrated_posterior_info_gain": 0.789959,
+          "weak_relevance_penalty": 0.046
+        },
+        {
+          "rank": 3,
+          "sha": "5fcb285e3c85eef40398b9a28d5a418b1a048e40",
+          "subject": "[MLIR][XeGPU] Fix load_matrix lowering for non-LLVM element types (#203629)",
+          "utility": 0.646036,
+          "selection_score": 0.675492,
+          "semantic_score": 0.25,
+          "build_success_prob": 0.92,
+          "feedback_bias": 1.0,
+          "posterior_bad_mass": 0.336966,
+          "calibrated_suspicion_weight": 0.007597,
+          "calibrated_posterior_bad_mass": 0.228504,
+          "calibrated_posterior_info_gain": 0.775394,
+          "weak_relevance_penalty": 0.046
+        },
+        {
+          "rank": 4,
+          "sha": "22d769819cd72ad0298c7d7c2e035564776932e1",
+          "subject": "[MLIR][GPUToXeVMPipeline] Expand MX scaling ops before XeVM conversion (#203632)",
+          "utility": 0.633007,
+          "selection_score": 0.669684,
+          "semantic_score": 0.05,
+          "build_success_prob": 0.92,
+          "feedback_bias": 1.0,
+          "posterior_bad_mass": 0.341162,
+          "calibrated_suspicion_weight": 0.000865,
+          "calibrated_posterior_bad_mass": 0.229369,
+          "calibrated_posterior_info_gain": 0.776909,
+          "weak_relevance_penalty": 0.046
+        },
+        {
+          "rank": 5,
+          "sha": "d76dd878dd32cd20f0de61b89b085600f7adbcde",
+          "subject": "[lldb] Fix LLDB_BUILD_FRAMEWORK with the dynamic script interpreters (#204265)",
+          "utility": 0.316074,
+          "selection_score": 0.34584,
+          "semantic_score": 0.25,
+          "build_success_prob": 0.48,
+          "feedback_bias": 1.0,
+          "posterior_bad_mass": 0.315984,
+          "calibrated_suspicion_weight": 0.007597,
+          "calibrated_posterior_bad_mass": 0.220906,
+          "calibrated_posterior_info_gain": 0.761819,
+          "weak_relevance_penalty": 0.024
+        }
+      ],
+      "evidence": [
+        "=== validated-bisect-runner ===",
+        "issue: pr204559",
+        "llvm-project: /home/ubuntu/gitbisect-work/worktrees/pr204559-aws10-confidence-frontier-a-20260720a",
+        "commit: 0176227cffba",
+        "jobs: 4",
+        "build type: Release",
+        "assertions: ON",
+        "ccache dir: /home/ubuntu/gitbisect-work/confidence-adaptive-20260720-896b595/.ccache/pr204559-git-bisect",
+        "repro exit code: 0",
+        "verdict: good"
+      ],
+      "log_excerpt": "=== validated-bisect-runner ===\nissue: pr204559\nllvm-project: /home/ubuntu/gitbisect-work/worktrees/pr204559-aws10-confidence-frontier-a-20260720a\ncommit: 0176227cffba\njobs: 4\nbuild type: Release\nassertions: ON\nccache dir: /home/ubuntu/gitbisect-work/confidence-adaptive-20260720-896b595/.ccache/pr204559-git-bisect\nrepro exit code: 0\nverdict: good",
+      "trace_excerpt": "=== validated-bisect-runner ===\nissue: pr204559\nllvm-project: /home/ubuntu/gitbisect-work/worktrees/pr204559-aws10-confidence-frontier-a-20260720a\ncommit: 0176227cffba\njobs: 4\nbuild type: Release\nassertions: ON\nccache dir: /home/ubuntu/gitbisect-work/confidence-adaptive-20260720-896b595/.ccache/pr204559-git-bisect\nrepro exit code: 0\nverdict: good",
+      "runner_duration_sec": 96.846
+    },
+    {
+      "step": 11,
+      "sha": "96127e6a8c4dfb80caa5018a9300b3ed5a7b28aa",
+      "subject": "[Offload] Fix pessimistic max block count sizing on AMDGPU (#204242)",
+      "verdict": "good",
+      "source": "runner",
+      "summary": "verdict: good",
+      "unresolved_before": 5,
+      "unresolved_after": 1,
+      "model_top_k": 3,
+      "adaptive_top_k": null,
+      "confidence_adaptive_frontier": {
+        "threshold": 0.35
+      },
+      "model_frontier_decision": {
+        "configured_frontier": "topk",
+        "effective_frontier": "topk",
+        "confidence": 0.971694,
+        "threshold": 0.35,
+        "reason": "semantic leader confidence meets threshold; use semantic top-k",
+        "top_semantic_candidates": [
+          {
+            "sha": "5a5d0fb1e471b3a1e842aee1f993e885c8d19713",
+            "semantic_score": 8.832,
+            "build_success_prob": 0.92
+          },
+          {
+            "sha": "5fcb285e3c85eef40398b9a28d5a418b1a048e40",
+            "semantic_score": 0.25,
+            "build_success_prob": 0.92
+          }
+        ],
+        "selected_frontier_shas": [
+          "5a5d0fb1e471b3a1e842aee1f993e885c8d19713",
+          "5fcb285e3c85eef40398b9a28d5a418b1a048e40",
+          "96127e6a8c4dfb80caa5018a9300b3ed5a7b28aa"
+        ],
+        "observation_count": 10
+      },
+      "model_score_context": "v1-c793e6c4688dbcf8",
+      "model_score_context_payload": {
+        "version": "v1",
+        "unresolved_count": 5,
+        "candidate_window_sha256": "b506c6e3ac548ada5f764e461a732d63db2dd6e3943b37f8074cd744496f2daf",
+        "observation_sha256": "80fc577c5ff5138213577f2faf85dffc85ea263abaab9b5ad6600077ffb64838",
+        "model_top_k": 3,
+        "model_frontier": "topk",
+        "model_diff_mode": "parent",
+        "model_diff_extraction": "llm",
+        "observation_prompt_mode": "trace-only",
+        "confidence_adaptive_frontier": {
+          "threshold": 0.35
+        }
+      },
+      "candidate_pruning": {
+        "mode": "off",
+        "before_count": 5,
+        "after_count": 5,
+        "pruned_count": 0,
+        "keep_prefixes": [],
+        "kept_reason_counts": {},
+        "prune_reason_counts": {},
+        "pruned_examples": []
+      },
+      "search_policy": "calibrated-posterior",
+      "selection_mode": "calibrated-posterior",
+      "selection": {
+        "utility": 0.14497,
+        "selection_score": 0.107211,
+        "semantic_score": 0.15,
+        "build_success_prob": 0.91,
+        "balance_score": 0.153846,
+        "suspicion_weight": 0.017751,
+        "feedback_bias": 1.0,
+        "evidence": [
+          "model-scored",
+          "AMDGPU offload runtime launch sizing does not match a MemorySSA verification crash",
+          "Changes plugin interface and block-count policy, far from LLVM optimizer memory dependence analysis",
+          "features: offload runtime, AMDGPU launch configuration, block limit sizing"
+        ],
+        "posterior_bad_mass": 0.076923,
+        "calibrated_suspicion_weight": 0.004717,
+        "calibrated_posterior_bad_mass": 0.022144,
+        "calibrated_posterior_info_gain": 0.153315,
+        "weak_relevance_penalty": 0.0455,
+        "diff_mode": "parent",
+        "diff_extraction": "llm",
+        "diff_summary": "Summary: Refactors offload runtime block-count sizing so the device launch limit depends on the requested thread count instead of using a fixed maximum-teams cap. The generic device interface now exposes a virtual getBlockLimit(NumThreads) hook, and the AMDGPU implementation computes a grid-size-based block limit from maximum teams multiplied by thread limit, clamped to 32 bits. Kernel launch sizing paths are updated to pass EffectiveNumThreads when clamping explicit or preferred block counts, reducing overly pessimistic block truncation on AMDGPU.\nMechanisms: device launch configuration sizing; virtual interface expansion; AMDGPU-specific occupancy/grid limit calculation; kernel block-count clamping policy\nTouched symbols: GenericDeviceTy::getBlockLimit; AMDGPUDeviceTy::getBlockLimit; GenericKernelTy::getEffectiveNumBlocks; GridValues.GV_Max_Teams; getThreadLimit\nRisk relevance: Changes runtime policy for kernel launch dimensions and block limits; Affects code paths that compute effective execution configuration from user input and device caps; Incorrect sizing here can alter kernel behavior or expose latent launch/configuration bugs\nBuild risk: Interface change requires recompilation across offload plugin code; Adds a virtual override and new call sites with thread-count plumbing; AMDGPU-specific runtime logic may be sensitive to platform assumptions and integer-width limits"
+      },
+      "top_candidates": [
+        {
+          "rank": 1,
+          "sha": "96127e6a8c4dfb80caa5018a9300b3ed5a7b28aa",
+          "subject": "[Offload] Fix pessimistic max block count sizing on AMDGPU (#204242)",
+          "utility": 0.14497,
+          "selection_score": 0.107211,
+          "semantic_score": 0.15,
+          "build_success_prob": 0.91,
+          "feedback_bias": 1.0,
+          "posterior_bad_mass": 0.076923,
+          "calibrated_suspicion_weight": 0.004717,
+          "calibrated_posterior_bad_mass": 0.022144,
+          "calibrated_posterior_info_gain": 0.153315,
+          "weak_relevance_penalty": 0.0455,
+          "diff_mode": "parent",
+          "diff_extraction": "llm",
+          "diff_summary": "Summary: Refactors offload runtime block-count sizing so the device launch limit depends on the requested thread count instead of using a fixed maximum-teams cap. The generic device interface now exposes a virtual getBlockLimit(NumThreads) hook, and the AMDGPU implementation computes a grid-size-based block limit from maximum teams multiplied by thread limit, clamped to 32 bits. Kernel launch sizing paths are updated to pass EffectiveNumThreads when clamping explicit or preferred block counts, reducing overly pessimistic block truncation on AMDGPU.\nMechanisms: device launch configuration sizing; virtual interface expansion; AMDGPU-specific occupancy/grid limit calculation; kernel block-count clamping policy\nTouched symbols: GenericDeviceTy::getBlockLimit; AMDGPUDeviceTy::getBlockLimit; GenericKernelTy::getEffectiveNumBlocks; GridValues.GV_Max_Teams; getThreadLimit\nRisk relevance: Changes runtime policy for kernel launch dimensions and block limits; Affects code paths that compute effective execution configuration from user input and device caps; Incorrect sizing here can alter kernel behavior or expose latent launch/configuration bugs\nBuild risk: Interface change requires recompilation across offload plugin code; Adds a virtual override and new call sites with thread-count plumbing; AMDGPU-specific runtime logic may be sensitive to platform assumptions and integer-width limits"
+        },
+        {
+          "rank": 2,
+          "sha": "5fcb285e3c85eef40398b9a28d5a418b1a048e40",
+          "subject": "[MLIR][XeGPU] Fix load_matrix lowering for non-LLVM element types (#203629)",
+          "utility": 0.103742,
+          "selection_score": 0.086304,
+          "semantic_score": 0.2,
+          "build_success_prob": 0.93,
+          "feedback_bias": 1.0,
+          "posterior_bad_mass": 0.053254,
+          "calibrated_suspicion_weight": 0.006956,
+          "calibrated_posterior_bad_mass": 0.016356,
+          "calibrated_posterior_info_gain": 0.120463,
+          "weak_relevance_penalty": 0.0465,
+          "diff_mode": "parent",
+          "diff_extraction": "llm",
+          "diff_summary": "Summary: Updates XeGPU-to-XeVM lowering for matrix load/store so the emitted LLVM load type comes from the type converter rather than from the source result element type. This changes lowering of non-LLVM-representable element types by mapping them to storage integers of the same bit width, and preserves the special-case collapse of size-1 vectors to scalars via the converter. The accompanying test adds scalar and vector load cases for f8E8M0FNU to verify the legal LLVM IR shape and the post-load bitcast/vector-broadcast reconstruction.\nMechanisms: MLIR conversion legality/type materialization; type conversion for unsupported element types; scalar vs vector load lowering; bitcast/broadcast reconstruction after integer storage load\nTouched symbols: LoadStoreMatrixToXeVMPattern; LLVM::LoadOp::create; getTypeConverter()->convertType; xegpu.load_matrix\nRisk relevance: Touches lowering logic for load/store formation and type legality; Changes how vector<1x...> and exotic element types are represented in generated IR; Could affect downstream canonicalization or verifier behavior for memory operations in conversion pipelines\nBuild risk: Adds new conversion/test coverage for f8E8M0FNU storage mapping; Exercises target-specific lowering paths and LLVM dialect type conversion; Potentially sensitive to type-converter assumptions across backends"
+        },
+        {
+          "rank": 3,
+          "sha": "22d769819cd72ad0298c7d7c2e035564776932e1",
+          "subject": "[MLIR][GPUToXeVMPipeline] Expand MX scaling ops before XeVM conversion (#203632)",
+          "utility": 0.110164,
+          "selection_score": 0.070787,
+          "semantic_score": 0.05,
+          "build_success_prob": 0.92,
+          "feedback_bias": 1.0,
+          "posterior_bad_mass": 0.059172,
+          "calibrated_suspicion_weight": 0.00107,
+          "calibrated_posterior_bad_mass": 0.017427,
+          "calibrated_posterior_info_gain": 0.126739,
+          "weak_relevance_penalty": 0.046
+        },
+        {
+          "rank": 4,
+          "sha": "d76dd878dd32cd20f0de61b89b085600f7adbcde",
+          "subject": "[lldb] Fix LLDB_BUILD_FRAMEWORK with the dynamic script interpreters (#204265)",
+          "utility": 0.030083,
+          "selection_score": 0.013381,
+          "semantic_score": 0.25,
+          "build_success_prob": 0.48,
+          "feedback_bias": 1.0,
+          "posterior_bad_mass": 0.029586,
+          "calibrated_suspicion_weight": 0.009401,
+          "calibrated_posterior_bad_mass": 0.009401,
+          "calibrated_posterior_info_gain": 0.076794,
+          "weak_relevance_penalty": 0.024
+        },
+        {
+          "rank": 5,
+          "sha": "5a5d0fb1e471b3a1e842aee1f993e885c8d19713",
+          "subject": "[SimpleLoopUnswitch] Generalize the notion of trivial unswitching (#193989)",
+          "utility": 0.0,
+          "selection_score": 0.0,
+          "semantic_score": 7.8,
+          "build_success_prob": 0.78,
+          "feedback_bias": 1.0,
+          "posterior_bad_mass": 1.0,
+          "calibrated_suspicion_weight": 0.977856,
+          "calibrated_posterior_bad_mass": 1.0,
+          "diff_mode": "parent",
+          "diff_extraction": "llm",
+          "diff_summary": "Summary: Extends SimpleLoopUnswitch\u2019s notion of trivial unswitching to handle invariant branches that target a loop latch, not just loop exits, by rewiring a latch edge to the unique loop exit when the latch is side-effect free and the loop is proven finite. The new path updates CFG edges, phi incoming values, DominatorTree, and optionally MemorySSA via applyUpdates before allowing the normal trivial-unswitch logic to proceed. The patch also tightens bookkeeping with a ModifiedBranch flag and asserts to catch cases where the branch CFG is rewritten without actually completing an unswitch.\nMechanisms: loop unswitching CFG rewrite; latch-to-exit edge redirection; dominance tree update; MemorySSA update application; finite-loop guard via ScalarEvolution backedge count\nTouched symbols: unswitchTrivialBranch; areLoopExitPHIsLoopInvariant; L.getLoopLatch; L.getUniqueLatchExitBlock; SCEV; MSSAU->applyUpdates; DominatorTree::applyUpdates\nRisk relevance: Directly mutates loop CFG and MemorySSA-relevant edges, matching crash-prone optimizer infrastructure; Introduces new control-flow rewrites in the same area as invariant-branch handling and dominance verification; Adds assertions around partial CFG mutation, which can surface latent verification failures if updates are inconsistent\nBuild risk: Touches core scalar transform code and many phase-ordering tests; Adds a new dedicated regression test with numerous CFG shapes and update-sensitive cases; MemorySSA/DominatorTree update paths are high-risk for verifier or analysis consistency regressions"
+        }
+      ],
+      "evidence": [
+        "=== validated-bisect-runner ===",
+        "issue: pr204559",
+        "llvm-project: /home/ubuntu/gitbisect-work/worktrees/pr204559-aws10-confidence-frontier-a-20260720a",
+        "commit: 96127e6a8c4d",
+        "jobs: 4",
+        "build type: Release",
+        "assertions: ON",
+        "ccache dir: /home/ubuntu/gitbisect-work/confidence-adaptive-20260720-896b595/.ccache/pr204559-git-bisect",
+        "repro exit code: 0",
+        "verdict: good"
+      ],
+      "log_excerpt": "=== validated-bisect-runner ===\nissue: pr204559\nllvm-project: /home/ubuntu/gitbisect-work/worktrees/pr204559-aws10-confidence-frontier-a-20260720a\ncommit: 96127e6a8c4d\njobs: 4\nbuild type: Release\nassertions: ON\nccache dir: /home/ubuntu/gitbisect-work/confidence-adaptive-20260720-896b595/.ccache/pr204559-git-bisect\nrepro exit code: 0\nverdict: good",
+      "trace_excerpt": "=== validated-bisect-runner ===\nissue: pr204559\nllvm-project: /home/ubuntu/gitbisect-work/worktrees/pr204559-aws10-confidence-frontier-a-20260720a\ncommit: 96127e6a8c4d\njobs: 4\nbuild type: Release\nassertions: ON\nccache dir: /home/ubuntu/gitbisect-work/confidence-adaptive-20260720-896b595/.ccache/pr204559-git-bisect\nrepro exit code: 0\nverdict: good",
+      "runner_duration_sec": 99.153
+    }
+  ],
+  "heuristic_keywords": [
+    "crash",
+    "assertion",
+    "MemorySSA",
+    "ClobberWalker",
+    "verifyOptResult",
+    "OtherClobbers",
+    "MSSA.dominates",
+    "MemorySSA.cpp",
+    "O1",
+    "optimizer"
+  ],
+  "model_usage": {
+    "requests": 21,
+    "prompt_tokens": 336550,
+    "completion_tokens": 16633,
+    "total_tokens": 353183,
+    "by_kind": {
+      "diff_extraction": {
+        "requests": 11,
+        "prompt_tokens": 309052,
+        "completion_tokens": 12413,
+        "total_tokens": 321465
+      },
+      "scoring": {
+        "requests": 10,
+        "prompt_tokens": 27498,
+        "completion_tokens": 4220,
+        "total_tokens": 31718
+      }
+    }
+  },
+  "steps_executed": 11,
+  "remaining_unresolved": 1,
+  "final_unresolved_window": [
+    "5a5d0fb1e471b3a1e842aee1f993e885c8d19713"
+  ],
+  "first_bad_commit": "5a5d0fb1e471b3a1e842aee1f993e885c8d19713",
+  "unresolved_window_path": "/home/ubuntu/gitbisect-work/confidence-adaptive-20260720-896b595/results/issues/pr204559/pr204559-model-gpt-5.4-mini-calibrated-posterior-obs-trace-only-aws10-confidence-frontier-a-20260720a-unresolved-window.json",
+  "runner_build_count": 11,
+  "runner_build_avg_duration_sec": 2217.266
+}

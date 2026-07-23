@@ -50,11 +50,70 @@ async function boot() {
     renderLiveTopK20();
   }
   if ($("#topk-body")) renderFocusedComparisons();
+  if ($("#k12-variant-body")) renderK12VariantComparison();
   if ($("#runtime-example-content")) renderRuntimeExample();
   if ($("#issue-select")) {
     buildControls();
     renderExplorer();
   }
+}
+
+function renderK12VariantCell(cell, referenceSteps) {
+  if (cell.state === "completed") {
+    const delta = cell.steps - referenceSteps;
+    const cls = delta < 0 ? "cell-good" : delta > 0 ? "cell-warn" : "";
+    const suffix = delta < 0 ? ` <small>(${delta})</small>` : delta > 0 ? ` <small>(+${delta})</small>` : "";
+    return `<td class="num ${cls}" title="${esc(cell.note || "completed endpoint-valid run")}">${esc(cell.steps)}${suffix}</td>`;
+  }
+  if (cell.state === "running") {
+    return `<td class="variant-state running" title="${esc(cell.note || "in progress")}">running<br /><small>${esc(cell.steps || 0)} steps</small></td>`;
+  }
+  if (cell.state === "invalid") {
+    return `<td class="variant-state invalid" title="${esc(cell.note || "invalid result")}">invalid</td>`;
+  }
+  return `<td class="variant-state">not run</td>`;
+}
+
+function renderK12VariantComparison() {
+  const variants = state.data.k12_variants;
+  if (!variants) return;
+  const cards = $("#k12-variant-cards");
+  cards.innerHTML = variants.configurations
+    .map((config) => {
+      const arms = [
+        ["k3", "historical k3"],
+        ["k12", "fixed k12"],
+      ];
+      return `<article class="variant-summary-card"><h3>${esc(config.label)}</h3>${arms
+        .map(([arm, label]) => {
+          const aggregate = config[arm].aggregate;
+          const complete = aggregate.completed;
+          const mean = aggregate.mean_steps == null ? "-" : aggregate.mean_steps;
+          const refMean = aggregate.matched_reference_mean == null ? "-" : aggregate.matched_reference_mean;
+          return `<div class="variant-arm"><strong>${esc(label)}</strong><b>${esc(mean)}</b><span>mean builds, n=${esc(complete)}</span><small>matched reference: ${esc(refMean)} mean; W/T/L ${esc(aggregate.wins)}/${esc(aggregate.ties)}/${esc(aggregate.losses)}</small></div>`;
+        })
+        .join("")}</article>`;
+    })
+    .join("");
+
+  $("#k12-variant-note").innerHTML = `<strong>Reference:</strong> ${esc(
+    variants.reference.label
+  )} completes all ${esc(variants.reference.aggregate.completed)} cases in <strong>${esc(
+    variants.reference.aggregate.total_steps
+  )}</strong> runner builds (${esc(variants.reference.aggregate.mean_steps)} mean). ${esc(variants.validity_note)}`;
+
+  $("#k12-variant-body").innerHTML = variants.rows
+    .map((row) => {
+      const cells = variants.configurations
+        .map((config) => [row[config.key].k3, row[config.key].k12])
+        .flat();
+      return `<tr><td class="left"><strong>${esc(row.issue)}</strong><span class="issue-title">${esc(
+        row.title
+      )}</span></td><td class="num cell-reference">${esc(row.reference.steps)}</td>${cells
+        .map((cell) => renderK12VariantCell(cell, row.reference.steps))
+        .join("")}</tr>`;
+    })
+    .join("");
 }
 
 function renderKeywordExamples() {
