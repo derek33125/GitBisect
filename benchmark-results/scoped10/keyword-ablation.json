@@ -1,0 +1,86 @@
+{
+  "scope": "Shared 10-case comparison. Both variants use full-window calibrated-posterior heuristic scoring with the same issue profile, endpoints, runner, paths, and build settings. Only the keyword list changes.",
+  "specific_keyword_definition": "The profile-authored issue-specific keyword list.",
+  "general_keyword_definition": "One fixed 18-term compiler-crash vocabulary shared by every issue.",
+  "aggregate": {
+    "specific_keyword": { "count": 10, "avg_steps": 12.3, "median_steps": 12, "skips": 0 },
+    "general_keyword": { "count": 10, "avg_steps": 13.2, "median_steps": 13, "skips": 0 },
+    "specific_keyword_wins": 4,
+    "general_keyword_wins": 1,
+    "step_ties": 5,
+    "first_bad_exact_matches": 9,
+    "first_bad_mismatches": 1
+  },
+  "rows": [
+    {
+      "issue": "pr204559",
+      "specific_keyword": { "source": "edu", "run_label": "edu-heuristic-10case-20260630c", "steps": 11, "skips": 0, "first_bad": "5a5d0fb1e471b3a1e842aee1f993e885c8d19713", "status": "clean" },
+      "general_keyword": { "source": "edu", "run_label": "edu10-general-keyword-heuristic-a-20260711a", "steps": 15, "skips": 0, "first_bad": "5a5d0fb1e471b3a1e842aee1f993e885c8d19713", "status": "clean" },
+      "first_bad_exact_match": true,
+      "note": "Issue-specific keywords use 4 fewer builds."
+    },
+    {
+      "issue": "pr204589",
+      "specific_keyword": { "source": "aws", "run_label": "aws-heuristic-10case-20260630c", "steps": 11, "skips": 0, "first_bad": "5a5d0fb1e471b3a1e842aee1f993e885c8d19713", "status": "clean" },
+      "general_keyword": { "source": "edu", "run_label": "edu10-general-keyword-heuristic-a-20260711a", "steps": 13, "skips": 0, "first_bad": "5a5d0fb1e471b3a1e842aee1f993e885c8d19713", "status": "clean" },
+      "first_bad_exact_match": true,
+      "note": "Issue-specific keywords use 2 fewer builds."
+    },
+    {
+      "issue": "pr201444",
+      "specific_keyword": { "source": "aws", "run_label": "aws-heuristic-10case-20260630c", "steps": 11, "skips": 0, "first_bad": "6bcdd843e302063c4f0d36204686155149a6bb0a", "status": "clean" },
+      "general_keyword": { "source": "aws", "run_label": "aws10-general-keyword-heuristic-pr201444-replica-20260713a", "steps": 12, "skips": 0, "first_bad": "6bcdd843e302063c4f0d36204686155149a6bb0a", "status": "clean" },
+      "first_bad_exact_match": true,
+      "note": "Issue-specific keywords use 1 fewer build."
+    },
+    {
+      "issue": "pr193164",
+      "specific_keyword": { "source": "aws", "run_label": "aws-heuristic-10case-20260630c", "steps": 11, "skips": 0, "first_bad": "cac7fe50e0fbedfb14028c170d83386efeb1265b", "status": "clean" },
+      "general_keyword": { "source": "edu", "run_label": "edu10-general-keyword-heuristic-d-20260713a", "steps": 13, "skips": 0, "first_bad": "cac7fe50e0fbedfb14028c170d83386efeb1265b", "status": "clean" },
+      "first_bad_exact_match": true,
+      "note": "Issue-specific keywords use 2 fewer builds."
+    },
+    {
+      "issue": "pr50304",
+      "specific_keyword": { "source": "edu", "run_label": "edu-heuristic-topk3-compat-20260703a", "steps": 13, "skips": 0, "first_bad": "c9c05a91c4843c243d508c39bdfbc5e26f311af2", "status": "clean" },
+      "general_keyword": { "source": "edu", "run_label": "edu10-general-keyword-heuristic-b-20260711a", "steps": 13, "skips": 0, "first_bad": "c9c05a91c4843c243d508c39bdfbc5e26f311af2", "status": "clean" },
+      "first_bad_exact_match": true,
+      "note": "Tie in build count and final first-bad commit."
+    },
+    {
+      "issue": "pr50585",
+      "specific_keyword": { "source": "edu", "run_label": "edu-heuristic-topk3-compat-20260703a", "steps": 14, "skips": 0, "first_bad": "e38b7e894808ec2a0c976ab01e44364f167508d3", "status": "clean" },
+      "general_keyword": { "source": "edu", "run_label": "edu10-general-keyword-heuristic-b-20260711a", "steps": 13, "skips": 0, "first_bad": "e38b7e894808ec2a0c976ab01e44364f167508d3", "status": "clean" },
+      "first_bad_exact_match": true,
+      "note": "Fixed vocabulary uses 1 fewer build."
+    },
+    {
+      "issue": "pr48154",
+      "specific_keyword": { "source": "edu", "run_label": "edu-heuristic-topk3-compat-20260703a", "steps": 16, "skips": 0, "first_bad": "20e989e9de6abcf9a684978a2688acc4ea01036f", "status": "clean" },
+      "general_keyword": { "source": "edu", "run_label": "edu10-general-keyword-heuristic-b-20260711a", "steps": 16, "skips": 0, "first_bad": "20e989e9de6abcf9a684978a2688acc4ea01036f", "status": "clean" },
+      "first_bad_exact_match": true,
+      "note": "Tie in build count and final first-bad commit."
+    },
+    {
+      "issue": "pr49535",
+      "specific_keyword": { "source": "edu", "run_label": "edu-heuristic-topk3-compat-20260703a", "steps": 11, "skips": 0, "first_bad": "be20eae25f50f5ef648aeefa1143e1c31e4410fc", "status": "clean" },
+      "general_keyword": { "source": "edu", "run_label": "edu10-general-keyword-heuristic-c-20260711a", "steps": 11, "skips": 0, "first_bad": "6792e26c0d0f2260f1e12693382e184f5ea1966f", "status": "clean" },
+      "first_bad_exact_match": false,
+      "note": "Tie in steps, but fixed vocabulary resolves the later reapply commit; this is the known apply/reapply ambiguity."
+    },
+    {
+      "issue": "pr52635",
+      "specific_keyword": { "source": "edu", "run_label": "edu-heuristic-topk3-compat-20260703a", "steps": 10, "skips": 0, "first_bad": "10bc12588dac532fad044b2851dde8e7b9121e88", "status": "clean" },
+      "general_keyword": { "source": "edu", "run_label": "edu10-general-keyword-heuristic-c-20260711a", "steps": 11, "skips": 0, "first_bad": "10bc12588dac532fad044b2851dde8e7b9121e88", "status": "clean" },
+      "first_bad_exact_match": true,
+      "note": "Issue-specific keywords use 1 fewer build."
+    },
+    {
+      "issue": "pr200987",
+      "specific_keyword": { "source": "edu", "run_label": "edu-scoped10-heuristic-topk20-20260707a", "steps": 15, "skips": 0, "first_bad": "329ef60f3e21fd6845e8e8b0da405cae7eb27267", "status": "clean" },
+      "general_keyword": { "source": "edu", "run_label": "edu10-general-keyword-heuristic-c-20260711a", "steps": 15, "skips": 0, "first_bad": "329ef60f3e21fd6845e8e8b0da405cae7eb27267", "status": "clean" },
+      "first_bad_exact_match": true,
+      "note": "Tie in build count and final first-bad commit."
+    }
+  ]
+}

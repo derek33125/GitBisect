@@ -31,14 +31,79 @@
     <main class="wrap">
       <section class="section">
         <div class="page-kicker">01 / Policy changes</div>
-        <h2>What each variant changes</h2>
-        <p class="section-sub">The fixed-k12 matrix launches every arm from a clean archive root, cache namespace, observations file, and run history. Historical k3 cells are displayed as prior evidence, not resumed work.</p>
-        <div class="variant-methods">
-          <article class="variant-method"><h3>Evidence-guided diverse frontier</h3><p>Preserves a semantic leader, an information-gain probe, and an issue-relevant component not represented by the leader.</p><dl><dt>k3</dt><dd>Not run historically.</dd><dt>k12</dt><dd>Uses the diverse causal frontier.</dd></dl></article>
-          <article class="variant-method"><h3>Structured causal parent-diff reasoning</h3><p>Retrieves issue-matched parent-diff hunks and local function context before extracting symbols, mechanisms, causal linkage, confidence, and build risk.</p><dl><dt>k3</dt><dd>Historical causal extraction run.</dd><dt>k12</dt><dd>Same extraction at a fixed 12-candidate frontier.</dd></dl></article>
-          <article class="variant-method"><h3>Observation-conditioned posterior</h3><p>Good and bad runner verdicts update the priority of unresolved candidates sharing the selected commit's extracted mechanisms and components.</p><dl><dt>k3</dt><dd>Historical posterior policy.</dd><dt>k12</dt><dd>Same posterior update with generic extraction.</dd></dl></article>
-          <article class="variant-method"><h3>Confidence-adaptive frontier</h3><p>Uses the model and heuristic agreement signal to choose either the semantic top group or a deliberately mixed information-gain frontier.</p><dl><dt>k3</dt><dd>Historical confidence-conditioned policy.</dd><dt>k12</dt><dd>Same policy with a fixed 12-candidate frontier.</dd></dl></article>
+        <h2>Exactly what changes from the base loop</h2>
+        <p class="section-sub">The base run uses a parent diff, LLM extraction, a semantic top-k frontier, calibrated-posterior selection, and a runner-backed good/bad/skip update. Every card below changes one decision point while retaining the same issue profile, endpoints, runner, and terminal boundary rule.</p>
+        <article class="variant-base" id="variant-base-contract">
+          <div><span class="variant-label">Base parent-diff + LLM</span><h3>One deterministic search loop with one bounded model call</h3><p>For every unresolved candidate, the deterministic prefilter scores issue terms, paths, and build likelihood. It sends only the top-k candidates to the LLM. The LLM ranks that frontier using the issue report and extracted parent-diff evidence. The selector builds one chosen SHA, records the runner verdict, and contracts the good/bad interval.</p></div>
+          <pre class="formula"><span class="cm"># unchanged control flow</span>
+records = prefilter(unresolved, issue_profile)
+frontier = semantic_top_k(records, k)
+scores = LLM(issue, extract_parent_diff(frontier))
+candidate = calibrated_posterior_select(scores, unresolved)
+verdict = build_and_reproduce(candidate)  <span class="hl"># good | bad | skip</span>
+unresolved = update_interval(unresolved, candidate, verdict)</pre>
+          <p class="code-ref">Implementation: <code>make_records</code> → <code>resolve_model_frontier</code> → <code>select_next_commit</code> in <code>tools/lm_bisect.py</code>. The four variants below override only the highlighted frontier, extraction, or posterior operation.</p>
+        </article>
+        <div class="variant-methods" id="variant-policy-map">
+          <article class="variant-method">
+            <div class="variant-label">Variant 1 / frontier</div>
+            <h3>Evidence-guided diverse frontier</h3>
+            <p><strong>Change:</strong> replaces <code>semantic_top_k</code> with a mixed twelve-candidate frontier. It does not change the runner or terminal selector.</p>
+            <pre class="formula"><span class="cm"># base: frontier = top semantic k</span>
+frontier = [semantic_leader,
+            posterior_midpoint,
+            first_unrepresented_issue_component,
+            q25, q75, index_q25, index_q75,
+            semantic_fill...]</pre>
+            <p><strong>Why it differs:</strong> a single high heuristic score can crowd out a meaningful but lower-ranked component. The component probe forces the LLM to see a relevant subsystem not already represented by the leader.</p>
+            <div class="variant-example"><strong>Trace example, pr204559 step 1:</strong> from 19,791 unresolved commits, the frontier included semantic leader <code>8baf7cc34b00</code>, posterior midpoint <code>9f500046511e</code>, and a MemorySSA component probe <code>d518f8ff6740</code> touching <code>llvm/include/llvm/Analysis/MemorySSA.h</code>. The runner selected the midpoint and returned <code>good</code>, reducing the interval to 9,695.</div>
+            <p class="code-ref"><code>select_evidence_diverse_frontier</code>; <code>posterior_anchor_by_mass</code>; <code>matching_profile_components</code>.</p>
+            <dl><dt>k3</dt><dd>Not run historically.</dd><dt>k12</dt><dd>Fixed mixed causal frontier.</dd></dl>
+          </article>
+          <article class="variant-method">
+            <div class="variant-label">Variant 2 / evidence</div>
+            <h3>Structured causal parent-diff reasoning</h3>
+            <p><strong>Change:</strong> replaces generic LLM diff compression with retrieval plus a structured causal extraction. The frontier remains semantic top-k.</p>
+            <pre class="formula"><span class="cm"># base extractor: summary(diff)</span>
+retrieval = top_hunks(parent_diff,
+  relevant_path + high_risk_path + issue_keyword)
+evidence = LLM({changed_symbols, behavioral_change,
+  assertion_or_trace_link, reproducer_link,
+  pass_or_subsystem_link, confidence, build_risk})</pre>
+            <p><strong>Why it differs:</strong> the scorer receives a typed explanation and selected function context rather than a broad diff summary. This makes the connection to the assertion, reproducer, or pass inspectable.</p>
+            <div class="variant-example"><strong>Trace example, pr204559 step 1:</strong> candidate <code>d518f8ff6740</code> extracted <code>ClobberWalker::addSearches</code>, <code>checkClobberSanity</code>, and a loop-carried MemorySSA test. Its causal evidence linked cross-iteration clobber-walker handling to the reported verification assertion with confidence <code>0.84</code>.</div>
+            <p class="code-ref"><code>retrieve_causal_diff_evidence</code>; <code>build_causal_diff_extraction_prompt</code>; <code>model_diff_extraction=causal-llm</code>.</p>
+            <dl><dt>k3</dt><dd>Historical causal extraction run.</dd><dt>k12</dt><dd>Same extraction with 12 LLM-scored candidates.</dd></dl>
+          </article>
+          <article class="variant-method">
+            <div class="variant-label">Variant 3 / update</div>
+            <h3>Observation-conditioned posterior</h3>
+            <p><strong>Change:</strong> replaces the static calibrated prior with a posterior reweighted by the mechanism and component features of prior runner verdicts. The LLM frontier and generic parent-diff extraction stay fixed.</p>
+            <pre class="formula"><span class="cm"># for candidate c and base prior p0(c)</span>
+bad_sim  = max affinity(features(c), bad_observations)
+good_sim = max affinity(features(c), good_observations)
+w(c) = p0(c) * exp(1.5 * bad_sim - 1.0 * good_sim)
+p(c) = w(c) / sum_j w(j)</pre>
+            <p><strong>Why it differs:</strong> an observed bad commit raises mass on unresolved commits with similar mechanism/path features; a good observation suppresses them. The interval still contracts exactly from the runner verdict, but the next probe need not follow the original static ranking.</p>
+            <div class="variant-example"><strong>Example:</strong> after a <code>bad</code> MemorySSA/ClobberWalker build, unresolved commits sharing <code>term:MemorySSA</code> or the relevant analysis path receive a positive affinity; after a <code>good</code> candidate with the same features, that affinity is subtracted. Generic <code>build:</code> and <code>meta:</code> features are excluded.</div>
+            <p class="code-ref"><code>observation_conditioned_posterior_probabilities</code>; <code>observation_feature_affinity</code>; defaults <code>bad_strength=1.5</code>, <code>good_strength=1.0</code>, <code>component_weight=0.75</code>.</p>
+            <dl><dt>k3</dt><dd>Historical posterior policy.</dd><dt>k12</dt><dd>Same update with 12 generic-extraction candidates.</dd></dl>
+          </article>
+          <article class="variant-method">
+            <div class="variant-label">Variant 4 / frontier policy</div>
+            <h3>Confidence-adaptive frontier</h3>
+            <p><strong>Change:</strong> keeps the requested k fixed but chooses between semantic top-k and a diverse frontier using the pre-model semantic margin. It does not use interval size as the switch.</p>
+            <pre class="formula"><span class="cm"># h1 and h2 are the two best pre-model scores</span>
+confidence = max(0, h1 - h2) / max(1, abs(h1))
+frontier = semantic_top_k       if confidence &gt;= threshold
+           else semantic + posterior_midpoint + index_midpoint</pre>
+            <p><strong>Why it differs:</strong> when the heuristic leader is clearly separated, spend the model budget confirming the strongest evidence. When the score distribution is flat, reserve frontier slots for boundary-closing and information-gain probes instead of treating an arbitrary tie as meaningful.</p>
+            <div class="variant-example"><strong>Example:</strong> if two plausible commits score <code>8.0</code> and <code>7.8</code>, confidence is <code>0.025</code>; a threshold above that chooses the mixed frontier. If they score <code>8.0</code> and <code>2.0</code>, confidence is <code>0.75</code> and preserves semantic top-k.</div>
+            <p class="code-ref"><code>semantic_frontier_confidence</code>; <code>resolve_model_frontier</code>; <code>--confidence-adaptive-frontier-threshold</code>.</p>
+            <dl><dt>k3</dt><dd>Historical confidence-conditioned policy.</dd><dt>k12</dt><dd>Same policy with a 12-candidate LLM frontier.</dd></dl>
+          </article>
         </div>
+        <p class="variant-caveat">The examples describe real saved step artifacts or the exact implemented rule. They explain control-flow differences; they do not imply that a policy is valid on every row. The result matrix below applies the endpoint-validity and completion filters.</p>
       </section>
       <section class="section">
         <div class="page-kicker">02 / Matched completion</div>

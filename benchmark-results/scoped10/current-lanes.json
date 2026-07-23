@@ -1,0 +1,38 @@
+{
+  "generated_at": "2026-07-16T02:46:00Z",
+  "scope": "scoped-10 only",
+  "parent_llm_topk20": {
+    "label": "Parent-diff + LLM extraction, top-k20, 600k diff cap",
+    "result_policy": "The rows below are a live progress snapshot. Only clean rows are final comparison data; partial rows are excluded from aggregate claims.",
+    "clean": [
+      { "issue": "pr204559", "steps": 10, "first_bad": "5a5d0fb1e471", "source": "edu-server" },
+      { "issue": "pr204589", "steps": 10, "first_bad": "5a5d0fb1e471", "source": "edu-server hardened retry" },
+      { "issue": "pr201444", "steps": 9, "first_bad": "6bcdd843e302", "source": "edu-server hardened retry; AWS confirmation in 11 steps" },
+      { "issue": "pr193164", "steps": 14, "first_bad": "cac7fe50e0fb", "source": "edu-server retry" },
+      { "issue": "pr200987", "steps": 13, "first_bad": "329ef60f3e21", "source": "aws-server hardened retry" },
+      { "issue": "pr50304", "steps": 10, "first_bad": "c9c05a91c484", "source": "aws-server" },
+      { "issue": "pr50585", "steps": 12, "first_bad": "e38b7e894808", "source": "aws-server" },
+      { "issue": "pr48154", "steps": 14, "first_bad": "20e989e9de6a", "source": "edu-server" },
+      { "issue": "pr49535", "steps": 11, "first_bad": "6792e26c0d0f", "source": "edu-server; known apply/reapply ambiguity" },
+      { "issue": "pr52635", "steps": 11, "first_bad": "10bc12588dac", "source": "edu-server" }
+    ],
+    "partial": []
+  },
+  "maintenance_keyword_control": {
+    "label": "Weak ten-term maintenance-keyword heuristic control",
+    "clean_completed": [
+      { "issue": "pr204559", "steps": 12, "first_bad": "5a5d0fb1e471" },
+      { "issue": "pr204589", "steps": 12, "first_bad": "5a5d0fb1e471" },
+      { "issue": "pr201444", "steps": 12, "first_bad": "6bcdd843e302" },
+      { "issue": "pr193164", "steps": 12, "first_bad": "cac7fe50e0fb" },
+      { "issue": "pr50304", "steps": 15, "first_bad": "c9c05a91c484" },
+      { "issue": "pr50585", "steps": 11, "first_bad": "e38b7e894808" },
+      { "issue": "pr48154", "steps": 15, "first_bad": "20e989e9de6a" },
+      { "issue": "pr49535", "steps": 12, "first_bad": "6792e26c0d0" },
+      { "issue": "pr52635", "steps": 11, "first_bad": "10bc12588dac" },
+      { "issue": "pr200987", "steps": 14, "first_bad": "329ef60f3e21" }
+    ],
+    "note": "All compatible ten-term maintenance-keyword histories completed on AWS. The weak vocabulary averages 12.6 runner steps with zero skips; it is a completed control, not an active lane."
+  },
+  "active": []
+}

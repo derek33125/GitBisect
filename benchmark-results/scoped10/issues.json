@@ -1,0 +1,63 @@
+[
+  {
+    "issue": "pr204559",
+    "git_steps": 17,
+    "old_model_steps": 9,
+    "old_model_status": "ok"
+  },
+  {
+    "issue": "pr204589",
+    "git_steps": 17,
+    "old_model_steps": 11,
+    "old_model_status": "ok"
+  },
+  {
+    "issue": "pr201444",
+    "git_steps": 17,
+    "old_model_steps": 11,
+    "old_model_status": "ok"
+  },
+  {
+    "issue": "pr193164",
+    "git_steps": 17,
+    "old_model_steps": 12,
+    "old_model_status": "ok"
+  },
+  {
+    "issue": "pr50304",
+    "git_steps": 17,
+    "old_model_steps": 9,
+    "old_model_status": "ok"
+  },
+  {
+    "issue": "pr50585",
+    "git_steps": 18,
+    "old_model_steps": 11,
+    "old_model_status": "ok"
+  },
+  {
+    "issue": "pr48154",
+    "git_steps": 17,
+    "old_model_steps": 17,
+    "old_model_status": "ok"
+  },
+  {
+    "issue": "pr49535",
+    "git_steps": 16,
+    "old_model_steps": 12,
+    "old_model_status": "ok_non_clean"
+  },
+  {
+    "issue": "pr52635",
+    "git_steps": 25,
+    "git_skips": 8,
+    "old_model_steps": 12,
+    "old_model_status": "ok"
+  },
+  {
+    "issue": "pr200987",
+    "git_steps": 20,
+    "old_model_steps": 11,
+    "old_model_status": "status_done_copied_json_partial"
+  }
+]

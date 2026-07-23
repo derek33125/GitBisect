@@ -49,6 +49,14 @@ for (const name of [
 }
 assert.match(page, /id="k12-variant-cards"/);
 assert.match(page, /id="k12-variant-body"/);
+assert.match(page, /id="variant-base-contract"/);
+assert.match(page, /id="variant-policy-map"/);
+assert.match(page, /select_evidence_diverse_frontier/);
+assert.match(page, /retrieve_causal_diff_evidence/);
+assert.match(page, /observation_conditioned_posterior_probabilities/);
+assert.match(page, /semantic_frontier_confidence/);
+assert.match(page, /w\(c\) = p0\(c\) \* exp/);
+assert.match(page, /pr204559 step 1/i);
 assert.match(app, /renderK12VariantComparison/);
 assert.match(readFileSync("web-presentation-data/index.html", "utf8"), /k12-variants\.html/);
 

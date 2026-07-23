@@ -1,0 +1,83 @@
+[
+  {
+    "method": "git-bisect",
+    "rows": 10,
+    "clean_or_baseline_rows": 10,
+    "avg_steps": 18.1,
+    "median_steps": 17,
+    "skipcap_rows": 0,
+    "partial_rows": 0
+  },
+  {
+    "method": "old-model-guided",
+    "rows": 10,
+    "clean_or_baseline_rows": 10,
+    "avg_steps": 11.5,
+    "median_steps": 11,
+    "skipcap_rows": 0,
+    "partial_rows": 0
+  },
+  {
+    "method": "heuristic-topk3",
+    "rows": 10,
+    "clean_or_baseline_rows": 0,
+    "avg_steps": null,
+    "median_steps": null,
+    "skipcap_rows": 1,
+    "partial_rows": 1,
+    "valid_for_comparison": false,
+    "status": "invalid-k",
+    "invalid_reason": "Pre-fix run-online parsed --heuristic-top-k but did not forward it to make_records; rerun after 2026-07-08 patch."
+  },
+  {
+    "method": "heuristic-topk20",
+    "rows": 10,
+    "clean_or_baseline_rows": 0,
+    "avg_steps": null,
+    "median_steps": null,
+    "skipcap_rows": 1,
+    "partial_rows": 1,
+    "valid_for_comparison": false,
+    "status": "invalid-k",
+    "invalid_reason": "Pre-fix run-online parsed --heuristic-top-k but did not forward it to make_records; rerun after 2026-07-08 patch."
+  },
+  {
+    "method": "heuristic-topk100",
+    "rows": 10,
+    "clean_or_baseline_rows": 0,
+    "avg_steps": null,
+    "median_steps": null,
+    "skipcap_rows": 0,
+    "partial_rows": 0,
+    "valid_for_comparison": false,
+    "status": "invalid-k",
+    "invalid_reason": "Pre-fix run-online parsed --heuristic-top-k but did not forward it to make_records; rerun after 2026-07-08 patch."
+  },
+  {
+    "method": "parent-llm-topk3",
+    "rows": 10,
+    "clean_or_baseline_rows": 10,
+    "avg_steps": 11.0,
+    "median_steps": 11,
+    "skipcap_rows": 0,
+    "partial_rows": 0
+  },
+  {
+    "method": "lastdiff-llm-topk3",
+    "rows": 10,
+    "clean_or_baseline_rows": 9,
+    "avg_steps": 11.22,
+    "median_steps": 11,
+    "skipcap_rows": 1,
+    "partial_rows": 1
+  },
+  {
+    "method": "lastdiff-llm-topk60",
+    "rows": 2,
+    "clean_or_baseline_rows": 0,
+    "avg_steps": null,
+    "median_steps": null,
+    "skipcap_rows": 0,
+    "partial_rows": 2
+  }
+]

@@ -1,0 +1,37 @@
+{
+  "scope": "scoped-10",
+  "issue_count": 10,
+  "issues": [
+    "pr204559",
+    "pr204589",
+    "pr201444",
+    "pr193164",
+    "pr50304",
+    "pr50585",
+    "pr48154",
+    "pr49535",
+    "pr52635",
+    "pr200987"
+  ],
+  "source": "web-presentation-data/scoped10/data and web-presentation-data/data/site-data.json",
+  "contents": [
+    "issues.json",
+    "preferred-comparison.json",
+    "method-summary.json",
+    "keyword-ablation.json",
+    "weak-maintenance-keyword-control.json",
+    "current-lanes.json",
+    "runs.json",
+    "k12-variants.json"
+  ],
+  "exclusions": [
+    "reports and progress documents",
+    "raw build trees and compiler artifacts",
+    "observation caches and model caches",
+    "private server state and credentials"
+  ],
+  "notes": [
+    "This JSON-only bundle is a frozen presentation snapshot, not a runnable benchmark input.",
+    "Status and validity fields in the source tables determine whether a row contributes to an aggregate."
+  ]
+}
