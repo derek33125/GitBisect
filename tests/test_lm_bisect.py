@@ -2585,6 +2585,24 @@ index 3..4 100644
         self.assertEqual(len(selected), lm_bisect.TRANSITION_DIFF_FILE_LIMIT)
         self.assertNotIn("llvm/test/Transforms/Vectorize/case-19.ll", selected)
 
+    def test_implementation_first_file_selection_keeps_source_when_only_test_matches(self) -> None:
+        profile = demo_profile(
+            keywords=["vectorizer"],
+            relevant_paths=["llvm/test/Transforms/Vectorize"],
+        )
+
+        selected = lm_bisect.select_causal_retrieval_files(
+            profile,
+            [
+                "llvm/test/Transforms/Vectorize/vectorizer.ll",
+                "llvm/lib/Analysis/MemorySSA.cpp",
+            ],
+            retrieval_policy="implementation-first",
+        )
+
+        self.assertEqual(selected[0], "llvm/lib/Analysis/MemorySSA.cpp")
+        self.assertEqual(selected[1], "llvm/test/Transforms/Vectorize/vectorizer.ll")
+
     def test_causal_extraction_prompt_requires_structured_linkage_without_raw_diff_prefix(self) -> None:
         profile = demo_profile()
         item = {

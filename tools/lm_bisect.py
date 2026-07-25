@@ -1011,7 +1011,7 @@ def select_causal_retrieval_files(
     candidates.sort(key=lambda item: (-item[0], item[1], item[2]))
     paths = [path for _score, _index, path in candidates]
     if retrieval_policy == "implementation-first":
-        source_paths = [path for path in paths if not is_test_path(path)]
+        source_paths = [path for path in fallback if not is_test_path(path)]
         test_paths = [path for path in paths if is_test_path(path)]
         paths = source_paths + test_paths
     return paths[:TRANSITION_DIFF_FILE_LIMIT]
