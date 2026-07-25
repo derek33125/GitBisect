@@ -1110,8 +1110,14 @@ def retrieve_causal_diff_evidence(
     if not selected:
         selected = scored_hunks[:CAUSAL_DIFF_MAX_SELECTED_HUNKS]
     if retrieval_policy == "implementation-first":
-        implementation_hunks = [hunk for hunk in selected if hunk["source_kind"] == "implementation"]
-        test_hunks = [hunk for hunk in selected if hunk["source_kind"] == "test"]
+        implementation_hunks = [
+            hunk for hunk in scored_hunks if hunk["source_kind"] == "implementation"
+        ]
+        test_hunks = [
+            hunk
+            for hunk in selected
+            if hunk["source_kind"] == "test"
+        ]
         # Keep test-only commits observable without letting their evidence crowd
         # out source changes that can explain a regression mechanism.
         selected = (implementation_hunks + test_hunks)[:CAUSAL_DIFF_MAX_SELECTED_HUNKS]

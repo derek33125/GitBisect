@@ -2526,6 +2526,48 @@ index 1..2 100644
         self.assertTrue(retrieval["test_fallback_used"])
         self.assertEqual(retrieval["selected_hunks"][0]["source_kind"], "test")
 
+    def test_implementation_first_causal_retrieval_keeps_source_when_only_test_matches(self) -> None:
+        profile = demo_profile(
+            keywords=["vectorizer"],
+            relevant_paths=["llvm/test/Transforms/Vectorize"],
+        )
+        raw_diff = """diff --git a/llvm/test/Transforms/Vectorize/vectorizer.ll b/llvm/test/Transforms/Vectorize/vectorizer.ll
+index 1..2 100644
+--- a/llvm/test/Transforms/Vectorize/vectorizer.ll
++++ b/llvm/test/Transforms/Vectorize/vectorizer.ll
+@@ -1 +1 @@ vectorizer-test
+-old
++new
+diff --git a/llvm/lib/Analysis/MemorySSA.cpp b/llvm/lib/Analysis/MemorySSA.cpp
+index 3..4 100644
+--- a/llvm/lib/Analysis/MemorySSA.cpp
++++ b/llvm/lib/Analysis/MemorySSA.cpp
+@@ -10 +10 @@ MemorySSA::removeFromLookups()
+-old
++new
+"""
+        item = {
+            "sha": "a" * 40,
+            "files": [
+                "llvm/test/Transforms/Vectorize/vectorizer.ll",
+                "llvm/lib/Analysis/MemorySSA.cpp",
+            ],
+            "diff": raw_diff,
+        }
+
+        with mock.patch.object(lm_bisect, "function_context_at_commit", return_value=""):
+            retrieval = lm_bisect.retrieve_causal_diff_evidence(
+                Path("/tmp/fake-llvm-project"),
+                profile,
+                item,
+                retrieval_policy="implementation-first",
+            )
+
+        self.assertFalse(retrieval["test_fallback_used"])
+        self.assertEqual(retrieval["selected_hunks"][0]["path"], "llvm/lib/Analysis/MemorySSA.cpp")
+        self.assertEqual(retrieval["selected_hunks"][0]["source_kind"], "implementation")
+        self.assertEqual(retrieval["selected_hunks"][1]["source_kind"], "test")
+
     def test_implementation_first_file_selection_prefers_source_before_fetch(self) -> None:
         profile = demo_profile(keywords=["vectorizer"], relevant_paths=["llvm"])
         changed_files = [
