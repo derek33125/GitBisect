@@ -180,6 +180,7 @@ DEFAULT_DIFF_TEXT_MAX_CHARS = 12000
 DIFF_EXTRACTION_MAX_INPUT_CHARS = 600000
 DIFF_EXTRACTION_VERSION = "llm-v2-600k"
 CAUSAL_DIFF_EXTRACTION_VERSION = "causal-llm-v1-retrieved-context"
+CAUSAL_IMPL_DIFF_EXTRACTION_VERSION = "causal-llm-v2-implementation-first"
 DEFAULT_DIFF_EXTRACTION_BATCH_SIZE = 20
 DEFAULT_DIFF_EXTRACTION_MAX_PROMPT_CHARS = 240000
 CAUSAL_DIFF_MAX_SELECTED_HUNKS = 8
@@ -574,7 +575,7 @@ def model_score_cache_key(
     diff_extraction: str = "raw",
     score_context: str | None = None,
 ) -> str:
-    if diff_extraction not in {"raw", "llm", "causal-llm"}:
+    if diff_extraction not in {"raw", "llm", "causal-llm", "causal-llm-impl"}:
         raise ValueError(f"unsupported diff_extraction: {diff_extraction}")
     if diff_mode == "parent":
         base_key = sha
@@ -595,6 +596,8 @@ def diff_extraction_version(diff_extraction: str) -> str:
         return DIFF_EXTRACTION_VERSION
     if diff_extraction == "causal-llm":
         return CAUSAL_DIFF_EXTRACTION_VERSION
+    if diff_extraction == "causal-llm-impl":
+        return CAUSAL_IMPL_DIFF_EXTRACTION_VERSION
     if diff_extraction == "raw":
         return "raw"
     raise ValueError(f"unsupported diff_extraction: {diff_extraction}")
@@ -954,6 +957,11 @@ def parse_unified_diff_hunks(diff: str) -> list[dict[str, object]]:
     return hunks
 
 
+def is_test_path(path: str) -> bool:
+    normalized = path.replace("\\", "/").lower()
+    return normalized.startswith("test/") or "/test/" in normalized or "/tests/" in normalized
+
+
 def causal_hunk_match_reasons(profile: IssueProfile, path: str, hunk_text: str) -> list[str]:
     reasons: list[str] = []
     if path_matches(path, profile.relevant_paths):
@@ -971,8 +979,15 @@ def causal_hunk_match_reasons(profile: IssueProfile, path: str, hunk_text: str) 
     return reasons
 
 
-def select_causal_retrieval_files(profile: IssueProfile, changed_files: list[str]) -> list[str]:
+def select_causal_retrieval_files(
+    profile: IssueProfile,
+    changed_files: list[str],
+    *,
+    retrieval_policy: str = "balanced",
+) -> list[str]:
     """Choose a bounded, profile-matched path set before reading a parent diff."""
+    if retrieval_policy not in {"balanced", "implementation-first"}:
+        raise ValueError(f"unsupported causal retrieval policy: {retrieval_policy}")
     issue_tokens = set(tokenize(" ".join((profile.title, profile.bug_report_summary, *profile.keywords))))
     candidates: list[tuple[int, int, str]] = []
     fallback: list[str] = []
@@ -992,9 +1007,14 @@ def select_causal_retrieval_files(profile: IssueProfile, changed_files: list[str
         if score:
             candidates.append((score, index, path))
     if not candidates:
-        return fallback[:TRANSITION_DIFF_FILE_LIMIT]
+        candidates = [(0, index, path) for index, path in enumerate(fallback)]
     candidates.sort(key=lambda item: (-item[0], item[1], item[2]))
-    return [path for _score, _index, path in candidates[:TRANSITION_DIFF_FILE_LIMIT]]
+    paths = [path for _score, _index, path in candidates]
+    if retrieval_policy == "implementation-first":
+        source_paths = [path for path in paths if not is_test_path(path)]
+        test_paths = [path for path in paths if is_test_path(path)]
+        paths = source_paths + test_paths
+    return paths[:TRANSITION_DIFF_FILE_LIMIT]
 
 
 def causal_hunk_symbols(hunk_text: str) -> list[str]:
@@ -1038,11 +1058,23 @@ def extract_function_context(source: str, symbol: str) -> str:
     return source[start : start + CAUSAL_DIFF_MAX_FUNCTION_CONTEXT_CHARS].strip()
 
 
-def retrieve_causal_diff_evidence(repo: Path, profile: IssueProfile, item: dict) -> dict[str, object]:
+def retrieve_causal_diff_evidence(
+    repo: Path,
+    profile: IssueProfile,
+    item: dict,
+    *,
+    retrieval_policy: str = "balanced",
+) -> dict[str, object]:
     """Retrieve issue-matched parent-diff hunks and local symbol context."""
+    if retrieval_policy not in {"balanced", "implementation-first"}:
+        raise ValueError(f"unsupported causal retrieval policy: {retrieval_policy}")
     raw_diff = str(item.get("diff", ""))
     if not raw_diff:
-        selected_files = select_causal_retrieval_files(profile, list(item.get("files", [])))
+        selected_files = select_causal_retrieval_files(
+            profile,
+            list(item.get("files", [])),
+            retrieval_policy=retrieval_policy,
+        )
         raw_diff = commit_parent_diff_for_files(
             repo,
             str(item["sha"]),
@@ -1062,6 +1094,7 @@ def retrieve_causal_diff_evidence(repo: Path, profile: IssueProfile, item: dict)
                 "match_reasons": reasons,
                 "symbols": symbols,
                 "retrieval_score": score,
+                "source_kind": "test" if is_test_path(path) else "implementation",
             }
         )
 
@@ -1076,8 +1109,16 @@ def retrieve_causal_diff_evidence(repo: Path, profile: IssueProfile, item: dict)
     selected = [hunk for hunk in scored_hunks if hunk["match_reasons"]]
     if not selected:
         selected = scored_hunks[:CAUSAL_DIFF_MAX_SELECTED_HUNKS]
+    if retrieval_policy == "implementation-first":
+        implementation_hunks = [hunk for hunk in selected if hunk["source_kind"] == "implementation"]
+        test_hunks = [hunk for hunk in selected if hunk["source_kind"] == "test"]
+        # Keep test-only commits observable without letting their evidence crowd
+        # out source changes that can explain a regression mechanism.
+        selected = (implementation_hunks + test_hunks)[:CAUSAL_DIFF_MAX_SELECTED_HUNKS]
+        test_fallback_used = not implementation_hunks and bool(test_hunks)
     else:
         selected = selected[:CAUSAL_DIFF_MAX_SELECTED_HUNKS]
+        test_fallback_used = False
 
     selected_hunks = [
         {
@@ -1086,6 +1127,7 @@ def retrieve_causal_diff_evidence(repo: Path, profile: IssueProfile, item: dict)
             "patch": str(hunk["patch"])[:CAUSAL_DIFF_MAX_HUNK_CHARS],
             "match_reasons": hunk["match_reasons"],
             "symbols": hunk["symbols"],
+            "source_kind": hunk["source_kind"],
         }
         for hunk in selected
     ]
@@ -1109,6 +1151,8 @@ def retrieve_causal_diff_evidence(repo: Path, profile: IssueProfile, item: dict)
     return {
         "selected_files": sorted({str(hunk["path"]) for hunk in selected_hunks}),
         "selected_hunks": selected_hunks,
+        "retrieval_policy": retrieval_policy,
+        "test_fallback_used": test_fallback_used,
         "function_contexts": contexts,
         "omitted_hunk_count": max(0, len(scored_hunks) - len(selected_hunks)),
         "raw_diff_chars": len(raw_diff),
@@ -2077,6 +2121,7 @@ def causal_retrieval_prompt_block(retrieval: dict[str, object]) -> str:
             "\n".join(
                 [
                     f"File: {hunk.get('path', '')}",
+                    f"Source kind: {hunk.get('source_kind', 'implementation')}",
                     f"Retrieval reasons: {', '.join(hunk.get('match_reasons', [])) or '<fallback coverage>'}",
                     f"Visible symbols: {', '.join(hunk.get('symbols', [])) or '<none>'}",
                     f"Patch:\n{hunk.get('patch', '') or '<empty>'}",
@@ -2103,6 +2148,8 @@ def causal_retrieval_prompt_block(retrieval: dict[str, object]) -> str:
             f"omitted_hunks={retrieval.get('omitted_hunk_count', 0)}, "
             f"raw_diff_chars={retrieval.get('raw_diff_chars', 0)}, "
             f"raw_diff_truncated={str(bool(retrieval.get('raw_diff_truncated'))).lower()}",
+            f"retrieval_policy={retrieval.get('retrieval_policy', 'balanced')}, "
+            f"test_fallback_used={str(bool(retrieval.get('test_fallback_used'))).lower()}",
         ]
     )
 
@@ -4472,9 +4519,9 @@ def make_records(
 ) -> tuple[list[CommitRecord], dict]:
     if model_diff_mode not in {"parent", "last-tested"}:
         raise ValueError(f"unsupported model_diff_mode: {model_diff_mode}")
-    if model_diff_extraction not in {"raw", "llm", "causal-llm"}:
+    if model_diff_extraction not in {"raw", "llm", "causal-llm", "causal-llm-impl"}:
         raise ValueError(f"unsupported model_diff_extraction: {model_diff_extraction}")
-    if model_diff_extraction == "causal-llm" and model_diff_mode != "parent":
+    if model_diff_extraction in {"causal-llm", "causal-llm-impl"} and model_diff_mode != "parent":
         raise ValueError("causal-llm extraction supports parent diffs only")
     shas = candidate_shas if candidate_shas is not None else list_candidate_commits(repo, profile.good_commit, profile.bad_commit)
     if max_candidates is not None:
@@ -4570,7 +4617,7 @@ def make_records(
             return False
         if model_diff_extraction == "llm" and not entry.get("diff_summary"):
             return False
-        if model_diff_extraction == "causal-llm" and not entry.get("causal_evidence"):
+        if model_diff_extraction in {"causal-llm", "causal-llm-impl"} and not entry.get("causal_evidence"):
             return False
         return True
 
@@ -4630,7 +4677,7 @@ def make_records(
                 item["files"] = deep_metadata.changed_files
                 item["diff_mode"] = "last-tested"
                 item["diff_base_sha"] = diff_base_sha
-            elif model_diff_extraction == "causal-llm":
+            elif model_diff_extraction in {"causal-llm", "causal-llm-impl"}:
                 # Retrieval fetches only profile-matched parent-diff files.
                 item["diff"] = ""
                 item["diff_mode"] = "parent"
@@ -4661,9 +4708,18 @@ def make_records(
             )
             for item in uncached:
                 item["diff_summary"] = extracted_diffs[item["sha"]]
-        elif model_diff_extraction == "causal-llm":
+        elif model_diff_extraction in {"causal-llm", "causal-llm-impl"}:
             for item in uncached:
-                item["causal_retrieval"] = retrieve_causal_diff_evidence(repo, profile, item)
+                item["causal_retrieval"] = retrieve_causal_diff_evidence(
+                    repo,
+                    profile,
+                    item,
+                    retrieval_policy=(
+                        "implementation-first"
+                        if model_diff_extraction == "causal-llm-impl"
+                        else "balanced"
+                    ),
+                )
             extraction_kwargs = {}
             if model_usage_summary is not None:
                 extraction_kwargs["usage_summary"] = model_usage_summary
@@ -6053,7 +6109,7 @@ def build_parser() -> argparse.ArgumentParser:
     suggest.add_argument("--model-top-k", type=int, default=3, help="number of heuristic-prefiltered commits to rescore with the model")
     suggest.add_argument("--model-frontier", choices=("topk", "diverse", "evidence-diverse", "all"), default="topk", help="how to choose the model rescoring frontier")
     suggest.add_argument("--model-diff-mode", choices=("parent", "last-tested"), default="parent", help="diff evidence passed to model-scored candidates")
-    suggest.add_argument("--model-diff-extraction", choices=("raw", "llm", "causal-llm"), default="raw", help="whether model-scored candidates use raw diff text, an LLM summary, or retrieved causal LLM evidence")
+    suggest.add_argument("--model-diff-extraction", choices=("raw", "llm", "causal-llm", "causal-llm-impl"), default="raw", help="whether model-scored candidates use raw diff text, an LLM summary, balanced causal evidence, or implementation-first causal evidence")
     suggest.add_argument("--observation-prompt-mode", choices=("legacy", "trace-only"), default="legacy", help="how runner-backed crash observations are formatted when scorer=model")
     suggest.add_argument("--search-policy", choices=("ranked", "hybrid", "posterior", "calibrated-posterior"), default="ranked", help="commit selection policy")
     suggest.add_argument("--candidate-pruning", choices=("off", "conservative"), default="off", help="prune obviously irrelevant commits before scoring")
@@ -6125,7 +6181,7 @@ def build_parser() -> argparse.ArgumentParser:
     simulate.add_argument("--model-top-k", type=int, default=3, help="number of heuristic-prefiltered commits to rescore with the model")
     simulate.add_argument("--model-frontier", choices=("topk", "diverse", "evidence-diverse", "all"), default="topk", help="how to choose the model rescoring frontier")
     simulate.add_argument("--model-diff-mode", choices=("parent", "last-tested"), default="parent", help="diff evidence passed to model-scored candidates")
-    simulate.add_argument("--model-diff-extraction", choices=("raw", "llm", "causal-llm"), default="raw", help="whether model-scored candidates use raw diff text, an LLM summary, or retrieved causal LLM evidence")
+    simulate.add_argument("--model-diff-extraction", choices=("raw", "llm", "causal-llm", "causal-llm-impl"), default="raw", help="whether model-scored candidates use raw diff text, an LLM summary, balanced causal evidence, or implementation-first causal evidence")
     simulate.add_argument("--observation-prompt-mode", choices=("legacy", "trace-only"), default="legacy", help="how runner-backed crash observations are formatted when scorer=model")
     simulate.add_argument("--search-policy", choices=("ranked", "hybrid", "posterior", "calibrated-posterior"), default="ranked", help="commit selection policy")
     simulate.add_argument("--candidate-pruning", choices=("off", "conservative"), default="off", help="prune obviously irrelevant commits before scoring")
@@ -6188,7 +6244,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     run_online.add_argument("--model-frontier", choices=("topk", "diverse", "evidence-diverse", "all"), default="topk", help="how to choose the model rescoring frontier")
     run_online.add_argument("--model-diff-mode", choices=("parent", "last-tested"), default="parent", help="diff evidence passed to model-scored candidates")
-    run_online.add_argument("--model-diff-extraction", choices=("raw", "llm", "causal-llm"), default="raw", help="whether model-scored candidates use raw diff text, an LLM summary, or retrieved causal LLM evidence")
+    run_online.add_argument("--model-diff-extraction", choices=("raw", "llm", "causal-llm", "causal-llm-impl"), default="raw", help="whether model-scored candidates use raw diff text, an LLM summary, balanced causal evidence, or implementation-first causal evidence")
     run_online.add_argument("--observation-prompt-mode", choices=("legacy", "trace-only"), default="legacy", help="how runner-backed crash observations are formatted when scorer=model")
     run_online.add_argument("--search-policy", choices=("ranked", "hybrid", "posterior", "calibrated-posterior"), default="ranked", help="commit selection policy")
     run_online.add_argument("--candidate-pruning", choices=("off", "conservative"), default="off", help="prune obviously irrelevant commits before scoring")

@@ -2453,6 +2453,96 @@ index 3..4 100644
         self.assertIn("llvm/lib/Transforms/Vectorize/VPlan.cpp", git_output.call_args_list[0].args[1])
         self.assertNotIn("llvm/lib/Support/Noise.cpp", git_output.call_args_list[0].args[1])
 
+    def test_implementation_first_causal_retrieval_prefers_source_but_keeps_test_fallback(self) -> None:
+        profile = demo_profile(
+            keywords=["vectorizer"],
+            relevant_paths=["llvm"],
+        )
+        raw_diff = """diff --git a/llvm/test/Transforms/Vectorize/vectorizer.ll b/llvm/test/Transforms/Vectorize/vectorizer.ll
+index 1..2 100644
+--- a/llvm/test/Transforms/Vectorize/vectorizer.ll
++++ b/llvm/test/Transforms/Vectorize/vectorizer.ll
+@@ -1 +1 @@ vectorizer-test
+-old
++new
+diff --git a/llvm/lib/Transforms/Vectorize/VPlan.cpp b/llvm/lib/Transforms/Vectorize/VPlan.cpp
+index 3..4 100644
+--- a/llvm/lib/Transforms/Vectorize/VPlan.cpp
++++ b/llvm/lib/Transforms/Vectorize/VPlan.cpp
+@@ -10 +10 @@ VPlan::buildRecipe()
+-return OldRecipe;
++return NewRecipe;
+"""
+        item = {
+            "sha": "a" * 40,
+            "files": [
+                "llvm/test/Transforms/Vectorize/vectorizer.ll",
+                "llvm/lib/Transforms/Vectorize/VPlan.cpp",
+            ],
+            "diff": raw_diff,
+        }
+
+        with mock.patch.object(lm_bisect, "function_context_at_commit", return_value=""):
+            retrieval = lm_bisect.retrieve_causal_diff_evidence(
+                Path("/tmp/fake-llvm-project"),
+                profile,
+                item,
+                retrieval_policy="implementation-first",
+            )
+
+        self.assertEqual(retrieval["retrieval_policy"], "implementation-first")
+        self.assertFalse(retrieval["test_fallback_used"])
+        self.assertEqual(
+            retrieval["selected_hunks"][0]["path"],
+            "llvm/lib/Transforms/Vectorize/VPlan.cpp",
+        )
+        self.assertEqual(retrieval["selected_hunks"][0]["source_kind"], "implementation")
+        self.assertEqual(retrieval["selected_hunks"][1]["source_kind"], "test")
+
+    def test_implementation_first_causal_retrieval_uses_test_only_fallback(self) -> None:
+        profile = demo_profile(keywords=["vectorizer"], relevant_paths=["llvm"])
+        raw_diff = """diff --git a/llvm/test/Transforms/Vectorize/vectorizer.ll b/llvm/test/Transforms/Vectorize/vectorizer.ll
+index 1..2 100644
+--- a/llvm/test/Transforms/Vectorize/vectorizer.ll
++++ b/llvm/test/Transforms/Vectorize/vectorizer.ll
+@@ -1 +1 @@ vectorizer-test
+-old
++new
+"""
+        item = {
+            "sha": "a" * 40,
+            "files": ["llvm/test/Transforms/Vectorize/vectorizer.ll"],
+            "diff": raw_diff,
+        }
+
+        with mock.patch.object(lm_bisect, "function_context_at_commit", return_value=""):
+            retrieval = lm_bisect.retrieve_causal_diff_evidence(
+                Path("/tmp/fake-llvm-project"),
+                profile,
+                item,
+                retrieval_policy="implementation-first",
+            )
+
+        self.assertTrue(retrieval["test_fallback_used"])
+        self.assertEqual(retrieval["selected_hunks"][0]["source_kind"], "test")
+
+    def test_implementation_first_file_selection_prefers_source_before_fetch(self) -> None:
+        profile = demo_profile(keywords=["vectorizer"], relevant_paths=["llvm"])
+        changed_files = [
+            *[f"llvm/test/Transforms/Vectorize/case-{index}.ll" for index in range(20)],
+            "llvm/lib/Transforms/Vectorize/VPlan.cpp",
+        ]
+
+        selected = lm_bisect.select_causal_retrieval_files(
+            profile,
+            changed_files,
+            retrieval_policy="implementation-first",
+        )
+
+        self.assertEqual(selected[0], "llvm/lib/Transforms/Vectorize/VPlan.cpp")
+        self.assertEqual(len(selected), lm_bisect.TRANSITION_DIFF_FILE_LIMIT)
+        self.assertNotIn("llvm/test/Transforms/Vectorize/case-19.ll", selected)
+
     def test_causal_extraction_prompt_requires_structured_linkage_without_raw_diff_prefix(self) -> None:
         profile = demo_profile()
         item = {
@@ -4719,14 +4809,17 @@ class MetadataLoadingTests(unittest.TestCase):
         raw_key = lm_bisect.model_score_cache_key(sha, "parent", None, "raw")
         extracted_key = lm_bisect.model_score_cache_key(sha, "parent", None, "llm")
         causal_key = lm_bisect.model_score_cache_key(sha, "parent", None, "causal-llm")
+        causal_impl_key = lm_bisect.model_score_cache_key(sha, "parent", None, "causal-llm-impl")
         last_tested_key = lm_bisect.model_score_cache_key(sha, "last-tested", "a" * 40, "llm")
 
         self.assertEqual(raw_key, sha)
         self.assertNotEqual(raw_key, extracted_key)
         self.assertNotEqual(extracted_key, causal_key)
+        self.assertNotEqual(causal_key, causal_impl_key)
         self.assertIn("extract:llm", extracted_key)
         self.assertIn("extract:causal-llm", causal_key)
         self.assertIn(lm_bisect.CAUSAL_DIFF_EXTRACTION_VERSION, causal_key)
+        self.assertIn(lm_bisect.CAUSAL_IMPL_DIFF_EXTRACTION_VERSION, causal_impl_key)
         self.assertIn("diff:last-tested-candidate-files", last_tested_key)
         self.assertIn("extract:llm", last_tested_key)
 

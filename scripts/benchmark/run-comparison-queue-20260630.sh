@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-MODE="${1:?mode required: heuristic|general-heuristic|no-keyword-heuristic|neutral-heuristic|oracle-first-bad-heuristic|parent-extract|causal-parent-extract|evidence-diverse-k12|causal-parent-k12|adaptive-parent-extract|confidence-parent-extract|confidence-parent-k12|observation-posterior-parent-extract|observation-posterior-parent-k12|lastdiff-extract}"
+MODE="${1:?mode required: heuristic|general-heuristic|no-keyword-heuristic|neutral-heuristic|oracle-first-bad-heuristic|parent-extract|causal-parent-extract|causal-parent-impl-k12|evidence-diverse-k12|causal-parent-k12|adaptive-parent-extract|confidence-parent-extract|confidence-parent-k12|observation-posterior-parent-extract|observation-posterior-parent-k12|lastdiff-extract}"
 LANE="${2:?lane label required}"
 shift 2
 ISSUES=("$@")
@@ -254,6 +254,22 @@ run_issue() {
         --model-cache-namespace "${MODEL_CACHE_NAMESPACE}" \
         --model-diff-mode parent \
         --model-diff-extraction causal-llm \
+        --observation-prompt-mode trace-only \
+        --observations "${obs}" \
+        --run-label "${LANE}" \
+        --max-steps 30
+      ;;
+    causal-parent-impl-k12)
+      run_bisect_cmd "${PY}" tools/lm_bisect.py run-online \
+        --issue "${issue}" \
+        --llvm-dir "${wt}" \
+        --scorer model \
+        --search-policy calibrated-posterior \
+        --model-top-k 12 \
+        --model-frontier topk \
+        --model-cache-namespace "${MODEL_CACHE_NAMESPACE}" \
+        --model-diff-mode parent \
+        --model-diff-extraction causal-llm-impl \
         --observation-prompt-mode trace-only \
         --observations "${obs}" \
         --run-label "${LANE}" \
