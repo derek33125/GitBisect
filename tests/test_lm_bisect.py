@@ -2361,6 +2361,14 @@ class ModelPromptTests(unittest.TestCase):
         self.assertEqual(payload[0]["sha"], "a" * 40)
         self.assertEqual(payload[0]["evidence"][0], "bad\u0001reason")
 
+    def test_parse_model_json_object_recovers_trailing_commas(self) -> None:
+        content = '{"summary":"candidate mechanism", "changed_symbols":["Foo",],}'
+
+        payload = lm_bisect.parse_model_json_object(content)
+
+        self.assertEqual(payload["summary"], "candidate mechanism")
+        self.assertEqual(payload["changed_symbols"], ["Foo"])
+
     def test_plan_diff_extraction_batches_respects_prompt_budget(self) -> None:
         profile = demo_profile()
         items = [

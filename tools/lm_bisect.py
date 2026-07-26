@@ -1897,36 +1897,96 @@ Only output JSON.
 """.strip()
 
 
-def parse_model_json_payload(content: str) -> list[dict]:
+def _remove_trailing_json_commas(candidate: str) -> str:
+    """Remove commas immediately before a JSON closing delimiter outside strings."""
+    repaired: list[str] = []
+    in_string = False
+    escaped = False
+    index = 0
+    while index < len(candidate):
+        char = candidate[index]
+        if in_string:
+            repaired.append(char)
+            if escaped:
+                escaped = False
+            elif char == "\\":
+                escaped = True
+            elif char == '"':
+                in_string = False
+            index += 1
+            continue
+        if char == '"':
+            in_string = True
+            repaired.append(char)
+            index += 1
+            continue
+        if char == ",":
+            next_index = index + 1
+            while next_index < len(candidate) and candidate[next_index].isspace():
+                next_index += 1
+            if next_index < len(candidate) and candidate[next_index] in "}]":
+                index += 1
+                continue
+        repaired.append(char)
+        index += 1
+    return "".join(repaired)
+
+
+def parse_model_json_value(content: str) -> object:
     def parse_with_control_char_escape(candidate: str):
-        try:
-            return json.loads(candidate)
-        except json.JSONDecodeError as exc:
-            if "Invalid control character" not in str(exc):
-                raise
-            escaped = re.sub(
-                r"(?<!\\)[\x00-\x08\x0b-\x0c\x0e-\x1f]",
-                lambda match: f"\\u{ord(match.group(0)):04x}",
-                candidate,
-            )
-            return json.loads(escaped)
+        candidates = [candidate]
+        repaired = _remove_trailing_json_commas(candidate)
+        if repaired != candidate:
+            candidates.append(repaired)
+        last_error: json.JSONDecodeError | None = None
+        for current in candidates:
+            try:
+                return json.loads(current)
+            except json.JSONDecodeError as exc:
+                last_error = exc
+                if "Invalid control character" not in str(exc):
+                    continue
+                escaped = re.sub(
+                    r"(?<!\\)[\x00-\x08\x0b-\x0c\x0e-\x1f]",
+                    lambda match: f"\\u{ord(match.group(0)):04x}",
+                    current,
+                )
+                try:
+                    return json.loads(escaped)
+                except json.JSONDecodeError as escaped_error:
+                    last_error = escaped_error
+        assert last_error is not None
+        raise last_error
 
     stripped = content.strip()
     if not stripped:
         raise ValueError("model returned empty content")
     try:
-        payload = parse_with_control_char_escape(stripped)
-    except json.JSONDecodeError:
+        return parse_with_control_char_escape(stripped)
+    except json.JSONDecodeError as direct_error:
         fence_match = re.search(r"```(?:json)?\s*(.*?)```", stripped, re.DOTALL | re.IGNORECASE)
         if fence_match:
-            payload = parse_with_control_char_escape(fence_match.group(1).strip())
-        else:
-            array_match = re.search(r"(\[\s*\{.*\}\s*\])", stripped, re.DOTALL)
-            if not array_match:
-                raise
-            payload = parse_with_control_char_escape(array_match.group(1))
+            return parse_with_control_char_escape(fence_match.group(1).strip())
+        array_match = re.search(r"(\[\s*\{.*\}\s*\])", stripped, re.DOTALL)
+        if array_match:
+            return parse_with_control_char_escape(array_match.group(1))
+        object_match = re.search(r"(\{\s*.*\})", stripped, re.DOTALL)
+        if object_match:
+            return parse_with_control_char_escape(object_match.group(1))
+        raise direct_error
+
+
+def parse_model_json_payload(content: str) -> list[dict]:
+    payload = parse_model_json_value(content)
     if not isinstance(payload, list):
         raise ValueError("model payload is not a JSON array")
+    return payload
+
+
+def parse_model_json_object(content: str) -> dict:
+    payload = parse_model_json_value(content)
+    if not isinstance(payload, dict):
+        raise ValueError("model payload is not a JSON object")
     return payload
 
 
@@ -2532,15 +2592,7 @@ def extract_causal_diff_evidence_with_model(
     if usage_summary is not None:
         record_model_usage(usage_summary, "causal_diff_extraction", response)
     content = response.choices[0].message.content or ""
-    try:
-        payload = json.loads(content.strip())
-    except json.JSONDecodeError:
-        fence_match = re.search(r"```(?:json)?\s*(.*?)```", content, re.DOTALL | re.IGNORECASE)
-        if not fence_match:
-            raise
-        payload = json.loads(fence_match.group(1).strip())
-    if not isinstance(payload, dict):
-        raise ValueError("causal diff extraction payload is not a JSON object")
+    payload = parse_model_json_object(content)
     return normalize_causal_diff_evidence(item, payload)
 
 
