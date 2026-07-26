@@ -2688,6 +2688,29 @@ index 3..4 100644
         self.assertIn("Causal confidence: 0.80", formatted)
         self.assertIn("LoopVectorize", formatted)
 
+    def test_causal_extraction_fallback_preserves_retrieval_evidence(self) -> None:
+        retrieval = {
+            "selected_files": ["llvm/lib/Transforms/Vectorize/VPlan.cpp"],
+            "selected_hunks": [
+                {
+                    "symbols": ["VPlan::buildRecipe", "LoopVectorize"],
+                    "source_kind": "implementation",
+                }
+            ],
+        }
+        item = {
+            "subject": "Adjust VPlan recipe construction",
+            "causal_retrieval": retrieval,
+        }
+
+        payload = lm_bisect.local_causal_diff_evidence_fallback(item, ValueError("malformed JSON"))
+
+        self.assertEqual(payload["confidence"], 0.0)
+        self.assertEqual(payload["changed_symbols"], ["VPlan::buildRecipe", "LoopVectorize"])
+        self.assertEqual(payload["retrieval"], retrieval)
+        self.assertEqual(payload["fallback"]["mode"], "local-retrieval")
+        self.assertIn("ValueError", payload["fallback"]["reason"])
+
     def test_model_completion_retries_transient_server_error(self) -> None:
         class TransientError(Exception):
             status_code = 503

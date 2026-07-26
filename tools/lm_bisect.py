@@ -2359,6 +2359,44 @@ def normalize_causal_diff_evidence(item: dict, payload: dict) -> dict[str, objec
     }
 
 
+def local_causal_diff_evidence_fallback(item: dict, error: Exception) -> dict[str, object]:
+    """Preserve retrieved evidence when a final single-item LLM parse fails."""
+    retrieval = item.get("causal_retrieval")
+    if not isinstance(retrieval, dict):
+        retrieval = {}
+    symbols: list[str] = []
+    for hunk in retrieval.get("selected_hunks", []):
+        if isinstance(hunk, dict):
+            symbols.extend(str(symbol) for symbol in hunk.get("symbols", []))
+    source_kinds = {
+        str(hunk.get("source_kind", "implementation"))
+        for hunk in retrieval.get("selected_hunks", [])
+        if isinstance(hunk, dict)
+    }
+    payload = normalize_causal_diff_evidence(
+        item,
+        {
+            "summary": "Local retrieval fallback after malformed causal extraction response.",
+            "changed_symbols": symbols,
+            "behavioral_change": [
+                f"Retrieved {kind} evidence without a parseable LLM causal summary."
+                for kind in sorted(source_kinds)
+            ],
+            "issue_link": {
+                "pass_or_subsystem": [str(path) for path in retrieval.get("selected_files", [])],
+                "explanation": "The model response was unusable; use retrieval metadata only.",
+            },
+            "confidence": 0.0,
+            "build_risk": ["causal-extraction-fallback"],
+        },
+    )
+    payload["fallback"] = {
+        "mode": "local-retrieval",
+        "reason": f"{type(error).__name__}: {error}",
+    }
+    return payload
+
+
 def causal_evidence_features(payload: dict[str, object]) -> list[str]:
     features: set[str] = set()
     for path in payload.get("retrieval", {}).get("selected_files", []):
@@ -2666,12 +2704,19 @@ def extract_causal_diff_evidence_batch_with_model(
             )
         for item in batch:
             if item["sha"] not in extracted:
-                extracted[item["sha"]] = extract_causal_diff_evidence_with_model(
-                    profile,
-                    item,
-                    config,
-                    usage_summary,
-                )
+                try:
+                    extracted[item["sha"]] = extract_causal_diff_evidence_with_model(
+                        profile,
+                        item,
+                        config,
+                        usage_summary,
+                    )
+                except Exception as exc:
+                    log_progress(
+                        "causal diff extraction single-item fallback "
+                        f"sha={item['sha'][:12]} ({exc})"
+                    )
+                    extracted[item["sha"]] = local_causal_diff_evidence_fallback(item, exc)
     return extracted
 
 
