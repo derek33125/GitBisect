@@ -126,6 +126,13 @@ if [[ -n "${CMAKE_C_COMPILER_LAUNCHER:-}" ]]; then
   )
 fi
 
+# Older LLVM revisions rely on transitive integer-type includes that newer
+# host toolchains no longer provide. Keep this C++-only: using it for C breaks
+# CMake's C compiler probe.
+if [[ -n "${EXTRA_CMAKE_CXX_FLAGS:-}" ]]; then
+  configure_args+=("-DCMAKE_CXX_FLAGS=${EXTRA_CMAKE_CXX_FLAGS}")
+fi
+
 if ! run_background_friendly cmake "${configure_args[@]}"; then
   echo "configure failed; skipping commit" >&2
   exit 125
