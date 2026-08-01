@@ -437,6 +437,101 @@ class ScoringTests(unittest.TestCase):
         self.assertEqual(selection_profile.relevant_paths, profile.relevant_paths)
         self.assertEqual(selection_profile.high_risk_paths, profile.high_risk_paths)
 
+    def test_oracle_major_keyword_score_dominates_nonkeyword_evidence(self) -> None:
+        profile = demo_profile(
+            keywords=["OracleCulpritSymbol"],
+            relevant_paths=["llvm/lib/Transforms/Vectorize"],
+            high_risk_paths=["llvm/lib/Transforms"],
+        )
+
+        major_score, major_evidence = lm_bisect.score_semantics(
+            profile,
+            subject="Touch OracleCulpritSymbol",
+            body="",
+            files=[],
+            diff="",
+            heuristic_version="oracle-first-bad-major",
+        )
+        nonkeyword_score, _nonkeyword_evidence = lm_bisect.score_semantics(
+            profile,
+            subject="vector loop codegen target",
+            body="",
+            files=["llvm/lib/Transforms/Vectorize/LoopVectorize.cpp"],
+            diff="",
+            heuristic_version="oracle-first-bad-major",
+        )
+
+        self.assertGreater(major_score, nonkeyword_score)
+        self.assertTrue(any("oracle-major keyword hits" in item for item in major_evidence))
+
+    def test_oracle_major_tuned_keeps_authored_keywords_and_boosts_oracle_terms(self) -> None:
+        profile = demo_profile(
+            keywords=["IssueAssertion", "OracleCulpritSymbol"],
+            relevant_paths=["llvm/lib/Transforms/Vectorize"],
+            high_risk_paths=["llvm/lib/Transforms"],
+        )
+        selection_profile = lm_bisect.heuristic_selection_profile(
+            profile,
+            "oracle-first-bad-major-tuned",
+            oracle_keywords=["OracleCulpritSymbol"],
+        )
+
+        self.assertEqual(selection_profile.keywords, profile.keywords)
+        self.assertEqual(selection_profile.oracle_keywords, ["OracleCulpritSymbol"])
+
+        tuned_score, tuned_evidence = lm_bisect.score_semantics(
+            selection_profile,
+            subject="Touch IssueAssertion",
+            body="",
+            files=[],
+            diff="",
+            heuristic_version="oracle-first-bad-major-tuned",
+        )
+        oracle_score, oracle_evidence = lm_bisect.score_semantics(
+            selection_profile,
+            subject="Touch OracleCulpritSymbol",
+            body="",
+            files=[],
+            diff="",
+            heuristic_version="oracle-first-bad-major-tuned",
+        )
+
+        self.assertGreater(oracle_score, tuned_score)
+        self.assertTrue(any("1 keyword hits" in item for item in tuned_evidence))
+        self.assertTrue(any("oracle-major keyword hits" in item for item in oracle_evidence))
+
+    def test_parser_accepts_oracle_major_keyword_heuristic_with_explicit_sha(self) -> None:
+        args = lm_bisect.build_parser().parse_args(
+            [
+                "run-online",
+                "--issue",
+                "demo",
+                "--heuristic-version",
+                "oracle-first-bad-major",
+                "--oracle-first-bad-sha",
+                "a" * 40,
+            ]
+        )
+
+        self.assertEqual(args.heuristic_version, "oracle-first-bad-major")
+        self.assertEqual(args.oracle_first_bad_sha, "a" * 40)
+
+    def test_parser_accepts_combined_oracle_major_tuned_heuristic(self) -> None:
+        args = lm_bisect.build_parser().parse_args(
+            [
+                "run-online",
+                "--issue",
+                "demo",
+                "--heuristic-version",
+                "oracle-first-bad-major-tuned",
+                "--oracle-first-bad-sha",
+                "a" * 40,
+            ]
+        )
+
+        self.assertEqual(args.heuristic_version, "oracle-first-bad-major-tuned")
+        self.assertEqual(args.oracle_first_bad_sha, "a" * 40)
+
 
 class AdaptiveTopKTests(unittest.TestCase):
     def test_adaptive_top_k_uses_large_frontier_above_threshold(self) -> None:
@@ -905,8 +1000,22 @@ class ProfileTests(unittest.TestCase):
         self.assertIn("pr65982", profiles)
         self.assertIn("pr121365", profiles)
         self.assertIn("pr193164", profiles)
+        self.assertIn("pr168912", profiles)
+        self.assertIn("pr205971", profiles)
+        self.assertIn("pr206007", profiles)
+        self.assertIn("pr165246", profiles)
+        self.assertIn("pr167514", profiles)
+        self.assertIn("pr200648", profiles)
+        self.assertIn("pr204561", profiles)
         self.assertEqual(profiles["pr121365"].runner, "scripts/pr121365/bisect-runner.sh")
         self.assertEqual(profiles["pr193164"].runner, "scripts/pr193164/bisect-runner.sh")
+        self.assertEqual(profiles["pr168912"].runner, "scripts/pr168912/bisect-runner.sh")
+        self.assertEqual(profiles["pr205971"].runner, "scripts/pr205971/bisect-runner.sh")
+        self.assertEqual(profiles["pr206007"].runner, "scripts/pr206007/bisect-runner.sh")
+        self.assertEqual(profiles["pr165246"].runner, "scripts/pr165246/bisect-runner.sh")
+        self.assertEqual(profiles["pr167514"].runner, "scripts/pr167514/bisect-runner.sh")
+        self.assertEqual(profiles["pr200648"].runner, "scripts/pr200648/bisect-runner.sh")
+        self.assertEqual(profiles["pr204561"].runner, "scripts/pr204561/bisect-runner.sh")
 
 
 class FeedbackTests(unittest.TestCase):
@@ -2760,6 +2869,27 @@ index 3..4 100644
 
         sleep.assert_not_called()
 
+    def test_model_completion_sends_requested_reasoning_effort(self) -> None:
+        captured: dict[str, object] = {}
+
+        class FakeCompletions:
+            def create(self, **kwargs):
+                captured.update(kwargs)
+                return "ok"
+
+        client = types.SimpleNamespace(chat=types.SimpleNamespace(completions=FakeCompletions()))
+        config = lm_bisect.ModelConfig(
+            api_key="k",
+            base_url="http://example.invalid",
+            model_name="gpt-5.6-terra",
+            reasoning_effort="high",
+        )
+
+        response = lm_bisect.model_completion_with_retry(client, config, "prompt", "scoring")
+
+        self.assertEqual(response, "ok")
+        self.assertEqual(captured["reasoning_effort"], "high")
+
     def test_extract_diff_evidence_batch_falls_back_when_response_has_no_choices(self) -> None:
         profile = demo_profile()
         items = [
@@ -3713,6 +3843,48 @@ class RunHistoryTests(unittest.TestCase):
         self.assertEqual(history["calibrated_prior_power"], lm_bisect.DEFAULT_CALIBRATED_PRIOR_POWER)
         self.assertEqual(history["weak_relevance_threshold"], lm_bisect.DEFAULT_WEAK_RELEVANCE_THRESHOLD)
 
+    def test_model_reasoning_effort_isolated_in_history_and_cache_version(self) -> None:
+        history = lm_bisect.start_run_history_payload(
+            issue_id="pr172195",
+            scorer="model",
+            model_name="gpt-5.6-terra",
+            model_frontier="topk",
+            search_policy="calibrated-posterior",
+            hybrid_switch_window=32,
+            lambda_weight=2.0,
+            max_steps=20,
+            observation_path="/tmp/obs.json",
+            run_history_path="/tmp/run.json",
+            good_commit="g" * 40,
+            bad_commit="b" * 40,
+            initial_unresolved=100,
+            model_reasoning_effort="high",
+        )
+
+        self.assertEqual(history["model_reasoning_effort"], "high")
+        self.assertFalse(
+            lm_bisect.run_history_matches(
+                history,
+                "pr172195",
+                "model",
+                "gpt-5.6-terra",
+                "topk",
+                model_reasoning_effort=None,
+            )
+        )
+        self.assertTrue(
+            lm_bisect.resolved_model_scoring_version("trace-only", "high").endswith("reasoning-high")
+        )
+        self.assertIn(
+            "reasoning-high",
+            lm_bisect.run_history_path_for_issue(
+                "pr172195",
+                "model",
+                "gpt-5.6-terra",
+                model_reasoning_effort="high",
+            ).name,
+        )
+
     def test_prepare_run_history_does_not_resume_when_model_top_k_changes(self) -> None:
         existing = lm_bisect.start_run_history_payload(
             issue_id="pr176682",
@@ -3936,6 +4108,24 @@ class RunHistoryTests(unittest.TestCase):
         )
 
         self.assertEqual(args.observation_prompt_mode, "trace-only")
+
+    def test_build_parser_accepts_model_reasoning_effort(self) -> None:
+        parser = lm_bisect.build_parser()
+        args = parser.parse_args(
+            [
+                "run-online",
+                "--issue",
+                "pr172195",
+                "--scorer",
+                "model",
+                "--model-name",
+                "gpt-5.6-terra",
+                "--model-reasoning-effort",
+                "high",
+            ]
+        )
+
+        self.assertEqual(args.model_reasoning_effort, "high")
 
     def test_build_parser_accepts_model_diff_mode(self) -> None:
         parser = lm_bisect.build_parser()

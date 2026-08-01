@@ -94,7 +94,16 @@ GENERAL_KEYWORDS = (
     "document",
 )
 
-HEURISTIC_VERSIONS = ("v1", "tuned", "general", "none", "neutral", "oracle-first-bad")
+HEURISTIC_VERSIONS = (
+    "v1",
+    "tuned",
+    "general",
+    "none",
+    "neutral",
+    "oracle-first-bad",
+    "oracle-first-bad-major",
+    "oracle-first-bad-major-tuned",
+)
 
 # This diagnostic deliberately derives keywords from the validated answer. The
 # filter keeps source-level identifiers while removing syntax and commit noise.
@@ -137,6 +146,8 @@ ORACLE_KEYWORD_STOPWORDS = frozenset(
 ORACLE_IDENTIFIER_RE = re.compile(r"\b[A-Za-z_][A-Za-z0-9_:]{3,}\b")
 ORACLE_SUBJECT_TAG_RE = re.compile(r"\[([^\]]+)\]")
 ORACLE_KEYWORD_LIMIT = 16
+ORACLE_MAJOR_KEYWORD_HIT_WEIGHT = 8.0
+ORACLE_MAJOR_KEYWORD_HIT_CAP = 24.0
 
 BUILD_RISK_WORDS = (
     "cmake",
@@ -368,6 +379,7 @@ class IssueProfile:
     keywords: list[str]
     relevant_paths: list[str]
     high_risk_paths: list[str]
+    oracle_keywords: list[str] | None = None
 
 
 @dataclass
@@ -441,6 +453,7 @@ class ModelConfig:
     base_url: str
     model_name: str
     observation_prompt_mode: str = "legacy"
+    reasoning_effort: str | None = None
 
 
 @dataclass(frozen=True)
@@ -532,6 +545,7 @@ def load_env_file(env_path: Path = DEFAULT_ENV_PATH) -> None:
 def load_model_config(
     model_name: str | None = None,
     observation_prompt_mode: str = "legacy",
+    reasoning_effort: str | None = None,
     env_path: Path = DEFAULT_ENV_PATH,
 ) -> ModelConfig:
     load_env_file(env_path)
@@ -545,6 +559,7 @@ def load_model_config(
         base_url=base_url,
         model_name=resolved_model,
         observation_prompt_mode=observation_prompt_mode,
+        reasoning_effort=reasoning_effort,
     )
 
 
@@ -561,11 +576,19 @@ def model_cache_path(
     return DEFAULT_MODEL_CACHE_DIR / f"{issue_id}-{safe_model}-{safe_version}{suffix}.json"
 
 
-def resolved_model_scoring_version(observation_prompt_mode: str = "legacy") -> str:
+def resolved_model_scoring_version(
+    observation_prompt_mode: str = "legacy",
+    reasoning_effort: str | None = None,
+) -> str:
     if observation_prompt_mode == "legacy":
-        return MODEL_SCORING_VERSION
-    safe_mode = re.sub(r"[^A-Za-z0-9_.-]+", "_", observation_prompt_mode)
-    return f"{MODEL_SCORING_VERSION}-obs-{safe_mode}"
+        version = MODEL_SCORING_VERSION
+    else:
+        safe_mode = re.sub(r"[^A-Za-z0-9_.-]+", "_", observation_prompt_mode)
+        version = f"{MODEL_SCORING_VERSION}-obs-{safe_mode}"
+    if reasoning_effort:
+        safe_effort = re.sub(r"[^A-Za-z0-9_.-]+", "_", reasoning_effort)
+        version = f"{version}-reasoning-{safe_effort}"
+    return version
 
 
 def model_score_cache_key(
@@ -1484,6 +1507,78 @@ def score_semantics_tuned(profile: IssueProfile, subject: str, body: str, files:
     return score, evidence
 
 
+def score_semantics_oracle_major(
+    profile: IssueProfile,
+    subject: str,
+    body: str,
+    files: list[str],
+    diff: str,
+) -> tuple[float, list[str]]:
+    """Score the first-bad-derived keywords above all ordinary heuristic features.
+
+    This is deliberately an oracle diagnostic rather than a benchmark method:
+    the terms originate from the known answer.  Keeping the ordinary features
+    makes the sensitivity test comparable with `oracle-first-bad`.
+    """
+    score, evidence = score_semantics_tuned(profile, subject, body, files, diff)
+    text = " ".join([subject, body, diff]).lower()
+    tokens = set(tokenize(text))
+    compact_text = compact_alnum(text)
+    keyword_hits = 0
+    for keyword in profile.keywords:
+        normalized_keyword = normalize_token(keyword)
+        if not normalized_keyword:
+            continue
+        if normalized_keyword in tokens:
+            keyword_hits += 1
+            continue
+        if len(normalized_keyword) >= 6 and any(ch in keyword for ch in (" ", ".", "-", "/", "_")):
+            if keyword.lower() in text:
+                keyword_hits += 1
+                continue
+        if len(normalized_keyword) >= 8 and normalized_keyword in compact_text:
+            keyword_hits += 1
+    if keyword_hits:
+        # Replace the tuned keyword contribution with a dominant oracle-only one.
+        score -= min(4.5, 0.60 * keyword_hits)
+        score += min(ORACLE_MAJOR_KEYWORD_HIT_CAP, ORACLE_MAJOR_KEYWORD_HIT_WEIGHT * keyword_hits)
+        evidence = [item for item in evidence if not item.endswith("keyword hits")]
+        evidence.append(f"{keyword_hits} oracle-major keyword hits")
+    return score, evidence
+
+
+def score_semantics_oracle_major_tuned(
+    profile: IssueProfile,
+    subject: str,
+    body: str,
+    files: list[str],
+    diff: str,
+) -> tuple[float, list[str]]:
+    """Keep tuned issue scoring while adding a dominant answer-leaking signal."""
+    score, evidence = score_semantics_tuned(profile, subject, body, files, diff)
+    text = " ".join([subject, body, diff]).lower()
+    tokens = set(tokenize(text))
+    compact_text = compact_alnum(text)
+    keyword_hits = 0
+    for keyword in profile.oracle_keywords or []:
+        normalized_keyword = normalize_token(keyword)
+        if not normalized_keyword:
+            continue
+        if normalized_keyword in tokens:
+            keyword_hits += 1
+            continue
+        if len(normalized_keyword) >= 6 and any(ch in keyword for ch in (" ", ".", "-", "/", "_")):
+            if keyword.lower() in text:
+                keyword_hits += 1
+                continue
+        if len(normalized_keyword) >= 8 and normalized_keyword in compact_text:
+            keyword_hits += 1
+    if keyword_hits:
+        score += min(ORACLE_MAJOR_KEYWORD_HIT_CAP, ORACLE_MAJOR_KEYWORD_HIT_WEIGHT * keyword_hits)
+        evidence.append(f"{keyword_hits} oracle-major keyword hits")
+    return score, evidence
+
+
 def score_semantics(
     profile: IssueProfile,
     subject: str,
@@ -1510,6 +1605,10 @@ def score_semantics(
     if heuristic_version == "oracle-first-bad":
         # The selection profile already contains the explicitly derived terms.
         return score_semantics_tuned(profile, subject, body, files, diff)
+    if heuristic_version == "oracle-first-bad-major":
+        return score_semantics_oracle_major(profile, subject, body, files, diff)
+    if heuristic_version == "oracle-first-bad-major-tuned":
+        return score_semantics_oracle_major_tuned(profile, subject, body, files, diff)
     raise ValueError(f"unsupported heuristic version: {heuristic_version}")
 
 
@@ -1522,9 +1621,9 @@ def effective_heuristic_keywords(
         return list(GENERAL_KEYWORDS)
     if heuristic_version in {"none", "neutral"}:
         return []
-    if heuristic_version == "oracle-first-bad":
+    if heuristic_version in {"oracle-first-bad", "oracle-first-bad-major"}:
         if oracle_keywords is None:
-            raise ValueError("oracle-first-bad heuristic requires derived first-bad keywords")
+            raise ValueError(f"{heuristic_version} heuristic requires derived first-bad keywords")
         return list(oracle_keywords)
     return list(profile.keywords)
 
@@ -1537,17 +1636,25 @@ def heuristic_selection_profile(
     """Remove manually authored issue signals for the profile-free control."""
     if heuristic_version == "neutral":
         return replace(profile, keywords=[], relevant_paths=[], high_risk_paths=[])
-    if heuristic_version == "oracle-first-bad":
+    if heuristic_version in {"oracle-first-bad", "oracle-first-bad-major"}:
         return replace(profile, keywords=effective_heuristic_keywords(profile, heuristic_version, oracle_keywords))
+    if heuristic_version == "oracle-first-bad-major-tuned":
+        if oracle_keywords is None:
+            raise ValueError("oracle-first-bad-major-tuned requires derived first-bad keywords")
+        return replace(profile, oracle_keywords=list(oracle_keywords))
     return profile
 
 
 def oracle_first_bad_sha_from_args(repo: Path, args: argparse.Namespace) -> str | None:
-    if getattr(args, "heuristic_version", "tuned") != "oracle-first-bad":
+    if getattr(args, "heuristic_version", "tuned") not in {
+        "oracle-first-bad",
+        "oracle-first-bad-major",
+        "oracle-first-bad-major-tuned",
+    }:
         return None
     raw_sha = getattr(args, "oracle_first_bad_sha", None)
     if not raw_sha:
-        raise ValueError("oracle-first-bad heuristic requires --oracle-first-bad-sha")
+        raise ValueError("oracle-first-bad diagnostics require --oracle-first-bad-sha")
     return git(repo, "rev-parse", "--verify", str(raw_sha)).strip()
 
 
@@ -1557,10 +1664,14 @@ def resolved_heuristic_selection_profile(
     heuristic_version: str,
     oracle_first_bad_sha: str | None,
 ) -> tuple[IssueProfile, dict[str, object] | None]:
-    if heuristic_version != "oracle-first-bad":
+    if heuristic_version not in {
+        "oracle-first-bad",
+        "oracle-first-bad-major",
+        "oracle-first-bad-major-tuned",
+    }:
         return heuristic_selection_profile(profile, heuristic_version), None
     if oracle_first_bad_sha is None:
-        raise ValueError("oracle-first-bad heuristic requires a resolved first-bad SHA")
+        raise ValueError("oracle-first-bad diagnostics require a resolved first-bad SHA")
     derivation = oracle_first_bad_keyword_derivation(repo, oracle_first_bad_sha)
     keywords = [str(keyword) for keyword in derivation["keywords"]]
     if not keywords:
@@ -2503,11 +2614,14 @@ def is_transient_model_error(exc: Exception) -> bool:
 def model_completion_with_retry(client, config: ModelConfig, prompt: str, request_kind: str):
     for attempt in range(1, DEFAULT_MODEL_REQUEST_RETRIES + 1):
         try:
-            return client.chat.completions.create(
-                model=config.model_name,
-                messages=[{"role": "user", "content": prompt}],
-                temperature=0,
-            )
+            request = {
+                "model": config.model_name,
+                "messages": [{"role": "user", "content": prompt}],
+                "temperature": 0,
+            }
+            if config.reasoning_effort:
+                request["reasoning_effort"] = config.reasoning_effort
+            return client.chat.completions.create(**request)
         except Exception as exc:
             if not is_transient_model_error(exc) or attempt == DEFAULT_MODEL_REQUEST_RETRIES:
                 raise
@@ -2988,11 +3102,15 @@ def run_history_path_for_issue(
     heuristic_version: str = "tuned",
     observation_prompt_mode: str = "legacy",
     run_label: str | None = None,
+    model_reasoning_effort: str | None = None,
 ) -> Path:
     label = method_label(scorer, model_name, search_policy, model_frontier, candidate_pruning, heuristic_version)
     if scorer == "model" and observation_prompt_mode != "legacy":
         safe_mode = re.sub(r"[^A-Za-z0-9_.-]+", "_", observation_prompt_mode)
         label = f"{label}-obs-{safe_mode}"
+    if scorer == "model" and model_reasoning_effort:
+        safe_effort = re.sub(r"[^A-Za-z0-9_.-]+", "_", model_reasoning_effort)
+        label = f"{label}-reasoning-{safe_effort}"
     if run_label:
         safe_label = re.sub(r"[^A-Za-z0-9_.-]+", "_", run_label)
         label = f"{label}-{safe_label}"
@@ -3016,11 +3134,15 @@ def unresolved_window_path_for_issue(
     heuristic_version: str = "tuned",
     observation_prompt_mode: str = "legacy",
     run_label: str | None = None,
+    model_reasoning_effort: str | None = None,
 ) -> Path:
     label = method_label(scorer, model_name, search_policy, model_frontier, candidate_pruning, heuristic_version)
     if scorer == "model" and observation_prompt_mode != "legacy":
         safe_mode = re.sub(r"[^A-Za-z0-9_.-]+", "_", observation_prompt_mode)
         label = f"{label}-obs-{safe_mode}"
+    if scorer == "model" and model_reasoning_effort:
+        safe_effort = re.sub(r"[^A-Za-z0-9_.-]+", "_", model_reasoning_effort)
+        label = f"{label}-reasoning-{safe_effort}"
     if run_label:
         safe_label = re.sub(r"[^A-Za-z0-9_.-]+", "_", run_label)
         label = f"{label}-{safe_label}"
@@ -3143,11 +3265,13 @@ def start_run_history_payload(
     observation_conditioned_posterior: dict[str, float] | None = None,
     model_cache_namespace: str | None = None,
     oracle_first_bad_sha: str | None = None,
+    model_reasoning_effort: str | None = None,
 ) -> dict:
     return {
         "issue": issue_id,
         "scorer": scorer,
         "model_name": model_name,
+        "model_reasoning_effort": model_reasoning_effort,
         "model_frontier": model_frontier,
         "search_policy": search_policy,
         "hybrid_switch_window": hybrid_switch_window,
@@ -3209,12 +3333,14 @@ def run_history_matches(
     observation_conditioned_posterior: dict[str, float] | None = None,
     model_cache_namespace: str | None = None,
     oracle_first_bad_sha: str | None = None,
+    model_reasoning_effort: str | None = None,
 ) -> bool:
     return (
         bool(history)
         and history.get("issue") == issue_id
         and history.get("scorer") == scorer
         and history.get("model_name") == model_name
+        and history.get("model_reasoning_effort") == model_reasoning_effort
         and history.get("model_frontier", "topk") == model_frontier
         and history.get("candidate_pruning", "off") == candidate_pruning
         and history.get("heuristic_version", "tuned") == heuristic_version
@@ -3271,6 +3397,7 @@ def prepare_run_history(
     observation_conditioned_posterior: dict[str, float] | None = None,
     model_cache_namespace: str | None = None,
     oracle_first_bad_sha: str | None = None,
+    model_reasoning_effort: str | None = None,
 ) -> tuple[dict, int, bool]:
     history_matches = (
         run_history_matches(
@@ -3296,6 +3423,7 @@ def prepare_run_history(
             observation_conditioned_posterior,
             model_cache_namespace,
             oracle_first_bad_sha,
+            model_reasoning_effort,
         )
         and existing_history.get("search_policy", "ranked") == search_policy
         and int(existing_history.get("hybrid_switch_window", hybrid_switch_window)) == hybrid_switch_window
@@ -3323,6 +3451,7 @@ def prepare_run_history(
         history["observation_conditioned_posterior"] = observation_conditioned_posterior
         history["model_cache_namespace"] = model_cache_namespace
         history["oracle_first_bad_sha"] = oracle_first_bad_sha
+        history["model_reasoning_effort"] = model_reasoning_effort
         history["lambda_weight"] = lambda_weight
         history["max_steps"] = max_steps
         history["observation_path"] = observation_path
@@ -3367,6 +3496,7 @@ def prepare_run_history(
         observation_conditioned_posterior=observation_conditioned_posterior,
         model_cache_namespace=model_cache_namespace,
         oracle_first_bad_sha=oracle_first_bad_sha,
+        model_reasoning_effort=model_reasoning_effort,
     )
     if candidate_file:
         history["candidate_file"] = candidate_file
@@ -4636,7 +4766,10 @@ def make_records(
         loaded_metadata = load_commit_metadata(
             repo,
             missing_shas,
-            include_body=(scorer == "heuristic" and heuristic_version in {"tuned", "general"}),
+            include_body=(
+                scorer == "heuristic"
+                and heuristic_version in {"tuned", "general", "oracle-first-bad-major-tuned"}
+            ),
         )
         metadata_by_sha.update(loaded_metadata)
     shas, pruning_summary = apply_candidate_pruning(profile, shas, metadata_by_sha, candidate_pruning)
@@ -4696,7 +4829,9 @@ def make_records(
     cache_path = model_cache_path(
         profile.issue_id,
         model_config.model_name,
-        scoring_version=resolved_model_scoring_version(model_config.observation_prompt_mode),
+        scoring_version=resolved_model_scoring_version(
+            model_config.observation_prompt_mode, model_config.reasoning_effort
+        ),
         namespace=model_cache_namespace,
     )
     cache = model_cache if model_cache is not None else load_model_cache(cache_path)
@@ -4937,6 +5072,7 @@ def command_suggest(args: argparse.Namespace) -> int:
         model_config = load_model_config(
             model_name=args.model_name,
             observation_prompt_mode=args.observation_prompt_mode,
+            reasoning_effort=args.model_reasoning_effort,
         )
     candidate_shas = None
     if args.candidate_file:
@@ -4984,7 +5120,10 @@ def command_suggest(args: argparse.Namespace) -> int:
     print(f"Heuristic version: {args.heuristic_version}")
     if oracle_derivation is not None:
         print(f"Oracle first-bad: {oracle_first_bad_sha}")
-        print(f"Oracle-derived keywords: {', '.join(selection_profile.keywords)}")
+        print(
+            "Oracle-derived keywords: "
+            f"{', '.join(selection_profile.oracle_keywords or selection_profile.keywords)}"
+        )
     print(f"Search policy: {args.search_policy}")
     print(f"Selection mode: {decision.selection_mode}")
     if args.search_policy == "calibrated-posterior":
@@ -5361,6 +5500,7 @@ def command_eval_email_case(args: argparse.Namespace) -> int:
             load_model_config(
                 model_name=args.model_name,
                 observation_prompt_mode=args.observation_prompt_mode,
+                reasoning_effort=args.model_reasoning_effort,
             )
             if scorer_name == "model"
             else None
@@ -5449,6 +5589,7 @@ def command_simulate_online(args: argparse.Namespace) -> int:
         load_model_config(
             model_name=args.model_name,
             observation_prompt_mode=args.observation_prompt_mode,
+            reasoning_effort=args.model_reasoning_effort,
         )
         if args.scorer == "model"
         else None
@@ -5458,7 +5599,9 @@ def command_simulate_online(args: argparse.Namespace) -> int:
             model_cache_path(
                 profile.issue_id,
                 model_config.model_name,
-                scoring_version=resolved_model_scoring_version(model_config.observation_prompt_mode),
+                scoring_version=resolved_model_scoring_version(
+                    model_config.observation_prompt_mode, model_config.reasoning_effort
+                ),
             )
         )
         if model_config is not None
@@ -5566,7 +5709,10 @@ def command_simulate_online(args: argparse.Namespace) -> int:
     print(f"Heuristic version: {args.heuristic_version}")
     if oracle_derivation is not None:
         print(f"Oracle keyword source: {oracle_first_bad_sha}")
-        print(f"Oracle-derived keywords: {', '.join(selection_profile.keywords)}")
+        print(
+            "Oracle-derived keywords: "
+            f"{', '.join(selection_profile.oracle_keywords or selection_profile.keywords)}"
+        )
     print(f"Search policy: {args.search_policy}")
     if args.search_policy == "calibrated-posterior":
         print(f"Calibrated prior power: {args.calibrated_prior_power}")
@@ -5620,8 +5766,9 @@ def command_run_online(args: argparse.Namespace) -> int:
     )
     if oracle_derivation is not None:
         log_progress(
-            "oracle-only heuristic enabled: "
-            f"first_bad={oracle_first_bad_sha[:12]} keywords={len(selection_profile.keywords)}"
+            "oracle heuristic diagnostic enabled: "
+            f"first_bad={oracle_first_bad_sha[:12]} "
+            f"oracle_keywords={len(selection_profile.oracle_keywords or selection_profile.keywords)}"
         )
     log_progress("loading candidate window")
     unresolved = (
@@ -5689,6 +5836,7 @@ def command_run_online(args: argparse.Namespace) -> int:
         args.heuristic_version,
         args.observation_prompt_mode,
         args.run_label,
+        args.model_reasoning_effort if args.scorer == "model" else None,
     )
     unresolved_window_path = unresolved_window_path_for_issue(
         args.issue,
@@ -5700,6 +5848,7 @@ def command_run_online(args: argparse.Namespace) -> int:
         args.heuristic_version,
         args.observation_prompt_mode,
         args.run_label,
+        args.model_reasoning_effort if args.scorer == "model" else None,
     )
     existing_run_history = load_run_history(run_history_path)
     log_progress(f"history path: {run_history_path}")
@@ -5731,6 +5880,7 @@ def command_run_online(args: argparse.Namespace) -> int:
         model_diff_mode=args.model_diff_mode,
         model_diff_extraction=args.model_diff_extraction if args.scorer == "model" else "raw",
         model_top_k=args.model_top_k if args.scorer == "model" else None,
+        model_reasoning_effort=args.model_reasoning_effort if args.scorer == "model" else None,
         adaptive_top_k=adaptive_top_k.payload() if adaptive_top_k else None,
         confidence_adaptive_frontier=(
             confidence_adaptive_frontier.payload() if confidence_adaptive_frontier else None
@@ -5741,13 +5891,21 @@ def command_run_online(args: argparse.Namespace) -> int:
         model_cache_namespace=model_cache_namespace,
         oracle_first_bad_sha=oracle_first_bad_sha,
     )
-    run_history["heuristic_keywords"] = (
-        list(selection_profile.keywords)
-        if oracle_derivation is not None
-        else effective_heuristic_keywords(profile, args.heuristic_version)
-    )
+    run_history["heuristic_keywords"] = list(selection_profile.keywords)
+    if args.heuristic_version in {"general", "none", "neutral"}:
+        run_history["heuristic_keywords"] = effective_heuristic_keywords(profile, args.heuristic_version)
     if oracle_derivation is not None:
         run_history["oracle_first_bad_derivation"] = oracle_derivation
+        if selection_profile.oracle_keywords:
+            run_history["oracle_keywords"] = list(selection_profile.oracle_keywords)
+        if args.heuristic_version in {"oracle-first-bad-major", "oracle-first-bad-major-tuned"}:
+            run_history["oracle_diagnostic"] = {
+                "uses_validated_first_bad": True,
+                "keyword_hit_weight": ORACLE_MAJOR_KEYWORD_HIT_WEIGHT,
+                "keyword_hit_cap": ORACLE_MAJOR_KEYWORD_HIT_CAP,
+                "retains_tuned_keywords": args.heuristic_version == "oracle-first-bad-major-tuned",
+                "baseline_eligible": False,
+            }
     save_run_history(run_history_path, run_history)
     log_progress(f"history initialized: completed_steps={completed_steps} resumed={resumed}")
 
@@ -5775,18 +5933,24 @@ def command_run_online(args: argparse.Namespace) -> int:
         load_model_config(
             model_name=args.model_name,
             observation_prompt_mode=args.observation_prompt_mode,
+            reasoning_effort=args.model_reasoning_effort,
         )
         if args.scorer == "model"
         else None
     )
     if model_config is not None:
-        log_progress(f"model config loaded: {model_config.model_name}")
+        log_progress(
+            f"model config loaded: {model_config.model_name} "
+            f"reasoning_effort={model_config.reasoning_effort or 'default'}"
+        )
     shared_model_cache = (
         load_model_cache(
             model_cache_path(
                 profile.issue_id,
                 model_config.model_name,
-                scoring_version=resolved_model_scoring_version(model_config.observation_prompt_mode),
+                scoring_version=resolved_model_scoring_version(
+                    model_config.observation_prompt_mode, model_config.reasoning_effort
+                ),
                 namespace=model_cache_namespace,
             )
         )
@@ -5797,7 +5961,9 @@ def command_run_online(args: argparse.Namespace) -> int:
         model_cache_path(
             profile.issue_id,
             model_config.model_name,
-            scoring_version=resolved_model_scoring_version(model_config.observation_prompt_mode),
+            scoring_version=resolved_model_scoring_version(
+                model_config.observation_prompt_mode, model_config.reasoning_effort
+            ),
             namespace=model_cache_namespace,
         )
         if model_config is not None
@@ -6206,9 +6372,10 @@ def build_parser() -> argparse.ArgumentParser:
     suggest.add_argument("--candidate-file", default=None, help="optional JSON file listing the candidate commit set to rank")
     suggest.add_argument("--observations", default=None, help="optional path to tested-commit observation JSON")
     suggest.add_argument("--scorer", choices=("heuristic", "model"), default="heuristic", help="scoring backend")
-    suggest.add_argument("--heuristic-version", choices=HEURISTIC_VERSIONS, default="tuned", help="heuristic scoring version; oracle-first-bad is a diagnostic that leaks the validated answer")
-    suggest.add_argument("--oracle-first-bad-sha", default=None, help="required known first-bad SHA for heuristic-version=oracle-first-bad")
+    suggest.add_argument("--heuristic-version", choices=HEURISTIC_VERSIONS, default="tuned", help="heuristic scoring version; oracle-first-bad variants are diagnostics that leak the validated answer")
+    suggest.add_argument("--oracle-first-bad-sha", default=None, help="required known first-bad SHA for an oracle-first-bad diagnostic")
     suggest.add_argument("--model-name", default=None, help="optional model override for scorer=model")
+    suggest.add_argument("--model-reasoning-effort", choices=("low", "medium", "high"), default=None, help="optional provider reasoning effort for scorer=model")
     suggest.add_argument("--model-top-k", type=int, default=3, help="number of heuristic-prefiltered commits to rescore with the model")
     suggest.add_argument("--model-frontier", choices=("topk", "diverse", "evidence-diverse", "all"), default="topk", help="how to choose the model rescoring frontier")
     suggest.add_argument("--model-diff-mode", choices=("parent", "last-tested"), default="parent", help="diff evidence passed to model-scored candidates")
@@ -6259,9 +6426,10 @@ def build_parser() -> argparse.ArgumentParser:
     eval_email.add_argument("--max-candidates", type=int, default=None, help="optional cap for candidate enumeration")
     eval_email.add_argument("--candidate-file", default=None, help="optional JSON file listing the candidate commit set to rank")
     eval_email.add_argument("--observations", default=None, help="optional path to tested-commit observation JSON")
-    eval_email.add_argument("--heuristic-version", choices=HEURISTIC_VERSIONS, default="tuned", help="heuristic scoring version; oracle-first-bad is a diagnostic that leaks the validated answer")
-    eval_email.add_argument("--oracle-first-bad-sha", default=None, help="required known first-bad SHA for heuristic-version=oracle-first-bad")
+    eval_email.add_argument("--heuristic-version", choices=HEURISTIC_VERSIONS, default="tuned", help="heuristic scoring version; oracle-first-bad variants are diagnostics that leak the validated answer")
+    eval_email.add_argument("--oracle-first-bad-sha", default=None, help="required known first-bad SHA for an oracle-first-bad diagnostic")
     eval_email.add_argument("--model-name", default=None, help="optional model override for scorer=model")
+    eval_email.add_argument("--model-reasoning-effort", choices=("low", "medium", "high"), default=None, help="optional provider reasoning effort for scorer=model")
     eval_email.add_argument("--observation-prompt-mode", choices=("legacy", "trace-only"), default="legacy", help="how runner-backed crash observations are formatted when scorer=model")
     eval_email.add_argument("--candidate-pruning", choices=("off", "conservative"), default="off", help="prune obviously irrelevant commits before scoring")
     eval_email.add_argument("--build-success-power", type=float, default=DEFAULT_BUILD_SUCCESS_POWER, help="exponent applied to pbuild before it affects selector scoring")
@@ -6278,9 +6446,10 @@ def build_parser() -> argparse.ArgumentParser:
         help="path to llvm-project checkout",
     )
     simulate.add_argument("--scorer", choices=("heuristic", "model"), default="heuristic", help="scoring backend")
-    simulate.add_argument("--heuristic-version", choices=HEURISTIC_VERSIONS, default="tuned", help="heuristic scoring version; oracle-first-bad is a diagnostic that leaks the validated answer")
-    simulate.add_argument("--oracle-first-bad-sha", default=None, help="required known first-bad SHA for heuristic-version=oracle-first-bad")
+    simulate.add_argument("--heuristic-version", choices=HEURISTIC_VERSIONS, default="tuned", help="heuristic scoring version; oracle-first-bad variants are diagnostics that leak the validated answer")
+    simulate.add_argument("--oracle-first-bad-sha", default=None, help="required known first-bad SHA for an oracle-first-bad diagnostic")
     simulate.add_argument("--model-name", default=None, help="optional model override for scorer=model")
+    simulate.add_argument("--model-reasoning-effort", choices=("low", "medium", "high"), default=None, help="optional provider reasoning effort for scorer=model")
     simulate.add_argument("--model-top-k", type=int, default=3, help="number of heuristic-prefiltered commits to rescore with the model")
     simulate.add_argument("--model-frontier", choices=("topk", "diverse", "evidence-diverse", "all"), default="topk", help="how to choose the model rescoring frontier")
     simulate.add_argument("--model-diff-mode", choices=("parent", "last-tested"), default="parent", help="diff evidence passed to model-scored candidates")
@@ -6306,10 +6475,11 @@ def build_parser() -> argparse.ArgumentParser:
         help="path to llvm-project checkout",
     )
     run_online.add_argument("--scorer", choices=("heuristic", "model"), default="heuristic", help="scoring backend")
-    run_online.add_argument("--heuristic-version", choices=HEURISTIC_VERSIONS, default="tuned", help="heuristic scoring version; oracle-first-bad is a diagnostic that leaks the validated answer")
-    run_online.add_argument("--oracle-first-bad-sha", default=None, help="required known first-bad SHA for heuristic-version=oracle-first-bad")
+    run_online.add_argument("--heuristic-version", choices=HEURISTIC_VERSIONS, default="tuned", help="heuristic scoring version; oracle-first-bad variants are diagnostics that leak the validated answer")
+    run_online.add_argument("--oracle-first-bad-sha", default=None, help="required known first-bad SHA for an oracle-first-bad diagnostic")
     run_online.add_argument("--heuristic-top-k", type=int, default=None, help=argparse.SUPPRESS)
     run_online.add_argument("--model-name", default=None, help="optional model override for scorer=model")
+    run_online.add_argument("--model-reasoning-effort", choices=("low", "medium", "high"), default=None, help="optional provider reasoning effort for scorer=model")
     run_online.add_argument("--model-top-k", type=int, default=3, help="number of heuristic-prefiltered commits to rescore with the model")
     run_online.add_argument(
         "--adaptive-top-k-threshold",

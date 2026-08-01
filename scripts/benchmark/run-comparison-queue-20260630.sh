@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-MODE="${1:?mode required: heuristic|general-heuristic|no-keyword-heuristic|neutral-heuristic|oracle-first-bad-heuristic|parent-extract|causal-parent-extract|causal-parent-impl-k12|evidence-diverse-k12|causal-parent-k12|adaptive-parent-extract|confidence-parent-extract|confidence-parent-k12|observation-posterior-parent-extract|observation-posterior-parent-k12|lastdiff-extract}"
+MODE="${1:?mode required: heuristic|general-heuristic|no-keyword-heuristic|neutral-heuristic|oracle-first-bad-heuristic|oracle-major-keyword-heuristic|oracle-major-tuned-keyword-heuristic|parent-extract|causal-parent-extract|causal-parent-impl-k12|evidence-diverse-k12|causal-parent-k12|adaptive-parent-extract|confidence-parent-extract|confidence-parent-k12|observation-posterior-parent-extract|observation-posterior-parent-k12|lastdiff-extract}"
 LANE="${2:?lane label required}"
 shift 2
 ISSUES=("$@")
@@ -29,6 +29,8 @@ export ROOT BASE_REPO WORK_ROOT
 export JOBS="${JOBS:-4}"
 export LM_BISECT_JOBS="${LM_BISECT_JOBS:-${JOBS}}"
 export MODEL_TOP_K="${MODEL_TOP_K:-2000}"
+MODEL_NAME="${MODEL_NAME:-}"
+MODEL_REASONING_EFFORT="${MODEL_REASONING_EFFORT:-}"
 export ADAPTIVE_TOP_K_THRESHOLD="${ADAPTIVE_TOP_K_THRESHOLD:-5000}"
 export ADAPTIVE_TOP_K_LARGE="${ADAPTIVE_TOP_K_LARGE:-12}"
 export ADAPTIVE_TOP_K_SMALL="${ADAPTIVE_TOP_K_SMALL:-3}"
@@ -36,6 +38,14 @@ export MODEL_CACHE_NAMESPACE="${MODEL_CACHE_NAMESPACE:-adaptive-${ADAPTIVE_TOP_K
 export CONFIDENCE_FRONTIER_THRESHOLD="${CONFIDENCE_FRONTIER_THRESHOLD:-0.35}"
 export CCACHE_MAXSIZE="${CCACHE_MAXSIZE:-20G}"
 export CMAKE_BUILD_PARALLEL_LEVEL="${JOBS}"
+
+MODEL_ARGS=()
+if [[ -n "${MODEL_NAME}" ]]; then
+  MODEL_ARGS+=(--model-name "${MODEL_NAME}")
+fi
+if [[ -n "${MODEL_REASONING_EFFORT}" ]]; then
+  MODEL_ARGS+=(--model-reasoning-effort "${MODEL_REASONING_EFFORT}")
+fi
 
 mkdir -p "${WORK_ROOT}" "${ROOT}/results/issues/server-jobs"
 LOG="${ROOT}/results/issues/server-jobs/${LANE}.log"
@@ -196,11 +206,38 @@ run_issue() {
         --run-label "${LANE}" \
         --max-steps 30
       ;;
+    oracle-major-keyword-heuristic)
+      oracle_bad="$(oracle_first_bad_commit "${issue}")"
+      run_bisect_cmd "${PY}" tools/lm_bisect.py run-online \
+        --issue "${issue}" \
+        --llvm-dir "${wt}" \
+        --scorer heuristic \
+        --heuristic-version oracle-first-bad-major \
+        --oracle-first-bad-sha "${oracle_bad}" \
+        --search-policy calibrated-posterior \
+        --observations "${obs}" \
+        --run-label "${LANE}" \
+        --max-steps 30
+      ;;
+    oracle-major-tuned-keyword-heuristic)
+      oracle_bad="$(oracle_first_bad_commit "${issue}")"
+      run_bisect_cmd "${PY}" tools/lm_bisect.py run-online \
+        --issue "${issue}" \
+        --llvm-dir "${wt}" \
+        --scorer heuristic \
+        --heuristic-version oracle-first-bad-major-tuned \
+        --oracle-first-bad-sha "${oracle_bad}" \
+        --search-policy calibrated-posterior \
+        --observations "${obs}" \
+        --run-label "${LANE}" \
+        --max-steps 30
+      ;;
     parent-extract)
       run_bisect_cmd "${PY}" tools/lm_bisect.py run-online \
         --issue "${issue}" \
         --llvm-dir "${wt}" \
         --scorer model \
+        "${MODEL_ARGS[@]}" \
         --search-policy calibrated-posterior \
         --model-top-k "${MODEL_TOP_K}" \
         --model-frontier topk \
@@ -216,6 +253,7 @@ run_issue() {
         --issue "${issue}" \
         --llvm-dir "${wt}" \
         --scorer model \
+        "${MODEL_ARGS[@]}" \
         --search-policy calibrated-posterior \
         --model-top-k 3 \
         --model-frontier topk \
@@ -232,6 +270,7 @@ run_issue() {
         --issue "${issue}" \
         --llvm-dir "${wt}" \
         --scorer model \
+        "${MODEL_ARGS[@]}" \
         --search-policy calibrated-posterior \
         --model-top-k 12 \
         --model-frontier evidence-diverse \
@@ -248,6 +287,7 @@ run_issue() {
         --issue "${issue}" \
         --llvm-dir "${wt}" \
         --scorer model \
+        "${MODEL_ARGS[@]}" \
         --search-policy calibrated-posterior \
         --model-top-k 12 \
         --model-frontier topk \
@@ -264,6 +304,7 @@ run_issue() {
         --issue "${issue}" \
         --llvm-dir "${wt}" \
         --scorer model \
+        "${MODEL_ARGS[@]}" \
         --search-policy calibrated-posterior \
         --model-top-k 12 \
         --model-frontier topk \
@@ -280,6 +321,7 @@ run_issue() {
         --issue "${issue}" \
         --llvm-dir "${wt}" \
         --scorer model \
+        "${MODEL_ARGS[@]}" \
         --search-policy calibrated-posterior \
         --model-top-k "${MODEL_TOP_K}" \
         --adaptive-top-k-threshold "${ADAPTIVE_TOP_K_THRESHOLD}" \
@@ -299,6 +341,7 @@ run_issue() {
         --issue "${issue}" \
         --llvm-dir "${wt}" \
         --scorer model \
+        "${MODEL_ARGS[@]}" \
         --search-policy calibrated-posterior \
         --model-top-k 3 \
         --model-frontier topk \
@@ -316,6 +359,7 @@ run_issue() {
         --issue "${issue}" \
         --llvm-dir "${wt}" \
         --scorer model \
+        "${MODEL_ARGS[@]}" \
         --search-policy calibrated-posterior \
         --model-top-k 12 \
         --model-frontier topk \
@@ -333,6 +377,7 @@ run_issue() {
         --issue "${issue}" \
         --llvm-dir "${wt}" \
         --scorer model \
+        "${MODEL_ARGS[@]}" \
         --search-policy calibrated-posterior \
         --model-top-k 3 \
         --model-frontier topk \
@@ -350,6 +395,7 @@ run_issue() {
         --issue "${issue}" \
         --llvm-dir "${wt}" \
         --scorer model \
+        "${MODEL_ARGS[@]}" \
         --search-policy calibrated-posterior \
         --model-top-k 12 \
         --model-frontier topk \
@@ -367,6 +413,7 @@ run_issue() {
         --issue "${issue}" \
         --llvm-dir "${wt}" \
         --scorer model \
+        "${MODEL_ARGS[@]}" \
         --search-policy calibrated-posterior \
         --model-top-k "${MODEL_TOP_K}" \
         --model-frontier topk \

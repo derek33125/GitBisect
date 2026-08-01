@@ -34,6 +34,25 @@ class ComparisonQueueTests(unittest.TestCase):
         self.assertIn('oracle_first_bad_commit()', text)
         self.assertIn('--oracle-first-bad-sha "${oracle_bad}"', text)
 
+    def test_supports_oracle_major_keyword_mode(self) -> None:
+        text = SCRIPT.read_text()
+
+        self.assertIn('oracle-major-keyword-heuristic)', text)
+        self.assertIn('--heuristic-version oracle-first-bad-major', text)
+
+    def test_supports_combined_oracle_major_tuned_keyword_mode(self) -> None:
+        text = SCRIPT.read_text()
+
+        self.assertIn('oracle-major-tuned-keyword-heuristic)', text)
+        self.assertIn('--heuristic-version oracle-first-bad-major-tuned', text)
+
+    def test_model_modes_accept_environment_model_configuration(self) -> None:
+        text = SCRIPT.read_text()
+
+        self.assertIn('MODEL_NAME="${MODEL_NAME:-}"', text)
+        self.assertIn('MODEL_REASONING_EFFORT="${MODEL_REASONING_EFFORT:-}"', text)
+        self.assertIn('"${MODEL_ARGS[@]}"', text)
+
 
 if __name__ == "__main__":
     unittest.main()
