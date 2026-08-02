@@ -4615,6 +4615,96 @@ class RunHistoryTests(unittest.TestCase):
         self.assertNotIn("heuristic_top_k", make_records.call_args.kwargs)
         self.assertEqual(saved_history["heuristic_keywords"], list(lm_bisect.GENERAL_KEYWORDS))
 
+    def test_direct_oracle_anchor_persists_one_runner_build_at_known_sha(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tmp = Path(tmpdir)
+            repo = tmp / "repo"
+            repo.mkdir()
+            (repo / ".git").mkdir()
+            run_history = tmp / "run-history.json"
+            unresolved_window = tmp / "window.json"
+            observations = tmp / "observations.json"
+            anchor_sha = "b" * 40
+            candidate_shas = ["a" * 40, anchor_sha, "c" * 40]
+            args = lm_bisect.build_parser().parse_args(
+                [
+                    "run-online",
+                    "--issue",
+                    "demo",
+                    "--llvm-dir",
+                    str(repo),
+                    "--scorer",
+                    "heuristic",
+                    "--heuristic-version",
+                    "oracle-first-bad-major-tuned-anchor",
+                    "--oracle-first-bad-sha",
+                    anchor_sha,
+                    "--observations",
+                    str(observations),
+                    "--run-label",
+                    "oracle-anchor-test",
+                    "--max-steps",
+                    "1",
+                ]
+            )
+            record = lm_bisect.CommitRecord(
+                index=2,
+                sha=anchor_sha,
+                subject="known first bad",
+                body="",
+                changed_files=["llvm/lib/Transforms/Vectorize/LoopVectorize.cpp"],
+                diff_text="anchor change",
+                semantic_score=0.0,
+                build_success_prob=0.95,
+                suspicion_weight=0.0,
+            )
+            pruning_summary = {"before_count": 1, "after_count": 1, "applied": False}
+
+            with mock.patch.object(lm_bisect, "load_profiles", return_value={}), mock.patch.object(
+                lm_bisect, "load_issue_profile", return_value=demo_profile()
+            ), mock.patch.object(
+                lm_bisect, "oracle_first_bad_sha_from_args", return_value=anchor_sha
+            ), mock.patch.object(
+                lm_bisect,
+                "resolved_heuristic_selection_profile",
+                return_value=(demo_profile(), {"keywords": ["anchor"]}),
+            ), mock.patch.object(
+                lm_bisect, "list_candidate_commits", return_value=candidate_shas
+            ), mock.patch.object(
+                lm_bisect, "run_history_path_for_issue", return_value=run_history
+            ), mock.patch.object(
+                lm_bisect, "unresolved_window_path_for_issue", return_value=unresolved_window
+            ), mock.patch.object(
+                lm_bisect, "git", return_value="h" * 40
+            ), mock.patch.object(
+                lm_bisect, "checkout_commit"
+            ), mock.patch.object(
+                lm_bisect, "make_records", return_value=([record], pruning_summary)
+            ) as make_records, mock.patch.object(
+                lm_bisect,
+                "run_issue_runner",
+                return_value=("bad", "reproduced assertion", "assertion failure", ["reproducer failed"]),
+            ) as run_runner, mock.patch.object(
+                lm_bisect, "save_issue_artifact_bundle", return_value=tmp / "bundle"
+            ):
+                self.assertEqual(lm_bisect.command_run_online(args), 0)
+
+            saved_history = lm_bisect.load_run_history(run_history)
+
+        self.assertEqual(make_records.call_args.kwargs["candidate_shas"], [anchor_sha])
+        run_runner.assert_called_once()
+        self.assertEqual(saved_history["status"], "completed")
+        self.assertEqual(saved_history["runner_build_count"], 1)
+        self.assertEqual(saved_history["first_bad_commit"], anchor_sha)
+        self.assertEqual(saved_history["final_unresolved_window"], [anchor_sha])
+        self.assertEqual(len(saved_history["steps"]), 1)
+        self.assertEqual(saved_history["steps"][0]["sha"], anchor_sha)
+        self.assertEqual(saved_history["steps"][0]["verdict"], "bad")
+        self.assertEqual(saved_history["steps"][0]["source"], "runner")
+        self.assertEqual(saved_history["oracle_diagnostic"]["selection_contract"], "direct-sha-anchor")
+        self.assertTrue(saved_history["oracle_diagnostic"]["normal_search_bypassed"])
+        self.assertTrue(saved_history["oracle_diagnostic"]["anchor_validation_passed"])
+
 
 class MetadataLoadingTests(unittest.TestCase):
     def test_commit_diff_text_tolerates_non_utf8_patch_bytes(self) -> None:
