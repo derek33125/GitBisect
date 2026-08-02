@@ -46,6 +46,12 @@ class ComparisonQueueTests(unittest.TestCase):
         self.assertIn('oracle-major-tuned-keyword-heuristic)', text)
         self.assertIn('--heuristic-version oracle-first-bad-major-tuned', text)
 
+    def test_supports_direct_combined_oracle_anchor_mode(self) -> None:
+        text = SCRIPT.read_text()
+
+        self.assertIn('oracle-anchor-major-tuned-keyword-heuristic)', text)
+        self.assertIn('--heuristic-version oracle-first-bad-major-tuned-anchor', text)
+
     def test_model_modes_accept_environment_model_configuration(self) -> None:
         text = SCRIPT.read_text()
 

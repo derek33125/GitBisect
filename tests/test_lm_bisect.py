@@ -532,6 +532,77 @@ class ScoringTests(unittest.TestCase):
         self.assertEqual(args.heuristic_version, "oracle-first-bad-major-tuned")
         self.assertEqual(args.oracle_first_bad_sha, "a" * 40)
 
+    def test_direct_oracle_anchor_selects_known_first_bad_over_higher_scored_commit(self) -> None:
+        records = [
+            lm_bisect.CommitRecord(
+                index=1,
+                sha="a" * 40,
+                subject="higher heuristic score",
+                body="",
+                changed_files=[],
+                diff_text="",
+                semantic_score=100.0,
+                build_success_prob=0.95,
+                suspicion_weight=0.0,
+            ),
+            lm_bisect.CommitRecord(
+                index=2,
+                sha="b" * 40,
+                subject="known first bad",
+                body="",
+                changed_files=[],
+                diff_text="",
+                semantic_score=0.1,
+                build_success_prob=0.95,
+                suspicion_weight=0.0,
+            ),
+        ]
+
+        decision = lm_bisect.oracle_direct_anchor_selection(records, "b" * 40)
+
+        self.assertEqual(decision.selected.sha, "b" * 40)
+        self.assertEqual(decision.selection_mode, "oracle-direct-anchor")
+        self.assertEqual([record.sha for record in decision.ranked_candidates], ["b" * 40])
+
+    def test_direct_oracle_anchor_rejects_sha_outside_interval(self) -> None:
+        record = lm_bisect.CommitRecord(
+            index=1,
+            sha="a" * 40,
+            subject="only candidate",
+            body="",
+            changed_files=[],
+            diff_text="",
+            semantic_score=1.0,
+            build_success_prob=0.95,
+            suspicion_weight=0.0,
+        )
+
+        with self.assertRaisesRegex(ValueError, "not in the unresolved interval"):
+            lm_bisect.oracle_direct_anchor_selection([record], "b" * 40)
+
+    def test_direct_oracle_anchor_validation_rejects_sha_outside_full_window(self) -> None:
+        with self.assertRaisesRegex(ValueError, "not in the unresolved interval"):
+            lm_bisect.validate_direct_oracle_anchor(["a" * 40], "b" * 40)
+
+    def test_direct_oracle_anchor_validation_requires_resolved_sha(self) -> None:
+        with self.assertRaisesRegex(RuntimeError, "requires a resolved first-bad SHA"):
+            lm_bisect.validate_direct_oracle_anchor(["a" * 40], None)
+
+    def test_parser_accepts_direct_combined_oracle_anchor(self) -> None:
+        args = lm_bisect.build_parser().parse_args(
+            [
+                "run-online",
+                "--issue",
+                "demo",
+                "--heuristic-version",
+                "oracle-first-bad-major-tuned-anchor",
+                "--oracle-first-bad-sha",
+                "a" * 40,
+            ]
+        )
+
+        self.assertEqual(args.heuristic_version, "oracle-first-bad-major-tuned-anchor")
+
 
 class AdaptiveTopKTests(unittest.TestCase):
     def test_adaptive_top_k_uses_large_frontier_above_threshold(self) -> None:

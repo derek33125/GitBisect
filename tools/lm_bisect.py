@@ -103,6 +103,7 @@ HEURISTIC_VERSIONS = (
     "oracle-first-bad",
     "oracle-first-bad-major",
     "oracle-first-bad-major-tuned",
+    "oracle-first-bad-major-tuned-anchor",
 )
 
 # This diagnostic deliberately derives keywords from the validated answer. The
@@ -363,6 +364,10 @@ def oracle_first_bad_keyword_derivation(repo: Path, first_bad_sha: str) -> dict[
 
 def oracle_first_bad_keywords(repo: Path, first_bad_sha: str) -> list[str]:
     return list(oracle_first_bad_keyword_derivation(repo, first_bad_sha)["keywords"])
+
+
+def is_direct_oracle_anchor_version(heuristic_version: str) -> bool:
+    return heuristic_version == "oracle-first-bad-major-tuned-anchor"
 
 
 @dataclass(frozen=True)
@@ -1607,7 +1612,7 @@ def score_semantics(
         return score_semantics_tuned(profile, subject, body, files, diff)
     if heuristic_version == "oracle-first-bad-major":
         return score_semantics_oracle_major(profile, subject, body, files, diff)
-    if heuristic_version == "oracle-first-bad-major-tuned":
+    if heuristic_version in {"oracle-first-bad-major-tuned", "oracle-first-bad-major-tuned-anchor"}:
         return score_semantics_oracle_major_tuned(profile, subject, body, files, diff)
     raise ValueError(f"unsupported heuristic version: {heuristic_version}")
 
@@ -1638,9 +1643,9 @@ def heuristic_selection_profile(
         return replace(profile, keywords=[], relevant_paths=[], high_risk_paths=[])
     if heuristic_version in {"oracle-first-bad", "oracle-first-bad-major"}:
         return replace(profile, keywords=effective_heuristic_keywords(profile, heuristic_version, oracle_keywords))
-    if heuristic_version == "oracle-first-bad-major-tuned":
+    if heuristic_version in {"oracle-first-bad-major-tuned", "oracle-first-bad-major-tuned-anchor"}:
         if oracle_keywords is None:
-            raise ValueError("oracle-first-bad-major-tuned requires derived first-bad keywords")
+            raise ValueError(f"{heuristic_version} requires derived first-bad keywords")
         return replace(profile, oracle_keywords=list(oracle_keywords))
     return profile
 
@@ -1650,6 +1655,7 @@ def oracle_first_bad_sha_from_args(repo: Path, args: argparse.Namespace) -> str 
         "oracle-first-bad",
         "oracle-first-bad-major",
         "oracle-first-bad-major-tuned",
+        "oracle-first-bad-major-tuned-anchor",
     }:
         return None
     raw_sha = getattr(args, "oracle_first_bad_sha", None)
@@ -1668,6 +1674,7 @@ def resolved_heuristic_selection_profile(
         "oracle-first-bad",
         "oracle-first-bad-major",
         "oracle-first-bad-major-tuned",
+        "oracle-first-bad-major-tuned-anchor",
     }:
         return heuristic_selection_profile(profile, heuristic_version), None
     if oracle_first_bad_sha is None:
@@ -4391,6 +4398,31 @@ def boundary_selection(records: list[CommitRecord]) -> CommitRecord:
     )
 
 
+def oracle_direct_anchor_selection(
+    records: list[CommitRecord],
+    first_bad_sha: str,
+) -> SelectionDecision:
+    """Select the known first-bad SHA for the direct oracle upper bound."""
+    selected = next((record for record in records if record.sha == first_bad_sha), None)
+    if selected is None:
+        raise ValueError("oracle first-bad SHA is not in the unresolved interval")
+    return SelectionDecision(
+        selected=selected,
+        ranked_candidates=[selected],
+        search_policy="oracle-direct-anchor",
+        selection_mode="oracle-direct-anchor",
+    )
+
+
+def validate_direct_oracle_anchor(unresolved: list[str], first_bad_sha: str | None) -> str:
+    """Ensure the answer-leaking diagnostic can only validate an in-range SHA."""
+    if first_bad_sha is None:
+        raise RuntimeError("direct oracle anchor requires a resolved first-bad SHA")
+    if first_bad_sha not in unresolved:
+        raise ValueError("oracle first-bad SHA is not in the unresolved interval")
+    return first_bad_sha
+
+
 def select_next_commit(
     profile: IssueProfile,
     records: list[CommitRecord],
@@ -4768,7 +4800,8 @@ def make_records(
             missing_shas,
             include_body=(
                 scorer == "heuristic"
-                and heuristic_version in {"tuned", "general", "oracle-first-bad-major-tuned"}
+                and heuristic_version
+                in {"tuned", "general", "oracle-first-bad-major-tuned", "oracle-first-bad-major-tuned-anchor"}
             ),
         )
         metadata_by_sha.update(loaded_metadata)
@@ -5776,6 +5809,8 @@ def command_run_online(args: argparse.Namespace) -> int:
         if args.candidate_file
         else list_candidate_commits(repo, profile.good_commit, profile.bad_commit)
     )
+    if is_direct_oracle_anchor_version(args.heuristic_version):
+        oracle_first_bad_sha = validate_direct_oracle_anchor(unresolved, oracle_first_bad_sha)
     log_progress(f"loaded candidate window: {len(unresolved)} commits")
     observation_path = Path(args.observations) if args.observations else observation_path_for_issue(args.issue)
     observations = load_observations(observation_path)
@@ -5851,6 +5886,13 @@ def command_run_online(args: argparse.Namespace) -> int:
         args.model_reasoning_effort if args.scorer == "model" else None,
     )
     existing_run_history = load_run_history(run_history_path)
+    if (
+        is_direct_oracle_anchor_version(args.heuristic_version)
+        and existing_run_history.get("status") == "oracle_validation_failed"
+    ):
+        raise RuntimeError(
+            "direct oracle anchor already recorded a failed validation; use a fresh run label to retry"
+        )
     log_progress(f"history path: {run_history_path}")
     run_history, completed_steps, resumed = prepare_run_history(
         existing_history=existing_run_history,
@@ -5898,12 +5940,23 @@ def command_run_online(args: argparse.Namespace) -> int:
         run_history["oracle_first_bad_derivation"] = oracle_derivation
         if selection_profile.oracle_keywords:
             run_history["oracle_keywords"] = list(selection_profile.oracle_keywords)
-        if args.heuristic_version in {"oracle-first-bad-major", "oracle-first-bad-major-tuned"}:
+        if args.heuristic_version in {
+            "oracle-first-bad-major",
+            "oracle-first-bad-major-tuned",
+            "oracle-first-bad-major-tuned-anchor",
+        }:
             run_history["oracle_diagnostic"] = {
                 "uses_validated_first_bad": True,
                 "keyword_hit_weight": ORACLE_MAJOR_KEYWORD_HIT_WEIGHT,
                 "keyword_hit_cap": ORACLE_MAJOR_KEYWORD_HIT_CAP,
-                "retains_tuned_keywords": args.heuristic_version == "oracle-first-bad-major-tuned",
+                "retains_tuned_keywords": args.heuristic_version
+                in {"oracle-first-bad-major-tuned", "oracle-first-bad-major-tuned-anchor"},
+                "selection_contract": (
+                    "direct-sha-anchor"
+                    if is_direct_oracle_anchor_version(args.heuristic_version)
+                    else "keyword-retrieval"
+                ),
+                "normal_search_bypassed": is_direct_oracle_anchor_version(args.heuristic_version),
                 "baseline_eligible": False,
             }
     save_run_history(run_history_path, run_history)
@@ -5982,7 +6035,11 @@ def command_run_online(args: argparse.Namespace) -> int:
         while unresolved and len(unresolved) > 1 and step < args.max_steps:
             log_progress(f"step {step + 1}: unresolved before prepass={len(unresolved)}")
             unresolved_before_prepass = len(unresolved)
-            unresolved, prepass_events, prepass_contradiction = apply_cached_interval_prepass(unresolved, observations)
+            if is_direct_oracle_anchor_version(args.heuristic_version):
+                prepass_events = []
+                prepass_contradiction = False
+            else:
+                unresolved, prepass_events, prepass_contradiction = apply_cached_interval_prepass(unresolved, observations)
             if prepass_events:
                 run_history.setdefault("prepass_events", []).append(
                     {
@@ -6030,76 +6087,15 @@ def command_run_online(args: argparse.Namespace) -> int:
             last_tested_sha = None
             if run_history.get("steps"):
                 last_tested_sha = str(run_history["steps"][-1].get("sha") or "") or None
-            log_progress(f"step {step}: make_records start unresolved={unresolved_before}")
-            frontier_decisions: list[ModelFrontierDecision] = []
-            records, pruning_summary = make_records(
-                repo,
-                selection_profile,
-                scorer=args.scorer,
-                model_config=model_config,
-                candidate_shas=unresolved,
-                model_top_k=effective_top_k if args.scorer == "model" else None,
-                model_frontier=args.model_frontier,
-                candidate_pruning=args.candidate_pruning,
-                heuristic_version=args.heuristic_version,
-                observations=observations,
-                metadata_cache=metadata_cache,
-                model_cache=shared_model_cache,
-                model_diff_mode=args.model_diff_mode,
-                model_diff_extraction=args.model_diff_extraction,
-                last_tested_sha=last_tested_sha,
-                model_usage_summary=model_usage_summary,
-                model_cache_namespace=model_cache_namespace,
-                model_score_context=score_context,
-                confidence_adaptive_frontier=confidence_adaptive_frontier,
-                model_frontier_decision_out=frontier_decisions,
-            )
-            frontier_decision = frontier_decisions[0] if frontier_decisions else None
-            if model_usage_summary is not None:
-                run_history["model_usage"] = model_usage_summary
-                save_run_history(run_history_path, run_history)
-            log_progress(f"step {step}: make_records done records={len(records)}")
-            apply_feedback_bias(
-                selection_profile,
-                records,
-                observations,
-                enabled=(
-                    (args.scorer != "heuristic" or args.heuristic_version != "neutral")
-                    and observation_conditioned_posterior is None
-                ),
-            )
-            log_progress(f"step {step}: select_next_commit start")
-            decision = select_next_commit(
-                selection_profile,
-                records,
-                lambda_weight=args.lambda_weight,
-                build_success_power=args.build_success_power,
-                search_policy=args.search_policy,
-                hybrid_switch_window=args.hybrid_switch_window,
-                calibrated_prior_power=args.calibrated_prior_power,
-                calibrated_prior_bonus=args.calibrated_prior_bonus,
-                weak_relevance_penalty=args.weak_relevance_penalty,
-                weak_relevance_threshold=args.weak_relevance_threshold,
-                observations=observations,
-                observation_posterior_config=observation_conditioned_posterior,
-            )
-            log_progress(f"step {step}: selected {decision.selected.sha[:12]} mode={decision.selection_mode}")
-            try:
-                selected, cached = select_non_noop_candidate(
-                    decision.ranked_candidates,
-                    observations,
-                    unresolved,
-                )
-            except NoProgressCandidateError as exc:
-                if args.candidate_pruning == "off":
-                    raise
-                log_progress(f"step {step}: pruning produced no progress ({exc}); retrying with pruning disabled")
-                records, fallback_pruning_summary = make_records(
+            if is_direct_oracle_anchor_version(args.heuristic_version):
+                oracle_first_bad_sha = validate_direct_oracle_anchor(unresolved, oracle_first_bad_sha)
+                log_progress(f"step {step}: direct oracle anchor {oracle_first_bad_sha[:12]}")
+                records, pruning_summary = make_records(
                     repo,
                     selection_profile,
                     scorer=args.scorer,
                     model_config=model_config,
-                    candidate_shas=unresolved,
+                    candidate_shas=[oracle_first_bad_sha],
                     model_top_k=effective_top_k if args.scorer == "model" else None,
                     model_frontier=args.model_frontier,
                     candidate_pruning="off",
@@ -6114,10 +6110,41 @@ def command_run_online(args: argparse.Namespace) -> int:
                     model_cache_namespace=model_cache_namespace,
                     model_score_context=score_context,
                     confidence_adaptive_frontier=confidence_adaptive_frontier,
+                )
+                frontier_decisions = []
+            else:
+                log_progress(f"step {step}: make_records start unresolved={unresolved_before}")
+                frontier_decisions = []
+                records, pruning_summary = make_records(
+                    repo,
+                    selection_profile,
+                    scorer=args.scorer,
+                    model_config=model_config,
+                    candidate_shas=unresolved,
+                    model_top_k=effective_top_k if args.scorer == "model" else None,
+                    model_frontier=args.model_frontier,
+                    candidate_pruning=args.candidate_pruning,
+                    heuristic_version=args.heuristic_version,
+                    observations=observations,
+                    metadata_cache=metadata_cache,
+                    model_cache=shared_model_cache,
+                    model_diff_mode=args.model_diff_mode,
+                    model_diff_extraction=args.model_diff_extraction,
+                    last_tested_sha=last_tested_sha,
+                    model_usage_summary=model_usage_summary,
+                    model_cache_namespace=model_cache_namespace,
+                    model_score_context=score_context,
+                    confidence_adaptive_frontier=confidence_adaptive_frontier,
                     model_frontier_decision_out=frontier_decisions,
                 )
-                frontier_decision = frontier_decisions[-1] if frontier_decisions else None
-                log_progress(f"step {step}: fallback make_records done records={len(records)}")
+            frontier_decision = frontier_decisions[0] if frontier_decisions else None
+            if model_usage_summary is not None:
+                run_history["model_usage"] = model_usage_summary
+                save_run_history(run_history_path, run_history)
+            log_progress(f"step {step}: make_records done records={len(records)}")
+            if is_direct_oracle_anchor_version(args.heuristic_version):
+                decision = oracle_direct_anchor_selection(records, oracle_first_bad_sha)
+            else:
                 apply_feedback_bias(
                     selection_profile,
                     records,
@@ -6127,6 +6154,7 @@ def command_run_online(args: argparse.Namespace) -> int:
                         and observation_conditioned_posterior is None
                     ),
                 )
+                log_progress(f"step {step}: select_next_commit start")
                 decision = select_next_commit(
                     selection_profile,
                     records,
@@ -6141,17 +6169,81 @@ def command_run_online(args: argparse.Namespace) -> int:
                     observations=observations,
                     observation_posterior_config=observation_conditioned_posterior,
                 )
-                selected, cached = select_non_noop_candidate(
-                    decision.ranked_candidates,
-                    observations,
-                    unresolved,
-                )
-                pruning_summary = {
-                    **fallback_pruning_summary,
-                    "fallback_reason": "no-progress-after-pruning",
-                    "fallback_from": pruning_summary,
-                }
-                log_progress(f"step {step}: fallback selected {selected.sha[:12]} mode={decision.selection_mode}")
+            log_progress(f"step {step}: selected {decision.selected.sha[:12]} mode={decision.selection_mode}")
+            if is_direct_oracle_anchor_version(args.heuristic_version):
+                # An upper-bound validation must run the supplied SHA even if a
+                # previous experiment has a cached observation for it.
+                selected = decision.selected
+                cached = None
+            else:
+                try:
+                    selected, cached = select_non_noop_candidate(
+                        decision.ranked_candidates,
+                        observations,
+                        unresolved,
+                    )
+                except NoProgressCandidateError as exc:
+                    if args.candidate_pruning == "off":
+                        raise
+                    log_progress(f"step {step}: pruning produced no progress ({exc}); retrying with pruning disabled")
+                    records, fallback_pruning_summary = make_records(
+                        repo,
+                        selection_profile,
+                        scorer=args.scorer,
+                        model_config=model_config,
+                        candidate_shas=unresolved,
+                        model_top_k=effective_top_k if args.scorer == "model" else None,
+                        model_frontier=args.model_frontier,
+                        candidate_pruning="off",
+                        heuristic_version=args.heuristic_version,
+                        observations=observations,
+                        metadata_cache=metadata_cache,
+                        model_cache=shared_model_cache,
+                        model_diff_mode=args.model_diff_mode,
+                        model_diff_extraction=args.model_diff_extraction,
+                        last_tested_sha=last_tested_sha,
+                        model_usage_summary=model_usage_summary,
+                        model_cache_namespace=model_cache_namespace,
+                        model_score_context=score_context,
+                        confidence_adaptive_frontier=confidence_adaptive_frontier,
+                        model_frontier_decision_out=frontier_decisions,
+                    )
+                    frontier_decision = frontier_decisions[-1] if frontier_decisions else None
+                    log_progress(f"step {step}: fallback make_records done records={len(records)}")
+                    apply_feedback_bias(
+                        selection_profile,
+                        records,
+                        observations,
+                        enabled=(
+                            (args.scorer != "heuristic" or args.heuristic_version != "neutral")
+                            and observation_conditioned_posterior is None
+                        ),
+                    )
+                    decision = select_next_commit(
+                        selection_profile,
+                        records,
+                        lambda_weight=args.lambda_weight,
+                        build_success_power=args.build_success_power,
+                        search_policy=args.search_policy,
+                        hybrid_switch_window=args.hybrid_switch_window,
+                        calibrated_prior_power=args.calibrated_prior_power,
+                        calibrated_prior_bonus=args.calibrated_prior_bonus,
+                        weak_relevance_penalty=args.weak_relevance_penalty,
+                        weak_relevance_threshold=args.weak_relevance_threshold,
+                        observations=observations,
+                        observation_posterior_config=observation_conditioned_posterior,
+                    )
+                    selected, cached = select_non_noop_candidate(
+                        decision.ranked_candidates,
+                        observations,
+                        unresolved,
+                    )
+                    pruning_summary = {
+                        **fallback_pruning_summary,
+                        "fallback_reason": "no-progress-after-pruning",
+                        "fallback_from": pruning_summary,
+                    }
+                    log_progress(f"step {step}: fallback selected {selected.sha[:12]} mode={decision.selection_mode}")
             log_progress(f"step {step}: non-noop selected {selected.sha[:12]} source={'cache' if cached else 'runner'}")
             top_candidates = [
                 compact_candidate_view(record, rank + 1)
@@ -6226,7 +6318,20 @@ def command_run_online(args: argparse.Namespace) -> int:
                     "pruning": pruning_summary,
                 }
             )
-            unresolved = partition_interval(unresolved, selected.sha, verdict)
+            anchor_validation_failed = (
+                is_direct_oracle_anchor_version(args.heuristic_version) and verdict != "bad"
+            )
+            if is_direct_oracle_anchor_version(args.heuristic_version):
+                # Preserve a failed validation without changing the original interval.
+                if anchor_validation_failed:
+                    run_history["oracle_diagnostic"]["anchor_verdict"] = verdict
+                    run_history["oracle_diagnostic"]["anchor_validation_passed"] = False
+                else:
+                    unresolved = [selected.sha]
+                    run_history["oracle_diagnostic"]["anchor_verdict"] = "bad"
+                    run_history["oracle_diagnostic"]["anchor_validation_passed"] = True
+            else:
+                unresolved = partition_interval(unresolved, selected.sha, verdict)
             append_run_history_step(
                 run_history,
                 {
@@ -6279,6 +6384,16 @@ def command_run_online(args: argparse.Namespace) -> int:
                 run_history["steps"][-1]["runner_duration_sec"] = round(runner_duration_sec, 3)
             save_run_history(run_history_path, run_history)
             save_unresolved_window(unresolved_window_path, unresolved)
+            if anchor_validation_failed:
+                run_history["status"] = "oracle_validation_failed"
+                run_history["steps_executed"] = len(run_history.get("steps", []))
+                run_history["remaining_unresolved"] = len(unresolved)
+                run_history["final_unresolved_window"] = unresolved[:]
+                run_history["unresolved_window_path"] = str(unresolved_window_path)
+                save_run_history(run_history_path, run_history)
+                raise RuntimeError(
+                    f"direct oracle anchor {selected.sha[:12]} returned {verdict}, expected bad"
+                )
     finally:
         checkout_commit(repo, original_head)
 
