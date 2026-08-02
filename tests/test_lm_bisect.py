@@ -3816,6 +3816,20 @@ class RunHistoryTests(unittest.TestCase):
         self.assertEqual(loaded["steps"][0]["unresolved_before"], 200)
         self.assertEqual(loaded["steps"][0]["summary"], "cached bad")
 
+    def test_runner_duration_summary_counts_only_runner_steps(self) -> None:
+        history = {
+            "steps": [
+                {"source": "runner", "runner_duration_sec": 2.0},
+                {"source": "cache", "runner_duration_sec": 8.0},
+                {"source": "runner", "runner_duration_sec": 4.0},
+            ]
+        }
+
+        lm_bisect.update_runner_duration_summary(history)
+
+        self.assertEqual(history["runner_build_count"], 2)
+        self.assertEqual(history["runner_build_avg_duration_sec"], 3.0)
+
     def test_run_history_step_can_store_ranking_context(self) -> None:
         history = lm_bisect.start_run_history_payload(
             issue_id="pr187875",

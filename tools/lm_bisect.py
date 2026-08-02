@@ -3514,6 +3514,18 @@ def append_run_history_step(history: dict, step_payload: dict) -> None:
     history.setdefault("steps", []).append(step_payload)
 
 
+def update_runner_duration_summary(history: dict) -> None:
+    durations = [
+        float(step_payload["runner_duration_sec"])
+        for step_payload in history.get("steps", [])
+        if step_payload.get("source") == "runner" and step_payload.get("runner_duration_sec") is not None
+    ]
+    history["runner_build_count"] = len(durations)
+    history["runner_build_avg_duration_sec"] = (
+        round(sum(durations) / len(durations), 3) if durations else None
+    )
+
+
 def compact_candidate_view(record: CommitRecord, rank: int) -> dict:
     payload = {
         "rank": rank,
@@ -6390,6 +6402,7 @@ def command_run_online(args: argparse.Namespace) -> int:
                 run_history["remaining_unresolved"] = len(unresolved)
                 run_history["final_unresolved_window"] = unresolved[:]
                 run_history["unresolved_window_path"] = str(unresolved_window_path)
+                update_runner_duration_summary(run_history)
                 save_run_history(run_history_path, run_history)
                 raise RuntimeError(
                     f"direct oracle anchor {selected.sha[:12]} returned {verdict}, expected bad"
@@ -6397,11 +6410,6 @@ def command_run_online(args: argparse.Namespace) -> int:
     finally:
         checkout_commit(repo, original_head)
 
-    runner_durations = [
-        float(step_payload["runner_duration_sec"])
-        for step_payload in run_history.get("steps", [])
-        if step_payload.get("source") == "runner" and step_payload.get("runner_duration_sec") is not None
-    ]
     run_history["status"] = "completed"
     run_history["steps_executed"] = len(run_history.get("steps", []))
     run_history["remaining_unresolved"] = len(unresolved)
@@ -6409,10 +6417,7 @@ def command_run_online(args: argparse.Namespace) -> int:
     if len(unresolved) == 1:
         run_history["first_bad_commit"] = unresolved[0]
     run_history["unresolved_window_path"] = str(unresolved_window_path)
-    run_history["runner_build_count"] = len(runner_durations)
-    run_history["runner_build_avg_duration_sec"] = (
-        round(sum(runner_durations) / len(runner_durations), 3) if runner_durations else None
-    )
+    update_runner_duration_summary(run_history)
     save_run_history(run_history_path, run_history)
     save_unresolved_window(unresolved_window_path, unresolved)
     artifact_bundle_dir = save_issue_artifact_bundle(
