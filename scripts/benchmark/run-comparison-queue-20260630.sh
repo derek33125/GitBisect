@@ -449,5 +449,13 @@ trap release_lane_reservation EXIT
 
 for issue in "${ISSUES[@]}"; do
   wait_for_lane
-  run_issue "${issue}"
+  if ! run_issue "${issue}"; then
+    if [[ "${MODE}" == "oracle-anchor-major-tuned-keyword-heuristic" ]]; then
+      # A non-bad anchor is a retained diagnostic result, not a reason to drop
+      # the remaining independent anchor validations in this queue.
+      echo "[${LANE}] $(date -Iseconds) retained failed direct-anchor validation for ${issue}" | tee -a "${LOG}"
+      continue
+    fi
+    exit 1
+  fi
 done

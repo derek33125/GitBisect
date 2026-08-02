@@ -52,6 +52,13 @@ class ComparisonQueueTests(unittest.TestCase):
         self.assertIn('oracle-anchor-major-tuned-keyword-heuristic)', text)
         self.assertIn('--heuristic-version oracle-first-bad-major-tuned-anchor', text)
 
+    def test_direct_anchor_failure_does_not_drop_remaining_diagnostics(self) -> None:
+        text = SCRIPT.read_text()
+
+        self.assertIn('if ! run_issue "${issue}"; then', text)
+        self.assertIn('retained failed direct-anchor validation for ${issue}', text)
+        self.assertIn('[[ "${MODE}" == "oracle-anchor-major-tuned-keyword-heuristic" ]]', text)
+
     def test_model_modes_accept_environment_model_configuration(self) -> None:
         text = SCRIPT.read_text()
 
