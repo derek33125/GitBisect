@@ -28,6 +28,7 @@ PY="${PY:-${ROOT}/.venv/bin/python}"
 export ROOT BASE_REPO WORK_ROOT
 export JOBS="${JOBS:-4}"
 export LM_BISECT_JOBS="${LM_BISECT_JOBS:-${JOBS}}"
+export STARTUP_GRACE_SECONDS="${STARTUP_GRACE_SECONDS:-5}"
 export MODEL_TOP_K="${MODEL_TOP_K:-2000}"
 MODEL_NAME="${MODEL_NAME:-}"
 MODEL_REASONING_EFFORT="${MODEL_REASONING_EFFORT:-}"
@@ -132,7 +133,7 @@ oracle_first_bad_commit() {
 run_bisect_cmd() {
   RUN_ID="${LANE}" "$@" &
   local child_pid=$!
-  sleep 5
+  sleep "${STARTUP_GRACE_SECONDS}"
   release_lane_reservation
   if wait "${child_pid}"; then
     RUN_ISSUE_EXIT_CODE=0
