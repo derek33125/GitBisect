@@ -52,6 +52,7 @@ LOG="${ROOT}/results/issues/server-jobs/${LANE}.log"
 RESERVATION_DIR="${WORK_ROOT}/.run-online-reservations"
 LOCK_FILE="${WORK_ROOT}/.run-online-lane.lock"
 RESERVATION_PATH=""
+RUN_ISSUE_EXIT_CODE=0
 mkdir -p "${RESERVATION_DIR}"
 
 active_run_online_lanes() {
@@ -133,7 +134,11 @@ run_bisect_cmd() {
   local child_pid=$!
   sleep 5
   release_lane_reservation
-  wait "${child_pid}"
+  if wait "${child_pid}"; then
+    RUN_ISSUE_EXIT_CODE=0
+  else
+    RUN_ISSUE_EXIT_CODE=$?
+  fi
 }
 
 run_issue() {
@@ -442,20 +447,26 @@ run_issue() {
       exit 2
       ;;
   esac
-  echo "[${LANE}] $(date -Iseconds) done ${issue}" | tee -a "${LOG}"
+  if (( RUN_ISSUE_EXIT_CODE == 0 )); then
+    echo "[${LANE}] $(date -Iseconds) done ${issue}" | tee -a "${LOG}"
+  else
+    echo "[${LANE}] $(date -Iseconds) failed ${issue} exit=${RUN_ISSUE_EXIT_CODE}" | tee -a "${LOG}"
+  fi
 }
 
 trap release_lane_reservation EXIT
 
 for issue in "${ISSUES[@]}"; do
   wait_for_lane
-  if ! run_issue "${issue}"; then
+  RUN_ISSUE_EXIT_CODE=0
+  run_issue "${issue}"
+  if (( RUN_ISSUE_EXIT_CODE != 0 )); then
     if [[ "${MODE}" == "oracle-anchor-major-tuned-keyword-heuristic" ]]; then
       # A non-bad anchor is a retained diagnostic result, not a reason to drop
       # the remaining independent anchor validations in this queue.
-      echo "[${LANE}] $(date -Iseconds) retained failed direct-anchor validation for ${issue}" | tee -a "${LOG}"
+      echo "[${LANE}] $(date -Iseconds) retained failed direct-anchor validation for ${issue} exit=${RUN_ISSUE_EXIT_CODE}" | tee -a "${LOG}"
       continue
     fi
-    exit 1
+    exit "${RUN_ISSUE_EXIT_CODE}"
   fi
 done

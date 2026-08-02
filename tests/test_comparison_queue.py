@@ -55,8 +55,10 @@ class ComparisonQueueTests(unittest.TestCase):
     def test_direct_anchor_failure_does_not_drop_remaining_diagnostics(self) -> None:
         text = SCRIPT.read_text()
 
-        self.assertIn('if ! run_issue "${issue}"; then', text)
-        self.assertIn('retained failed direct-anchor validation for ${issue}', text)
+        self.assertIn('if wait "${child_pid}"; then', text)
+        self.assertIn('RUN_ISSUE_EXIT_CODE=$?', text)
+        self.assertIn('if (( RUN_ISSUE_EXIT_CODE != 0 )); then', text)
+        self.assertIn('retained failed direct-anchor validation for ${issue} exit=${RUN_ISSUE_EXIT_CODE}', text)
         self.assertIn('[[ "${MODE}" == "oracle-anchor-major-tuned-keyword-heuristic" ]]', text)
 
     def test_model_modes_accept_environment_model_configuration(self) -> None:
