@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-MODE="${1:?mode required: heuristic|general-heuristic|no-keyword-heuristic|neutral-heuristic|oracle-first-bad-heuristic|oracle-major-keyword-heuristic|oracle-major-tuned-keyword-heuristic|oracle-anchor-major-tuned-keyword-heuristic|parent-extract|causal-parent-extract|causal-parent-impl-k12|evidence-diverse-k12|causal-parent-k12|adaptive-parent-extract|confidence-parent-extract|confidence-parent-k12|observation-posterior-parent-extract|observation-posterior-parent-k12|lastdiff-extract}"
+MODE="${1:?mode required: heuristic|general-heuristic|no-keyword-heuristic|neutral-heuristic|oracle-first-bad-heuristic|oracle-major-keyword-heuristic|oracle-major-tuned-keyword-heuristic|oracle-major-tuned-semantic-heuristic|oracle-anchor-major-tuned-keyword-heuristic|parent-extract|causal-parent-extract|causal-parent-impl-k12|evidence-diverse-k12|causal-parent-k12|adaptive-parent-extract|confidence-parent-extract|confidence-parent-k12|observation-posterior-parent-extract|observation-posterior-parent-k12|lastdiff-extract}"
 LANE="${2:?lane label required}"
 shift 2
 ISSUES=("$@")
@@ -232,6 +232,19 @@ run_issue() {
         --llvm-dir "${wt}" \
         --scorer heuristic \
         --heuristic-version oracle-first-bad-major-tuned \
+        --oracle-first-bad-sha "${oracle_bad}" \
+        --search-policy calibrated-posterior \
+        --observations "${obs}" \
+        --run-label "${LANE}" \
+        --max-steps 30
+      ;;
+    oracle-major-tuned-semantic-heuristic)
+      oracle_bad="$(oracle_first_bad_commit "${issue}")"
+      run_bisect_cmd "${PY}" tools/lm_bisect.py run-online \
+        --issue "${issue}" \
+        --llvm-dir "${wt}" \
+        --scorer heuristic \
+        --heuristic-version oracle-first-bad-major-tuned-semantic \
         --oracle-first-bad-sha "${oracle_bad}" \
         --search-policy calibrated-posterior \
         --observations "${obs}" \

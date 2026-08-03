@@ -103,6 +103,7 @@ HEURISTIC_VERSIONS = (
     "oracle-first-bad",
     "oracle-first-bad-major",
     "oracle-first-bad-major-tuned",
+    "oracle-first-bad-major-tuned-semantic",
     "oracle-first-bad-major-tuned-anchor",
 )
 
@@ -368,6 +369,11 @@ def oracle_first_bad_keywords(repo: Path, first_bad_sha: str) -> list[str]:
 
 def is_direct_oracle_anchor_version(heuristic_version: str) -> bool:
     return heuristic_version == "oracle-first-bad-major-tuned-anchor"
+
+
+def is_oracle_major_semantic_version(heuristic_version: str) -> bool:
+    """Return whether a diagnostic searches by answer-derived semantic rank."""
+    return heuristic_version == "oracle-first-bad-major-tuned-semantic"
 
 
 @dataclass(frozen=True)
@@ -1612,7 +1618,11 @@ def score_semantics(
         return score_semantics_tuned(profile, subject, body, files, diff)
     if heuristic_version == "oracle-first-bad-major":
         return score_semantics_oracle_major(profile, subject, body, files, diff)
-    if heuristic_version in {"oracle-first-bad-major-tuned", "oracle-first-bad-major-tuned-anchor"}:
+    if heuristic_version in {
+        "oracle-first-bad-major-tuned",
+        "oracle-first-bad-major-tuned-semantic",
+        "oracle-first-bad-major-tuned-anchor",
+    }:
         return score_semantics_oracle_major_tuned(profile, subject, body, files, diff)
     raise ValueError(f"unsupported heuristic version: {heuristic_version}")
 
@@ -1643,7 +1653,11 @@ def heuristic_selection_profile(
         return replace(profile, keywords=[], relevant_paths=[], high_risk_paths=[])
     if heuristic_version in {"oracle-first-bad", "oracle-first-bad-major"}:
         return replace(profile, keywords=effective_heuristic_keywords(profile, heuristic_version, oracle_keywords))
-    if heuristic_version in {"oracle-first-bad-major-tuned", "oracle-first-bad-major-tuned-anchor"}:
+    if heuristic_version in {
+        "oracle-first-bad-major-tuned",
+        "oracle-first-bad-major-tuned-semantic",
+        "oracle-first-bad-major-tuned-anchor",
+    }:
         if oracle_keywords is None:
             raise ValueError(f"{heuristic_version} requires derived first-bad keywords")
         return replace(profile, oracle_keywords=list(oracle_keywords))
@@ -1655,6 +1669,7 @@ def oracle_first_bad_sha_from_args(repo: Path, args: argparse.Namespace) -> str 
         "oracle-first-bad",
         "oracle-first-bad-major",
         "oracle-first-bad-major-tuned",
+        "oracle-first-bad-major-tuned-semantic",
         "oracle-first-bad-major-tuned-anchor",
     }:
         return None
@@ -1674,6 +1689,7 @@ def resolved_heuristic_selection_profile(
         "oracle-first-bad",
         "oracle-first-bad-major",
         "oracle-first-bad-major-tuned",
+        "oracle-first-bad-major-tuned-semantic",
         "oracle-first-bad-major-tuned-anchor",
     }:
         return heuristic_selection_profile(profile, heuristic_version), None
@@ -4426,6 +4442,34 @@ def oracle_direct_anchor_selection(
     )
 
 
+def oracle_major_semantic_selection(records: list[CommitRecord]) -> SelectionDecision:
+    """Search using the answer-derived semantic prior instead of midpoint utility.
+
+    This is intentionally an answer-leaking diagnostic. It still runs the
+    selected commit and updates the good/bad interval normally; unlike the
+    direct-anchor control it does not receive permission to select the known
+    SHA itself.
+    """
+    if not records:
+        raise ValueError("records must not be empty")
+    ranked = sorted(
+        records,
+        key=lambda record: (
+            record.semantic_score,
+            record.build_success_prob,
+            record.selection_score,
+            -record.index,
+        ),
+        reverse=True,
+    )
+    return SelectionDecision(
+        selected=ranked[0],
+        ranked_candidates=ranked,
+        search_policy="oracle-major-semantic",
+        selection_mode="oracle-major-semantic",
+    )
+
+
 def validate_direct_oracle_anchor(unresolved: list[str], first_bad_sha: str | None) -> str:
     """Ensure the answer-leaking diagnostic can only validate an in-range SHA."""
     if first_bad_sha is None:
@@ -4813,7 +4857,13 @@ def make_records(
             include_body=(
                 scorer == "heuristic"
                 and heuristic_version
-                in {"tuned", "general", "oracle-first-bad-major-tuned", "oracle-first-bad-major-tuned-anchor"}
+                in {
+                    "tuned",
+                    "general",
+                    "oracle-first-bad-major-tuned",
+                    "oracle-first-bad-major-tuned-semantic",
+                    "oracle-first-bad-major-tuned-anchor",
+                }
             ),
         )
         metadata_by_sha.update(loaded_metadata)
@@ -5955,6 +6005,7 @@ def command_run_online(args: argparse.Namespace) -> int:
         if args.heuristic_version in {
             "oracle-first-bad-major",
             "oracle-first-bad-major-tuned",
+            "oracle-first-bad-major-tuned-semantic",
             "oracle-first-bad-major-tuned-anchor",
         }:
             run_history["oracle_diagnostic"] = {
@@ -5962,11 +6013,19 @@ def command_run_online(args: argparse.Namespace) -> int:
                 "keyword_hit_weight": ORACLE_MAJOR_KEYWORD_HIT_WEIGHT,
                 "keyword_hit_cap": ORACLE_MAJOR_KEYWORD_HIT_CAP,
                 "retains_tuned_keywords": args.heuristic_version
-                in {"oracle-first-bad-major-tuned", "oracle-first-bad-major-tuned-anchor"},
+                in {
+                    "oracle-first-bad-major-tuned",
+                    "oracle-first-bad-major-tuned-semantic",
+                    "oracle-first-bad-major-tuned-anchor",
+                },
                 "selection_contract": (
                     "direct-sha-anchor"
                     if is_direct_oracle_anchor_version(args.heuristic_version)
-                    else "keyword-retrieval"
+                    else (
+                        "oracle-major-semantic-search"
+                        if is_oracle_major_semantic_version(args.heuristic_version)
+                        else "keyword-retrieval"
+                    )
                 ),
                 "normal_search_bypassed": is_direct_oracle_anchor_version(args.heuristic_version),
                 "baseline_eligible": False,
@@ -6156,6 +6215,8 @@ def command_run_online(args: argparse.Namespace) -> int:
             log_progress(f"step {step}: make_records done records={len(records)}")
             if is_direct_oracle_anchor_version(args.heuristic_version):
                 decision = oracle_direct_anchor_selection(records, oracle_first_bad_sha)
+            elif is_oracle_major_semantic_version(args.heuristic_version):
+                decision = oracle_major_semantic_selection(records)
             else:
                 apply_feedback_bias(
                     selection_profile,

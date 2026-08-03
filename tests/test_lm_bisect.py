@@ -532,6 +532,55 @@ class ScoringTests(unittest.TestCase):
         self.assertEqual(args.heuristic_version, "oracle-first-bad-major-tuned")
         self.assertEqual(args.oracle_first_bad_sha, "a" * 40)
 
+    def test_refined_oracle_major_tuned_selection_prefers_oracle_semantic_rank(self) -> None:
+        records = [
+            lm_bisect.CommitRecord(
+                index=1,
+                sha="a" * 40,
+                subject="midpoint-oriented candidate",
+                body="",
+                changed_files=[],
+                diff_text="",
+                semantic_score=1.0,
+                build_success_prob=0.99,
+                suspicion_weight=0.0,
+                selection_score=0.99,
+            ),
+            lm_bisect.CommitRecord(
+                index=2,
+                sha="b" * 40,
+                subject="oracle-derived symbol candidate",
+                body="",
+                changed_files=[],
+                diff_text="",
+                semantic_score=25.0,
+                build_success_prob=0.95,
+                suspicion_weight=0.0,
+                selection_score=0.50,
+            ),
+        ]
+
+        decision = lm_bisect.oracle_major_semantic_selection(records)
+
+        self.assertEqual(decision.selected.sha, "b" * 40)
+        self.assertEqual(decision.selection_mode, "oracle-major-semantic")
+        self.assertEqual([record.sha for record in decision.ranked_candidates], ["b" * 40, "a" * 40])
+
+    def test_parser_accepts_refined_combined_oracle_major_tuned_heuristic(self) -> None:
+        args = lm_bisect.build_parser().parse_args(
+            [
+                "run-online",
+                "--issue",
+                "demo",
+                "--heuristic-version",
+                "oracle-first-bad-major-tuned-semantic",
+                "--oracle-first-bad-sha",
+                "a" * 40,
+            ]
+        )
+
+        self.assertEqual(args.heuristic_version, "oracle-first-bad-major-tuned-semantic")
+
     def test_direct_oracle_anchor_selects_known_first_bad_over_higher_scored_commit(self) -> None:
         records = [
             lm_bisect.CommitRecord(
