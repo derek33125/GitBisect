@@ -59,6 +59,78 @@ class RelevanceAssessment:
     path_overlap: list[str]
 
 
+@dataclass(frozen=True)
+class CausalInterpretation:
+    role: str
+    explanation: str
+
+
+# Static path/keyword overlap cannot distinguish a commit that creates invalid
+# IR from the verifier that later detects it.  These scoped-ten conclusions are
+# grounded in manual review of the validated first-bad diffs and crash traces.
+CAUSAL_INTERPRETATIONS = {
+    "pr204559": CausalInterpretation(
+        "indirect-enabling",
+        "SimpleLoopUnswitch changes CFG construction and loop-latch handling; "
+        "the resulting MemorySSA dominance invariant is checked later by the "
+        "MemorySSA clobber walker.",
+    ),
+    "pr204589": CausalInterpretation(
+        "indirect-enabling",
+        "The same SimpleLoopUnswitch CFG transformation leaves MemorySSA uses "
+        "in an invalid relationship; removeFromLookups is the downstream "
+        "consistency check, not the changed implementation site.",
+    ),
+    "pr201444": CausalInterpretation(
+        "direct",
+        "The first-bad X86 DAG-combine implementation adds "
+        "peekThroughBitPosExtTrunc and the exact low-bits assertion reported "
+        "by the reproducer.",
+    ),
+    "pr193164": CausalInterpretation(
+        "direct",
+        "The first bad changes LoopVectorize and VPlan canonical-IV recipe "
+        "construction, the same subsystem named by the issue.  The retained "
+        "history is wrapper-only, so this is source-level rather than raw-trace "
+        "confirmation.",
+    ),
+    "pr50304": CausalInterpretation(
+        "direct",
+        "The first bad rewrites ConstantFolding around APFloat conversion and "
+        "representability, matching the reported APFloat assertion mechanism.",
+    ),
+    "pr50585": CausalInterpretation(
+        "indirect-enabling",
+        "DivRemPairs newly hoists a division/remainder pair to a common "
+        "predecessor.  That placement can violate dominance; the verifier's "
+        "Broken function report is the later detector of the invalid IR.",
+    ),
+    "pr48154": CausalInterpretation(
+        "indirect-enabling",
+        "BuildLibCalls begins inferring argmemonly and related attributes.  "
+        "Attributor or the verifier later observes the incompatible attribute "
+        "state, so their stack locations need not be touched by the first bad.",
+    ),
+    "pr49535": CausalInterpretation(
+        "direct",
+        "The first bad adds ValueTracking recurrence inversion and the exact "
+        "PHI operand invariant asserted by the reproducer.",
+    ),
+    "pr52635": CausalInterpretation(
+        "direct",
+        "The XRay sled-v2 change updates PC-relative symbol handling in "
+        "AsmPrinter and InstrumentationMap, matching the MCSymbolRefExpr "
+        "assertion path.",
+    ),
+    "pr200987": CausalInterpretation(
+        "direct",
+        "Clang CodeGen adds asm-goto outputs on indirect edges, which is the "
+        "feature exercised by the reproducer before the later optimizer crash. "
+        "The retained history is wrapper-only.",
+    ),
+}
+
+
 def normalize_token(value: str) -> str:
     return re.sub(r"[^a-z0-9]+", "", value.lower())
 
@@ -184,17 +256,26 @@ def compact_diff_evidence(diff_text: str, limit: int = 900) -> str:
 
 def render_report(repo: Path, profiles: dict[str, dict[str, Any]], raw_dir: Path) -> str:
     lines = [
-        "# Scoped-10 First-Bad Relevance Audit",
+        "# Scoped-10 First-Bad Causality Study",
         "",
-        "This audit checks whether the validated first-bad commit visibly matches the issue crash vocabulary and relevant paths. It is static evidence, not proof of causality. `wrapper-only` means the selected JSON saved the runner verdict but not the compiler's raw assertion text.",
+        "This study reviews each validated first-bad diff against the saved crash or trace evidence. It separates a direct source-level mechanism match from an indirect-enabling change: the latter creates invalid CFG, IR, or attributes that a later verifier or analysis detects. It is evidence of causal plausibility, not a substitute for reduction or debugging.",
         "",
-        "| Issue | First bad | Trace evidence | File/path overlap | Keyword/symbol overlap | Classification |",
-        "|---|---|---|---|---|---|",
+        "## Aggregate Result",
+        "",
+        "- **6/10 direct cases** modify the crashing subsystem, symbol, or feature path: `pr201444`, `pr193164`, `pr50304`, `pr49535`, `pr52635`, and `pr200987`.",
+        "- **4/10 indirect-enabling cases** modify an upstream transformation or attribute inference while MemorySSA/the verifier detects the resulting invalid state later: `pr204559`, `pr204589`, `pr50585`, and `pr48154`.",
+        "- **0/10 no-visible-match cases** remain after manual source review. Eight cases retain raw assertion/fatal-error evidence; `pr193164` and `pr200987` have only a saved runner verdict, so their direct classification is source-level evidence only.",
+        "",
+        "A missing assertion-site overlap is therefore expected for the four indirect cases. Compiler correctness checks are intentionally downstream: a transformation can violate a dominance, MemorySSA, or attribute invariant without editing the checker that reports the failure.",
+        "",
+        "| Issue | First bad | Trace evidence | Static overlap | Causal role |",
+        "|---|---|---|---|---|",
     ]
     details: list[str] = []
     for issue in SCOPED_ISSUES:
         profile = profiles[issue]
         sha = CANONICAL_FIRST_BAD[issue]
+        interpretation = CAUSAL_INTERPRETATIONS[issue]
         subject, files, diff_text = commit_details(repo, sha)
         assessment = assess_relevance(profile, subject, files, diff_text)
         evidence = evidence_from_history(selected_history(raw_dir, issue))
@@ -205,7 +286,7 @@ def render_report(repo: Path, profiles: dict[str, dict[str, Any]], raw_dir: Path
         paths = ", ".join(assessment.path_overlap[:3]) or "none"
         keywords = ", ".join(assessment.keyword_overlap[:5]) or "none"
         lines.append(
-            f"| `{issue}` | `{sha[:12]}` | {evidence.source} | {paths} | {keywords} | **{assessment.classification}** |"
+            f"| `{issue}` | `{sha[:12]}` | {evidence.source} | {assessment.classification}: {paths}; {keywords} | **{interpretation.role}** |"
         )
         details.extend(
             [
@@ -221,7 +302,9 @@ def render_report(repo: Path, profiles: dict[str, dict[str, Any]], raw_dir: Path
                 f"- Crash-evidence artifact: `{evidence.artifact}`" if evidence.artifact else "- Crash-evidence artifact: <none>",
                 f"- Changed files: {', '.join(files[:12]) or '<none>'}",
                 f"- Overlap: paths = {paths}; keywords/symbols = {keywords}.",
-                f"- Classification: **{assessment.classification}**. Manual review is still required because a direct file/symbol match demonstrates plausibility, not a causal proof.",
+                f"- Static overlap classification: **{assessment.classification}**.",
+                f"- Causal role: **{interpretation.role}**. {interpretation.explanation}",
+                "- Interpretation limit: the boundary is validated, but this report does not prove the mechanism without a reduced test or debugger-level trace.",
                 "",
                 "```diff",
                 compact_diff_evidence(diff_text),

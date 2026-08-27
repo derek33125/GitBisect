@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-MODE="${1:?mode required: heuristic|general-heuristic|no-keyword-heuristic|neutral-heuristic|oracle-first-bad-heuristic|oracle-major-keyword-heuristic|oracle-major-tuned-keyword-heuristic|oracle-major-tuned-semantic-heuristic|oracle-anchor-major-tuned-keyword-heuristic|parent-extract|causal-parent-extract|causal-parent-impl-k12|evidence-diverse-k12|causal-parent-k12|adaptive-parent-extract|confidence-parent-extract|confidence-parent-k12|observation-posterior-parent-extract|observation-posterior-parent-k12|lastdiff-extract}"
+MODE="${1:?mode required: heuristic|heuristic-ablation|general-heuristic|no-keyword-heuristic|neutral-heuristic|oracle-first-bad-heuristic|oracle-major-keyword-heuristic|oracle-major-tuned-keyword-heuristic|oracle-major-tuned-semantic-heuristic|oracle-major-tuned-patch-heuristic|oracle-anchor-major-tuned-keyword-heuristic|parent-extract|causal-parent-extract|causal-parent-impl-k12|causal-parent-human-k12|causal-parent-human-pool-k3|causal-parent-human-pool-k3-compat|causal-parent-human-prior-k3|causal-parent-human-prior-k3-compat|causal-parent-human-frontier|causal-parent-human-frontier-compat|causal-parent-human-dynamic-k12|causal-parent-human-dynamic-k12-compat|causal-parent-crash-aware-k12|causal-parent-crash-aware-k12-compat|causal-parent-deterministic-facts-k12|causal-parent-deterministic-facts-artifact-k12|causal-parent-deterministic-facts-artifact-k12-compat|causal-parent-deterministic-facts-artifact-range-k12|causal-parent-deterministic-facts-artifact-range-k12-compat|evidence-diverse-k12|causal-parent-k12|terra-causal-parent-range-k12|terra-causal-parent-range-k12-compat|adaptive-parent-extract|confidence-parent-extract|confidence-parent-k12|observation-posterior-parent-extract|observation-posterior-parent-k12|lastdiff-extract}"
 LANE="${2:?lane label required}"
 shift 2
 ISSUES=("$@")
@@ -35,10 +35,58 @@ MODEL_REASONING_EFFORT="${MODEL_REASONING_EFFORT:-}"
 export ADAPTIVE_TOP_K_THRESHOLD="${ADAPTIVE_TOP_K_THRESHOLD:-5000}"
 export ADAPTIVE_TOP_K_LARGE="${ADAPTIVE_TOP_K_LARGE:-12}"
 export ADAPTIVE_TOP_K_SMALL="${ADAPTIVE_TOP_K_SMALL:-3}"
-export MODEL_CACHE_NAMESPACE="${MODEL_CACHE_NAMESPACE:-adaptive-${ADAPTIVE_TOP_K_THRESHOLD}-${ADAPTIVE_TOP_K_LARGE}-${ADAPTIVE_TOP_K_SMALL}}"
+
+default_model_cache_namespace() {
+  # Keep cache entries isolated by experiment semantics.  Callers can still
+  # provide MODEL_CACHE_NAMESPACE explicitly to reproduce an intentional run.
+  case "${MODE}" in
+    terra-causal-parent-range-k12) echo "terra-bcr-parent-range5-k12" ;;
+    terra-causal-parent-range-k12-compat) echo "terra-bcr-parent-range5-k12-compat" ;;
+    causal-parent-human-k12) echo "terra-bcr-human-crash-v1-k12" ;;
+    causal-parent-human-pool-k3) echo "terra-human-signal-pool-v1-k3" ;;
+    causal-parent-human-pool-k3-compat) echo "terra-human-signal-pool-v1-k3-compat" ;;
+    causal-parent-human-prior-k3) echo "terra-human-soft-prior-v1-k3" ;;
+    causal-parent-human-prior-k3-compat) echo "terra-human-soft-prior-v1-k3-compat" ;;
+    causal-parent-human-frontier) echo "terra-human-staged-frontier-v1" ;;
+    causal-parent-human-frontier-compat) echo "terra-human-staged-frontier-v1-compat" ;;
+    causal-parent-human-dynamic-k12) echo "terra-human-dynamic-evidence-v4-k12" ;;
+    causal-parent-human-dynamic-k12-compat) echo "terra-human-dynamic-evidence-v4-k12-compat" ;;
+    causal-parent-crash-aware-k12) echo "terra-bcr-crash-aware-v12-k12" ;;
+    causal-parent-crash-aware-k12-compat) echo "terra-bcr-crash-aware-v12-k12-compat" ;;
+    causal-parent-deterministic-facts-k12) echo "terra-bcr-deterministic-facts-v15-k12" ;;
+    causal-parent-deterministic-facts-artifact-k12) echo "terra-bcr-deterministic-facts-v16-artifacts-k12" ;;
+    causal-parent-deterministic-facts-artifact-k12-compat) echo "terra-bcr-deterministic-facts-v16-artifacts-k12-compat" ;;
+    causal-parent-deterministic-facts-artifact-range-k12) echo "terra-bcr-deterministic-facts-v16-artifacts-range5-k12" ;;
+    causal-parent-deterministic-facts-artifact-range-k12-compat) echo "terra-bcr-deterministic-facts-v16-artifacts-range5-k12-compat" ;;
+    *) echo "adaptive-${ADAPTIVE_TOP_K_THRESHOLD}-${ADAPTIVE_TOP_K_LARGE}-${ADAPTIVE_TOP_K_SMALL}" ;;
+  esac
+}
+
+export MODEL_CACHE_NAMESPACE="${MODEL_CACHE_NAMESPACE:-$(default_model_cache_namespace)}"
 export CONFIDENCE_FRONTIER_THRESHOLD="${CONFIDENCE_FRONTIER_THRESHOLD:-0.35}"
 export CCACHE_MAXSIZE="${CCACHE_MAXSIZE:-20G}"
 export CMAKE_BUILD_PARALLEL_LEVEL="${JOBS}"
+RUN_ONLINE_MAX_LANES="${RUN_ONLINE_MAX_LANES:-3}"
+HEURISTIC_ABLATION_FACTOR="${HEURISTIC_ABLATION_FACTOR:-}"
+
+if [[ ! "${RUN_ONLINE_MAX_LANES}" =~ ^[1-9][0-9]*$ ]]; then
+  echo "error: RUN_ONLINE_MAX_LANES must be a positive integer" >&2
+  exit 2
+fi
+
+if [[ "${MODE}" == "heuristic-ablation" ]]; then
+  if [[ -z "${HEURISTIC_ABLATION_FACTOR}" ]]; then
+    echo "error: HEURISTIC_ABLATION_FACTOR is required for heuristic-ablation mode" >&2
+    exit 2
+  fi
+  case "${HEURISTIC_ABLATION_FACTOR}" in
+    keywords|relevant-paths|high-risk-paths|risky-words|buildability|feedback) ;;
+    *)
+      echo "error: unsupported heuristic ablation factor: ${HEURISTIC_ABLATION_FACTOR}" >&2
+      exit 2
+      ;;
+  esac
+fi
 
 MODEL_ARGS=()
 if [[ -n "${MODEL_NAME}" ]]; then
@@ -56,17 +104,30 @@ RESERVATION_PATH=""
 RUN_ISSUE_EXIT_CODE=0
 mkdir -p "${RESERVATION_DIR}"
 
-active_run_online_lanes() {
-  ps -eo args= \
-    | awk '/tools\/lm_bisect.py run-online/ && !/run-comparison-queue-20260630/ {count++} END {print count + 0}'
+active_run_online_pids() {
+  ps -eo pid=,args= \
+    | awk '$2 ~ /(^|\/)python([0-9.]*)?$/ && $3 == "tools/lm_bisect.py" && $4 == "run-online" {print $1}'
 }
 
 active_lane_reservations() {
   find "${RESERVATION_DIR}" -type f -name '*.slot' 2>/dev/null | wc -l
 }
 
-prune_stale_reservations() {
-  find "${RESERVATION_DIR}" -type f -name '*.slot' -mmin +10 -delete 2>/dev/null || true
+reclaim_dead_lane_reservations() {
+  local reservation
+  local pid
+  local owner
+  while IFS= read -r reservation; do
+    pid="$(awk -F= '$1 == "pid" {print $2; exit}' "${reservation}" 2>/dev/null || true)"
+    owner="$(ps -p "${pid}" -o args= 2>/dev/null || true)"
+    case "${owner}" in
+      *run-comparison-queue-20260630.sh*|*run-validated-heuristic-expansion-queue.sh*)
+        ;;
+      *)
+        rm -f "${reservation}"
+        ;;
+    esac
+  done < <(find "${RESERVATION_DIR}" -type f -name '*.slot' -print 2>/dev/null)
 }
 
 release_lane_reservation() {
@@ -76,16 +137,51 @@ release_lane_reservation() {
   fi
 }
 
+reservation_owns_process() {
+  local process_pid="$1"
+  local current_pid="${process_pid}"
+  local parent_pid reservation_pid
+
+  # A controller retains its reservation while its own run-online child
+  # executes. Count that controller-child pair as one physical lane.
+  while [[ -n "${current_pid}" && "${current_pid}" != "1" ]]; do
+    while IFS= read -r reservation_pid; do
+      if [[ "${current_pid}" == "${reservation_pid}" ]]; then
+        return 0
+      fi
+    done < <(awk -F= '$1 == "pid" {print $2}' "${RESERVATION_DIR}"/*.slot 2>/dev/null)
+
+    parent_pid="$(ps -o ppid= -p "${current_pid}" 2>/dev/null | tr -d '[:space:]')"
+    if [[ -z "${parent_pid}" || "${parent_pid}" == "${current_pid}" ]]; then
+      return 1
+    fi
+    current_pid="${parent_pid}"
+  done
+  return 1
+}
+
+active_unreserved_run_online_lanes() {
+  local process_pid
+  local count=0
+
+  while IFS= read -r process_pid; do
+    if ! reservation_owns_process "${process_pid}"; then
+      ((count += 1))
+    fi
+  done < <(active_run_online_pids)
+  printf '%s\n' "${count}"
+}
+
 wait_for_lane() {
   while true; do
-    local active
+    local unreserved
     local reserved
-    active="$(active_run_online_lanes)"
     exec 9>"${LOCK_FILE}"
     flock -x 9
-    prune_stale_reservations
+    reclaim_dead_lane_reservations
+    unreserved="$(active_unreserved_run_online_lanes)"
     reserved="$(active_lane_reservations)"
-    if (( active + reserved < 3 )); then
+    if (( unreserved + reserved < RUN_ONLINE_MAX_LANES )); then
       RESERVATION_PATH="${RESERVATION_DIR}/${LANE}-$$-$(date +%s).slot"
       printf 'lane=%s\npid=%s\ncreated=%s\n' "${LANE}" "$$" "$(date -Iseconds)" > "${RESERVATION_PATH}"
       flock -u 9
@@ -94,7 +190,7 @@ wait_for_lane() {
     fi
     flock -u 9
     exec 9>&-
-    echo "[${LANE}] $(date -Iseconds) waiting: ${active} run-online lanes active, ${reserved} startup reservations" | tee -a "${LOG}"
+    echo "[${LANE}] $(date -Iseconds) waiting: ${unreserved} unreserved run-online lanes active, ${reserved} controller reservations" | tee -a "${LOG}"
     sleep 600
   done
 }
@@ -109,6 +205,36 @@ root, issue = sys.argv[1], sys.argv[2]
 profiles = json.load(open(f"{root}/tools/lm_bisect_profiles.json"))
 print(profiles[issue]["bad_commit"])
 PY
+}
+
+profile_runner() {
+  local issue="$1"
+  "${PY}" - "$ROOT" "$issue" <<'PY'
+import json
+import sys
+
+root, issue = sys.argv[1], sys.argv[2]
+profiles = json.load(open(f"{root}/tools/lm_bisect_profiles.json"))
+print(profiles[issue]["runner"])
+PY
+}
+
+preflight_issue_runner() {
+  local issue="$1"
+  local runner
+  runner="$(profile_runner "${issue}")"
+  if [[ ! -x "${PY}" ]]; then
+    echo "error: runner bundle missing Python interpreter: ${PY}" >&2
+    return 125
+  fi
+  if [[ ! -f "${ROOT}/results/issues/server-jobs/server-validation-queue-20260613.sh" ]]; then
+    echo "error: runner bundle missing shared queue library" >&2
+    return 125
+  fi
+  if [[ ! -x "${ROOT}/${runner}" ]]; then
+    echo "error: runner bundle missing issue runner for ${issue}: ${ROOT}/${runner}" >&2
+    return 125
+  fi
 }
 
 oracle_first_bad_commit() {
@@ -146,6 +272,7 @@ run_issue() {
   local issue="$1"
   local bad
   local oracle_bad=""
+  preflight_issue_runner "${issue}"
   bad="$(profile_bad_commit "${issue}")"
   local wt="${WORK_ROOT}/${issue}-${LANE}"
   local obs="results/lm_bisect_observations/${issue}-${LANE}.json"
@@ -161,6 +288,18 @@ run_issue() {
         --issue "${issue}" \
         --llvm-dir "${wt}" \
         --scorer heuristic \
+        --search-policy calibrated-posterior \
+        --observations "${obs}" \
+        --run-label "${LANE}" \
+        --max-steps 30
+      ;;
+    heuristic-ablation)
+      run_bisect_cmd "${PY}" tools/lm_bisect.py run-online \
+        --issue "${issue}" \
+        --llvm-dir "${wt}" \
+        --scorer heuristic \
+        --heuristic-version tuned \
+        --heuristic-ablation "${HEURISTIC_ABLATION_FACTOR}" \
         --search-policy calibrated-posterior \
         --observations "${obs}" \
         --run-label "${LANE}" \
@@ -251,6 +390,19 @@ run_issue() {
         --run-label "${LANE}" \
         --max-steps 30
       ;;
+    oracle-major-tuned-patch-heuristic)
+      oracle_bad="$(oracle_first_bad_commit "${issue}")"
+      run_bisect_cmd "${PY}" tools/lm_bisect.py run-online \
+        --issue "${issue}" \
+        --llvm-dir "${wt}" \
+        --scorer heuristic \
+        --heuristic-version oracle-first-bad-major-tuned-patch \
+        --oracle-first-bad-sha "${oracle_bad}" \
+        --search-policy calibrated-posterior \
+        --observations "${obs}" \
+        --run-label "${LANE}" \
+        --max-steps 30
+      ;;
     oracle-anchor-major-tuned-keyword-heuristic)
       oracle_bad="$(oracle_first_bad_commit "${issue}")"
       run_bisect_cmd "${PY}" tools/lm_bisect.py run-online \
@@ -331,6 +483,31 @@ run_issue() {
         --run-label "${LANE}" \
         --max-steps 30
       ;;
+    terra-causal-parent-range-k12|terra-causal-parent-range-k12-compat)
+      if [[ "${MODE}" == "terra-causal-parent-range-k12-compat" ]]; then
+        # Old LLVM revisions need <cstdint> for Signals.h. Keep this C++-only
+        # flag isolated so it does not break CMake's C compiler probe.
+        export EXTRA_CMAKE_CXX_FLAGS="${EXTRA_CMAKE_CXX_FLAGS:--include cstdint}"
+        export MODEL_CACHE_NAMESPACE="${MODEL_CACHE_NAMESPACE:-terra-bcr-parent-range5-k12-compat}"
+      fi
+      run_bisect_cmd "${PY}" tools/lm_bisect.py run-online \
+        --issue "${issue}" \
+        --llvm-dir "${wt}" \
+        --scorer model \
+        --model-name gpt-5.6-terra \
+        --model-reasoning-effort high \
+        --search-policy calibrated-posterior \
+        --model-top-k 12 \
+        --model-frontier topk \
+        --model-cache-namespace "${MODEL_CACHE_NAMESPACE:-terra-bcr-parent-range5-k12}" \
+        --model-diff-mode parent \
+        --model-diff-extraction causal-llm \
+        --causal-context-parent-count 5 \
+        --observation-prompt-mode trace-only \
+        --observations "${obs}" \
+        --run-label "${LANE}" \
+        --max-steps 30
+      ;;
     causal-parent-impl-k12)
       run_bisect_cmd "${PY}" tools/lm_bisect.py run-online \
         --issue "${issue}" \
@@ -343,6 +520,218 @@ run_issue() {
         --model-cache-namespace "${MODEL_CACHE_NAMESPACE}" \
         --model-diff-mode parent \
         --model-diff-extraction causal-llm-impl \
+        --observation-prompt-mode trace-only \
+        --observations "${obs}" \
+        --run-label "${LANE}" \
+        --max-steps 30
+      ;;
+    causal-parent-human-k12)
+      run_bisect_cmd "${PY}" tools/lm_bisect.py run-online \
+        --issue "${issue}" \
+        --llvm-dir "${wt}" \
+        --scorer model \
+        --model-name gpt-5.6-terra \
+        --model-reasoning-effort high \
+        --search-policy calibrated-posterior \
+        --model-top-k 12 \
+        --model-frontier topk \
+        --model-cache-namespace "${MODEL_CACHE_NAMESPACE:-terra-bcr-human-crash-v1-k12}" \
+        --model-diff-mode parent \
+        --model-diff-extraction causal-llm-human \
+        --observation-prompt-mode trace-only \
+        --observations "${obs}" \
+        --run-label "${LANE}" \
+        --max-steps 30
+      ;;
+    causal-parent-human-pool-k3|causal-parent-human-pool-k3-compat)
+      # Retrospective proof pilot: only six crash-signal cases selected from
+      # the human study. The runner preserves full-interval BCR fallback.
+      if [[ "${MODE}" == "causal-parent-human-pool-k3-compat" ]]; then
+        # Old LLVM revisions omit <cstdint> from Signals.h. Scope the repair
+        # to C++ so CMake's C compiler feature checks remain valid.
+        export EXTRA_CMAKE_CXX_FLAGS="${EXTRA_CMAKE_CXX_FLAGS:---include cstdint}"
+        export MODEL_CACHE_NAMESPACE="${MODEL_CACHE_NAMESPACE:-terra-human-signal-pool-v1-k3-compat}"
+      fi
+      run_bisect_cmd "${PY}" tools/lm_bisect.py run-online \
+        --issue "${issue}" \
+        --llvm-dir "${wt}" \
+        --scorer model \
+        --model-name gpt-5.6-terra \
+        --model-reasoning-effort high \
+        --search-policy calibrated-posterior \
+        --model-top-k 3 \
+        --model-frontier topk \
+        --model-cache-namespace "${MODEL_CACHE_NAMESPACE:-terra-human-signal-pool-v1-k3}" \
+        --model-diff-mode parent \
+        --model-diff-extraction causal-llm-human-pool \
+        --observation-prompt-mode trace-only \
+        --observations "${obs}" \
+        --run-label "${LANE}" \
+        --max-steps 30
+      ;;
+    causal-parent-human-prior-k3|causal-parent-human-prior-k3-compat)
+      # The human study's actual policy: retain the entire interval, use
+      # crash signals as a soft prior, then probe a bounded weighted midpoint.
+      if [[ "${MODE}" == "causal-parent-human-prior-k3-compat" ]]; then
+        export EXTRA_CMAKE_CXX_FLAGS="${EXTRA_CMAKE_CXX_FLAGS:---include cstdint}"
+        export MODEL_CACHE_NAMESPACE="${MODEL_CACHE_NAMESPACE:-terra-human-soft-prior-v1-k3-compat}"
+      fi
+      run_bisect_cmd "${PY}" tools/lm_bisect.py run-online \
+        --issue "${issue}" \
+        --llvm-dir "${wt}" \
+        --scorer model \
+        --model-name gpt-5.6-terra \
+        --model-reasoning-effort high \
+        --search-policy calibrated-posterior \
+        --model-top-k 3 \
+        --model-frontier topk \
+        --model-cache-namespace "${MODEL_CACHE_NAMESPACE:-terra-human-soft-prior-v1-k3}" \
+        --model-diff-mode parent \
+        --model-diff-extraction causal-llm-human-prior \
+        --observation-prompt-mode trace-only \
+        --observations "${obs}" \
+        --run-label "${LANE}" \
+        --max-steps 30
+      ;;
+    causal-parent-human-frontier|causal-parent-human-frontier-compat)
+      # Retrospective retrieval-recall pilot: repository-derived staged human
+      # frontier, causal LLM selection inside it, then a full-BCR fallback.
+      if [[ "${MODE}" == "causal-parent-human-frontier-compat" ]]; then
+        export EXTRA_CMAKE_CXX_FLAGS="${EXTRA_CMAKE_CXX_FLAGS:---include cstdint}"
+        export MODEL_CACHE_NAMESPACE="${MODEL_CACHE_NAMESPACE:-terra-human-staged-frontier-v1-compat}"
+      fi
+      run_bisect_cmd "${PY}" tools/lm_bisect.py run-online \
+        --issue "${issue}" \
+        --llvm-dir "${wt}" \
+        --scorer model \
+        --model-name gpt-5.6-terra \
+        --model-reasoning-effort high \
+        --search-policy calibrated-posterior \
+        --model-top-k 12 \
+        --model-frontier topk \
+        --model-cache-namespace "${MODEL_CACHE_NAMESPACE:-terra-human-staged-frontier-v1}" \
+        --model-diff-mode parent \
+        --model-diff-extraction causal-llm-human-frontier \
+        --observation-prompt-mode trace-only \
+        --observations "${obs}" \
+        --run-label "${LANE}" \
+        --max-steps 30
+      ;;
+    causal-parent-human-dynamic-k12|causal-parent-human-dynamic-k12-compat)
+      # Online policy: derive signals and dependency usage from the crash
+      # artifact and bad endpoint, then refresh evidence on the current
+      # unresolved interval before every model frontier.
+      if [[ "${MODE}" == "causal-parent-human-dynamic-k12-compat" ]]; then
+        export EXTRA_CMAKE_CXX_FLAGS="${EXTRA_CMAKE_CXX_FLAGS:---include cstdint}"
+        export MODEL_CACHE_NAMESPACE="${MODEL_CACHE_NAMESPACE:-terra-human-dynamic-evidence-v4-k12-compat}"
+      fi
+      run_bisect_cmd "${PY}" tools/lm_bisect.py run-online \
+        --issue "${issue}" \
+        --llvm-dir "${wt}" \
+        --scorer model \
+        --model-name gpt-5.6-terra \
+        --model-reasoning-effort high \
+        --search-policy calibrated-posterior \
+        --model-top-k 12 \
+        --model-frontier topk \
+        --model-cache-namespace "${MODEL_CACHE_NAMESPACE:-terra-human-dynamic-evidence-v4-k12}" \
+        --model-diff-mode parent \
+        --model-diff-extraction causal-llm-human-dynamic \
+        --observation-prompt-mode trace-only \
+        --observations "${obs}" \
+        --run-label "${LANE}" \
+        --max-steps 30
+      ;;
+    causal-parent-crash-aware-k12|causal-parent-crash-aware-k12-compat)
+      # Crash-aware BCR keeps calibrated-posterior selection unchanged. It
+      # only adds parser-derived retrieval evidence and uses a fresh cache
+      # namespace. Compatibility mode is for old LLVM revisions only.
+      if [[ "${MODE}" == "causal-parent-crash-aware-k12-compat" ]]; then
+        export EXTRA_CMAKE_CXX_FLAGS="${EXTRA_CMAKE_CXX_FLAGS:---include cstdint}"
+        export MODEL_CACHE_NAMESPACE="${MODEL_CACHE_NAMESPACE:-terra-bcr-crash-aware-v12-k12-compat}"
+      fi
+      run_bisect_cmd "${PY}" tools/lm_bisect.py run-online \
+        --issue "${issue}" \
+        --llvm-dir "${wt}" \
+        --scorer model \
+        --model-name gpt-5.6-terra \
+        --model-reasoning-effort high \
+        --search-policy calibrated-posterior \
+        --model-top-k 12 \
+        --model-frontier topk \
+        --model-cache-namespace "${MODEL_CACHE_NAMESPACE:-terra-bcr-crash-aware-v12-k12}" \
+        --model-diff-mode parent \
+        --model-diff-extraction causal-llm-crash-aware \
+        --observation-prompt-mode trace-only \
+        --observations "${obs}" \
+        --run-label "${LANE}" \
+        --max-steps 30
+      ;;
+    causal-parent-deterministic-facts-k12)
+      # V15 replaces v14's extract-then-absolute-score pair with one ordinal
+      # causal judgment over deterministic crash facts and selected hunks.
+      run_bisect_cmd "${PY}" tools/lm_bisect.py run-online \
+        --issue "${issue}" \
+        --llvm-dir "${wt}" \
+        --scorer model \
+        --model-name gpt-5.6-terra \
+        --model-reasoning-effort high \
+        --search-policy calibrated-posterior \
+        --model-top-k 12 \
+        --model-frontier topk \
+        --model-cache-namespace "${MODEL_CACHE_NAMESPACE:-terra-bcr-deterministic-facts-v15-k12}" \
+        --model-diff-mode parent \
+        --model-diff-extraction causal-llm-deterministic-facts \
+        --observation-prompt-mode trace-only \
+        --observations "${obs}" \
+        --run-label "${LANE}" \
+        --max-steps 30
+      ;;
+    causal-parent-deterministic-facts-artifact-k12|causal-parent-deterministic-facts-artifact-k12-compat)
+      # V16 preserves V15's single ordinal call but discovers parser-ready
+      # crash artifacts from the master-50 package. Compatibility is isolated
+      # to historical revisions that require an explicit cstdint include.
+      if [[ "${MODE}" == "causal-parent-deterministic-facts-artifact-k12-compat" ]]; then
+        export EXTRA_CMAKE_CXX_FLAGS="${EXTRA_CMAKE_CXX_FLAGS:---include cstdint}"
+      fi
+      run_bisect_cmd "${PY}" tools/lm_bisect.py run-online \
+        --issue "${issue}" \
+        --llvm-dir "${wt}" \
+        --scorer model \
+        --model-name gpt-5.6-terra \
+        --model-reasoning-effort high \
+        --search-policy calibrated-posterior \
+        --model-top-k 12 \
+        --model-frontier topk \
+        --model-cache-namespace "${MODEL_CACHE_NAMESPACE}" \
+        --model-diff-mode parent \
+        --model-diff-extraction causal-llm-deterministic-facts-artifact \
+        --observation-prompt-mode trace-only \
+        --observations "${obs}" \
+        --run-label "${LANE}" \
+        --max-steps 30
+      ;;
+    causal-parent-deterministic-facts-artifact-range-k12|causal-parent-deterministic-facts-artifact-range-k12-compat)
+      # Isolate the parent-window pilot from single-parent V16. The window
+      # adds provenance only; retrieval, ordinal ranking, and selection stay unchanged.
+      if [[ "${MODE}" == "causal-parent-deterministic-facts-artifact-range-k12-compat" ]]; then
+        # Use Bash's "unset/default" expansion, which already supplies the
+        # leading hyphen required by Clang's -include option.
+        export EXTRA_CMAKE_CXX_FLAGS="${EXTRA_CMAKE_CXX_FLAGS:--include cstdint}"
+      fi
+      run_bisect_cmd "${PY}" tools/lm_bisect.py run-online \
+        --issue "${issue}" \
+        --llvm-dir "${wt}" \
+        --scorer model \
+        --model-name gpt-5.6-terra \
+        --model-reasoning-effort high \
+        --search-policy calibrated-posterior \
+        --model-top-k 12 \
+        --model-frontier topk \
+        --model-cache-namespace "${MODEL_CACHE_NAMESPACE}" \
+        --model-diff-mode parent \
+        --model-diff-extraction causal-llm-deterministic-facts-artifact \
+        --causal-context-parent-count 5 \
         --observation-prompt-mode trace-only \
         --observations "${obs}" \
         --run-label "${LANE}" \

@@ -10,9 +10,15 @@ import re
 import subprocess
 import sys
 import time
-from dataclasses import dataclass, replace
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import Iterable
+
+try:
+    from tools import crash_signals
+except ModuleNotFoundError:
+    # Queue controllers execute this file directly from tools/.
+    import crash_signals
 
 
 ROOT_DIR = Path(__file__).resolve().parents[1]
@@ -104,7 +110,21 @@ HEURISTIC_VERSIONS = (
     "oracle-first-bad-major",
     "oracle-first-bad-major-tuned",
     "oracle-first-bad-major-tuned-semantic",
+    "oracle-first-bad-major-tuned-patch",
     "oracle-first-bad-major-tuned-anchor",
+)
+
+# A leave-one-factor-out control for the tuned heuristic.  These arms are
+# intentionally limited to one disabled factor so the scoped-ten comparison
+# can attribute any step-count change to that factor.
+HEURISTIC_ABLATION_FACTORS = (
+    "none",
+    "keywords",
+    "relevant-paths",
+    "high-risk-paths",
+    "risky-words",
+    "buildability",
+    "feedback",
 )
 
 # This diagnostic deliberately derives keywords from the validated answer. The
@@ -150,6 +170,9 @@ ORACLE_SUBJECT_TAG_RE = re.compile(r"\[([^\]]+)\]")
 ORACLE_KEYWORD_LIMIT = 16
 ORACLE_MAJOR_KEYWORD_HIT_WEIGHT = 8.0
 ORACLE_MAJOR_KEYWORD_HIT_CAP = 24.0
+ORACLE_PATCH_ANCHOR_LIMIT = 12
+ORACLE_PATCH_ANCHOR_MIN_CHARS = 16
+ORACLE_PATCH_MATCH_BONUS = 100.0
 
 BUILD_RISK_WORDS = (
     "cmake",
@@ -194,12 +217,76 @@ DIFF_EXTRACTION_MAX_INPUT_CHARS = 600000
 DIFF_EXTRACTION_VERSION = "llm-v2-600k"
 CAUSAL_DIFF_EXTRACTION_VERSION = "causal-llm-v1-retrieved-context"
 CAUSAL_IMPL_DIFF_EXTRACTION_VERSION = "causal-llm-v2-implementation-first"
+CAUSAL_HUMAN_DIFF_EXTRACTION_VERSION = "causal-llm-v4-human-crash-signal-retrieval"
+CAUSAL_HUMAN_POOL_DIFF_EXTRACTION_VERSION = "causal-llm-v5-human-signal-pool-proof"
+CAUSAL_HUMAN_PRIOR_DIFF_EXTRACTION_VERSION = "causal-llm-v6-human-soft-prior"
+CAUSAL_HUMAN_FRONTIER_DIFF_EXTRACTION_VERSION = "causal-llm-v7-human-staged-frontier"
+CAUSAL_HUMAN_DYNAMIC_DIFF_EXTRACTION_VERSION = "causal-llm-v11-dynamic-human-evidence-full-policy"
+CAUSAL_CRASH_AWARE_DIFF_EXTRACTION_VERSION = "causal-llm-v12-crash-aware-retrieval"
+CAUSAL_DETERMINISTIC_FACTS_DIFF_EXTRACTION_VERSION = "causal-llm-v15-deterministic-facts-single-call"
+CAUSAL_DETERMINISTIC_FACTS_ARTIFACT_DIFF_EXTRACTION_VERSION = "causal-llm-v16-deterministic-facts-master50-artifacts"
+CAUSAL_CONTEXT_RANGE_EXTRACTION_VERSION = "causal-llm-v3-first-parent-range"
 DEFAULT_DIFF_EXTRACTION_BATCH_SIZE = 20
 DEFAULT_DIFF_EXTRACTION_MAX_PROMPT_CHARS = 240000
 CAUSAL_DIFF_MAX_SELECTED_HUNKS = 8
 CAUSAL_DIFF_MAX_HUNK_CHARS = 4000
 CAUSAL_DIFF_MAX_FUNCTION_CONTEXTS = 4
 CAUSAL_DIFF_MAX_FUNCTION_CONTEXT_CHARS = 2400
+CAUSAL_CONTEXT_MAX_PARENT_COUNT = 10
+CAUSAL_CONTEXT_PARENT_DIFF_MAX_CHARS = 120000
+HUMAN_SIGNAL_POOL_COHORT = frozenset(
+    {"pr49535", "pr204559", "pr204589", "pr50304", "pr52635", "pr201444"}
+)
+# This pilot is retrospective: the human study identified the first crash
+# signal that reaches the validated patch for each included case.  These are
+# evidence labels, never first-bad SHAs or patch text.  The full interval is
+# retained for BCR fallback because this mapping is not a general classifier.
+HUMAN_SIGNAL_POOL_PRIMARY_SIGNAL = {
+    "pr49535": {"kind": "crash-source-file"},
+    "pr204559": {"kind": "crash-pass", "term": "simple-loop-unswitch"},
+    "pr204589": {"kind": "crash-symbol", "term": "SimpleLoopUnswitchPass"},
+    "pr50304": {"kind": "crash-symbol", "term": "ConstantFoldCall"},
+    "pr52635": {"kind": "crash-symbol", "term": "AsmPrinter::emitXRayTable"},
+    "pr201444": {"kind": "crash-source-file"},
+}
+HUMAN_SIGNAL_POOL_RARE_CHECKER_TOUCH_THRESHOLD = 10
+HUMAN_SIGNAL_POOL_DIRECT_CANDIDATE_COUNT = 3
+HUMAN_SIGNAL_POOL_DEPENDENCY_TOP_FRACTION = 0.20
+HUMAN_SIGNAL_POOL_DEPENDENCY_MAX_FILES = 12
+HUMAN_SIGNAL_PRIOR_FLOOR = 0.25
+HUMAN_SIGNAL_PRIOR_MIN_FRACTION = 0.35
+HUMAN_SIGNAL_PRIOR_MAX_FRACTION = 0.65
+HUMAN_SIGNAL_PRIOR_CONTRADICTION_LIMIT = 2
+HUMAN_SIGNAL_PRIOR_MODEL_BONUS = 0.5
+
+# Retrospective policy for the five-case pilot. These terms are all derived
+# from the saved crash artifact, but the human study chose the usable anchor
+# after inspecting retrieval recall. They therefore define a study policy,
+# not a deployable answer-free classifier.
+HUMAN_FRONTIER_COHORT = frozenset(
+    {"pr204559", "pr204589", "pr201444", "pr50304", "pr52635"}
+)
+HUMAN_FRONTIER_ANCHOR_POLICY = {
+    "pr204559": "MemorySSAUpdater",
+    "pr204589": "MemorySSAUpdater",
+    "pr201444": "peekThroughBitPosExtTrunc",
+    "pr50304": "convertToDouble",
+    "pr52635": "MCSymbolRefExpr",
+}
+HUMAN_FRONTIER_DEPENDENCY_TOP_FRACTION = 0.20
+HUMAN_FRONTIER_TRIAGE_BATCH_SIZE = 40
+HUMAN_FRONTIER_DIRECT_CANDIDATE_COUNT = 12
+
+# Online policy for the five crash cases with a usable assertion, stack, or
+# pass signal. Unlike the retired staged frontier, it derives every signal at
+# runtime and keeps the entire current interval eligible at every step.
+HUMAN_DYNAMIC_EVIDENCE_COHORT = HUMAN_FRONTIER_COHORT
+HUMAN_DYNAMIC_EVIDENCE_PRIOR_FLOOR = 0.25
+HUMAN_DYNAMIC_EVIDENCE_RARE_CHECKER_TOUCH_THRESHOLD = 10
+CRASH_AWARE_HOT_CHECKER_TOUCH_THRESHOLD = 10
+CRASH_AWARE_RARE_CHECKER_FILE_WEIGHT = -1.5
+CRASH_AWARE_HOT_CHECKER_FILE_WEIGHT = 2.5
+HUMAN_DYNAMIC_EVIDENCE_MODEL_BONUS = 0.75
 
 CANDIDATE_PRUNING_GROUPS = {
     "clang-pgo": (
@@ -319,6 +406,24 @@ def oracle_keyword_term(value: str) -> str | None:
     return candidate
 
 
+def normalized_patch_line(value: str) -> str:
+    """Normalize one changed source line for the diagnostic patch fingerprint."""
+    return "".join(re.findall(r"[a-z0-9_]+", value.lower()))
+
+
+def oracle_patch_anchor_line(value: str) -> str | None:
+    """Keep a sufficiently specific changed source line for the oracle control."""
+    line = value.strip()
+    if not line or line.startswith(("//", "/*", "*", "#")):
+        return None
+    normalized = normalized_patch_line(line)
+    if len(normalized) < ORACLE_PATCH_ANCHOR_MIN_CHARS:
+        return None
+    if normalized in {"returnfalse", "returntrue", "returnnullptr"}:
+        return None
+    return normalized
+
+
 def oracle_first_bad_keyword_derivation(repo: Path, first_bad_sha: str) -> dict[str, object]:
     """Derive diagnostic-only keyword features from a known first-bad commit."""
     subject = commit_subject(repo, first_bad_sha)
@@ -345,14 +450,21 @@ def oracle_first_bad_keyword_derivation(repo: Path, first_bad_sha: str) -> dict[
             keywords.append(term)
             normalized_keywords.add(normalized)
             if len(keywords) >= ORACLE_KEYWORD_LIMIT:
-                return {
-                    "kind": "oracle-first-bad-diff",
-                    "first_bad_sha": first_bad_sha,
-                    "first_bad_subject": subject,
-                    "changed_files": changed_files[:12],
-                    "keywords": keywords,
-                    "keyword_limit": ORACLE_KEYWORD_LIMIT,
-                }
+                break
+        if len(keywords) >= ORACLE_KEYWORD_LIMIT:
+            break
+    patch_anchors: list[str] = []
+    seen_anchors: set[str] = set()
+    for line in diff_text.splitlines():
+        if not line.startswith(("+", "-")) or line.startswith(("+++", "---")):
+            continue
+        anchor = oracle_patch_anchor_line(line[1:])
+        if anchor is None or anchor in seen_anchors:
+            continue
+        patch_anchors.append(anchor)
+        seen_anchors.add(anchor)
+        if len(patch_anchors) >= ORACLE_PATCH_ANCHOR_LIMIT:
+            break
     return {
         "kind": "oracle-first-bad-diff",
         "first_bad_sha": first_bad_sha,
@@ -360,6 +472,8 @@ def oracle_first_bad_keyword_derivation(repo: Path, first_bad_sha: str) -> dict[
         "changed_files": changed_files[:12],
         "keywords": keywords,
         "keyword_limit": ORACLE_KEYWORD_LIMIT,
+        "patch_anchors": patch_anchors,
+        "patch_anchor_limit": ORACLE_PATCH_ANCHOR_LIMIT,
     }
 
 
@@ -374,6 +488,11 @@ def is_direct_oracle_anchor_version(heuristic_version: str) -> bool:
 def is_oracle_major_semantic_version(heuristic_version: str) -> bool:
     """Return whether a diagnostic searches by answer-derived semantic rank."""
     return heuristic_version == "oracle-first-bad-major-tuned-semantic"
+
+
+def is_oracle_patch_semantic_version(heuristic_version: str) -> bool:
+    """Return whether a diagnostic searches with a leaked changed-line fingerprint."""
+    return heuristic_version == "oracle-first-bad-major-tuned-patch"
 
 
 @dataclass(frozen=True)
@@ -391,6 +510,9 @@ class IssueProfile:
     relevant_paths: list[str]
     high_risk_paths: list[str]
     oracle_keywords: list[str] | None = None
+    oracle_patch_changed_files: list[str] | None = None
+    oracle_patch_anchors: list[str] | None = None
+    crash_artifact: str | None = None
 
 
 @dataclass
@@ -443,6 +565,7 @@ class SelectionDecision:
     search_policy: str
     selection_mode: str
     hybrid_switch_window: int | None = None
+    metadata: dict[str, object] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
@@ -608,8 +731,22 @@ def model_score_cache_key(
     diff_base_sha: str | None = None,
     diff_extraction: str = "raw",
     score_context: str | None = None,
+    causal_context_parent_count: int = 0,
 ) -> str:
-    if diff_extraction not in {"raw", "llm", "causal-llm", "causal-llm-impl"}:
+    if diff_extraction not in {
+        "raw",
+        "llm",
+        "causal-llm",
+        "causal-llm-impl",
+        "causal-llm-human",
+        "causal-llm-human-pool",
+        "causal-llm-human-prior",
+        "causal-llm-human-frontier",
+        "causal-llm-human-dynamic",
+        "causal-llm-crash-aware",
+        "causal-llm-deterministic-facts",
+        "causal-llm-deterministic-facts-artifact",
+    }:
         raise ValueError(f"unsupported diff_extraction: {diff_extraction}")
     if diff_mode == "parent":
         base_key = sha
@@ -619,6 +756,8 @@ def model_score_cache_key(
         base_key = f"{sha}|diff:{diff_mode}"
     if diff_extraction != "raw":
         base_key = f"{base_key}|extract:{diff_extraction}-{diff_extraction_version(diff_extraction)}"
+    if causal_context_parent_count:
+        base_key = f"{base_key}|causal-first-parent-context:{causal_context_parent_count}"
     if score_context:
         safe_context = hashlib.sha256(score_context.encode("utf-8")).hexdigest()[:16]
         base_key = f"{base_key}|context:{safe_context}"
@@ -632,6 +771,22 @@ def diff_extraction_version(diff_extraction: str) -> str:
         return CAUSAL_DIFF_EXTRACTION_VERSION
     if diff_extraction == "causal-llm-impl":
         return CAUSAL_IMPL_DIFF_EXTRACTION_VERSION
+    if diff_extraction == "causal-llm-human":
+        return CAUSAL_HUMAN_DIFF_EXTRACTION_VERSION
+    if diff_extraction == "causal-llm-human-pool":
+        return CAUSAL_HUMAN_POOL_DIFF_EXTRACTION_VERSION
+    if diff_extraction == "causal-llm-human-prior":
+        return CAUSAL_HUMAN_PRIOR_DIFF_EXTRACTION_VERSION
+    if diff_extraction == "causal-llm-human-frontier":
+        return CAUSAL_HUMAN_FRONTIER_DIFF_EXTRACTION_VERSION
+    if diff_extraction == "causal-llm-human-dynamic":
+        return CAUSAL_HUMAN_DYNAMIC_DIFF_EXTRACTION_VERSION
+    if diff_extraction == "causal-llm-crash-aware":
+        return CAUSAL_CRASH_AWARE_DIFF_EXTRACTION_VERSION
+    if diff_extraction == "causal-llm-deterministic-facts":
+        return CAUSAL_DETERMINISTIC_FACTS_DIFF_EXTRACTION_VERSION
+    if diff_extraction == "causal-llm-deterministic-facts-artifact":
+        return CAUSAL_DETERMINISTIC_FACTS_ARTIFACT_DIFF_EXTRACTION_VERSION
     if diff_extraction == "raw":
         return "raw"
     raise ValueError(f"unsupported diff_extraction: {diff_extraction}")
@@ -761,6 +916,8 @@ def model_score_context_payload(
     observation_prompt_mode: str,
     confidence_adaptive_frontier: dict[str, float] | None = None,
     observation_conditioned_posterior: dict[str, float] | None = None,
+    causal_context_parent_count: int = 0,
+    dynamic_human_evidence: dict[str, object] | None = None,
 ) -> dict[str, object]:
     candidate_digest = hashlib.sha256("\n".join(unresolved).encode("utf-8")).hexdigest()
     observation_payload = [
@@ -789,8 +946,10 @@ def model_score_context_payload(
         "model_diff_mode": model_diff_mode,
         "model_diff_extraction": model_diff_extraction,
         "observation_prompt_mode": observation_prompt_mode,
+        "causal_context_parent_count": causal_context_parent_count,
         "confidence_adaptive_frontier": confidence_adaptive_frontier,
         "observation_conditioned_posterior": observation_conditioned_posterior,
+        "dynamic_human_evidence": dynamic_human_evidence,
     }
 
 
@@ -917,6 +1076,21 @@ def commit_parent_diff_for_files(
     )
 
 
+def first_parent_commit_range(repo: Path, sha: str, parent_count: int) -> list[str]:
+    """Return the candidate followed by a bounded first-parent context window."""
+    if parent_count < 0 or parent_count > CAUSAL_CONTEXT_MAX_PARENT_COUNT:
+        raise ValueError(
+            f"causal context parent count must be between 0 and {CAUSAL_CONTEXT_MAX_PARENT_COUNT}"
+        )
+    if parent_count == 0:
+        return [sha]
+    output = git(repo, "rev-list", "--first-parent", f"--max-count={parent_count + 1}", sha)
+    commits = [line.strip() for line in output.splitlines() if line.strip()]
+    if not commits or commits[0] != sha:
+        raise ValueError(f"failed to resolve first-parent context for {sha}")
+    return commits
+
+
 def commit_transition_diff_text(
     repo: Path,
     base_sha: str,
@@ -996,7 +1170,138 @@ def is_test_path(path: str) -> bool:
     return normalized.startswith("test/") or "/test/" in normalized or "/tests/" in normalized
 
 
-def causal_hunk_match_reasons(profile: IssueProfile, path: str, hunk_text: str) -> list[str]:
+def crash_signal_query_terms(payload: dict[str, object] | None) -> list[str]:
+    if not payload:
+        return []
+    terms: list[str] = []
+    for item in payload.get("query_terms", []):
+        value = item.get("term") if isinstance(item, dict) else item
+        value = str(value or "").strip()
+        if value and value not in terms:
+            terms.append(value)
+    return terms
+
+
+def profile_crash_signal_payload(
+    profile: IssueProfile,
+    *,
+    use_human_study_normalization: bool = True,
+    artifact_lookup: str = "scoped10",
+) -> dict[str, object]:
+    """Load structured step-zero crash evidence for human-guided policies.
+
+    The retrospective pilots retain their historical normalization for
+    reproducibility. Online policies must opt out so their evidence is derived
+    solely from the general crash parser and the supplied artifact.
+    """
+    if artifact_lookup not in {"scoped10", "master50"}:
+        raise ValueError(f"unsupported crash artifact lookup: {artifact_lookup}")
+    candidates: list[tuple[str, Path]] = []
+    if profile.crash_artifact:
+        explicit = Path(profile.crash_artifact)
+        candidates.append(("profile", explicit if explicit.is_absolute() else ROOT_DIR / explicit))
+    if artifact_lookup == "master50":
+        candidates.append(
+            (
+                "master50-evidence",
+                ROOT_DIR
+                / "human_analysis/raw/master50-evidence-20260821"
+                / "cases"
+                / profile.issue_id
+                / "crash-assertion.err",
+            )
+        )
+    candidates.append(
+        (
+            "scoped10-evidence",
+            ROOT_DIR
+            / "human_analysis/human_analysis-20260817/human_analysis"
+            / "scoped10-evidence-20260807"
+            / "cases"
+            / profile.issue_id
+            / "crash-assertion.err",
+        )
+    )
+    artifact_origin, artifact_path = next(
+        ((origin, path) for origin, path in candidates if path.is_file()),
+        (None, None),
+    )
+    if artifact_path is None:
+        return {
+            "kind": "unavailable",
+            "source_paths": [],
+            "symbols": [],
+            "pass_tokens": [],
+            "query_terms": [],
+            "artifact_status": "missing",
+            "artifact_lookup": artifact_lookup,
+            "artifact_candidates": [str(path) for _, path in candidates],
+        }
+    artifact_text = artifact_path.read_text(errors="replace")
+    if use_human_study_normalization and profile.issue_id in HUMAN_SIGNAL_POOL_COHORT:
+        payload = crash_signals.human_study_signal_payload(artifact_text)
+    else:
+        payload = crash_signals.parse_crash_report(artifact_text).payload()
+    payload["artifact_status"] = "loaded"
+    payload["artifact_lookup"] = artifact_lookup
+    payload["artifact_origin"] = artifact_origin
+    try:
+        payload["artifact_path"] = str(artifact_path.relative_to(ROOT_DIR))
+    except ValueError:
+        payload["artifact_path"] = str(artifact_path)
+    return payload
+
+
+def causal_crash_signal_payload(
+    profile: IssueProfile,
+    model_diff_extraction: str,
+) -> dict[str, object] | None:
+    """Return parser-compatible crash evidence for causal retrieval.
+
+    Dynamic human evidence is an online policy. Its retrieval branch must use
+    the same general parser as its interval prior, not the archived study
+    normalization retained by older retrospective modes.
+    """
+    human_modes = {
+        "causal-llm-human",
+        "causal-llm-human-pool",
+        "causal-llm-human-prior",
+        "causal-llm-human-frontier",
+        "causal-llm-human-dynamic",
+        "causal-llm-crash-aware",
+        "causal-llm-deterministic-facts",
+        "causal-llm-deterministic-facts-artifact",
+    }
+    if model_diff_extraction in {
+        "causal-llm-crash-aware",
+        "causal-llm-deterministic-facts",
+        "causal-llm-deterministic-facts-artifact",
+    }:
+        return profile_crash_signal_payload(
+            profile,
+            use_human_study_normalization=False,
+            artifact_lookup=(
+                "master50"
+                if model_diff_extraction == "causal-llm-deterministic-facts-artifact"
+                else "scoped10"
+            ),
+        )
+    if model_diff_extraction not in human_modes:
+        return None
+    return profile_crash_signal_payload(
+        profile,
+        use_human_study_normalization=(
+            model_diff_extraction != "causal-llm-human-dynamic"
+        ),
+    )
+
+
+def causal_hunk_match_reasons(
+    profile: IssueProfile,
+    path: str,
+    hunk_text: str,
+    crash_signal_payload: dict[str, object] | None = None,
+) -> list[str]:
     reasons: list[str] = []
     if path_matches(path, profile.relevant_paths):
         reasons.append("relevant-path")
@@ -1010,6 +1315,21 @@ def causal_hunk_match_reasons(profile: IssueProfile, path: str, hunk_text: str) 
     issue_tokens = set(tokenize(" ".join((profile.title, profile.bug_report_summary, *profile.keywords))))
     if path_tokens & issue_tokens:
         reasons.append("issue-path-token")
+    if crash_signal_payload:
+        normalized_path = path.replace("\\", "/")
+        source_paths = [str(value).replace("\\", "/") for value in crash_signal_payload.get("source_paths", [])]
+        if any(normalized_path == source_path or normalized_path.endswith("/" + source_path) for source_path in source_paths):
+            reasons.append("crash-source-path")
+        compact_hunk = compact_alnum(f"{path}\n{hunk_text}")
+        symbols = [str(value) for value in crash_signal_payload.get("symbols", [])]
+        if any(compact_alnum(symbol.rsplit("::", 1)[-1]) in compact_hunk for symbol in symbols if len(compact_alnum(symbol)) >= 4):
+            reasons.append("crash-symbol")
+        query_terms = crash_signal_query_terms(crash_signal_payload)
+        if any(compact_alnum(term) in compact_hunk for term in query_terms if len(compact_alnum(term)) >= 4):
+            reasons.append("crash-query-term")
+        pass_tokens = [str(value) for value in crash_signal_payload.get("pass_tokens", [])]
+        if any(compact_alnum(token) in compact_hunk for token in pass_tokens if len(compact_alnum(token)) >= 4):
+            reasons.append("crash-pass")
     return reasons
 
 
@@ -1018,9 +1338,18 @@ def select_causal_retrieval_files(
     changed_files: list[str],
     *,
     retrieval_policy: str = "balanced",
+    crash_signal_payload: dict[str, object] | None = None,
+    crash_file_touch_count: int | None = None,
+    dependency_usage: dict[str, dict[str, int]] | None = None,
 ) -> list[str]:
     """Choose a bounded, profile-matched path set before reading a parent diff."""
-    if retrieval_policy not in {"balanced", "implementation-first"}:
+    if retrieval_policy not in {
+        "balanced",
+        "implementation-first",
+        "human-guided",
+        "crash-aware",
+        "deterministic-facts",
+    }:
         raise ValueError(f"unsupported causal retrieval policy: {retrieval_policy}")
     issue_tokens = set(tokenize(" ".join((profile.title, profile.bug_report_summary, *profile.keywords))))
     candidates: list[tuple[int, int, str]] = []
@@ -1038,13 +1367,42 @@ def select_causal_retrieval_files(
             score += 4
         if set(tokenize(path)) & issue_tokens:
             score += 2
-        if score:
+        if retrieval_policy == "human-guided":
+            human_reasons = causal_hunk_match_reasons(profile, path, "", crash_signal_payload)
+            score += 16 * ("crash-source-path" in human_reasons)
+            score += 8 * ("crash-query-term" in human_reasons)
+            score += 6 * ("crash-symbol" in human_reasons)
+            score += 4 * ("crash-pass" in human_reasons)
+        if retrieval_policy in {"crash-aware", "deterministic-facts"}:
+            crash_reasons = causal_hunk_match_reasons(profile, path, "", crash_signal_payload)
+            score += 8 * ("crash-query-term" in crash_reasons)
+            score += 6 * ("crash-symbol" in crash_reasons)
+            score += 4 * ("crash-pass" in crash_reasons)
+            normalized_path = path.replace("\\", "/")
+            source_paths = [
+                str(value).replace("\\", "/")
+                for value in (crash_signal_payload or {}).get("source_paths", [])
+            ]
+            if any(normalized_path == source_path or normalized_path.endswith("/" + source_path) for source_path in source_paths):
+                if crash_file_touch_count is not None and crash_file_touch_count < CRASH_AWARE_HOT_CHECKER_TOUCH_THRESHOLD:
+                    score += CRASH_AWARE_RARE_CHECKER_FILE_WEIGHT
+                else:
+                    score += CRASH_AWARE_HOT_CHECKER_FILE_WEIGHT
+            dependency_strength = sum(
+                max(int(count), 0)
+                for paths in (dependency_usage or {}).values()
+                for used_path, count in paths.items()
+                if normalized_path == str(used_path).replace("\\", "/")
+            )
+            if dependency_strength:
+                score += min(2.5, math.log2(1.0 + dependency_strength))
+        if score or retrieval_policy in {"crash-aware", "deterministic-facts"}:
             candidates.append((score, index, path))
     if not candidates:
         candidates = [(0, index, path) for index, path in enumerate(fallback)]
     candidates.sort(key=lambda item: (-item[0], item[1], item[2]))
     paths = [path for _score, _index, path in candidates]
-    if retrieval_policy == "implementation-first":
+    if retrieval_policy in {"implementation-first", "human-guided"}:
         source_paths = [path for path in fallback if not is_test_path(path)]
         test_paths = [path for path in paths if is_test_path(path)]
         paths = source_paths + test_paths
@@ -1092,50 +1450,292 @@ def extract_function_context(source: str, symbol: str) -> str:
     return source[start : start + CAUSAL_DIFF_MAX_FUNCTION_CONTEXT_CHARS].strip()
 
 
+def public_header_method_surface(
+    repo: Path,
+    bad_sha: str,
+    crash_signal_payload: dict[str, object],
+) -> list[str]:
+    """Return a bounded public API surface for crash-derived anchor terms.
+
+    This intentionally uses a small textual approximation rather than a full
+    AST index. The surface is a prompt fact and a contact detector, never a
+    candidate filter, so incomplete header discovery cannot exclude a culprit.
+    """
+    if not bad_sha:
+        return []
+    raw_terms = [
+        *crash_signal_query_terms(crash_signal_payload),
+        str(crash_signal_payload.get("assert_class") or ""),
+        str(crash_signal_payload.get("assert_function") or ""),
+    ]
+    terms = [compact_alnum(term) for term in raw_terms if len(compact_alnum(term)) >= 5]
+    if not terms:
+        return []
+    try:
+        output = git(repo, "ls-tree", "-r", "--name-only", bad_sha, "--", "llvm/include")
+    except subprocess.CalledProcessError:
+        return []
+    candidates: list[tuple[int, str]] = []
+    for path in output.splitlines():
+        path = path.strip()
+        if not path.endswith((".h", ".hpp", ".inc")):
+            continue
+        stem = compact_alnum(Path(path).stem)
+        score = max(
+            (
+                len(term)
+                for term in terms
+                if term in stem or stem in term
+            ),
+            default=0,
+        )
+        if score:
+            candidates.append((score, path))
+    methods: list[str] = []
+    seen: set[str] = set()
+    for _score, path in sorted(candidates, key=lambda item: (-item[0], item[1]))[:2]:
+        try:
+            source = git_limited_output(
+                repo,
+                ["show", f"{bad_sha}:{path}"],
+                CAUSAL_DIFF_MAX_FUNCTION_CONTEXT_CHARS * 4,
+            )
+        except subprocess.CalledProcessError:
+            continue
+        public_depth = 0
+        for line in source.splitlines():
+            stripped = line.strip()
+            if re.match(r"^(?:public|protected|private)\s*:", stripped):
+                public_depth = 1 if stripped.startswith("public") else 0
+                continue
+            if not public_depth or not stripped or stripped.startswith(("//", "#")):
+                continue
+            match = re.search(r"\b([A-Za-z_][A-Za-z0-9_]*)\s*\(", stripped)
+            if match is None:
+                continue
+            method = match.group(1)
+            if method in {"if", "for", "while", "switch", "return"} or method in seen:
+                continue
+            seen.add(method)
+            methods.append(method)
+            if len(methods) >= 24:
+                return methods
+    return methods
+
+
+def hunk_contact_paths(
+    selected_hunks: list[dict[str, object]],
+    destruction_surface: list[str],
+) -> list[str]:
+    """Join hunk function headers to visible calls into the API surface."""
+    contacts: list[str] = []
+    seen: set[str] = set()
+    for hunk in selected_hunks:
+        header = str(hunk.get("header", ""))
+        patch = str(hunk.get("patch", ""))
+        header_match = re.search(r"\b([A-Za-z_][A-Za-z0-9_]*)\s*\(", header)
+        caller = header_match.group(1) if header_match else "changed-hunk"
+        for method in destruction_surface:
+            if not re.search(rf"\b{re.escape(method)}\s*\(", patch):
+                continue
+            receiver = re.search(
+                rf"\b([A-Za-z_][A-Za-z0-9_]*)\s*(?:->|\.)\s*{re.escape(method)}\s*\(",
+                patch,
+            )
+            target = f"{receiver.group(1)}->{method}" if receiver else method
+            contact = f"{caller} -> {target}"
+            if contact not in seen:
+                seen.add(contact)
+                contacts.append(contact)
+    return contacts
+
+
+def deterministic_repository_facts(
+    repo: Path,
+    profile: IssueProfile,
+    selected_hunks: list[dict[str, object]],
+    crash_signal_payload: dict[str, object],
+    crash_file_touch_count: int | None,
+    dependency_usage: dict[str, dict[str, int]],
+    destruction_surface: list[str],
+) -> dict[str, object]:
+    """Produce inspectable, deterministic v15 facts for one candidate."""
+    contact_paths = hunk_contact_paths(selected_hunks, destruction_surface)
+    source_paths = [str(path) for path in crash_signal_payload.get("source_paths", [])]
+    rare_checker = (
+        crash_file_touch_count is not None
+        and crash_file_touch_count < CRASH_AWARE_HOT_CHECKER_TOUCH_THRESHOLD
+    )
+    candidate_dependency_use: dict[str, int] = {}
+    for hunk in selected_hunks:
+        path = str(hunk.get("path", ""))
+        count = sum(
+            max(0, int(value))
+            for by_path in dependency_usage.values()
+            for used_path, value in by_path.items()
+            if path.replace("\\", "/") == str(used_path).replace("\\", "/")
+        )
+        if count:
+            candidate_dependency_use[path] = count
+    return {
+        "invariant_contract": {
+            "assertion": str(crash_signal_payload.get("assertion") or ""),
+            "file": str(crash_signal_payload.get("assert_source_file") or ""),
+            "function": str(crash_signal_payload.get("assert_function") or ""),
+        },
+        "crash_file": {
+            "paths": source_paths,
+            "touch_count": crash_file_touch_count,
+            "polarity": "checker-penalty" if rare_checker else "hot-file-support",
+        },
+        "dependency_api_use": candidate_dependency_use,
+        "destruction_surface": destruction_surface,
+        "contact_paths": contact_paths,
+        "no_call_path_found": not contact_paths,
+        "candidate_files": sorted({str(hunk.get("path", "")) for hunk in selected_hunks if hunk.get("path")}),
+        "profile": profile.issue_id,
+    }
+
+
 def retrieve_causal_diff_evidence(
     repo: Path,
     profile: IssueProfile,
     item: dict,
     *,
     retrieval_policy: str = "balanced",
+    context_parent_count: int = 0,
+    crash_signal_payload: dict[str, object] | None = None,
+    crash_file_touch_count: int | None = None,
+    dependency_usage: dict[str, dict[str, int]] | None = None,
+    destruction_surface: list[str] | None = None,
 ) -> dict[str, object]:
-    """Retrieve issue-matched parent-diff hunks and local symbol context."""
-    if retrieval_policy not in {"balanced", "implementation-first"}:
+    """Retrieve issue-matched hunks from the candidate and optional parent context."""
+    if retrieval_policy not in {
+        "balanced",
+        "implementation-first",
+        "human-guided",
+        "crash-aware",
+        "deterministic-facts",
+    }:
         raise ValueError(f"unsupported causal retrieval policy: {retrieval_policy}")
-    raw_diff = str(item.get("diff", ""))
-    if not raw_diff:
+    if retrieval_policy == "deterministic-facts" and destruction_surface is None:
+        destruction_surface = public_header_method_surface(
+            repo,
+            str(profile.bad_commit),
+            crash_signal_payload or {},
+        )
+    if context_parent_count < 0 or context_parent_count > CAUSAL_CONTEXT_MAX_PARENT_COUNT:
+        raise ValueError(
+            f"causal context parent count must be between 0 and {CAUSAL_CONTEXT_MAX_PARENT_COUNT}"
+        )
+
+    candidate_sha = str(item["sha"])
+    context_shas = first_parent_commit_range(repo, candidate_sha, context_parent_count)
+    context_commits: list[dict[str, object]] = []
+    for distance, context_sha in enumerate(context_shas):
+        if distance == 0:
+            subject = str(item.get("subject", ""))
+            changed_files = list(item.get("files", []))
+            raw_diff = str(item.get("diff", ""))
+        else:
+            subject, changed_files = commit_subject_and_files(repo, context_sha)
+            raw_diff = ""
         selected_files = select_causal_retrieval_files(
             profile,
-            list(item.get("files", [])),
+            changed_files,
             retrieval_policy=retrieval_policy,
+            crash_signal_payload=crash_signal_payload,
+            crash_file_touch_count=crash_file_touch_count,
+            dependency_usage=dependency_usage,
         )
-        raw_diff = commit_parent_diff_for_files(
-            repo,
-            str(item["sha"]),
-            selected_files,
-            max_chars=DIFF_EXTRACTION_MAX_INPUT_CHARS,
+        raw_limit = (
+            DIFF_EXTRACTION_MAX_INPUT_CHARS
+            if distance == 0
+            else CAUSAL_CONTEXT_PARENT_DIFF_MAX_CHARS
         )
-    scored_hunks: list[dict[str, object]] = []
-    for hunk in parse_unified_diff_hunks(raw_diff):
-        path = str(hunk["path"])
-        patch = str(hunk["patch"])
-        reasons = causal_hunk_match_reasons(profile, path, patch)
-        symbols = causal_hunk_symbols(patch)
-        score = 4 * ("relevant-path" in reasons) + 2 * ("issue-keyword" in reasons) + len(symbols)
-        scored_hunks.append(
+        if not raw_diff:
+            raw_diff = commit_parent_diff_for_files(
+                repo,
+                context_sha,
+                selected_files,
+                max_chars=raw_limit,
+            )
+        context_commits.append(
             {
-                **hunk,
-                "match_reasons": reasons,
-                "symbols": symbols,
-                "retrieval_score": score,
-                "source_kind": "test" if is_test_path(path) else "implementation",
+                "sha": context_sha,
+                "subject": subject,
+                "distance": distance,
+                "selected_files": selected_files,
+                "raw_diff": raw_diff,
+                "raw_diff_truncated": len(raw_diff) >= raw_limit,
             }
         )
+
+    scored_hunks: list[dict[str, object]] = []
+    for source in context_commits:
+        source_sha = str(source["sha"])
+        source_subject = str(source["subject"])
+        source_distance = int(source["distance"])
+        for hunk in parse_unified_diff_hunks(str(source["raw_diff"])):
+            path = str(hunk["path"])
+            patch = str(hunk["patch"])
+            reasons = causal_hunk_match_reasons(
+                profile,
+                path,
+                patch,
+                crash_signal_payload
+                if retrieval_policy in {"human-guided", "crash-aware", "deterministic-facts"}
+                else None,
+            )
+            symbols = causal_hunk_symbols(patch)
+            score = 4 * ("relevant-path" in reasons) + 2 * ("issue-keyword" in reasons) + len(symbols)
+            if retrieval_policy == "human-guided":
+                score += 16 * ("crash-source-path" in reasons)
+                score += 10 * ("crash-symbol" in reasons)
+                score += 8 * ("crash-query-term" in reasons)
+                score += 6 * ("crash-pass" in reasons)
+            elif retrieval_policy in {"crash-aware", "deterministic-facts"}:
+                score += 10 * ("crash-symbol" in reasons)
+                score += 8 * ("crash-query-term" in reasons)
+                score += 6 * ("crash-pass" in reasons)
+                source_paths = [
+                    str(value).replace("\\", "/")
+                    for value in (crash_signal_payload or {}).get("source_paths", [])
+                ]
+                normalized_path = path.replace("\\", "/")
+                if any(normalized_path == source_path or normalized_path.endswith("/" + source_path) for source_path in source_paths):
+                    if crash_file_touch_count is not None and crash_file_touch_count < CRASH_AWARE_HOT_CHECKER_TOUCH_THRESHOLD:
+                        score += CRASH_AWARE_RARE_CHECKER_FILE_WEIGHT
+                        reasons.append("rare-checker-file-penalty")
+                    else:
+                        score += CRASH_AWARE_HOT_CHECKER_FILE_WEIGHT
+                        reasons.append("hot-crash-file")
+                dependency_strength = 0
+                for term, paths in (dependency_usage or {}).items():
+                    for used_path, count in paths.items():
+                        if normalized_path == str(used_path).replace("\\", "/"):
+                            dependency_strength += max(int(count), 0)
+                if dependency_strength:
+                    score += min(2.5, math.log2(1.0 + dependency_strength))
+                    reasons.append("dependency-api-use")
+            scored_hunks.append(
+                {
+                    **hunk,
+                    "match_reasons": reasons,
+                    "symbols": symbols,
+                    "retrieval_score": score,
+                    "source_kind": "test" if is_test_path(path) else "implementation",
+                    "source_sha": source_sha,
+                    "source_subject": source_subject,
+                    "source_distance": source_distance,
+                }
+            )
 
     scored_hunks.sort(
         key=lambda hunk: (
             int(hunk["retrieval_score"]),
             bool(hunk["match_reasons"]),
+            -int(hunk["source_distance"]),
             -len(str(hunk["patch"])),
         ),
         reverse=True,
@@ -1143,15 +1743,21 @@ def retrieve_causal_diff_evidence(
     selected = [hunk for hunk in scored_hunks if hunk["match_reasons"]]
     if not selected:
         selected = scored_hunks[:CAUSAL_DIFF_MAX_SELECTED_HUNKS]
+    if context_parent_count:
+        # Keep the candidate's own patch visible even when an older precursor
+        # has more keyword matches. Context informs causality; it must not
+        # replace evidence for the candidate being scored.
+        candidate_hunk = next(
+            (hunk for hunk in selected if int(hunk["source_distance"]) == 0),
+            next((hunk for hunk in scored_hunks if int(hunk["source_distance"]) == 0), None),
+        )
+        if candidate_hunk is not None:
+            selected = [candidate_hunk, *[hunk for hunk in selected if hunk is not candidate_hunk]]
     if retrieval_policy == "implementation-first":
         implementation_hunks = [
             hunk for hunk in scored_hunks if hunk["source_kind"] == "implementation"
         ]
-        test_hunks = [
-            hunk
-            for hunk in selected
-            if hunk["source_kind"] == "test"
-        ]
+        test_hunks = [hunk for hunk in selected if hunk["source_kind"] == "test"]
         # Keep test-only commits observable without letting their evidence crowd
         # out source changes that can explain a regression mechanism.
         selected = (implementation_hunks + test_hunks)[:CAUSAL_DIFF_MAX_SELECTED_HUNKS]
@@ -1160,6 +1766,13 @@ def retrieve_causal_diff_evidence(
         selected = selected[:CAUSAL_DIFF_MAX_SELECTED_HUNKS]
         test_fallback_used = False
 
+    crash_reason_names = {"crash-source-path", "crash-symbol", "crash-query-term", "crash-pass"}
+    direct_signal_hunks = [
+        hunk for hunk in selected if crash_reason_names.intersection(hunk["match_reasons"])
+    ]
+    signal_reachability = "direct" if direct_signal_hunks else "text-unreachable"
+    negative_evidence = "" if direct_signal_hunks else "no crash-anchor contact found"
+
     selected_hunks = [
         {
             "path": hunk["path"],
@@ -1167,36 +1780,100 @@ def retrieve_causal_diff_evidence(
             "patch": str(hunk["patch"])[:CAUSAL_DIFF_MAX_HUNK_CHARS],
             "match_reasons": hunk["match_reasons"],
             "symbols": hunk["symbols"],
+            # Persist the score used for ordering so the retrieval decision is
+            # auditable in the per-step run history.
+            "retrieval_score": hunk["retrieval_score"],
             "source_kind": hunk["source_kind"],
+            "source_sha": hunk["source_sha"],
+            "source_subject": hunk["source_subject"],
+            "source_distance": hunk["source_distance"],
         }
         for hunk in selected
     ]
-    contexts: list[dict[str, str]] = []
-    seen_contexts: set[tuple[str, str]] = set()
+    contexts: list[dict[str, str | int]] = []
+    seen_contexts: set[tuple[str, str, str]] = set()
     for hunk in selected_hunks:
         for symbol in hunk["symbols"]:
-            key = (str(hunk["path"]), str(symbol))
+            key = (str(hunk["source_sha"]), str(hunk["path"]), str(symbol))
             if key in seen_contexts:
                 continue
-            source = function_context_at_commit(repo, str(item["sha"]), key[0], key[1])
-            context = extract_function_context(source, key[1])
+            source = function_context_at_commit(repo, key[0], key[1], key[2])
+            context = extract_function_context(source, key[2])
             if not context:
                 continue
             seen_contexts.add(key)
-            contexts.append({"path": key[0], "symbol": key[1], "context": context})
+            contexts.append(
+                {
+                    "path": key[1],
+                    "symbol": key[2],
+                    "context": context,
+                    "source_sha": key[0],
+                    "source_distance": hunk["source_distance"],
+                }
+            )
             if len(contexts) >= CAUSAL_DIFF_MAX_FUNCTION_CONTEXTS:
                 break
         if len(contexts) >= CAUSAL_DIFF_MAX_FUNCTION_CONTEXTS:
             break
+    contract_contexts: list[dict[str, str | int]] = []
+    if retrieval_policy in {"crash-aware", "deterministic-facts"} and crash_signal_payload:
+        contract_path = str(crash_signal_payload.get("assert_source_file") or "")
+        contract_symbol = str(crash_signal_payload.get("assert_function") or "")
+        if contract_path and contract_symbol and str(profile.bad_commit):
+            contract = extract_function_context(
+                function_context_at_commit(repo, str(profile.bad_commit), contract_path, contract_symbol),
+                contract_symbol,
+            )
+            if contract:
+                contract_contexts.append(
+                    {
+                        "path": contract_path,
+                        "symbol": contract_symbol,
+                        "context": contract,
+                        "source_sha": str(profile.bad_commit),
+                        "source_distance": 0,
+                    }
+                )
+    repository_facts: dict[str, object] = {}
+    if retrieval_policy == "deterministic-facts":
+        repository_facts = deterministic_repository_facts(
+            repo,
+            profile,
+            selected_hunks,
+            crash_signal_payload or {},
+            crash_file_touch_count,
+            dependency_usage or {},
+            destruction_surface or [],
+        )
     return {
         "selected_files": sorted({str(hunk["path"]) for hunk in selected_hunks}),
         "selected_hunks": selected_hunks,
         "retrieval_policy": retrieval_policy,
+        "crash_signals": crash_signal_payload or {},
+        "crash_file_touch_count": crash_file_touch_count,
+        "dependency_usage": dependency_usage or {},
+        "signal_reachability": signal_reachability,
+        "negative_evidence": negative_evidence,
+        "context_parent_count_requested": context_parent_count,
+        "context_parent_count_observed": max(0, len(context_commits) - 1),
+        "context_commits": [
+            {
+                "sha": source["sha"],
+                "subject": source["subject"],
+                "distance": source["distance"],
+                "selected_files": source["selected_files"],
+                "raw_diff_chars": len(str(source["raw_diff"])),
+                "raw_diff_truncated": source["raw_diff_truncated"],
+            }
+            for source in context_commits
+        ],
         "test_fallback_used": test_fallback_used,
         "function_contexts": contexts,
+        "contract_contexts": contract_contexts,
+        "repository_facts": repository_facts,
         "omitted_hunk_count": max(0, len(scored_hunks) - len(selected_hunks)),
-        "raw_diff_chars": len(raw_diff),
-        "raw_diff_truncated": len(raw_diff) >= DIFF_EXTRACTION_MAX_INPUT_CHARS,
+        "raw_diff_chars": sum(len(str(source["raw_diff"])) for source in context_commits),
+        "raw_diff_truncated": any(bool(source["raw_diff_truncated"]) for source in context_commits),
     }
 
 
@@ -1292,6 +1969,1230 @@ def load_commit_metadata(
 
 def path_matches(path: str, prefixes: Iterable[str]) -> bool:
     return any(path.startswith(prefix) for prefix in prefixes)
+
+
+def is_test_or_fixture_path(path: str) -> bool:
+    normalized = path.replace("\\", "/").lower()
+    return (
+        "/test/" in normalized
+        or "/tests/" in normalized
+        or "/unittests/" in normalized
+        or normalized.startswith("test/")
+    )
+
+
+def common_prefix_length(lhs: str, rhs: str) -> int:
+    length = 0
+    for left_char, right_char in zip(lhs, rhs):
+        if left_char != right_char:
+            break
+        length += 1
+    return length
+
+
+def path_component_matches(term: str, path: str) -> bool:
+    """Return whether a crash term names a path component without fuzzy guessing."""
+    normalized_term = compact_alnum(term)
+    if len(normalized_term) < 5:
+        return False
+    components = [compact_alnum(part) for part in Path(path).parts]
+
+    return any(
+        normalized_term == component
+        or (len(component) >= 8 and normalized_term in component)
+        or (len(normalized_term) >= 8 and component in normalized_term)
+        or common_prefix_length(normalized_term, component) >= 8
+        for component in components
+        if component
+    )
+
+
+def human_study_symbol_matches_path(symbol: str, path: str) -> bool:
+    """Match a stack symbol to a path with the human-study stem rule."""
+    stem = Path(path).stem
+    directories = Path(path).parts[:-1]
+    for component in symbol.split("::"):
+        if not component or component in {"llvm", "clang"} or len(component) < 4:
+            continue
+        if component == stem or component in directories:
+            return True
+        if common_prefix_length(component, stem) >= 8:
+            return True
+    return False
+
+
+def human_study_pass_matches_path(token: str, path: str) -> bool:
+    """Match a running-pass token to a filename stem as in the human study."""
+    flat_token = token.replace("-", "").lower()
+    stem = Path(path).stem.lower()
+    if len(flat_token) < 6:
+        return False
+    return (
+        flat_token == stem
+        or (len(stem) >= 8 and stem in flat_token)
+        or (len(flat_token) >= 8 and flat_token in stem)
+    )
+
+
+def human_signal_pool_primary_match(
+    profile: IssueProfile,
+    metadata: CommitMetadata,
+    crash_signal_payload: dict[str, object],
+) -> tuple[bool, dict[str, str]]:
+    """Match a documented signal class after validating its primary anchor.
+
+    The retrospective study selected one crash-signal class per case.  The
+    named primary anchor documents why that class was selected; membership
+    uses the study's filename-stem correspondence across the retained stack or
+    pass tokens, rather than the broader generic path-token matcher.
+    """
+    policy = HUMAN_SIGNAL_POOL_PRIMARY_SIGNAL.get(profile.issue_id)
+    if policy is None:
+        raise ValueError(f"missing human signal-pool policy for {profile.issue_id}")
+    kind = str(policy["kind"])
+    source_files = [path for path in metadata.changed_files if not is_test_or_fixture_path(path)]
+    if kind == "crash-source-file":
+        source_paths = [str(path).replace("\\", "/") for path in crash_signal_payload.get("source_paths", [])]
+        return any(path in source_paths for path in source_files), {"kind": kind}
+
+    term = str(policy.get("term") or "")
+    if kind == "crash-symbol":
+        known_symbols = [str(symbol) for symbol in crash_signal_payload.get("symbols", [])]
+        if not any(
+            symbol == term or term in symbol.split("::") or symbol.endswith(f"::{term}")
+            for symbol in known_symbols
+        ):
+            raise ValueError(f"human signal-pool symbol {term!r} is absent from {profile.issue_id} crash artifact")
+        for symbol in known_symbols:
+            if any(human_study_symbol_matches_path(symbol, path) for path in source_files):
+                return True, {"kind": kind, "term": symbol}
+        return False, {"kind": kind, "term": term}
+    if kind == "crash-pass":
+        known_tokens = [str(token) for token in crash_signal_payload.get("pass_tokens", [])]
+        if term not in known_tokens:
+            raise ValueError(f"human signal-pool pass {term!r} is absent from {profile.issue_id} crash artifact")
+        for token in known_tokens:
+            if any(human_study_pass_matches_path(token, path) for path in source_files):
+                return True, {"kind": kind, "term": token}
+        return False, {"kind": kind, "term": term}
+    raise ValueError(f"unsupported human signal-pool primary signal kind: {kind}")
+
+
+def human_signal_pool_candidate_reasons(
+    profile: IssueProfile,
+    metadata: CommitMetadata,
+    crash_signal_payload: dict[str, object],
+    *,
+    crash_file_touch_count: int,
+    dependency_anchors: dict[str, list[str]] | None = None,
+) -> list[str]:
+    """Classify direct crash-signal evidence for one full-interval candidate.
+
+    This is a retrieval prior, not a correctness filter.  A rare checker file
+    has empirically been a detector rather than a producer, so it is recorded
+    but cannot by itself add a candidate to the direct-signal pool.
+    """
+    source_files = [path for path in metadata.changed_files if not is_test_or_fixture_path(path)]
+    source_paths = [str(path).replace("\\", "/") for path in crash_signal_payload.get("source_paths", [])]
+    symbols = [str(value) for value in crash_signal_payload.get("symbols", [])]
+    pass_tokens = [str(value) for value in crash_signal_payload.get("pass_tokens", [])]
+    query_terms = crash_signal_query_terms(crash_signal_payload)
+    reasons: list[str] = []
+
+    direct_file_hit = any(path in source_paths for path in source_files)
+    if direct_file_hit:
+        if crash_file_touch_count < HUMAN_SIGNAL_POOL_RARE_CHECKER_TOUCH_THRESHOLD:
+            reasons.append("rare-checker-file-penalty")
+        else:
+            reasons.append("crash-source-file")
+    for symbol in symbols:
+        components = [part for part in symbol.split("::") if part and part not in {"llvm", "clang"}]
+        if any(path_component_matches(component, path) for component in components for path in source_files):
+            append_unique(reasons, "crash-symbol")
+    for token in pass_tokens:
+        if any(path_component_matches(token, path) for path in source_files):
+            append_unique(reasons, "crash-pass")
+    for term in query_terms:
+        if any(path_component_matches(term, path) for path in source_files):
+            append_unique(reasons, "crash-query-term")
+    for anchor, paths in (dependency_anchors or {}).items():
+        if any(path in paths for path in source_files):
+            append_unique(reasons, f"dependency-anchor:{anchor}")
+    return reasons
+
+
+def human_signal_pool_reason_score(reasons: Iterable[str]) -> float:
+    weights = {
+        "crash-symbol": 3.0,
+        "crash-pass": 2.0,
+        "crash-source-file": 2.5,
+        "crash-query-term": 1.5,
+        "rare-checker-file-penalty": -1.5,
+    }
+    score = 0.0
+    for reason in reasons:
+        if reason.startswith("dependency-anchor:"):
+            score += 2.5
+        else:
+            score += weights.get(reason, 0.0)
+    return score
+
+
+def build_human_signal_pool(
+    profile: IssueProfile,
+    candidate_shas: list[str],
+    metadata_by_sha: dict[str, CommitMetadata],
+    crash_signal_payload: dict[str, object],
+    *,
+    dependency_anchors: dict[str, list[str]] | None = None,
+) -> dict[str, object]:
+    """Build an auditable compact candidate set from pre-bisect crash signals.
+
+    Only explicit direct signals enter the pool.  The caller must preserve the
+    full interval for fallback because no signal is guaranteed to contain the
+    first-bad commit outside this retrospectively selected pilot cohort.
+    """
+    if profile.issue_id not in HUMAN_SIGNAL_POOL_COHORT:
+        raise ValueError(
+            "human signal pool is restricted to the retrospective good-signal cohort: "
+            + ", ".join(sorted(HUMAN_SIGNAL_POOL_COHORT))
+        )
+    source_paths = [str(path).replace("\\", "/") for path in crash_signal_payload.get("source_paths", [])]
+    crash_file_touch_count = sum(
+        1
+        for sha in candidate_shas
+        for path in metadata_by_sha[sha].changed_files
+        if path in source_paths
+    )
+    candidates: list[dict[str, object]] = []
+    primary_signal = HUMAN_SIGNAL_POOL_PRIMARY_SIGNAL[profile.issue_id]
+    per_signal_counts = {
+        "crash-source-file": 0,
+        "crash-symbol": 0,
+        "crash-pass": 0,
+        "crash-query-term": 0,
+        "rare-checker-file-penalty": 0,
+        "dependency-anchor": 0,
+    }
+    for index, sha in enumerate(candidate_shas):
+        metadata = metadata_by_sha.get(sha)
+        if metadata is None:
+            raise RuntimeError(f"missing metadata for human signal pool candidate {sha}")
+        primary_match, primary_provenance = human_signal_pool_primary_match(
+            profile,
+            metadata,
+            crash_signal_payload,
+        )
+        if not primary_match:
+            continue
+        # The primary signal determines membership. Broad query and dependency
+        # matches are provenance for the retained bucket only, avoiding an
+        # O(interval * crash-signal-count) pass over commits that cannot enter.
+        reasons = human_signal_pool_candidate_reasons(
+            profile,
+            metadata,
+            crash_signal_payload,
+            crash_file_touch_count=crash_file_touch_count,
+            dependency_anchors=dependency_anchors,
+        )
+        for reason in reasons:
+            if reason.startswith("dependency-anchor:"):
+                per_signal_counts["dependency-anchor"] += 1
+            elif reason in per_signal_counts:
+                per_signal_counts[reason] += 1
+        primary_reason = str(primary_provenance["kind"])
+        if primary_provenance.get("term"):
+            primary_reason += f":{primary_provenance['term']}"
+        append_unique(reasons, primary_reason)
+        score = human_signal_pool_reason_score(reasons)
+        candidates.append(
+            {
+                "sha": sha,
+                "index": index + 1,
+                "subject": metadata.subject,
+                "changed_files": metadata.changed_files,
+                "match_reasons": reasons,
+                "primary_signal_match": primary_provenance,
+                "prior_score": score,
+            }
+        )
+    candidates.sort(
+        key=lambda item: (
+            -float(item["prior_score"]),
+            int(item["index"]),
+            str(item["sha"]),
+        )
+    )
+    return {
+        "cohort": "retrospective-good-signal-six",
+        "full_interval_count": len(candidate_shas),
+        "crash_file_touch_count": crash_file_touch_count,
+        "rare_checker_file": bool(source_paths)
+        and crash_file_touch_count < HUMAN_SIGNAL_POOL_RARE_CHECKER_TOUCH_THRESHOLD,
+        "rare_checker_touch_threshold": HUMAN_SIGNAL_POOL_RARE_CHECKER_TOUCH_THRESHOLD,
+        "primary_signal": primary_signal,
+        "per_signal_counts": per_signal_counts,
+        "dependency_anchors": dependency_anchors or {},
+        "candidate_count_before_limit": len(candidates),
+        "candidate_count": len(candidates),
+        "pool_truncated": False,
+        "candidate_shas": [str(item["sha"]) for item in candidates],
+        "candidates": candidates,
+        "fallback_contract": "full-interval-bcr-on-empty-pool-or-failed-direct-proof",
+    }
+
+
+def build_human_signal_prior(
+    profile: IssueProfile,
+    candidate_shas: list[str],
+    metadata_by_sha: dict[str, CommitMetadata],
+    crash_signal_payload: dict[str, object],
+    *,
+    dependency_anchors: dict[str, list[str]] | None = None,
+) -> dict[str, object]:
+    """Build the human-study soft prior without removing any interval commit.
+
+    The retrospective signal mapping determines how to weight candidates, not
+    whether they remain eligible.  Every commit receives a positive floor so
+    a checker/producer mismatch cannot make the true first-bad unreachable.
+    """
+    if profile.issue_id not in HUMAN_SIGNAL_POOL_COHORT:
+        raise ValueError(
+            "human signal prior is restricted to the retrospective good-signal cohort: "
+            + ", ".join(sorted(HUMAN_SIGNAL_POOL_COHORT))
+        )
+
+    source_paths = [str(path).replace("\\", "/") for path in crash_signal_payload.get("source_paths", [])]
+    crash_file_touch_count = sum(
+        1
+        for sha in candidate_shas
+        for path in metadata_by_sha[sha].changed_files
+        if path in source_paths
+    )
+    prior_by_sha: dict[str, float] = {}
+    candidate_evidence: list[dict[str, object]] = []
+    for index, sha in enumerate(candidate_shas):
+        metadata = metadata_by_sha.get(sha)
+        if metadata is None:
+            raise RuntimeError(f"missing metadata for human signal prior candidate {sha}")
+        reasons = human_signal_pool_candidate_reasons(
+            profile,
+            metadata,
+            crash_signal_payload,
+            crash_file_touch_count=crash_file_touch_count,
+            dependency_anchors=dependency_anchors,
+        )
+        score = HUMAN_SIGNAL_PRIOR_FLOOR
+        if any(path_matches(path, profile.high_risk_paths) for path in metadata.changed_files):
+            score += 2.0
+            append_unique(reasons, "high-risk-path")
+        if any(path_matches(path, profile.relevant_paths) for path in metadata.changed_files):
+            score += 0.5
+            append_unique(reasons, "relevant-path")
+        # Preserve the signed rare-checker adjustment.  The positive floor
+        # protects every candidate from hard exclusion after the penalty.
+        score = max(
+            HUMAN_SIGNAL_PRIOR_FLOOR,
+            score + human_signal_pool_reason_score(reasons),
+        )
+        prior_by_sha[sha] = score
+        candidate_evidence.append(
+            {
+                "sha": sha,
+                "index": index + 1,
+                "prior_score": score,
+                "match_reasons": reasons,
+                "changed_files": metadata.changed_files,
+            }
+        )
+
+    return {
+        "cohort": "retrospective-good-signal-six",
+        "full_interval_count": len(candidate_shas),
+        "crash_file_touch_count": crash_file_touch_count,
+        "rare_checker_file": bool(source_paths)
+        and crash_file_touch_count < HUMAN_SIGNAL_POOL_RARE_CHECKER_TOUCH_THRESHOLD,
+        "rare_checker_touch_threshold": HUMAN_SIGNAL_POOL_RARE_CHECKER_TOUCH_THRESHOLD,
+        "prior_floor": HUMAN_SIGNAL_PRIOR_FLOOR,
+        "chronological_fraction_bounds": [
+            HUMAN_SIGNAL_PRIOR_MIN_FRACTION,
+            HUMAN_SIGNAL_PRIOR_MAX_FRACTION,
+        ],
+        "contradiction_limit": HUMAN_SIGNAL_PRIOR_CONTRADICTION_LIMIT,
+        "hard_pruning": False,
+        "dependency_anchors": dependency_anchors or {},
+        "prior_by_sha": prior_by_sha,
+        "candidates": candidate_evidence,
+    }
+
+
+def human_signal_prior_selection(
+    records: list[CommitRecord],
+    prior_by_sha: dict[str, float],
+) -> SelectionDecision:
+    """Probe the bounded weighted midpoint of the entire unresolved interval."""
+    if not records:
+        raise ValueError("human signal prior selection requires records")
+
+    ordered = sorted(records, key=lambda record: record.index)
+    weights: list[float] = []
+    model_adjusted_candidate_count = 0
+    for record in ordered:
+        weight = max(
+            HUMAN_SIGNAL_PRIOR_FLOOR,
+            float(prior_by_sha.get(record.sha, HUMAN_SIGNAL_PRIOR_FLOOR)),
+        )
+        if any(item == "model-scored" for item in (record.evidence or [])):
+            weight += HUMAN_SIGNAL_PRIOR_MODEL_BONUS * max(0.0, record.semantic_score - 0.1)
+            model_adjusted_candidate_count += 1
+        weights.append(weight)
+    total_weight = sum(weights)
+    cumulative = 0.0
+    weighted_midpoint_index = 0
+    for index, weight in enumerate(weights):
+        cumulative += weight
+        if cumulative >= total_weight / 2.0:
+            weighted_midpoint_index = index
+            break
+
+    lower_index = min(
+        len(ordered) - 1,
+        math.ceil(HUMAN_SIGNAL_PRIOR_MIN_FRACTION * max(0, len(ordered) - 1)),
+    )
+    upper_index = max(
+        lower_index,
+        math.floor(HUMAN_SIGNAL_PRIOR_MAX_FRACTION * max(0, len(ordered) - 1)),
+    )
+    selected_index = min(max(weighted_midpoint_index, lower_index), upper_index)
+    selected = ordered[selected_index]
+    weighted_midpoint = ordered[weighted_midpoint_index]
+    predicted_verdict = "bad" if selected_index >= weighted_midpoint_index else "good"
+
+    for index, record in enumerate(ordered):
+        record.calibrated_suspicion_weight = weights[index] / total_weight
+        record.calibrated_posterior_bad_mass = sum(weights[: index + 1]) / total_weight
+        record.calibrated_posterior_info_gain = binary_split_info_gain(
+            record.calibrated_posterior_bad_mass
+        )
+        record.selection_score = 1.0 if record.sha == selected.sha else 0.0
+
+    ranked = sorted(
+        ordered,
+        key=lambda record: (
+            record.sha == selected.sha,
+            -abs(record.index - selected.index),
+            record.build_success_prob,
+            record.semantic_score,
+        ),
+        reverse=True,
+    )
+    return SelectionDecision(
+        selected=selected,
+        ranked_candidates=ranked,
+        search_policy="human-signal-prior",
+        selection_mode="human-signal-prior",
+        metadata={
+            "weighted_midpoint_sha": weighted_midpoint.sha,
+            "weighted_midpoint_index": weighted_midpoint_index + 1,
+            "selected_index": selected_index + 1,
+            "chronological_bounds": [lower_index + 1, upper_index + 1],
+            "chronological_clamp_applied": selected_index != weighted_midpoint_index,
+            "predicted_verdict": predicted_verdict,
+            "total_prior_mass": round(total_weight, 6),
+            "model_adjusted_candidate_count": model_adjusted_candidate_count,
+        },
+    )
+
+
+def dynamic_dependency_usage(
+    repo: Path,
+    profile: IssueProfile,
+    crash_signal_payload: dict[str, object],
+) -> dict[str, dict[str, int]]:
+    """Return bad-endpoint API-use counts for automatic crash-derived terms.
+
+    The analysis is intentionally broad and never filters commits. It measures
+    source-file contact with assertion, stack, and pass terms so the current
+    interval can treat dependency/API evidence as a continuous soft feature.
+    """
+    usage: dict[str, dict[str, int]] = {}
+    for term in crash_signal_query_terms(crash_signal_payload):
+        normalized = str(term).strip()
+        if len(compact_alnum(normalized)) < 5 or normalized in usage:
+            continue
+        try:
+            output = git(
+                repo,
+                "grep",
+                "-c",
+                "-F",
+                normalized,
+                profile.bad_commit,
+                "--",
+                "llvm/lib",
+                "llvm/include",
+            )
+        except subprocess.CalledProcessError:
+            continue
+        by_path: dict[str, int] = {}
+        for line in output.splitlines():
+            _revision, separator, remainder = line.partition(":")
+            if not separator:
+                continue
+            path, separator, count_text = remainder.rpartition(":")
+            if not separator:
+                continue
+            path = path.strip()
+            if not path or is_test_or_fixture_path(path):
+                continue
+            try:
+                count = int(count_text.strip())
+            except ValueError:
+                continue
+            if count > 0:
+                by_path[path] = count
+        if by_path:
+            usage[normalized] = by_path
+    return usage
+
+
+def dynamic_dependency_usage_digest(usage: dict[str, dict[str, int]]) -> str:
+    return hashlib.sha256(
+        json.dumps(usage, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    ).hexdigest()
+
+
+def crash_file_touch_count_in_issue_interval(
+    repo: Path,
+    profile: IssueProfile,
+    crash_signal_payload: dict[str, object],
+) -> int:
+    """Count crash-file touches over the full configured issue interval."""
+    source_paths = {
+        str(path).replace("\\", "/")
+        for path in crash_signal_payload.get("source_paths", [])
+        if str(path).strip()
+    }
+    if not source_paths:
+        return 0
+    try:
+        output = git(
+            repo,
+            "log",
+            "--format=%H",
+            "--name-only",
+            f"{profile.good_commit}..{profile.bad_commit}",
+            "--",
+            *sorted(source_paths),
+        )
+    except subprocess.CalledProcessError:
+        return 0
+    return sum(1 for line in output.splitlines() if re.fullmatch(r"[0-9a-f]{40}", line.strip()))
+
+
+def causal_crash_aware_retrieval_context(
+    repo: Path,
+    profile: IssueProfile,
+    model_diff_extraction: str,
+) -> dict[str, object]:
+    """Build issue-level crash retrieval facts once for v14/v15 scoring."""
+    crash_payload = causal_crash_signal_payload(profile, model_diff_extraction) or {}
+    context: dict[str, object] = {
+        "crash_file_touch_count": crash_file_touch_count_in_issue_interval(
+            repo,
+            profile,
+            crash_payload,
+        ),
+        "dependency_usage": dynamic_dependency_usage(repo, profile, crash_payload),
+    }
+    if model_diff_extraction in {
+        "causal-llm-deterministic-facts",
+        "causal-llm-deterministic-facts-artifact",
+    }:
+        context["destruction_surface"] = public_header_method_surface(
+            repo,
+            str(profile.bad_commit),
+            crash_payload,
+        )
+    return context
+
+
+def build_dynamic_human_evidence(
+    profile: IssueProfile,
+    candidate_shas: list[str],
+    metadata_by_sha: dict[str, CommitMetadata],
+    crash_signal_payload: dict[str, object],
+    *,
+    dependency_usage: dict[str, dict[str, int]],
+) -> dict[str, object]:
+    """Recompute a full-interval crash-evidence prior for one bisect step.
+
+    No result from the human retrospective study participates here. The
+    candidate set is exactly the unresolved interval, and every candidate gets
+    a positive floor before crash, path, and dependency evidence are applied.
+    """
+    if profile.issue_id not in HUMAN_DYNAMIC_EVIDENCE_COHORT:
+        raise ValueError(
+            "dynamic human evidence is restricted to the five-case crash-signal cohort: "
+            + ", ".join(sorted(HUMAN_DYNAMIC_EVIDENCE_COHORT))
+        )
+    source_paths = [str(path).replace("\\", "/") for path in crash_signal_payload.get("source_paths", [])]
+    crash_file_touch_count = sum(
+        1
+        for sha in candidate_shas
+        for path in metadata_by_sha[sha].changed_files
+        if path in source_paths
+    )
+    rare_checker_file = bool(source_paths) and (
+        crash_file_touch_count < HUMAN_DYNAMIC_EVIDENCE_RARE_CHECKER_TOUCH_THRESHOLD
+    )
+    candidate_evidence: list[dict[str, object]] = []
+    candidate_by_sha: dict[str, dict[str, object]] = {}
+    prior_by_sha: dict[str, float] = {}
+    dependency_terms = sorted(dependency_usage)
+    for index, sha in enumerate(candidate_shas):
+        metadata = metadata_by_sha.get(sha)
+        if metadata is None:
+            raise RuntimeError(f"missing metadata for dynamic human evidence candidate {sha}")
+        reasons = human_signal_pool_candidate_reasons(
+            profile,
+            metadata,
+            crash_signal_payload,
+            crash_file_touch_count=crash_file_touch_count,
+        )
+        source_files = [path for path in metadata.changed_files if not is_test_or_fixture_path(path)]
+        dependency_strength = sum(
+            count
+            for term in dependency_terms
+            for path, count in dependency_usage[term].items()
+            if path in source_files
+        )
+        score = HUMAN_DYNAMIC_EVIDENCE_PRIOR_FLOOR
+        score += human_signal_pool_reason_score(reasons)
+        if any(path_matches(path, profile.high_risk_paths) for path in source_files):
+            score += 2.0
+            append_unique(reasons, "high-risk-path")
+        if any(path_matches(path, profile.relevant_paths) for path in source_files):
+            score += 0.5
+            append_unique(reasons, "relevant-path")
+        if dependency_strength:
+            # Log-scale keeps a frequently referenced API from becoming a hard
+            # filter while still preferring source users over checker-only hits.
+            score += min(2.5, math.log2(1.0 + dependency_strength))
+            append_unique(reasons, "dependency-api-use")
+        score = max(HUMAN_DYNAMIC_EVIDENCE_PRIOR_FLOOR, score)
+        entry = {
+            "sha": sha,
+            "index": index + 1,
+            "prior_score": round(score, 6),
+            "reasons": reasons,
+            "changed_files": source_files,
+            "dependency_usage_strength": dependency_strength,
+        }
+        candidate_evidence.append(entry)
+        candidate_by_sha[sha] = entry
+        prior_by_sha[sha] = score
+    total_prior = sum(prior_by_sha.values())
+    prior_probability_by_sha = {
+        sha: score / total_prior for sha, score in prior_by_sha.items()
+    }
+    window_digest = hashlib.sha256("\n".join(candidate_shas).encode("utf-8")).hexdigest()
+    payload = {
+        "version": "dynamic-human-evidence-v1",
+        "candidate_window_sha256": window_digest,
+        "current_interval_count": len(candidate_shas),
+        "crash_file_touch_count": crash_file_touch_count,
+        "rare_checker_file": rare_checker_file,
+        "rare_checker_touch_threshold": HUMAN_DYNAMIC_EVIDENCE_RARE_CHECKER_TOUCH_THRESHOLD,
+        "prior_floor": HUMAN_DYNAMIC_EVIDENCE_PRIOR_FLOOR,
+        "hard_pruning": False,
+        "dependency_usage_sha256": dynamic_dependency_usage_digest(dependency_usage),
+        "dependency_term_count": len(dependency_terms),
+        "prior_by_sha": prior_by_sha,
+        "prior_probability_by_sha": prior_probability_by_sha,
+        "candidate_evidence": candidate_evidence,
+        "candidate_by_sha": candidate_by_sha,
+    }
+    payload["evidence_sha256"] = hashlib.sha256(
+        json.dumps(
+            {
+                "candidate_window_sha256": window_digest,
+                "crash_file_touch_count": crash_file_touch_count,
+                "rare_checker_file": rare_checker_file,
+                "dependency_usage_sha256": payload["dependency_usage_sha256"],
+                "candidate_evidence": candidate_evidence,
+            },
+            sort_keys=True,
+            separators=(",", ":"),
+        ).encode("utf-8")
+    ).hexdigest()
+    return payload
+
+
+def dynamic_human_evidence_history_payload(evidence: dict[str, object]) -> dict[str, object]:
+    """Persist inspectable current-interval evidence without private caches."""
+    candidate_evidence = [
+        {
+            "sha": item.get("sha"),
+            "index": item.get("index"),
+            "prior_score": item.get("prior_score"),
+            "reasons": list(item.get("reasons", [])),
+            "dependency_usage_strength": item.get("dependency_usage_strength", 0),
+        }
+        for item in evidence.get("candidate_evidence", [])
+        if isinstance(item, dict)
+    ]
+    return {
+        "version": evidence.get("version"),
+        "candidate_window_sha256": evidence.get("candidate_window_sha256"),
+        "evidence_sha256": evidence.get("evidence_sha256"),
+        "current_interval_count": evidence.get("current_interval_count"),
+        "crash_file_touch_count": evidence.get("crash_file_touch_count"),
+        "rare_checker_file": evidence.get("rare_checker_file"),
+        "rare_checker_touch_threshold": evidence.get("rare_checker_touch_threshold"),
+        "prior_floor": evidence.get("prior_floor"),
+        "dependency_usage_sha256": evidence.get("dependency_usage_sha256"),
+        "dependency_term_count": evidence.get("dependency_term_count"),
+        "candidate_evidence": candidate_evidence,
+    }
+
+
+def update_human_signal_prior_after_verdict(
+    state: dict[str, object],
+    *,
+    predicted_verdict: str,
+    verdict: str,
+) -> tuple[dict[str, object], dict[str, object]]:
+    """Record whether the prior predicted the tested direction and degrade safely."""
+    updated = dict(state)
+    prior_phase = str(updated.get("phase", "prior"))
+    if prior_phase != "prior" or verdict not in {"good", "bad"}:
+        return updated, {
+            "phase_before": prior_phase,
+            "phase_after": prior_phase,
+            "predicted_verdict": predicted_verdict,
+            "verdict": verdict,
+            "contradiction": False,
+            "consecutive_direction_contradictions": int(
+                updated.get("consecutive_direction_contradictions", 0)
+            ),
+        }
+
+    contradiction = predicted_verdict != verdict
+    consecutive = int(updated.get("consecutive_direction_contradictions", 0)) + 1 if contradiction else 0
+    updated["consecutive_direction_contradictions"] = consecutive
+    if consecutive >= HUMAN_SIGNAL_PRIOR_CONTRADICTION_LIMIT:
+        updated["phase"] = "fallback-bcr"
+        updated["fallback_reason"] = "two-prior-direction-contradictions"
+    return updated, {
+        "phase_before": prior_phase,
+        "phase_after": updated.get("phase", prior_phase),
+        "predicted_verdict": predicted_verdict,
+        "verdict": verdict,
+        "contradiction": contradiction,
+        "consecutive_direction_contradictions": consecutive,
+        "fallback_reason": updated.get("fallback_reason"),
+    }
+
+
+def dynamic_human_evidence_selection(
+    records: list[CommitRecord],
+    dynamic_evidence: dict[str, object],
+) -> SelectionDecision:
+    """Select a current-interval weighted probe after causal frontier scoring."""
+    if not records:
+        raise ValueError("dynamic human evidence selection requires records")
+    prior_by_sha = {
+        str(sha): float(score)
+        for sha, score in dict(dynamic_evidence.get("prior_by_sha", {})).items()
+    }
+    ordered = sorted(records, key=lambda record: record.index)
+    weights: list[float] = []
+    model_adjusted: list[str] = []
+    for record in ordered:
+        weight = max(
+            HUMAN_DYNAMIC_EVIDENCE_PRIOR_FLOOR,
+            prior_by_sha.get(record.sha, HUMAN_DYNAMIC_EVIDENCE_PRIOR_FLOOR),
+        )
+        if any(entry == "model-scored" for entry in (record.evidence or [])):
+            weight += HUMAN_DYNAMIC_EVIDENCE_MODEL_BONUS * max(0.0, record.semantic_score - 0.1)
+            model_adjusted.append(record.sha)
+        weights.append(weight)
+    total_weight = sum(weights)
+    cumulative = 0.0
+    for index, (record, weight) in enumerate(zip(ordered, weights)):
+        cumulative += weight / total_weight
+        record.calibrated_suspicion_weight = weight / total_weight
+        record.calibrated_posterior_bad_mass = cumulative
+        record.calibrated_posterior_info_gain = binary_split_info_gain(cumulative)
+        record.selection_score = (
+            record.calibrated_posterior_info_gain
+            * build_success_weight(record.build_success_prob, DEFAULT_BUILD_SUCCESS_POWER)
+        )
+    ranked = sorted(
+        ordered,
+        key=lambda record: (
+            record.selection_score,
+            -abs(record.calibrated_posterior_bad_mass - 0.5),
+            record.build_success_prob,
+            record.calibrated_suspicion_weight,
+            -record.index,
+        ),
+        reverse=True,
+    )
+    return SelectionDecision(
+        selected=ranked[0],
+        ranked_candidates=ranked,
+        search_policy="dynamic-human-evidence",
+        selection_mode="dynamic-human-evidence",
+        metadata={
+            "evidence_sha256": dynamic_evidence.get("evidence_sha256"),
+            "candidate_window_sha256": dynamic_evidence.get("candidate_window_sha256"),
+            "crash_file_touch_count": dynamic_evidence.get("crash_file_touch_count"),
+            "rare_checker_file": dynamic_evidence.get("rare_checker_file"),
+            "model_adjusted_candidate_shas": model_adjusted,
+            "total_dynamic_prior_mass": round(total_weight, 6),
+        },
+    )
+
+
+def human_dependency_anchor_files(
+    repo: Path,
+    profile: IssueProfile,
+    crash_signal_payload: dict[str, object],
+) -> dict[str, list[str]]:
+    """Find high-usage source files that use an assertion-derived API anchor.
+
+    This is intentionally a bounded text analysis at the bad endpoint.  It is
+    provenance for a soft candidate pool, not an AST-backed proof and never a
+    hard exclusion from the fallback interval.
+    """
+    terms = crash_signal_query_terms(crash_signal_payload)
+    preferred_terms = [
+        str(entry.get("term"))
+        for entry in crash_signal_payload.get("query_terms", [])
+        if isinstance(entry, dict) and entry.get("kind") in {"assertion-function", "component-updater", "stack-symbol"}
+    ]
+    ordered_terms = [*preferred_terms, *terms]
+    anchors: dict[str, list[str]] = {}
+    for term in ordered_terms:
+        normalized = str(term or "").strip()
+        if len(compact_alnum(normalized)) < 5 or normalized in anchors:
+            continue
+        try:
+            output = git(
+                repo,
+                "grep",
+                "-l",
+                "-F",
+                normalized,
+                profile.bad_commit,
+                "--",
+                "llvm/lib",
+                "llvm/include",
+            )
+        except subprocess.CalledProcessError:
+            continue
+        paths: list[str] = []
+        for line in output.splitlines():
+            _revision, separator, path = line.partition(":")
+            candidate_path = path if separator else line
+            candidate_path = candidate_path.strip()
+            if not candidate_path or is_test_or_fixture_path(candidate_path):
+                continue
+            paths.append(candidate_path)
+        if not paths:
+            continue
+        counts: list[tuple[int, str]] = []
+        for path in paths:
+            try:
+                source = git(repo, "show", f"{profile.bad_commit}:{path}")
+            except subprocess.CalledProcessError:
+                continue
+            count = source.count(normalized)
+            if count > 0:
+                counts.append((count, path))
+        counts.sort(key=lambda item: (-item[0], item[1]))
+        if not counts:
+            continue
+        limit = min(
+            HUMAN_SIGNAL_POOL_DEPENDENCY_MAX_FILES,
+            max(1, math.ceil(len(counts) * HUMAN_SIGNAL_POOL_DEPENDENCY_TOP_FRACTION)),
+        )
+        anchors[normalized] = [path for _count, path in counts[:limit]]
+    return anchors
+
+
+def human_frontier_anchor_from_payload(
+    profile: IssueProfile,
+    crash_signal_payload: dict[str, object],
+) -> dict[str, str]:
+    """Return the declared retrospective anchor after crash-artifact validation."""
+    if profile.issue_id not in HUMAN_FRONTIER_COHORT:
+        raise ValueError(f"missing human frontier policy for {profile.issue_id}")
+    term = HUMAN_FRONTIER_ANCHOR_POLICY[profile.issue_id]
+    for item in crash_signal_payload.get("query_terms", []):
+        if isinstance(item, dict) and str(item.get("term") or "") == term:
+            return {"term": term, "kind": str(item.get("kind") or "unknown")}
+        if isinstance(item, str) and item == term:
+            return {"term": term, "kind": "unknown"}
+    raise ValueError(
+        f"human frontier anchor {term!r} is absent from {profile.issue_id} crash artifact"
+    )
+
+
+def human_frontier_dependency_paths(
+    repo: Path,
+    profile: IssueProfile,
+    anchor: dict[str, str],
+) -> dict[str, object]:
+    """Rank bad-endpoint source users of one crash-derived anchor.
+
+    This deliberately mirrors the human study's top-20-percent dependency
+    stage. It only uses the bad endpoint and the declared crash artifact
+    anchor; no interval commits or validated boundary participate here.
+    """
+    term = str(anchor.get("term") or "").strip()
+    if len(compact_alnum(term)) < 5:
+        raise ValueError("human frontier anchor must contain at least five alphanumeric characters")
+    # Mirror `dep-analysis.js`: recursively count matching lines in the
+    # checked bad endpoint, first under llvm/lib and then llvm/include. This
+    # preserves its source scope and stable tie ordering at the top-20 cutoff.
+    usage: list[tuple[int, str]] = []
+    for scope in ("llvm/lib", "llvm/include"):
+        try:
+            output = git(
+                repo,
+                "grep",
+                "-c",
+                "-F",
+                term,
+                profile.bad_commit,
+                "--",
+                scope,
+            )
+        except subprocess.CalledProcessError:
+            continue
+        for line in output.splitlines():
+            _revision, separator, remainder = line.partition(":")
+            if not separator:
+                continue
+            path, separator, count_text = remainder.rpartition(":")
+            if not separator:
+                continue
+            path = path.strip()
+            if Path(path).suffix not in {".cpp", ".h"} or is_test_or_fixture_path(path):
+                continue
+            try:
+                count = int(count_text.strip())
+            except ValueError:
+                continue
+            if count > 0:
+                usage.append((count, path))
+    # `dep-analysis.js` uses a stable descending count sort; retain its
+    # original traversal order for ties so the top-20-percent boundary agrees.
+    usage.sort(key=lambda item: -item[0])
+    selected_count = max(1, math.ceil(len(usage) * HUMAN_FRONTIER_DEPENDENCY_TOP_FRACTION)) if usage else 0
+    selected = usage[:selected_count]
+    return {
+        "anchor": dict(anchor),
+        "scope": ["llvm/lib", "llvm/include"],
+        "source_suffixes": [".cpp", ".h"],
+        "top_fraction": HUMAN_FRONTIER_DEPENDENCY_TOP_FRACTION,
+        "usage_file_count": len(usage),
+        "selected_file_count": len(selected),
+        "selected_paths": [path for _count, path in selected],
+        "usage": [{"path": path, "uses": count} for count, path in usage],
+    }
+
+
+def human_frontier_crash_reasons(
+    metadata: CommitMetadata,
+    crash_signal_payload: dict[str, object],
+) -> list[str]:
+    """Apply the human study's source/path crash-signal matching rules."""
+    source_files = [path for path in metadata.changed_files if not is_test_or_fixture_path(path)]
+    reasons: list[str] = []
+    source_paths = [str(path).replace("\\", "/") for path in crash_signal_payload.get("source_paths", [])]
+    if any(path in source_paths for path in source_files):
+        reasons.append("crash-source-file")
+    for symbol in [str(value) for value in crash_signal_payload.get("symbols", [])]:
+        if any(human_study_symbol_matches_path(symbol, path) for path in source_files):
+            reasons.append("crash-symbol")
+            break
+    for token in [str(value) for value in crash_signal_payload.get("pass_tokens", [])]:
+        if any(human_study_pass_matches_path(token, path) for path in source_files):
+            reasons.append("crash-pass")
+            break
+    return reasons
+
+
+def human_frontier_lexical_reasons(
+    profile: IssueProfile,
+    metadata: CommitMetadata,
+) -> list[str]:
+    """Mirror the study's subject/path first-stage evidence without reading diffs."""
+    source_files = [path for path in metadata.changed_files if not is_test_or_fixture_path(path)]
+    subject = f"{metadata.subject} {metadata.body}".lower()
+    reasons: list[str] = []
+    if any(keyword.lower() in subject for keyword in profile.keywords if len(keyword) > 3):
+        reasons.append("keyword")
+    if any(path_matches(path, profile.relevant_paths) for path in source_files):
+        reasons.append("relevant-path")
+    if any(path_matches(path, profile.high_risk_paths) for path in source_files):
+        reasons.append("high-risk-path")
+    return reasons
+
+
+def build_human_frontier_pool(
+    profile: IssueProfile,
+    candidate_shas: list[str],
+    metadata_by_sha: dict[str, CommitMetadata],
+    crash_signal_payload: dict[str, object],
+    *,
+    anchor: dict[str, str],
+    dependency_paths: list[str],
+) -> dict[str, object]:
+    """Rebuild the human study's three-stage compact retrieval tier.
+
+    The returned tier is an initial proof frontier. It must never become a
+    permanent hard filter: the online runner falls back to full-interval BCR
+    if causal proof of a frontier candidate fails.
+    """
+    if profile.issue_id not in HUMAN_FRONTIER_COHORT:
+        raise ValueError(
+            "human frontier is restricted to the retrospective five-case cohort: "
+            + ", ".join(sorted(HUMAN_FRONTIER_COHORT))
+        )
+    dependency_set = set(dependency_paths)
+    t1: list[str] = []
+    t2: list[str] = []
+    t3: list[str] = []
+    candidates: list[dict[str, object]] = []
+    crash_signal_count = 0
+    for index, sha in enumerate(candidate_shas):
+        metadata = metadata_by_sha.get(sha)
+        if metadata is None:
+            raise RuntimeError(f"missing metadata for human frontier candidate {sha}")
+        lexical_reasons = human_frontier_lexical_reasons(profile, metadata)
+        crash_reasons = human_frontier_crash_reasons(metadata, crash_signal_payload)
+        dependency_hit = any(
+            path in dependency_set
+            for path in metadata.changed_files
+            if not is_test_or_fixture_path(path)
+        )
+        if lexical_reasons:
+            t1.append(sha)
+        if crash_reasons:
+            crash_signal_count += 1
+        candidates.append(
+            {
+                "sha": sha,
+                "index": index + 1,
+                "subject": metadata.subject,
+                "changed_files": metadata.changed_files,
+                "lexical_reasons": lexical_reasons,
+                "crash_reasons": crash_reasons,
+                "dependency_hit": dependency_hit,
+            }
+        )
+
+    crash_signal_applied = crash_signal_count > 0
+    candidate_by_sha = {str(candidate["sha"]): candidate for candidate in candidates}
+    for sha in t1:
+        candidate = candidate_by_sha[sha]
+        if not crash_signal_applied or candidate["crash_reasons"]:
+            t2.append(sha)
+    for sha in t2:
+        candidate = candidate_by_sha[sha]
+        if candidate["dependency_hit"]:
+            t3.append(sha)
+
+    frontier_candidates: list[dict[str, object]] = []
+    for sha in t3:
+        candidate = candidate_by_sha[sha]
+        reasons = [
+            *[str(reason) for reason in candidate["lexical_reasons"]],
+            *[str(reason) for reason in candidate["crash_reasons"]],
+            "dependency-path",
+        ]
+        frontier_candidates.append(
+            {
+                "sha": sha,
+                "index": candidate["index"],
+                "subject": candidate["subject"],
+                "changed_files": candidate["changed_files"],
+                "match_reasons": reasons,
+                "prior_score": float(len(reasons)),
+            }
+        )
+    return {
+        "cohort": "retrospective-human-staged-frontier-five",
+        "full_interval_count": len(candidate_shas),
+        "anchor": dict(anchor),
+        "dependency_paths": list(dependency_paths),
+        "tiers": {
+            "t1": {"label": "lexical", "count": len(t1), "candidate_shas": t1},
+            "t2": {
+                "label": "lexical-and-crash-signal",
+                "count": len(t2),
+                "candidate_shas": t2,
+                "crash_signal_applied": crash_signal_applied,
+            },
+            "t3": {
+                "label": "lexical-crash-dependency-intersection",
+                "count": len(t3),
+                "candidate_shas": t3,
+            },
+        },
+        "candidate_count_before_limit": len(frontier_candidates),
+        "candidate_count": len(frontier_candidates),
+        "candidate_shas": t3,
+        "candidates": frontier_candidates,
+        "fallback_contract": "full-interval-bcr-on-empty-frontier-or-failed-direct-proof",
+    }
+
+
+def human_signal_pool_transition(
+    unresolved: list[str],
+    *,
+    selected_sha: str,
+    verdict: str,
+    phase: str,
+    candidate_sha: str | None = None,
+) -> dict[str, object]:
+    """Advance direct-candidate proof without treating the pool as a safe filter."""
+    if selected_sha not in unresolved:
+        raise ValueError("human signal pool selected SHA is outside the unresolved interval")
+    if phase == "direct-candidate":
+        if verdict == "bad":
+            selected_index = unresolved.index(selected_sha)
+            if selected_index == 0:
+                return {
+                    "phase": "resolved",
+                    "unresolved": [selected_sha],
+                    "direct_proof": {"candidate_sha": selected_sha, "verdict": verdict, "parent": "good-endpoint"},
+                }
+            return {
+                "phase": "parent-proof",
+                "unresolved": unresolved[: selected_index + 1],
+                "pending_candidate_sha": selected_sha,
+            }
+        return {
+            "phase": "fallback",
+            "unresolved": partition_interval(unresolved, selected_sha, verdict),
+            "fallback_reason": f"direct-candidate-not-bad:{verdict}",
+        }
+    if phase == "parent-proof":
+        if candidate_sha is None:
+            raise ValueError("human signal pool parent proof requires candidate_sha")
+        candidate_index = unresolved.index(candidate_sha)
+        if candidate_index == 0:
+            raise ValueError("human signal pool candidate has no in-range predecessor")
+        expected_parent = unresolved[candidate_index - 1]
+        if selected_sha != expected_parent:
+            raise ValueError("human signal pool parent proof selected a non-immediate predecessor")
+        if verdict == "good":
+            return {
+                "phase": "resolved",
+                "unresolved": [candidate_sha],
+                "direct_proof": {
+                    "candidate_sha": candidate_sha,
+                    "candidate_verdict": "bad",
+                    "parent_sha": selected_sha,
+                    "parent_verdict": verdict,
+                },
+            }
+        return {
+            "phase": "fallback",
+            "unresolved": partition_interval(unresolved, selected_sha, verdict),
+            "fallback_reason": f"parent-proof-not-good:{verdict}",
+        }
+    raise ValueError(f"unsupported human signal pool phase: {phase}")
+
+
+def human_frontier_transition(
+    unresolved: list[str],
+    *,
+    selected_sha: str,
+    verdict: str,
+    phase: str,
+    frontier_shas: list[str],
+    tested_frontier_shas: list[str],
+    candidate_sha: str | None = None,
+) -> dict[str, object]:
+    """Advance staged-frontier search while preserving a safe fallback."""
+    if selected_sha not in unresolved:
+        raise ValueError("human frontier selected SHA is outside the unresolved interval")
+    if phase == "search":
+        next_unresolved = partition_interval(unresolved, selected_sha, verdict)
+        next_frontier = [sha for sha in frontier_shas if sha in next_unresolved]
+        next_tested = list(tested_frontier_shas)
+        append_unique(next_tested, selected_sha)
+        if verdict == "bad":
+            selected_index = unresolved.index(selected_sha)
+            if selected_index == 0:
+                return {
+                    "phase": "resolved",
+                    "unresolved": [selected_sha],
+                    "frontier_shas": [selected_sha],
+                    "tested_frontier_shas": next_tested,
+                    "direct_proof": {
+                        "candidate_sha": selected_sha,
+                        "candidate_verdict": "bad",
+                        "parent": "good-endpoint",
+                    },
+                }
+            return {
+                "phase": "parent-proof",
+                "unresolved": next_unresolved,
+                "frontier_shas": next_frontier,
+                "tested_frontier_shas": next_tested,
+                "pending_candidate_sha": selected_sha,
+            }
+        if not next_frontier:
+            return {
+                "phase": "fallback",
+                "unresolved": next_unresolved,
+                "frontier_shas": next_frontier,
+                "tested_frontier_shas": next_tested,
+                "fallback_reason": "human-frontier-exhausted",
+            }
+        return {
+            "phase": "search",
+            "unresolved": next_unresolved,
+            "frontier_shas": next_frontier,
+            "tested_frontier_shas": next_tested,
+        }
+    if phase == "parent-proof":
+        if candidate_sha is None:
+            raise ValueError("human frontier parent proof requires candidate_sha")
+        candidate_index = unresolved.index(candidate_sha)
+        if candidate_index == 0:
+            raise ValueError("human frontier candidate has no in-range predecessor")
+        if selected_sha != unresolved[candidate_index - 1]:
+            raise ValueError("human frontier parent proof selected a non-immediate predecessor")
+        if verdict == "good":
+            return {
+                "phase": "resolved",
+                "unresolved": [candidate_sha],
+                "frontier_shas": [candidate_sha],
+                "tested_frontier_shas": list(tested_frontier_shas),
+                "direct_proof": {
+                    "candidate_sha": candidate_sha,
+                    "candidate_verdict": "bad",
+                    "parent_sha": selected_sha,
+                    "parent_verdict": verdict,
+                },
+            }
+        return {
+            "phase": "fallback",
+            "unresolved": partition_interval(unresolved, selected_sha, verdict),
+            "frontier_shas": [],
+            "tested_frontier_shas": list(tested_frontier_shas),
+            "fallback_reason": f"human-frontier-parent-proof-not-good:{verdict}",
+        }
+    raise ValueError(f"unsupported human frontier phase: {phase}")
 
 
 def append_unique(items: list[str], value: str) -> None:
@@ -1467,7 +3368,14 @@ def score_semantics_v1(profile: IssueProfile, subject: str, body: str, files: li
     return score, evidence
 
 
-def score_semantics_tuned(profile: IssueProfile, subject: str, body: str, files: list[str], diff: str) -> tuple[float, list[str]]:
+def score_semantics_tuned(
+    profile: IssueProfile,
+    subject: str,
+    body: str,
+    files: list[str],
+    diff: str,
+    heuristic_ablation: str = "none",
+) -> tuple[float, list[str]]:
     evidence: list[str] = []
     text = " ".join([subject, body, diff]).lower()
     tokens = set(tokenize(text))
@@ -1475,7 +3383,8 @@ def score_semantics_tuned(profile: IssueProfile, subject: str, body: str, files:
     score = 0.05
 
     keyword_hits = 0
-    for keyword in profile.keywords:
+    keywords = [] if heuristic_ablation == "keywords" else profile.keywords
+    for keyword in keywords:
         normalized_keyword = normalize_token(keyword)
         if not normalized_keyword:
             continue
@@ -1494,24 +3403,29 @@ def score_semantics_tuned(profile: IssueProfile, subject: str, body: str, files:
         score += min(4.5, 0.60 * keyword_hits)
         evidence.append(f"{keyword_hits} keyword hits")
 
-    relevant_file_hits = [path for path in files if path_matches(path, profile.relevant_paths)]
+    relevant_paths = [] if heuristic_ablation == "relevant-paths" else profile.relevant_paths
+    relevant_file_hits = [path for path in files if path_matches(path, relevant_paths)]
     if relevant_file_hits:
         score += min(4.0, 1.2 * len(relevant_file_hits))
         evidence.append(f"relevant paths: {', '.join(relevant_file_hits[:3])}")
 
-    high_risk_hits = [path for path in files if path_matches(path, profile.high_risk_paths)]
+    high_risk_paths = [] if heuristic_ablation == "high-risk-paths" else profile.high_risk_paths
+    high_risk_hits = [path for path in files if path_matches(path, high_risk_paths)]
     if high_risk_hits:
         score += min(2.0, 0.5 * len(high_risk_hits))
         evidence.append(f"high-risk paths touched: {len(high_risk_hits)}")
 
     risky_hits = 0
-    for word in RISKY_WORDS:
-        if word in text:
-            risky_hits += 1
+    if heuristic_ablation != "risky-words":
+        for word in RISKY_WORDS:
+            if word in text:
+                risky_hits += 1
     if risky_hits:
         score += min(1.5, 0.2 * risky_hits)
         evidence.append(f"risky words: {risky_hits}")
 
+    if heuristic_ablation != "none":
+        evidence.append(f"heuristic ablation: {heuristic_ablation} disabled")
     if not evidence:
         evidence.append("no strong semantic matches")
 
@@ -1590,6 +3504,40 @@ def score_semantics_oracle_major_tuned(
     return score, evidence
 
 
+def oracle_patch_fingerprint_matches(profile: IssueProfile, files: list[str], diff: str) -> tuple[int, int]:
+    """Return exact-file and changed-line matches against the leaked first-bad fingerprint."""
+    target_files = set(profile.oracle_patch_changed_files or [])
+    file_hits = sum(1 for path in files if path in target_files)
+    normalized_diff = normalized_patch_line(diff)
+    anchor_hits = sum(
+        1
+        for anchor in profile.oracle_patch_anchors or []
+        if normalized_patch_line(anchor) and normalized_patch_line(anchor) in normalized_diff
+    )
+    return file_hits, anchor_hits
+
+
+def score_semantics_oracle_major_tuned_patch(
+    profile: IssueProfile,
+    subject: str,
+    body: str,
+    files: list[str],
+    diff: str,
+) -> tuple[float, list[str]]:
+    """Add an exact answer-derived patch fingerprint to the diagnostic score.
+
+    This deliberately leaks more information than keyword-only controls. It is
+    an upper-bound probe of whether the selector can exploit exact source
+    evidence, never a benchmark method.
+    """
+    score, evidence = score_semantics_oracle_major_tuned(profile, subject, body, files, diff)
+    file_hits, anchor_hits = oracle_patch_fingerprint_matches(profile, files, diff)
+    if file_hits or anchor_hits:
+        score += ORACLE_PATCH_MATCH_BONUS * (file_hits + anchor_hits)
+        evidence.append(f"oracle-patch fingerprint: {file_hits} files, {anchor_hits} changed lines")
+    return score, evidence
+
+
 def score_semantics(
     profile: IssueProfile,
     subject: str,
@@ -1597,15 +3545,31 @@ def score_semantics(
     files: list[str],
     diff: str,
     heuristic_version: str = "tuned",
+    heuristic_ablation: str = "none",
 ) -> tuple[float, list[str]]:
+    if heuristic_ablation not in HEURISTIC_ABLATION_FACTORS:
+        raise ValueError(f"unsupported heuristic ablation factor: {heuristic_ablation}")
     if heuristic_version == "v1":
+        if heuristic_ablation != "none":
+            raise ValueError("heuristic ablation requires heuristic version tuned")
         return score_semantics_v1(profile, subject, body, files, diff)
     if heuristic_version == "tuned":
-        return score_semantics_tuned(profile, subject, body, files, diff)
+        return score_semantics_tuned(
+            profile,
+            subject,
+            body,
+            files,
+            diff,
+            heuristic_ablation=heuristic_ablation,
+        )
     if heuristic_version == "neutral":
+        if heuristic_ablation != "none":
+            raise ValueError("heuristic ablation requires heuristic version tuned")
         # This control intentionally provides no semantic ranking signal.
         return 0.05, ["neutral heuristic: no semantic guidance"]
     if heuristic_version in {"general", "none"}:
+        if heuristic_ablation != "none":
+            raise ValueError("heuristic ablation requires heuristic version tuned")
         return score_semantics_tuned(
             replace(profile, keywords=effective_heuristic_keywords(profile, heuristic_version)),
             subject,
@@ -1614,15 +3578,24 @@ def score_semantics(
             diff,
         )
     if heuristic_version == "oracle-first-bad":
+        if heuristic_ablation != "none":
+            raise ValueError("heuristic ablation requires heuristic version tuned")
         # The selection profile already contains the explicitly derived terms.
         return score_semantics_tuned(profile, subject, body, files, diff)
     if heuristic_version == "oracle-first-bad-major":
+        if heuristic_ablation != "none":
+            raise ValueError("heuristic ablation requires heuristic version tuned")
         return score_semantics_oracle_major(profile, subject, body, files, diff)
     if heuristic_version in {
         "oracle-first-bad-major-tuned",
         "oracle-first-bad-major-tuned-semantic",
+        "oracle-first-bad-major-tuned-patch",
         "oracle-first-bad-major-tuned-anchor",
     }:
+        if heuristic_ablation != "none":
+            raise ValueError("heuristic ablation requires heuristic version tuned")
+        if heuristic_version == "oracle-first-bad-major-tuned-patch":
+            return score_semantics_oracle_major_tuned_patch(profile, subject, body, files, diff)
         return score_semantics_oracle_major_tuned(profile, subject, body, files, diff)
     raise ValueError(f"unsupported heuristic version: {heuristic_version}")
 
@@ -1656,6 +3629,7 @@ def heuristic_selection_profile(
     if heuristic_version in {
         "oracle-first-bad-major-tuned",
         "oracle-first-bad-major-tuned-semantic",
+        "oracle-first-bad-major-tuned-patch",
         "oracle-first-bad-major-tuned-anchor",
     }:
         if oracle_keywords is None:
@@ -1664,12 +3638,40 @@ def heuristic_selection_profile(
     return profile
 
 
+def heuristic_ablation_profile(profile: IssueProfile, factor: str) -> IssueProfile:
+    """Return the effective profile for a single-factor heuristic ablation."""
+    if factor not in HEURISTIC_ABLATION_FACTORS:
+        raise ValueError(f"unsupported heuristic ablation factor: {factor}")
+    if factor == "keywords":
+        return replace(profile, keywords=[])
+    if factor == "relevant-paths":
+        return replace(profile, relevant_paths=[])
+    if factor == "high-risk-paths":
+        return replace(profile, high_risk_paths=[])
+    return profile
+
+
+def heuristic_ablation_disables_feedback(factor: str) -> bool:
+    if factor not in HEURISTIC_ABLATION_FACTORS:
+        raise ValueError(f"unsupported heuristic ablation factor: {factor}")
+    return factor == "feedback"
+
+
+def heuristic_ablation_from_args(args: argparse.Namespace) -> str:
+    """Normalize optional parser fields for direct and mocked command callers."""
+    value = getattr(args, "heuristic_ablation", "none")
+    if not isinstance(value, str) or value not in HEURISTIC_ABLATION_FACTORS:
+        return "none"
+    return value
+
+
 def oracle_first_bad_sha_from_args(repo: Path, args: argparse.Namespace) -> str | None:
     if getattr(args, "heuristic_version", "tuned") not in {
         "oracle-first-bad",
         "oracle-first-bad-major",
         "oracle-first-bad-major-tuned",
         "oracle-first-bad-major-tuned-semantic",
+        "oracle-first-bad-major-tuned-patch",
         "oracle-first-bad-major-tuned-anchor",
     }:
         return None
@@ -1690,6 +3692,7 @@ def resolved_heuristic_selection_profile(
         "oracle-first-bad-major",
         "oracle-first-bad-major-tuned",
         "oracle-first-bad-major-tuned-semantic",
+        "oracle-first-bad-major-tuned-patch",
         "oracle-first-bad-major-tuned-anchor",
     }:
         return heuristic_selection_profile(profile, heuristic_version), None
@@ -1699,10 +3702,29 @@ def resolved_heuristic_selection_profile(
     keywords = [str(keyword) for keyword in derivation["keywords"]]
     if not keywords:
         raise ValueError(f"oracle-first-bad derivation produced no keywords for {oracle_first_bad_sha}")
-    return heuristic_selection_profile(profile, heuristic_version, keywords), derivation
+    selection_profile = heuristic_selection_profile(profile, heuristic_version, keywords)
+    if is_oracle_patch_semantic_version(heuristic_version):
+        selection_profile = replace(
+            selection_profile,
+            oracle_patch_changed_files=[str(path) for path in derivation["changed_files"]],
+            oracle_patch_anchors=[str(anchor) for anchor in derivation.get("patch_anchors", [])],
+        )
+        if not selection_profile.oracle_patch_changed_files:
+            raise ValueError(f"oracle patch derivation produced no changed files for {oracle_first_bad_sha}")
+    return selection_profile, derivation
 
 
-def score_build_probability(subject: str, body: str, files: list[str], diff: str) -> tuple[float, list[str]]:
+def score_build_probability(
+    subject: str,
+    body: str,
+    files: list[str],
+    diff: str,
+    heuristic_ablation: str = "none",
+) -> tuple[float, list[str]]:
+    if heuristic_ablation not in HEURISTIC_ABLATION_FACTORS:
+        raise ValueError(f"unsupported heuristic ablation factor: {heuristic_ablation}")
+    if heuristic_ablation == "buildability":
+        return 1.0, ["heuristic ablation: buildability disabled"]
     evidence: list[str] = []
     score = 0.92
     lowered_text = " ".join([subject, body, diff]).lower()
@@ -2021,12 +4043,178 @@ Scoring guidance:
 - Treat the candidate as high first-bad risk when it introduces, enables, or rewires the specific mechanism in the report, such as token collection, constexpr evaluation, module/PCH serialization, codegen debug info, AST matching, loop/vector analysis, or target lowering.
 - Treat a build-skip candidate as semantically high risk only when the build error itself points to the changed file/function/component and that failure is plausibly the regression mechanism; otherwise it is mainly build risk.
 - Treat the candidate as lower first-bad risk when it only shares a broad subsystem, path prefix, or keyword with the issue but the diff mechanism does not explain the observed crash.
+- If a causal summary includes dynamic interval evidence, it is a soft prior rather than proof. A rare-checker-file
+  penalty means a checker-only touch should score below a change with independent producer/API-use/stack/pass or
+  mechanism evidence, unless the diff itself establishes that the checker change creates the invalid state.
 - Treat NFC, formatting, documentation, test-only, release, version-bump, and unrelated build-system commits as low semantic risk unless the observed failure is specifically in that build/test/configuration path.
 - semantic_score should be highest for commits that most directly match the reported bug mechanism, stack trace terms, relevant paths, or likely faulty optimization logic.
 - Lower the score when a commit only touches the same subsystem but does not strongly match the actual failure mechanism.
 - build_success_prob should be lower when the commit looks likely to fail build or be unstable to test.
 - features should be normalized reusable hints for later similarity matching.
 - Prefer substantive mechanisms over superficial keyword overlap.
+Only output JSON.
+""".strip()
+
+
+def build_deterministic_facts_ranking_prompt(
+    profile: IssueProfile,
+    items: list[dict],
+) -> str:
+    """Ask the model for an ordinal causal judgment over deterministic facts.
+
+    V15 deliberately keeps probability calibration and buildability in code.
+    The model sees only crash-derived facts and selected source hunks, then
+    ranks candidates by whether their visible change can break the contract.
+    """
+    if not items:
+        raise ValueError("deterministic-facts ranking requires at least one candidate")
+
+    blocks: list[str] = []
+    for item in items:
+        retrieval = item.get("causal_retrieval")
+        retrieval = retrieval if isinstance(retrieval, dict) else {}
+        hunk_blocks = []
+        for hunk in retrieval.get("selected_hunks", []):
+            if not isinstance(hunk, dict):
+                continue
+            hunk_blocks.append(
+                "\n".join(
+                    [
+                        f"File: {hunk.get('path', '')}",
+                        f"Hunk: {hunk.get('header', '')}",
+                        "Retrieval contact: "
+                        + ", ".join(hunk.get("match_reasons", []))
+                        + "\nPatch:\n"
+                        + str(hunk.get("patch", "") or "<empty>"),
+                    ]
+                )
+            )
+        contract_blocks = []
+        for context in retrieval.get("contract_contexts", []):
+            if not isinstance(context, dict):
+                continue
+            contract_blocks.append(
+                "\n".join(
+                    [
+                        f"Contract file: {context.get('path', '')}",
+                        f"Contract function: {context.get('symbol', '')}",
+                        f"Contract source:\n{context.get('context', '')}",
+                    ]
+                )
+            )
+        facts = retrieval.get("repository_facts")
+        facts = facts if isinstance(facts, dict) else {}
+        blocks.append(
+            "\n".join(
+                [
+                    "Candidate:",
+                    f"- sha: {item.get('sha', '')}",
+                    f"- subject: {item.get('subject', '')}",
+                    "- changed files: " + ", ".join(str(path) for path in item.get("files", [])),
+                    "Structured crash evidence:\n"
+                    + json.dumps(retrieval.get("crash_signals", {}), sort_keys=True),
+                    "Repository facts:\n" + json.dumps(facts, sort_keys=True),
+                    "Selected real hunks:\n" + ("\n\n".join(hunk_blocks) or "<no anchor-contact hunk>"),
+                    "Invariant contract context:\n"
+                    + ("\n\n".join(contract_blocks) or "<not available>"),
+                ]
+            )
+        )
+
+    return f"""
+You rank LLVM bug-bisect candidates using deterministic repository facts and
+selected real parent-diff hunks. The crash evidence is step-zero evidence and
+takes precedence over conflicting issue prose. It identifies the observed
+checker; do not assume the crash file is the producer. A rare checker fact is
+negative evidence for checker-only touches. A missing contact path is evidence
+that the shown patch has no visible bridge to the crash contract.
+
+Judge only whether each candidate's own visible patch can cause the observed
+failure. Do not invent a call path, do not choose a bisect probe, and do not
+return probabilities or absolute scores. Prefer an upstream producer that
+violates the assertion contract over a downstream checker that merely detects
+invalid state.
+
+Issue:
+- id: {profile.issue_id}
+- title: {profile.title}
+- summary: {profile.bug_report_summary}
+
+Candidates:
+
+{chr(10).join(blocks)}
+
+Return strict JSON as an array, one object for every candidate:
+[
+  {{
+    "sha": "<commit sha>",
+    "rank": 1,
+    "mechanism": "invariant-break|precondition-violation|unrelated|unknown",
+    "explains_failure": true,
+    "confidence": 0.0,
+    "evidence": ["short references to visible hunk and repository facts"]
+  }}
+]
+Rank 1 is the strongest causal explanation. Use every SHA exactly once.
+Only output JSON.
+""".strip()
+
+
+def build_human_signal_pool_triage_prompt(
+    profile: IssueProfile,
+    crash_signal_payload: dict[str, object],
+    candidates: list[dict[str, object]],
+    *,
+    max_candidates: int = HUMAN_SIGNAL_POOL_DIRECT_CANDIDATE_COUNT,
+) -> str:
+    """Rank a pre-bisect crash-signal pool before expensive diff retrieval."""
+    candidate_blocks = []
+    for candidate in candidates:
+        candidate_blocks.append(
+            "\n".join(
+                [
+                    f"Commit SHA: {candidate.get('sha', '')}",
+                    f"Subject: {candidate.get('subject', '')}",
+                    "Changed files: " + ", ".join(candidate.get("changed_files", [])[:12]),
+                    "Signal provenance: " + ", ".join(candidate.get("match_reasons", [])),
+                    f"Static prior score: {float(candidate.get('prior_score', 0.0)):.2f}",
+                ]
+            )
+        )
+    return f"""
+You are triaging a retrospectively selected, crash-signal candidate pool for an
+LLVM first-bad-commit study. This is not a universal candidate filter: the
+runtime will fall back to the full interval if direct candidate proof fails.
+
+Task:
+- Return at most {max_candidates} candidates, ranked by whether their changed component could
+  causally produce the crash contract, not by generic keyword overlap.
+- Treat a rare checker-file touch as negative evidence unless the candidate
+  also has an independent producer/pass/symbol signal.
+- Do not invent diff details: only subject, changed paths, and provenance are
+  available at this stage.
+
+Issue:
+- id: {profile.issue_id}
+- title: {profile.title}
+- summary: {profile.bug_report_summary}
+
+Crash contract:
+{json.dumps(crash_signal_payload, sort_keys=True)}
+
+Candidates:
+
+{chr(10).join(candidate_blocks)}
+
+Return strict JSON as an array containing only the at-most-{max_candidates} selected candidates:
+[
+  {{
+    "sha": "<commit sha>",
+    "triage_score": <float from 0.0 to 1.0>,
+    "evidence": ["short evidence-grounded reason"],
+    "mechanism": "short proposed causal mechanism or insufficient evidence"
+  }}
+]
 Only output JSON.
 """.strip()
 
@@ -2322,6 +4510,10 @@ def causal_retrieval_prompt_block(retrieval: dict[str, object]) -> str:
                 [
                     f"File: {hunk.get('path', '')}",
                     f"Source kind: {hunk.get('source_kind', 'implementation')}",
+                    "Evidence commit: "
+                    f"{hunk.get('source_sha', '<candidate>')} "
+                    f"(first-parent distance {hunk.get('source_distance', 0)})",
+                    f"Evidence subject: {hunk.get('source_subject', '<candidate change>')}",
                     f"Retrieval reasons: {', '.join(hunk.get('match_reasons', [])) or '<fallback coverage>'}",
                     f"Visible symbols: {', '.join(hunk.get('symbols', [])) or '<none>'}",
                     f"Patch:\n{hunk.get('patch', '') or '<empty>'}",
@@ -2333,15 +4525,50 @@ def causal_retrieval_prompt_block(retrieval: dict[str, object]) -> str:
             [
                 f"File: {context.get('path', '')}",
                 f"Symbol: {context.get('symbol', '')}",
+                "Evidence commit: "
+                f"{context.get('source_sha', '<candidate>')} "
+                f"(first-parent distance {context.get('source_distance', 0)})",
                 f"Context:\n{context.get('context', '')}",
             ]
         )
         for context in retrieval.get("function_contexts", [])
     ]
+    contract_blocks = [
+        "\n".join(
+            [
+                f"File: {context.get('path', '')}",
+                f"Symbol: {context.get('symbol', '')}",
+                f"Endpoint: {context.get('source_sha', '<bad endpoint>')}",
+                f"Contract context:\n{context.get('context', '')}",
+            ]
+        )
+        for context in retrieval.get("contract_contexts", [])
+    ]
+    dynamic_interval_evidence = retrieval.get("dynamic_interval_evidence") or {}
+    dynamic_evidence_block = "<not enabled>"
+    if dynamic_interval_evidence:
+        dynamic_evidence_block = json.dumps(dynamic_interval_evidence, sort_keys=True)
     return "\n\n".join(
         [
+            "Step-zero crash signals:\n"
+            + json.dumps(retrieval.get("crash_signals", {}), sort_keys=True),
+            "Crash-signal reachability: "
+            + str(retrieval.get("signal_reachability", "not-evaluated"))
+            + (f" ({retrieval.get('negative_evidence')})" if retrieval.get("negative_evidence") else ""),
+            "Current-interval evidence (ranking provenance, not causal proof):\n"
+            + dynamic_evidence_block,
             "Retrieved hunks:\n" + ("\n\n".join(hunk_blocks) or "<none>"),
             "Function context:\n" + ("\n\n".join(context_blocks) or "<none available>"),
+            "Assertion contract context (bad endpoint):\n"
+            + ("\n\n".join(contract_blocks) or "<none available>"),
+            "Crash-aware retrieval metadata:\n"
+            + json.dumps(
+                {
+                    "crash_file_touch_count": retrieval.get("crash_file_touch_count"),
+                    "dependency_usage": retrieval.get("dependency_usage", {}),
+                },
+                sort_keys=True,
+            ),
             "Coverage: "
             f"selected_files={len(retrieval.get('selected_files', []))}, "
             f"selected_hunks={len(retrieval.get('selected_hunks', []))}, "
@@ -2349,6 +4576,8 @@ def causal_retrieval_prompt_block(retrieval: dict[str, object]) -> str:
             f"raw_diff_chars={retrieval.get('raw_diff_chars', 0)}, "
             f"raw_diff_truncated={str(bool(retrieval.get('raw_diff_truncated'))).lower()}",
             f"retrieval_policy={retrieval.get('retrieval_policy', 'balanced')}, "
+            "context_parent_count="
+            f"{retrieval.get('context_parent_count_observed', 0)}, "
             f"test_fallback_used={str(bool(retrieval.get('test_fallback_used'))).lower()}",
         ]
     )
@@ -2364,7 +4593,14 @@ Task:
 - Identify the changed symbols and behavioral or mechanism change.
 - Explicitly link the change to the issue assertion, stack trace, reproducer, pass, or subsystem when evidence supports it.
 - State confidence from 0.0 to 1.0. Low confidence is valid when the retrieved evidence is insufficient.
+- Treat current-interval evidence as a soft ranking prior, never proof that a candidate is the first bad commit.
+  If it marks the crash-site file as a rare checker, prefer independent producer, API-use, stack, pass, or
+  mechanism evidence over a checker-only touch.
+- Distinguish a change that creates invalid state from one that merely propagates or detects it later.
 - Do not choose the next bisect commit and do not infer facts absent from the retrieved evidence.
+- Hunks at first-parent distance 0 are the candidate's own change. Older hunks
+  are context only: use them to explain enabling mechanisms or prior state, but
+  do not attribute their change directly to the candidate.
 
 Issue context:
 - id: {profile.issue_id}
@@ -2416,7 +4652,9 @@ You are producing structured causal evidence for LLVM bug-bisect candidates.
 
 For each candidate, analyze only the retrieved hunks and function context. State
 changed symbols, behavioral change, an evidence-backed link to the issue, and a
-0.0-to-1.0 confidence. Do not choose the next commit or invent unavailable facts.
+0.0-to-1.0 confidence. Hunks at first-parent distance 0 belong to the
+candidate; older hunks are context only and must not be attributed as a new
+candidate change. Do not choose the next commit or invent unavailable facts.
 
 Issue context:
 - id: {profile.issue_id}
@@ -2572,6 +4810,19 @@ def format_causal_diff_evidence(payload: dict[str, object]) -> str:
     fields.append(f"Causal confidence: {float(payload.get('confidence', 0.0)):.2f}")
     if payload.get("build_risk"):
         fields.append("Build risk: " + "; ".join(payload["build_risk"]))
+    retrieval = payload.get("retrieval")
+    if isinstance(retrieval, dict):
+        dynamic_evidence = retrieval.get("dynamic_interval_evidence")
+        if isinstance(dynamic_evidence, dict):
+            candidate = dynamic_evidence.get("candidate")
+            candidate = candidate if isinstance(candidate, dict) else {}
+            reasons = [str(reason) for reason in candidate.get("reasons", []) if str(reason)]
+            fields.append(
+                "Dynamic interval evidence: "
+                f"rare-checker={str(bool(dynamic_evidence.get('rare_checker_file'))).lower()} "
+                f"prior={float(candidate.get('prior_score', 0.0)):.2f} "
+                f"reasons={', '.join(reasons) or '<none>'}"
+            )
     return "\n".join(fields).strip() or "Summary: model returned no causal diff evidence."
 
 
@@ -2640,8 +4891,11 @@ def model_completion_with_retry(client, config: ModelConfig, prompt: str, reques
             request = {
                 "model": config.model_name,
                 "messages": [{"role": "user", "content": prompt}],
-                "temperature": 0,
             }
+            # Terra accepts only its provider default temperature. Other
+            # models retain deterministic scoring for reproducible bisection.
+            if config.model_name != "gpt-5.6-terra":
+                request["temperature"] = 0
             if config.reasoning_effort:
                 request["reasoning_effort"] = config.reasoning_effort
             return client.chat.completions.create(**request)
@@ -2915,6 +5169,334 @@ def model_score_commits(
     return by_sha
 
 
+def normalize_deterministic_facts_judgment(
+    item: dict,
+    payload: dict,
+    *,
+    candidate_count: int,
+) -> dict[str, object]:
+    """Validate the model's ordinal causal judgment before code calibrates it."""
+    if candidate_count <= 0:
+        raise ValueError("candidate_count must be positive")
+    sha = str(payload.get("sha", ""))
+    expected_sha = str(item.get("sha", ""))
+    if sha != expected_sha:
+        raise ValueError(f"deterministic-facts judgment SHA mismatch: expected {expected_sha}, got {sha}")
+    try:
+        rank = int(payload.get("rank", candidate_count))
+    except (TypeError, ValueError):
+        rank = candidate_count
+    rank = min(max(rank, 1), candidate_count)
+    mechanism = str(payload.get("mechanism", "unknown")).strip().lower()
+    if mechanism not in {
+        "invariant-break",
+        "precondition-violation",
+        "unrelated",
+        "unknown",
+    }:
+        mechanism = "unknown"
+    raw_explains_failure = payload.get("explains_failure", False)
+    if isinstance(raw_explains_failure, bool):
+        explains_failure = raw_explains_failure
+    elif isinstance(raw_explains_failure, (int, float)):
+        explains_failure = raw_explains_failure != 0
+    elif isinstance(raw_explains_failure, str):
+        explains_failure = raw_explains_failure.strip().lower() in {"true", "1", "yes"}
+    else:
+        explains_failure = False
+    try:
+        confidence = float(payload.get("confidence", 0.0))
+    except (TypeError, ValueError):
+        confidence = 0.0
+    retrieval = item.get("causal_retrieval")
+    retrieval = retrieval if isinstance(retrieval, dict) else {}
+    facts = retrieval.get("repository_facts")
+    return {
+        "sha": expected_sha,
+        "rank": rank,
+        "mechanism": mechanism,
+        "explains_failure": explains_failure,
+        "confidence": round(max(0.0, min(1.0, confidence)), 3),
+        "evidence": normalized_string_list(payload.get("evidence")),
+        "repository_facts": facts if isinstance(facts, dict) else {},
+    }
+
+
+def deterministic_facts_model_result(
+    item: dict,
+    judgment: dict[str, object],
+) -> dict[str, object]:
+    """Map v15 ordinal labels and code-derived facts to posterior inputs."""
+    retrieval = item.get("causal_retrieval")
+    retrieval = retrieval if isinstance(retrieval, dict) else {}
+    facts = judgment.get("repository_facts")
+    facts = facts if isinstance(facts, dict) else {}
+    try:
+        rank = max(1, int(judgment.get("rank", 1)))
+    except (TypeError, ValueError):
+        rank = 1
+    try:
+        confidence = float(judgment.get("confidence", 0.0))
+    except (TypeError, ValueError):
+        confidence = 0.0
+    mechanism = str(judgment.get("mechanism", "unknown"))
+    base = 1.0 / rank
+    if judgment.get("explains_failure"):
+        base += 0.8
+    base += {
+        "invariant-break": 0.9,
+        "precondition-violation": 0.5,
+        "unrelated": -0.65,
+        "unknown": 0.0,
+    }.get(mechanism, 0.0)
+    base += 0.75 * max(0.0, min(1.0, confidence))
+    contact_paths = facts.get("contact_paths")
+    if isinstance(contact_paths, list) and contact_paths:
+        base += 0.4
+    if facts.get("no_call_path_found"):
+        base -= 0.2
+    dependency_use = facts.get("dependency_api_use")
+    if isinstance(dependency_use, dict) and dependency_use:
+        base += min(0.35, 0.1 * math.log2(1.0 + sum(max(0, int(value)) for value in dependency_use.values())))
+    crash_file = facts.get("crash_file")
+    if isinstance(crash_file, dict) and crash_file.get("polarity") == "checker-penalty":
+        selected_files = {str(path) for path in retrieval.get("selected_files", [])}
+        source_paths = {str(path) for path in crash_file.get("paths", [])}
+        if selected_files and selected_files.issubset(source_paths):
+            base -= 0.3
+    semantic_score = round(max(0.1, min(8.0, base)), 3)
+    return {
+        "semantic_score": semantic_score,
+        # V15 deliberately derives buildability from repository code below.
+        # This placeholder is overwritten by the caller using score_build_probability.
+        "build_success_prob": 1.0,
+        "evidence": [
+            f"ordinal-rank:{rank}",
+            f"mechanism:{mechanism}",
+            f"explains-failure:{str(bool(judgment.get('explains_failure'))).lower()}",
+            f"deterministic-facts-confidence:{max(0.0, min(1.0, confidence)):.2f}",
+            *[str(value) for value in judgment.get("evidence", [])],
+        ],
+        "features": [
+            f"term:{normalize_token(mechanism)}",
+            *[
+                f"term:{normalize_token(contact)}"
+                for contact in facts.get("contact_paths", [])
+                if normalize_token(str(contact))
+            ],
+        ],
+        "ordinal_judgment": judgment,
+        "repository_facts": facts,
+    }
+
+
+def format_deterministic_facts_evidence(result: dict[str, object]) -> str:
+    judgment = result.get("ordinal_judgment")
+    judgment = judgment if isinstance(judgment, dict) else {}
+    facts = result.get("repository_facts")
+    facts = facts if isinstance(facts, dict) else {}
+    return "\n".join(
+        [
+            f"Ordinal causal rank: {judgment.get('rank', '<unknown>')}",
+            f"Mechanism: {judgment.get('mechanism', 'unknown')}",
+            f"Explains failure: {str(bool(judgment.get('explains_failure', False))).lower()}",
+            f"Confidence: {float(judgment.get('confidence', 0.0)):.2f}",
+            "Contact paths: " + "; ".join(str(path) for path in facts.get("contact_paths", []))
+            if facts.get("contact_paths")
+            else "Contact paths: no call path found",
+            "Repository facts: " + json.dumps(facts, sort_keys=True),
+        ]
+    )
+
+
+def deterministic_facts_rank_commits(
+    profile: IssueProfile,
+    commits: list[dict],
+    config: ModelConfig,
+    usage_summary: dict[str, object] | None = None,
+) -> dict[str, dict[str, object]]:
+    """Perform v15's single LLM call for an ordinal mechanism ranking."""
+    if not commits:
+        return {}
+    try:
+        from openai import OpenAI
+    except Exception as exc:
+        raise RuntimeError("openai package is not available; install it in the local venv") from exc
+    client = OpenAI(api_key=config.api_key, base_url=config.base_url, timeout=DEFAULT_MODEL_REQUEST_TIMEOUT)
+    response = model_completion_with_retry(
+        client,
+        config,
+        build_deterministic_facts_ranking_prompt(profile, commits),
+        "deterministic facts ranking",
+    )
+    if usage_summary is not None:
+        record_model_usage(usage_summary, "deterministic_facts_ranking", response)
+    raw_by_sha = {
+        str(payload.get("sha", "")): payload
+        for payload in parse_model_json_payload(response.choices[0].message.content or "")
+        if isinstance(payload, dict)
+    }
+    ranked: dict[str, dict[str, object]] = {}
+    for fallback_rank, item in enumerate(commits, start=1):
+        raw = raw_by_sha.get(str(item["sha"]))
+        if raw is None:
+            raw = {
+                "sha": item["sha"],
+                "rank": fallback_rank,
+                "mechanism": "unknown",
+                "explains_failure": False,
+                "confidence": 0.0,
+                "evidence": ["model omitted this candidate"],
+            }
+        judgment = normalize_deterministic_facts_judgment(
+            item,
+            raw,
+            candidate_count=len(commits),
+        )
+        ranked[str(item["sha"])] = deterministic_facts_model_result(item, judgment)
+    return ranked
+
+
+def human_signal_pool_triage_with_model(
+    profile: IssueProfile,
+    crash_signal_payload: dict[str, object],
+    candidates: list[dict[str, object]],
+    config: ModelConfig,
+    usage_summary: dict[str, object] | None = None,
+    max_candidates: int = HUMAN_SIGNAL_POOL_DIRECT_CANDIDATE_COUNT,
+) -> list[dict[str, object]]:
+    """Apply a single compact LLM triage to the direct-signal candidate pool."""
+    if not candidates:
+        return []
+    try:
+        from openai import OpenAI
+    except Exception as exc:
+        raise RuntimeError("openai package is not available; install it in the local venv") from exc
+    client = OpenAI(api_key=config.api_key, base_url=config.base_url, timeout=DEFAULT_MODEL_REQUEST_TIMEOUT)
+    response = model_completion_with_retry(
+        client,
+        config,
+        build_human_signal_pool_triage_prompt(
+            profile,
+            crash_signal_payload,
+            candidates,
+            max_candidates=max_candidates,
+        ),
+        "human signal pool triage",
+    )
+    if usage_summary is not None:
+        record_model_usage(usage_summary, "human_signal_pool_triage", response)
+    payload_by_sha: dict[str, dict] = {}
+    for payload in parse_model_json_payload(response.choices[0].message.content or ""):
+        sha = str(payload.get("sha", ""))
+        if sha:
+            payload_by_sha[sha] = payload
+    ranked: list[dict[str, object]] = []
+    for candidate in candidates:
+        raw = payload_by_sha.get(str(candidate["sha"]), {})
+        # The triage prompt deliberately returns a small proof frontier. Do
+        # not promote omitted pool entries by static order; they remain in the
+        # persisted soft pool and the full-interval BCR fallback.
+        if not raw:
+            continue
+        try:
+            triage_score = float(raw.get("triage_score", 0.0))
+        except (TypeError, ValueError):
+            triage_score = 0.0
+        ranked.append(
+            {
+                **candidate,
+                "triage_score": round(max(0.0, min(1.0, triage_score)), 3),
+                "triage_evidence": normalized_string_list(raw.get("evidence")),
+                "triage_mechanism": str(raw.get("mechanism", "")).strip(),
+            }
+        )
+    ranked.sort(
+        key=lambda item: (
+            -float(item["triage_score"]),
+            -float(item["prior_score"]),
+            int(item["index"]),
+        )
+    )
+    return ranked[:max_candidates]
+
+
+def human_frontier_triage_with_model(
+    profile: IssueProfile,
+    crash_signal_payload: dict[str, object],
+    candidates: list[dict[str, object]],
+    config: ModelConfig,
+    usage_summary: dict[str, object] | None = None,
+) -> list[dict[str, object]]:
+    """Bound triage cost before causal extraction of a staged human tier."""
+    ranked: list[dict[str, object]] = []
+    for start in range(0, len(candidates), HUMAN_FRONTIER_TRIAGE_BATCH_SIZE):
+        batch = candidates[start : start + HUMAN_FRONTIER_TRIAGE_BATCH_SIZE]
+        ranked.extend(
+            human_signal_pool_triage_with_model(
+                profile,
+                crash_signal_payload,
+                batch,
+                config,
+                usage_summary,
+                max_candidates=HUMAN_FRONTIER_DIRECT_CANDIDATE_COUNT,
+            )
+        )
+    ranked.sort(
+        key=lambda item: (
+            -float(item["triage_score"]),
+            -float(item["prior_score"]),
+            int(item["index"]),
+        )
+    )
+    return ranked[:HUMAN_FRONTIER_DIRECT_CANDIDATE_COUNT]
+
+
+def human_frontier_direct_selection(
+    records: list[CommitRecord],
+    triage_scores: dict[str, float],
+) -> SelectionDecision:
+    """Select within the staged frontier, with causal evidence dominating support.
+
+    The compact human frontier determines *which* candidates may be considered
+    for direct proof. Parent-diff causal relevance then decides the candidate;
+    causal confidence, triage, buildability, and tier midpoint are strictly
+    ordered supporting signals for ties or near-ties.
+    """
+    if not records:
+        raise ValueError("human frontier direct selection requires records")
+    ordered = sorted(records, key=lambda record: record.index)
+    midpoint = (len(ordered) - 1) / 2.0
+    ranked = sorted(
+        ordered,
+        key=lambda record: (
+            record.semantic_score,
+            float((record.causal_evidence or {}).get("confidence", 0.0)),
+            triage_scores.get(record.sha, 0.0),
+            record.build_success_prob,
+            -abs(ordered.index(record) - midpoint),
+            -record.index,
+        ),
+        reverse=True,
+    )
+    return SelectionDecision(
+        selected=ranked[0],
+        ranked_candidates=ranked,
+        search_policy="human-frontier",
+        selection_mode="human-frontier-direct",
+        metadata={
+            "primary_factor": "causal-parent-diff-semantic-score",
+            "supporting_factors": [
+                "causal-confidence",
+                "triage",
+                "buildability",
+                "tier-midpoint",
+            ],
+            "frontier_candidate_count": len(ordered),
+        },
+    )
+
+
 def score_model_batch_with_backfill(
     profile: IssueProfile,
     commits: list[dict],
@@ -3096,6 +5678,7 @@ def method_label(
     model_frontier: str = "topk",
     candidate_pruning: str = "off",
     heuristic_version: str = "tuned",
+    heuristic_ablation: str = "none",
 ) -> str:
     if scorer == "heuristic":
         base = "heuristic"
@@ -3106,6 +5689,8 @@ def method_label(
             base = f"{base}-{model_frontier}"
     if heuristic_version != "tuned":
         base = f"{base}-h{heuristic_version}"
+    if heuristic_ablation != "none":
+        base = f"{base}-ablate-{heuristic_ablation}"
     if search_policy == "ranked":
         label = base
     else:
@@ -3126,8 +5711,17 @@ def run_history_path_for_issue(
     observation_prompt_mode: str = "legacy",
     run_label: str | None = None,
     model_reasoning_effort: str | None = None,
+    heuristic_ablation: str = "none",
 ) -> Path:
-    label = method_label(scorer, model_name, search_policy, model_frontier, candidate_pruning, heuristic_version)
+    label = method_label(
+        scorer,
+        model_name,
+        search_policy,
+        model_frontier,
+        candidate_pruning,
+        heuristic_version,
+        heuristic_ablation,
+    )
     if scorer == "model" and observation_prompt_mode != "legacy":
         safe_mode = re.sub(r"[^A-Za-z0-9_.-]+", "_", observation_prompt_mode)
         label = f"{label}-obs-{safe_mode}"
@@ -3158,8 +5752,17 @@ def unresolved_window_path_for_issue(
     observation_prompt_mode: str = "legacy",
     run_label: str | None = None,
     model_reasoning_effort: str | None = None,
+    heuristic_ablation: str = "none",
 ) -> Path:
-    label = method_label(scorer, model_name, search_policy, model_frontier, candidate_pruning, heuristic_version)
+    label = method_label(
+        scorer,
+        model_name,
+        search_policy,
+        model_frontier,
+        candidate_pruning,
+        heuristic_version,
+        heuristic_ablation,
+    )
     if scorer == "model" and observation_prompt_mode != "legacy":
         safe_mode = re.sub(r"[^A-Za-z0-9_.-]+", "_", observation_prompt_mode)
         label = f"{label}-obs-{safe_mode}"
@@ -3289,6 +5892,8 @@ def start_run_history_payload(
     model_cache_namespace: str | None = None,
     oracle_first_bad_sha: str | None = None,
     model_reasoning_effort: str | None = None,
+    causal_context_parent_count: int = 0,
+    heuristic_ablation: str = "none",
 ) -> dict:
     return {
         "issue": issue_id,
@@ -3300,6 +5905,7 @@ def start_run_history_payload(
         "hybrid_switch_window": hybrid_switch_window,
         "candidate_pruning": candidate_pruning,
         "heuristic_version": heuristic_version,
+        "heuristic_ablation": heuristic_ablation,
         "calibrated_prior_power": calibrated_prior_power,
         "calibrated_prior_bonus": calibrated_prior_bonus,
         "weak_relevance_penalty": weak_relevance_penalty,
@@ -3309,6 +5915,7 @@ def start_run_history_payload(
         "run_label": run_label,
         "model_diff_mode": model_diff_mode,
         "model_diff_extraction": model_diff_extraction,
+        "causal_context_parent_count": causal_context_parent_count,
         "model_top_k": model_top_k,
         "adaptive_top_k": adaptive_top_k,
         "confidence_adaptive_frontier": confidence_adaptive_frontier,
@@ -3357,6 +5964,8 @@ def run_history_matches(
     model_cache_namespace: str | None = None,
     oracle_first_bad_sha: str | None = None,
     model_reasoning_effort: str | None = None,
+    causal_context_parent_count: int = 0,
+    heuristic_ablation: str = "none",
 ) -> bool:
     return (
         bool(history)
@@ -3367,6 +5976,7 @@ def run_history_matches(
         and history.get("model_frontier", "topk") == model_frontier
         and history.get("candidate_pruning", "off") == candidate_pruning
         and history.get("heuristic_version", "tuned") == heuristic_version
+        and history.get("heuristic_ablation", "none") == heuristic_ablation
         and float(history.get("calibrated_prior_power", DEFAULT_CALIBRATED_PRIOR_POWER)) == calibrated_prior_power
         and float(history.get("calibrated_prior_bonus", DEFAULT_CALIBRATED_PRIOR_BONUS)) == calibrated_prior_bonus
         and float(history.get("weak_relevance_penalty", DEFAULT_WEAK_RELEVANCE_PENALTY)) == weak_relevance_penalty
@@ -3377,6 +5987,7 @@ def run_history_matches(
         and history.get("run_label") == run_label
         and history.get("model_diff_mode", "parent") == model_diff_mode
         and history.get("model_diff_extraction", "raw") == model_diff_extraction
+        and int(history.get("causal_context_parent_count", 0)) == causal_context_parent_count
         and history.get("model_top_k") == model_top_k
         and history.get("adaptive_top_k") == adaptive_top_k
         and history.get("confidence_adaptive_frontier") == confidence_adaptive_frontier
@@ -3414,6 +6025,7 @@ def prepare_run_history(
     run_label: str | None = None,
     model_diff_mode: str = "parent",
     model_diff_extraction: str = "raw",
+    causal_context_parent_count: int = 0,
     model_top_k: int | None = None,
     adaptive_top_k: dict[str, int] | None = None,
     confidence_adaptive_frontier: dict[str, float] | None = None,
@@ -3421,6 +6033,7 @@ def prepare_run_history(
     model_cache_namespace: str | None = None,
     oracle_first_bad_sha: str | None = None,
     model_reasoning_effort: str | None = None,
+    heuristic_ablation: str = "none",
 ) -> tuple[dict, int, bool]:
     history_matches = (
         run_history_matches(
@@ -3447,6 +6060,8 @@ def prepare_run_history(
             model_cache_namespace,
             oracle_first_bad_sha,
             model_reasoning_effort,
+            causal_context_parent_count,
+            heuristic_ablation,
         )
         and existing_history.get("search_policy", "ranked") == search_policy
         and int(existing_history.get("hybrid_switch_window", hybrid_switch_window)) == hybrid_switch_window
@@ -3459,6 +6074,7 @@ def prepare_run_history(
         history["hybrid_switch_window"] = hybrid_switch_window
         history["candidate_pruning"] = candidate_pruning
         history["heuristic_version"] = heuristic_version
+        history["heuristic_ablation"] = heuristic_ablation
         history["calibrated_prior_power"] = calibrated_prior_power
         history["calibrated_prior_bonus"] = calibrated_prior_bonus
         history["weak_relevance_penalty"] = weak_relevance_penalty
@@ -3468,6 +6084,7 @@ def prepare_run_history(
         history["run_label"] = run_label
         history["model_diff_mode"] = model_diff_mode
         history["model_diff_extraction"] = model_diff_extraction
+        history["causal_context_parent_count"] = causal_context_parent_count
         history["model_top_k"] = model_top_k
         history["adaptive_top_k"] = adaptive_top_k
         history["confidence_adaptive_frontier"] = confidence_adaptive_frontier
@@ -3513,6 +6130,7 @@ def prepare_run_history(
         run_label=run_label,
         model_diff_mode=model_diff_mode,
         model_diff_extraction=model_diff_extraction,
+        causal_context_parent_count=causal_context_parent_count,
         model_top_k=model_top_k,
         adaptive_top_k=adaptive_top_k,
         confidence_adaptive_frontier=confidence_adaptive_frontier,
@@ -3520,6 +6138,7 @@ def prepare_run_history(
         model_cache_namespace=model_cache_namespace,
         oracle_first_bad_sha=oracle_first_bad_sha,
         model_reasoning_effort=model_reasoning_effort,
+        heuristic_ablation=heuristic_ablation,
     )
     if candidate_file:
         history["candidate_file"] = candidate_file
@@ -3907,6 +6526,7 @@ def build_commit_record(
     model_config: ModelConfig | None = None,
     preloaded: dict | None = None,
     heuristic_version: str = "tuned",
+    heuristic_ablation: str = "none",
     load_diff: bool = True,
 ) -> CommitRecord:
     if preloaded is None:
@@ -3953,8 +6573,15 @@ def build_commit_record(
             files,
             diff,
             heuristic_version=heuristic_version,
+            heuristic_ablation=heuristic_ablation,
         )
-        build_prob, build_evidence = score_build_probability(subject, body, files, diff)
+        build_prob, build_evidence = score_build_probability(
+            subject,
+            body,
+            files,
+            diff,
+            heuristic_ablation=heuristic_ablation,
+        )
         features = extract_commit_features(subject, body, files, diff)
         evidence = semantic_evidence + build_evidence
     return CommitRecord(
@@ -4470,6 +7097,178 @@ def oracle_major_semantic_selection(records: list[CommitRecord]) -> SelectionDec
     )
 
 
+def oracle_patch_semantic_selection(records: list[CommitRecord]) -> SelectionDecision:
+    """Select by the leaked patch fingerprint, then retain normal interval updates."""
+    decision = oracle_major_semantic_selection(records)
+    return SelectionDecision(
+        selected=decision.selected,
+        ranked_candidates=decision.ranked_candidates,
+        search_policy="oracle-patch-semantic",
+        selection_mode="oracle-patch-semantic",
+    )
+
+
+def oracle_patch_parent_selection(records: list[CommitRecord]) -> SelectionDecision:
+    """Validate the immediate predecessor after a leaked patch match reproduces."""
+    if len(records) != 1:
+        raise ValueError("oracle patch parent proof requires exactly one candidate")
+    return SelectionDecision(
+        selected=records[0],
+        ranked_candidates=records,
+        search_policy="oracle-patch-parent-proof",
+        selection_mode="oracle-patch-parent-proof",
+    )
+
+
+def human_signal_pool_direct_selection(
+    records: list[CommitRecord],
+    triage_scores: dict[str, float],
+) -> SelectionDecision:
+    """Choose the strongest causally extracted candidate after compact triage."""
+    if not records:
+        raise ValueError("human signal pool direct selection requires records")
+    ranked = sorted(
+        records,
+        key=lambda record: (
+            record.semantic_score,
+            float((record.causal_evidence or {}).get("confidence", 0.0)),
+            triage_scores.get(record.sha, 0.0),
+            record.build_success_prob,
+            -record.index,
+        ),
+        reverse=True,
+    )
+    return SelectionDecision(
+        selected=ranked[0],
+        ranked_candidates=ranked,
+        search_policy="human-signal-pool",
+        selection_mode="human-signal-pool-direct",
+    )
+
+
+def human_signal_pool_parent_selection(records: list[CommitRecord]) -> SelectionDecision:
+    """Force the immediate predecessor validation after a bad direct probe."""
+    if len(records) != 1:
+        raise ValueError("human signal pool parent proof requires exactly one candidate")
+    return SelectionDecision(
+        selected=records[0],
+        ranked_candidates=records,
+        search_policy="human-signal-pool",
+        selection_mode="human-signal-pool-parent-proof",
+    )
+
+
+def human_frontier_parent_selection(records: list[CommitRecord]) -> SelectionDecision:
+    """Force the immediate predecessor validation for a staged frontier hit."""
+    if len(records) != 1:
+        raise ValueError("human frontier parent proof requires exactly one candidate")
+    return SelectionDecision(
+        selected=records[0],
+        ranked_candidates=records,
+        search_policy="human-frontier",
+        selection_mode="human-frontier-parent-proof",
+    )
+
+
+def validate_human_signal_pool_run_config(
+    *,
+    issue_id: str,
+    scorer: str,
+    model_diff_mode: str,
+    run_label: str | None,
+    model_cache_namespace: str | None,
+) -> None:
+    """Reject configurations that could blur this retrospective pilot's artifacts."""
+    if scorer != "model":
+        raise ValueError("human signal-pool proof requires scorer=model")
+    if model_diff_mode != "parent":
+        raise ValueError("human signal-pool proof requires parent diffs")
+    if issue_id not in HUMAN_SIGNAL_POOL_COHORT:
+        raise ValueError(
+            "human signal-pool proof is restricted to the retrospective good-signal cohort: "
+            + ", ".join(sorted(HUMAN_SIGNAL_POOL_COHORT))
+        )
+    if not run_label:
+        raise ValueError("human signal-pool proof requires a distinct --run-label")
+    if not model_cache_namespace:
+        raise ValueError("human signal-pool proof requires a distinct --model-cache-namespace")
+
+
+def validate_human_signal_prior_run_config(
+    *,
+    issue_id: str,
+    scorer: str,
+    model_diff_mode: str,
+    run_label: str | None,
+    model_cache_namespace: str | None,
+) -> None:
+    """Keep the retrospective soft-prior study isolated from BCR baselines."""
+    if scorer != "model":
+        raise ValueError("human signal prior requires scorer=model")
+    if model_diff_mode != "parent":
+        raise ValueError("human signal prior requires parent diffs")
+    if issue_id not in HUMAN_SIGNAL_POOL_COHORT:
+        raise ValueError(
+            "human signal prior is restricted to the retrospective good-signal cohort: "
+            + ", ".join(sorted(HUMAN_SIGNAL_POOL_COHORT))
+        )
+    if not run_label:
+        raise ValueError("human signal prior requires a distinct --run-label")
+    if not model_cache_namespace:
+        raise ValueError("human signal prior requires a distinct --model-cache-namespace")
+
+
+def validate_human_frontier_run_config(
+    *,
+    issue_id: str,
+    scorer: str,
+    model_diff_mode: str,
+    run_label: str | None,
+    model_cache_namespace: str | None,
+) -> None:
+    """Isolate the retrospective staged-frontier pilot from BCR baselines."""
+    if scorer != "model":
+        raise ValueError("human frontier requires scorer=model")
+    if model_diff_mode != "parent":
+        raise ValueError("human frontier requires parent diffs")
+    if issue_id not in HUMAN_FRONTIER_COHORT:
+        raise ValueError(
+            "human frontier is restricted to the retrospective five-case cohort: "
+            + ", ".join(sorted(HUMAN_FRONTIER_COHORT))
+        )
+    if not run_label:
+        raise ValueError("human frontier requires a distinct --run-label")
+    if not model_cache_namespace:
+        raise ValueError("human frontier requires a distinct --model-cache-namespace")
+
+
+def validate_dynamic_human_evidence_run_config(
+    *,
+    issue_id: str,
+    scorer: str,
+    model_diff_mode: str,
+    model_top_k: int | None,
+    run_label: str | None,
+    model_cache_namespace: str | None,
+) -> None:
+    """Keep the online human-evidence experiment isolated and answer-free."""
+    if scorer != "model":
+        raise ValueError("dynamic human evidence requires scorer=model")
+    if model_diff_mode != "parent":
+        raise ValueError("dynamic human evidence requires parent diffs")
+    if model_top_k != 12:
+        raise ValueError("dynamic human evidence requires --model-top-k 12")
+    if issue_id not in HUMAN_DYNAMIC_EVIDENCE_COHORT:
+        raise ValueError(
+            "dynamic human evidence is restricted to the five-case crash-signal cohort: "
+            + ", ".join(sorted(HUMAN_DYNAMIC_EVIDENCE_COHORT))
+        )
+    if not run_label:
+        raise ValueError("dynamic human evidence requires a distinct --run-label")
+    if not model_cache_namespace:
+        raise ValueError("dynamic human evidence requires a distinct --model-cache-namespace")
+
+
 def validate_direct_oracle_anchor(unresolved: list[str], first_bad_sha: str | None) -> str:
     """Ensure the answer-leaking diagnostic can only validate an in-range SHA."""
     if first_bad_sha is None:
@@ -4733,6 +7532,119 @@ def select_evidence_diverse_frontier(
     return [record.sha for record in selected], assignments
 
 
+def resolve_dynamic_human_evidence_frontier(
+    records: list[CommitRecord],
+    dynamic_evidence: dict[str, object],
+    *,
+    target_count: int,
+) -> ModelFrontierDecision:
+    """Build an evidence-led model frontier with bounded exploratory support."""
+    if target_count <= 0 or not records:
+        return ModelFrontierDecision(
+            selected_shas=[],
+            configured_frontier="topk",
+            effective_frontier="dynamic-human-evidence",
+            confidence=None,
+            threshold=None,
+            reason="empty current interval",
+            top_semantic_candidates=[],
+            observation_count=0,
+            role_assignments=[],
+        )
+    prior_by_sha = {
+        str(sha): float(score)
+        for sha, score in dict(dynamic_evidence.get("prior_by_sha", {})).items()
+    }
+    ordered = sorted(records, key=lambda record: record.index)
+    evidence_ranked = sorted(
+        ordered,
+        key=lambda record: (
+            prior_by_sha.get(record.sha, HUMAN_DYNAMIC_EVIDENCE_PRIOR_FLOOR),
+            record.semantic_score,
+            record.build_success_prob,
+            -record.index,
+        ),
+        reverse=True,
+    )
+    selected: list[CommitRecord] = []
+    assignments: list[dict[str, object]] = []
+    seen: set[str] = set()
+
+    def add(record: CommitRecord | None, role: str) -> bool:
+        if record is None or record.sha in seen or len(selected) >= target_count:
+            return False
+        selected.append(record)
+        seen.add(record.sha)
+        assignments.append(
+            {
+                "role": role,
+                "sha": record.sha,
+                "prior_score": round(
+                    prior_by_sha.get(record.sha, HUMAN_DYNAMIC_EVIDENCE_PRIOR_FLOOR),
+                    6,
+                ),
+            }
+        )
+        return True
+
+    evidence_slots = max(1, target_count - 3)
+    for record in evidence_ranked[:evidence_slots]:
+        add(record, "evidence-top")
+    weighted_records = [
+        replace(
+            record,
+            semantic_score=prior_by_sha.get(record.sha, HUMAN_DYNAMIC_EVIDENCE_PRIOR_FLOOR),
+        )
+        for record in ordered
+    ]
+    prior_midpoint = posterior_anchor_by_mass(weighted_records, 0.5)
+    if not add(prior_midpoint, "prior-mass-midpoint"):
+        for record in sorted(
+            weighted_records,
+            key=lambda record: (
+                abs(record.posterior_bad_mass - 0.5),
+                abs(record.index - prior_midpoint.index),
+                record.index,
+            ),
+        ):
+            original = next(item for item in ordered if item.sha == record.sha)
+            if add(original, "prior-mass-midpoint"):
+                break
+    add(index_anchor(ordered, 0.5), "chronological-midpoint-support")
+    buildable = max(
+        ordered,
+        key=lambda record: (record.build_success_prob, prior_by_sha.get(record.sha, 0.0), -record.index),
+    )
+    add(buildable, "buildability-support")
+    for record in evidence_ranked:
+        add(record, "evidence-fill")
+        if len(selected) >= target_count:
+            break
+    return ModelFrontierDecision(
+        selected_shas=[record.sha for record in selected],
+        configured_frontier="topk",
+        effective_frontier="dynamic-human-evidence",
+        confidence=None,
+        threshold=None,
+        reason=(
+            "current-interval crash/API evidence leads; prior-mass, chronology, and buildability "
+            "supply bounded support"
+        ),
+        top_semantic_candidates=[
+            {
+                "sha": record.sha,
+                "dynamic_prior_score": round(
+                    prior_by_sha.get(record.sha, HUMAN_DYNAMIC_EVIDENCE_PRIOR_FLOOR),
+                    6,
+                ),
+            }
+            for record in evidence_ranked[:2]
+        ],
+        observation_count=0,
+        role_assignments=assignments,
+    )
+
+
 def semantic_frontier_confidence(records: list[CommitRecord]) -> tuple[float, list[CommitRecord]]:
     """Return a scale-free pre-model confidence score for the semantic leader."""
     ranked = semantic_frontier_records(records)
@@ -4826,24 +7738,69 @@ def make_records(
     model_frontier: str = "topk",
     candidate_pruning: str = "off",
     heuristic_version: str = "tuned",
+    heuristic_ablation: str = "none",
     observations: list[CommitObservation] | None = None,
     metadata_cache: dict[str, CommitMetadata] | None = None,
     model_cache: dict[str, dict] | None = None,
     model_diff_mode: str = "parent",
     model_diff_extraction: str = "raw",
+    causal_context_parent_count: int = 0,
     last_tested_sha: str | None = None,
     model_usage_summary: dict[str, object] | None = None,
     model_cache_namespace: str | None = None,
     model_score_context: str | None = None,
     confidence_adaptive_frontier: ConfidenceAdaptiveFrontierConfig | None = None,
     model_frontier_decision_out: list[ModelFrontierDecision] | None = None,
+    dynamic_human_evidence: dict[str, object] | None = None,
+    causal_retrieval_context: dict[str, object] | None = None,
 ) -> tuple[list[CommitRecord], dict]:
     if model_diff_mode not in {"parent", "last-tested"}:
         raise ValueError(f"unsupported model_diff_mode: {model_diff_mode}")
-    if model_diff_extraction not in {"raw", "llm", "causal-llm", "causal-llm-impl"}:
+    if model_diff_extraction not in {
+        "raw",
+        "llm",
+        "causal-llm",
+        "causal-llm-impl",
+        "causal-llm-human",
+        "causal-llm-human-pool",
+        "causal-llm-human-prior",
+        "causal-llm-human-frontier",
+        "causal-llm-human-dynamic",
+        "causal-llm-crash-aware",
+        "causal-llm-deterministic-facts",
+        "causal-llm-deterministic-facts-artifact",
+    }:
         raise ValueError(f"unsupported model_diff_extraction: {model_diff_extraction}")
-    if model_diff_extraction in {"causal-llm", "causal-llm-impl"} and model_diff_mode != "parent":
+    if model_diff_extraction in {
+        "causal-llm",
+        "causal-llm-impl",
+        "causal-llm-human",
+        "causal-llm-human-pool",
+        "causal-llm-human-prior",
+        "causal-llm-human-frontier",
+        "causal-llm-human-dynamic",
+        "causal-llm-crash-aware",
+        "causal-llm-deterministic-facts",
+        "causal-llm-deterministic-facts-artifact",
+    } and model_diff_mode != "parent":
         raise ValueError("causal-llm extraction supports parent diffs only")
+    if causal_context_parent_count < 0 or causal_context_parent_count > CAUSAL_CONTEXT_MAX_PARENT_COUNT:
+        raise ValueError(
+            f"causal context parent count must be between 0 and {CAUSAL_CONTEXT_MAX_PARENT_COUNT}"
+        )
+    if causal_context_parent_count and model_diff_extraction not in {
+        "causal-llm",
+        "causal-llm-impl",
+        "causal-llm-human",
+        "causal-llm-human-pool",
+        "causal-llm-human-prior",
+        "causal-llm-human-frontier",
+        "causal-llm-human-dynamic",
+        "causal-llm-crash-aware",
+        "causal-llm-deterministic-facts",
+        "causal-llm-deterministic-facts-artifact",
+    }:
+        raise ValueError("causal context parents require causal-llm extraction")
     shas = candidate_shas if candidate_shas is not None else list_candidate_commits(repo, profile.good_commit, profile.bad_commit)
     if max_candidates is not None:
         shas = shas[:max_candidates]
@@ -4860,9 +7817,10 @@ def make_records(
                 in {
                     "tuned",
                     "general",
-                    "oracle-first-bad-major-tuned",
-                    "oracle-first-bad-major-tuned-semantic",
-                    "oracle-first-bad-major-tuned-anchor",
+        "oracle-first-bad-major-tuned",
+        "oracle-first-bad-major-tuned-semantic",
+        "oracle-first-bad-major-tuned-patch",
+        "oracle-first-bad-major-tuned-anchor",
                 }
             ),
         )
@@ -4891,6 +7849,7 @@ def make_records(
             index + 1,
             preloaded=item,
             heuristic_version=heuristic_version,
+            heuristic_ablation=heuristic_ablation,
             load_diff=scorer != "model",
         )
         for index, item in enumerate(preloaded_items)
@@ -4902,18 +7861,45 @@ def make_records(
     if model_config is None:
         raise RuntimeError("model_config is required for scorer=model")
 
+    if model_diff_extraction in {
+        "causal-llm-crash-aware",
+        "causal-llm-deterministic-facts",
+        "causal-llm-deterministic-facts-artifact",
+    } and causal_retrieval_context is None:
+        causal_retrieval_context = causal_crash_aware_retrieval_context(
+            repo,
+            profile,
+            model_diff_extraction,
+        )
+
     target_count = len(records) if model_top_k is None else min(model_top_k, len(records))
-    frontier_decision = resolve_model_frontier(
-        profile,
-        records,
-        observations or [],
-        target_count=target_count,
-        configured_frontier=model_frontier,
-        confidence_config=confidence_adaptive_frontier,
-    )
+    if dynamic_human_evidence is not None:
+        frontier_decision = resolve_dynamic_human_evidence_frontier(
+            records,
+            dynamic_human_evidence,
+            target_count=target_count,
+        )
+    else:
+        frontier_decision = resolve_model_frontier(
+            profile,
+            records,
+            observations or [],
+            target_count=target_count,
+            configured_frontier=model_frontier,
+            confidence_config=confidence_adaptive_frontier,
+        )
     if model_frontier_decision_out is not None:
         model_frontier_decision_out.append(frontier_decision)
     selected_shas = set(frontier_decision.selected_shas)
+    dynamic_candidate_evidence_by_sha = (
+        dict(dynamic_human_evidence.get("candidate_by_sha", {}))
+        if dynamic_human_evidence is not None
+        else {}
+    )
+    for item in preloaded_items:
+        evidence = dynamic_candidate_evidence_by_sha.get(item["sha"])
+        if evidence is not None:
+            item["dynamic_candidate_evidence"] = evidence
     frontier_score_context = model_score_context
     if model_score_context:
         frontier_digest = hashlib.sha256(
@@ -4950,7 +7936,18 @@ def make_records(
             return False
         if model_diff_extraction == "llm" and not entry.get("diff_summary"):
             return False
-        if model_diff_extraction in {"causal-llm", "causal-llm-impl"} and not entry.get("causal_evidence"):
+        if model_diff_extraction in {
+            "causal-llm",
+            "causal-llm-impl",
+            "causal-llm-human",
+            "causal-llm-human-pool",
+            "causal-llm-human-prior",
+            "causal-llm-human-frontier",
+                "causal-llm-human-dynamic",
+                "causal-llm-crash-aware",
+                "causal-llm-deterministic-facts",
+                "causal-llm-deterministic-facts-artifact",
+            } and not entry.get("causal_evidence"):
             return False
         return True
 
@@ -4972,6 +7969,7 @@ def make_records(
                 item_diff_base_sha,
                 model_diff_extraction,
                 frontier_score_context,
+                causal_context_parent_count,
             )
         )
         if not is_complete_model_cache_entry(cached):
@@ -4990,6 +7988,7 @@ def make_records(
             diff_base_sha,
             model_diff_extraction,
             frontier_score_context,
+            causal_context_parent_count,
         )
         cached = cache.get(cache_key)
         if not is_complete_model_cache_entry(cached):
@@ -5010,7 +8009,18 @@ def make_records(
                 item["files"] = deep_metadata.changed_files
                 item["diff_mode"] = "last-tested"
                 item["diff_base_sha"] = diff_base_sha
-            elif model_diff_extraction in {"causal-llm", "causal-llm-impl"}:
+            elif model_diff_extraction in {
+                "causal-llm",
+                "causal-llm-impl",
+                "causal-llm-human",
+                "causal-llm-human-pool",
+                "causal-llm-human-prior",
+                "causal-llm-human-frontier",
+                "causal-llm-human-dynamic",
+                "causal-llm-crash-aware",
+                "causal-llm-deterministic-facts",
+                "causal-llm-deterministic-facts-artifact",
+            }:
                 # Retrieval fetches only profile-matched parent-diff files.
                 item["diff"] = ""
                 item["diff_mode"] = "parent"
@@ -5041,32 +8051,160 @@ def make_records(
             )
             for item in uncached:
                 item["diff_summary"] = extracted_diffs[item["sha"]]
-        elif model_diff_extraction in {"causal-llm", "causal-llm-impl"}:
+        elif model_diff_extraction in {
+            "causal-llm",
+            "causal-llm-impl",
+            "causal-llm-human",
+            "causal-llm-human-pool",
+            "causal-llm-human-prior",
+            "causal-llm-human-frontier",
+            "causal-llm-human-dynamic",
+            "causal-llm-crash-aware",
+            "causal-llm-deterministic-facts",
+            "causal-llm-deterministic-facts-artifact",
+        }:
             for item in uncached:
                 item["causal_retrieval"] = retrieve_causal_diff_evidence(
                     repo,
                     profile,
                     item,
                     retrieval_policy=(
-                        "implementation-first"
-                        if model_diff_extraction == "causal-llm-impl"
-                        else "balanced"
+                        "deterministic-facts"
+                        if model_diff_extraction in {
+                            "causal-llm-deterministic-facts",
+                            "causal-llm-deterministic-facts-artifact",
+                        }
+                        else "crash-aware"
+                        if model_diff_extraction == "causal-llm-crash-aware"
+                        else "human-guided"
+                        if model_diff_extraction in {
+                            "causal-llm-human",
+                            "causal-llm-human-pool",
+                            "causal-llm-human-prior",
+                            "causal-llm-human-frontier",
+                            "causal-llm-human-dynamic",
+                        }
+                        else (
+                            "implementation-first"
+                            if model_diff_extraction == "causal-llm-impl"
+                            else "balanced"
+                        )
+                    ),
+                    context_parent_count=causal_context_parent_count,
+                    crash_signal_payload=causal_crash_signal_payload(
+                        profile,
+                        model_diff_extraction,
+                    ),
+                    dependency_usage=(
+                        dict((causal_retrieval_context or {}).get("dependency_usage", {}))
+                        if model_diff_extraction in {
+                            "causal-llm-crash-aware",
+                            "causal-llm-deterministic-facts",
+                            "causal-llm-deterministic-facts-artifact",
+                        }
+                        else None
+                    ),
+                    crash_file_touch_count=(
+                        int((causal_retrieval_context or {}).get("crash_file_touch_count"))
+                        if model_diff_extraction in {
+                            "causal-llm-crash-aware",
+                            "causal-llm-deterministic-facts",
+                            "causal-llm-deterministic-facts-artifact",
+                        }
+                        and (causal_retrieval_context or {}).get("crash_file_touch_count") is not None
+                        else None
+                    ),
+                    destruction_surface=(
+                        [str(method) for method in (causal_retrieval_context or {}).get("destruction_surface", [])]
+                        if model_diff_extraction in {
+                            "causal-llm-deterministic-facts",
+                            "causal-llm-deterministic-facts-artifact",
+                        }
+                        else None
                     ),
                 )
-            extraction_kwargs = {}
-            if model_usage_summary is not None:
-                extraction_kwargs["usage_summary"] = model_usage_summary
-            extracted_evidence = extract_causal_diff_evidence_batch_with_model(
-                profile,
+                if item.get("dynamic_candidate_evidence"):
+                    item["causal_retrieval"]["dynamic_interval_evidence"] = {
+                        "candidate": item["dynamic_candidate_evidence"],
+                        "candidate_window_sha256": dynamic_human_evidence.get(
+                            "candidate_window_sha256"
+                        )
+                        if dynamic_human_evidence is not None
+                        else None,
+                        "rare_checker_file": dynamic_human_evidence.get("rare_checker_file")
+                        if dynamic_human_evidence is not None
+                        else None,
+                        "crash_file_touch_count": dynamic_human_evidence.get(
+                            "crash_file_touch_count"
+                        )
+                        if dynamic_human_evidence is not None
+                        else None,
+                    }
+            if model_diff_extraction in {
+                "causal-llm-deterministic-facts",
+                "causal-llm-deterministic-facts-artifact",
+            }:
+                rank_kwargs = {}
+                if model_usage_summary is not None:
+                    rank_kwargs["usage_summary"] = model_usage_summary
+                ranked = deterministic_facts_rank_commits(
+                    profile,
+                    uncached,
+                    model_config,
+                    **rank_kwargs,
+                )
+                for item in uncached:
+                    result = dict(ranked[item["sha"]])
+                    build_success_prob, build_evidence = score_build_probability(
+                        str(item.get("subject", "")),
+                        str(item.get("body", "")),
+                        [str(path) for path in item.get("files", [])],
+                        "",
+                    )
+                    result["build_success_prob"] = build_success_prob
+                    result["evidence"] = [
+                        *[str(entry) for entry in result.get("evidence", [])],
+                        *build_evidence,
+                    ]
+                    result["diff_mode"] = item.get("diff_mode", "parent")
+                    result["diff_extraction"] = model_diff_extraction
+                    result["diff_summary"] = format_deterministic_facts_evidence(result)
+                    result["diff_summary_version"] = diff_extraction_version(model_diff_extraction)
+                    result["causal_evidence"] = {
+                        "mode": "deterministic-facts-single-call",
+                        "ordinal_judgment": result.get("ordinal_judgment", {}),
+                        "repository_facts": result.get("repository_facts", {}),
+                        "retrieval": item.get("causal_retrieval", {}),
+                        "confidence": (result.get("ordinal_judgment", {}) or {}).get("confidence", 0.0),
+                    }
+                    item["diff_summary"] = str(result["diff_summary"])
+                    item["causal_evidence"] = result["causal_evidence"]
+                    item["model_result"] = result
+            else:
+                extraction_kwargs = {}
+                if model_usage_summary is not None:
+                    extraction_kwargs["usage_summary"] = model_usage_summary
+                extracted_evidence = extract_causal_diff_evidence_batch_with_model(
+                    profile,
+                    uncached,
+                    model_config,
+                    **extraction_kwargs,
+                )
+                for item in uncached:
+                    causal_evidence = extracted_evidence[item["sha"]]
+                    item["causal_evidence"] = causal_evidence
+                    item["diff_summary"] = format_causal_diff_evidence(causal_evidence)
+        if model_diff_extraction in {
+            "causal-llm-deterministic-facts",
+            "causal-llm-deterministic-facts-artifact",
+        }:
+            scoring_batches: list[list[dict]] = []
+        else:
+            scoring_batches = plan_model_scoring_batches(
                 uncached,
-                model_config,
-                **extraction_kwargs,
+                frontier_mode=frontier_decision.effective_frontier,
             )
-            for item in uncached:
-                causal_evidence = extracted_evidence[item["sha"]]
-                item["causal_evidence"] = causal_evidence
-                item["diff_summary"] = format_causal_diff_evidence(causal_evidence)
-        for batch in plan_model_scoring_batches(uncached, frontier_mode=frontier_decision.effective_frontier):
+        for batch in scoring_batches:
             score_kwargs = {}
             if model_usage_summary is not None:
                 score_kwargs["usage_summary"] = model_usage_summary
@@ -5096,14 +8234,19 @@ def make_records(
                 if batch_item.get("causal_evidence"):
                     result["causal_evidence"] = batch_item["causal_evidence"]
                 batch_item["model_result"] = result
-                cache_key = model_score_cache_key(
-                    batch_item["sha"],
-                    batch_item.get("diff_mode", "parent"),
-                    batch_item.get("diff_base_sha"),
-                    batch_item.get("diff_extraction", model_diff_extraction),
-                    frontier_score_context,
-                )
-                cache[cache_key] = result
+        for item in uncached:
+            result = item.get("model_result")
+            if not isinstance(result, dict):
+                raise RuntimeError(f"model result missing commit {item['sha']}")
+            cache_key = model_score_cache_key(
+                item["sha"],
+                item.get("diff_mode", "parent"),
+                item.get("diff_base_sha"),
+                item.get("diff_extraction", model_diff_extraction),
+                frontier_score_context,
+                causal_context_parent_count,
+            )
+            cache[cache_key] = result
         save_model_cache(cache_path, cache)
 
     preloaded_by_sha = {item["sha"]: item for item in preloaded_items}
@@ -5150,6 +8293,7 @@ def format_candidate(record: CommitRecord) -> str:
 
 
 def command_suggest(args: argparse.Namespace) -> int:
+    args.heuristic_ablation = heuristic_ablation_from_args(args)
     repo = Path(args.llvm_dir).resolve()
     if not (repo / ".git").exists():
         raise SystemExit(f"error: expected git checkout at {repo}")
@@ -5162,6 +8306,10 @@ def command_suggest(args: argparse.Namespace) -> int:
         if args.scorer == "heuristic"
         else (profile, None)
     )
+    if args.scorer == "heuristic":
+        selection_profile = heuristic_ablation_profile(selection_profile, args.heuristic_ablation)
+        if args.heuristic_ablation != "none" and args.heuristic_version != "tuned":
+            raise ValueError("heuristic ablation requires --heuristic-version tuned")
     model_config = None
     if args.scorer == "model":
         model_config = load_model_config(
@@ -5186,6 +8334,7 @@ def command_suggest(args: argparse.Namespace) -> int:
         model_frontier=args.model_frontier,
         candidate_pruning=args.candidate_pruning,
         heuristic_version=args.heuristic_version,
+        heuristic_ablation=args.heuristic_ablation,
         observations=observations,
         metadata_cache=metadata_cache,
         model_diff_mode=args.model_diff_mode,
@@ -5195,7 +8344,13 @@ def command_suggest(args: argparse.Namespace) -> int:
         selection_profile,
         records,
         observations,
-        enabled=args.scorer != "heuristic" or args.heuristic_version != "neutral",
+        enabled=(
+            (args.scorer != "heuristic" or args.heuristic_version != "neutral")
+            and not (
+                args.scorer == "heuristic"
+                and heuristic_ablation_disables_feedback(args.heuristic_ablation)
+            )
+        ),
     )
     decision = select_next_commit(
         selection_profile,
@@ -5213,6 +8368,7 @@ def command_suggest(args: argparse.Namespace) -> int:
     print(f"Title: {profile.title}")
     print(f"Scorer: {args.scorer}")
     print(f"Heuristic version: {args.heuristic_version}")
+    print(f"Heuristic ablation: {args.heuristic_ablation}")
     if oracle_derivation is not None:
         print(f"Oracle first-bad: {oracle_first_bad_sha}")
         print(
@@ -5570,6 +8726,7 @@ def load_skip_shas(path: Path | None) -> set[str]:
 
 
 def command_eval_email_case(args: argparse.Namespace) -> int:
+    args.heuristic_ablation = heuristic_ablation_from_args(args)
     repo = Path(args.llvm_dir).resolve()
     if not (repo / ".git").exists():
         raise SystemExit(f"error: expected git checkout at {repo}")
@@ -5591,6 +8748,8 @@ def command_eval_email_case(args: argparse.Namespace) -> int:
             if scorer_name == "heuristic"
             else profile
         )
+        if scorer_name == "heuristic":
+            selection_profile = heuristic_ablation_profile(selection_profile, args.heuristic_ablation)
         model_config = (
             load_model_config(
                 model_name=args.model_name,
@@ -5609,13 +8768,17 @@ def command_eval_email_case(args: argparse.Namespace) -> int:
             candidate_shas=candidate_shas,
             candidate_pruning=args.candidate_pruning,
             heuristic_version=args.heuristic_version,
+            heuristic_ablation=args.heuristic_ablation,
             observations=observations,
         )
         apply_feedback_bias(
             selection_profile,
             records,
             observations,
-            enabled=scorer_name != "heuristic" or args.heuristic_version != "neutral",
+            enabled=(
+                (scorer_name != "heuristic" or args.heuristic_version != "neutral")
+                and not (scorer_name == "heuristic" and heuristic_ablation_disables_feedback(args.heuristic_ablation))
+            ),
         )
         compute_selection(
             records,
@@ -5636,6 +8799,7 @@ def command_eval_email_case(args: argparse.Namespace) -> int:
         print(f"Candidate file: {args.candidate_file}")
     print(f"Observations: {len(observations)}")
     print(f"Heuristic version: {args.heuristic_version}")
+    print(f"Heuristic ablation: {args.heuristic_ablation}")
     print(f"Candidate pruning: {args.candidate_pruning}")
     for scorer_name, utility_rank, semantic_rank, record, total, pruning_summary in results:
         print("")
@@ -5652,6 +8816,7 @@ def command_eval_email_case(args: argparse.Namespace) -> int:
 
 
 def command_simulate_online(args: argparse.Namespace) -> int:
+    args.heuristic_ablation = heuristic_ablation_from_args(args)
     repo = Path(args.llvm_dir).resolve()
     if not (repo / ".git").exists():
         raise SystemExit(f"error: expected git checkout at {repo}")
@@ -5670,6 +8835,10 @@ def command_simulate_online(args: argparse.Namespace) -> int:
         if args.scorer == "heuristic"
         else (profile, None)
     )
+    if args.scorer == "heuristic":
+        selection_profile = heuristic_ablation_profile(selection_profile, args.heuristic_ablation)
+        if args.heuristic_ablation != "none" and args.heuristic_version != "tuned":
+            raise ValueError("heuristic ablation requires --heuristic-version tuned")
     skip_shas = load_skip_shas(Path(args.skip_file)) if args.skip_file else set()
 
     full_interval = list_candidate_commits(repo, profile.good_commit, profile.bad_commit)
@@ -5715,6 +8884,7 @@ def command_simulate_online(args: argparse.Namespace) -> int:
             model_frontier=args.model_frontier,
             candidate_pruning=args.candidate_pruning,
             heuristic_version=args.heuristic_version,
+            heuristic_ablation=args.heuristic_ablation,
             observations=[],
             metadata_cache=metadata_cache,
             model_cache=shared_model_cache,
@@ -5753,6 +8923,7 @@ def command_simulate_online(args: argparse.Namespace) -> int:
                 model_frontier=args.model_frontier,
                 candidate_pruning="off",
                 heuristic_version=args.heuristic_version,
+                heuristic_ablation=args.heuristic_ablation,
                 observations=[],
                 metadata_cache=metadata_cache,
                 model_cache=shared_model_cache,
@@ -5802,12 +8973,15 @@ def command_simulate_online(args: argparse.Namespace) -> int:
     print(f"Issue: {profile.issue_id}")
     print(f"Scorer: {args.scorer}")
     print(f"Heuristic version: {args.heuristic_version}")
+    print(f"Heuristic ablation: {args.heuristic_ablation}")
     if oracle_derivation is not None:
         print(f"Oracle keyword source: {oracle_first_bad_sha}")
         print(
             "Oracle-derived keywords: "
             f"{', '.join(selection_profile.oracle_keywords or selection_profile.keywords)}"
         )
+    if args.scorer == "heuristic" and args.heuristic_ablation != "none":
+        log_progress(f"heuristic ablation enabled: {args.heuristic_ablation}")
     print(f"Search policy: {args.search_policy}")
     if args.search_policy == "calibrated-posterior":
         print(f"Calibrated prior power: {args.calibrated_prior_power}")
@@ -5846,6 +9020,7 @@ def command_simulate_online(args: argparse.Namespace) -> int:
 
 
 def command_run_online(args: argparse.Namespace) -> int:
+    args.heuristic_ablation = heuristic_ablation_from_args(args)
     repo = Path(args.llvm_dir).resolve()
     if not (repo / ".git").exists():
         raise SystemExit(f"error: expected git checkout at {repo}")
@@ -5853,6 +9028,65 @@ def command_run_online(args: argparse.Namespace) -> int:
     log_progress(f"start issue={args.issue} scorer={args.scorer} run_label={args.run_label or '<none>'}")
     profiles = load_profiles()
     profile = load_issue_profile(profiles, args.issue)
+    human_signal_pool_enabled = (
+        args.scorer == "model" and args.model_diff_extraction == "causal-llm-human-pool"
+    )
+    human_signal_prior_enabled = (
+        args.scorer == "model" and args.model_diff_extraction == "causal-llm-human-prior"
+    )
+    human_frontier_enabled = (
+        args.scorer == "model" and args.model_diff_extraction == "causal-llm-human-frontier"
+    )
+    dynamic_human_evidence_enabled = (
+        args.scorer == "model" and args.model_diff_extraction == "causal-llm-human-dynamic"
+    )
+    if human_signal_pool_enabled:
+        validate_human_signal_pool_run_config(
+            issue_id=profile.issue_id,
+            scorer=args.scorer,
+            model_diff_mode=args.model_diff_mode,
+            run_label=args.run_label,
+            model_cache_namespace=getattr(args, "model_cache_namespace", None),
+        )
+        if args.candidate_file:
+            raise ValueError("human signal-pool proof requires the complete issue interval, not --candidate-file")
+    if human_signal_prior_enabled:
+        validate_human_signal_prior_run_config(
+            issue_id=profile.issue_id,
+            scorer=args.scorer,
+            model_diff_mode=args.model_diff_mode,
+            run_label=args.run_label,
+            model_cache_namespace=getattr(args, "model_cache_namespace", None),
+        )
+        if args.candidate_file:
+            raise ValueError("human signal prior requires the complete issue interval, not --candidate-file")
+        if args.search_policy != "calibrated-posterior":
+            raise ValueError("human signal prior requires --search-policy calibrated-posterior for fallback")
+    if human_frontier_enabled:
+        validate_human_frontier_run_config(
+            issue_id=profile.issue_id,
+            scorer=args.scorer,
+            model_diff_mode=args.model_diff_mode,
+            run_label=args.run_label,
+            model_cache_namespace=getattr(args, "model_cache_namespace", None),
+        )
+        if args.candidate_file:
+            raise ValueError("human frontier requires the complete issue interval, not --candidate-file")
+        if args.search_policy != "calibrated-posterior":
+            raise ValueError("human frontier requires --search-policy calibrated-posterior for fallback")
+    if dynamic_human_evidence_enabled:
+        validate_dynamic_human_evidence_run_config(
+            issue_id=profile.issue_id,
+            scorer=args.scorer,
+            model_diff_mode=args.model_diff_mode,
+            model_top_k=args.model_top_k,
+            run_label=args.run_label,
+            model_cache_namespace=getattr(args, "model_cache_namespace", None),
+        )
+        if args.candidate_file:
+            raise ValueError("dynamic human evidence requires the complete issue interval, not --candidate-file")
+        if args.search_policy != "calibrated-posterior":
+            raise ValueError("dynamic human evidence requires --search-policy calibrated-posterior")
     oracle_first_bad_sha = oracle_first_bad_sha_from_args(repo, args)
     selection_profile, oracle_derivation = (
         resolved_heuristic_selection_profile(repo, profile, args.heuristic_version, oracle_first_bad_sha)
@@ -5864,6 +9098,12 @@ def command_run_online(args: argparse.Namespace) -> int:
             "oracle heuristic diagnostic enabled: "
             f"first_bad={oracle_first_bad_sha[:12]} "
             f"oracle_keywords={len(selection_profile.oracle_keywords or selection_profile.keywords)}"
+        )
+    if args.scorer == "heuristic":
+        if args.heuristic_ablation != "none" and args.heuristic_version != "tuned":
+            raise ValueError("heuristic ablation requires --heuristic-version tuned")
+        selection_profile = heuristic_ablation_profile(
+            selection_profile, args.heuristic_ablation
         )
     log_progress("loading candidate window")
     unresolved = (
@@ -5884,6 +9124,26 @@ def command_run_online(args: argparse.Namespace) -> int:
     observation_conditioned_posterior = (
         observation_conditioned_posterior_config_from_args(args) if args.scorer == "model" else None
     )
+    causal_context_parent_count = (
+        int(args.causal_context_parent_count) if args.scorer == "model" else 0
+    )
+    if causal_context_parent_count < 0 or causal_context_parent_count > CAUSAL_CONTEXT_MAX_PARENT_COUNT:
+        raise ValueError(
+            f"causal context parent count must be between 0 and {CAUSAL_CONTEXT_MAX_PARENT_COUNT}"
+        )
+    if causal_context_parent_count and args.model_diff_extraction not in {
+        "causal-llm",
+        "causal-llm-impl",
+        "causal-llm-human",
+        "causal-llm-human-pool",
+        "causal-llm-human-prior",
+        "causal-llm-human-frontier",
+        "causal-llm-human-dynamic",
+        "causal-llm-crash-aware",
+        "causal-llm-deterministic-facts",
+        "causal-llm-deterministic-facts-artifact",
+    }:
+        raise ValueError("causal context parents require causal-llm extraction")
     if adaptive_top_k is not None and confidence_adaptive_frontier is not None:
         raise ValueError("interval adaptive top-k and confidence-adaptive frontier cannot be combined")
     validate_confidence_adaptive_frontier(args.model_frontier, confidence_adaptive_frontier)
@@ -5922,6 +9182,11 @@ def command_run_online(args: argparse.Namespace) -> int:
             f"fixed-k=3, bad={observation_conditioned_posterior.bad_strength:g}, "
             f"good={observation_conditioned_posterior.good_strength:g}"
         )
+    if causal_context_parent_count:
+        log_progress(
+            "causal first-parent range context enabled: "
+            f"candidate plus {causal_context_parent_count} predecessors"
+        )
     model_name = resolved_model_name(args.scorer, args.model_name)
     run_history_path = run_history_path_for_issue(
         args.issue,
@@ -5934,6 +9199,7 @@ def command_run_online(args: argparse.Namespace) -> int:
         args.observation_prompt_mode,
         args.run_label,
         args.model_reasoning_effort if args.scorer == "model" else None,
+        args.heuristic_ablation,
     )
     unresolved_window_path = unresolved_window_path_for_issue(
         args.issue,
@@ -5946,6 +9212,7 @@ def command_run_online(args: argparse.Namespace) -> int:
         args.observation_prompt_mode,
         args.run_label,
         args.model_reasoning_effort if args.scorer == "model" else None,
+        args.heuristic_ablation,
     )
     existing_run_history = load_run_history(run_history_path)
     if (
@@ -5974,6 +9241,7 @@ def command_run_online(args: argparse.Namespace) -> int:
         initial_unresolved=len(unresolved),
         candidate_file=str(Path(args.candidate_file).resolve()) if args.candidate_file else None,
         heuristic_version=args.heuristic_version,
+        heuristic_ablation=args.heuristic_ablation,
         calibrated_prior_power=args.calibrated_prior_power,
         calibrated_prior_bonus=args.calibrated_prior_bonus,
         weak_relevance_penalty=args.weak_relevance_penalty,
@@ -5983,6 +9251,7 @@ def command_run_online(args: argparse.Namespace) -> int:
         run_label=args.run_label,
         model_diff_mode=args.model_diff_mode,
         model_diff_extraction=args.model_diff_extraction if args.scorer == "model" else "raw",
+        causal_context_parent_count=causal_context_parent_count,
         model_top_k=args.model_top_k if args.scorer == "model" else None,
         model_reasoning_effort=args.model_reasoning_effort if args.scorer == "model" else None,
         adaptive_top_k=adaptive_top_k.payload() if adaptive_top_k else None,
@@ -6006,6 +9275,7 @@ def command_run_online(args: argparse.Namespace) -> int:
             "oracle-first-bad-major",
             "oracle-first-bad-major-tuned",
             "oracle-first-bad-major-tuned-semantic",
+            "oracle-first-bad-major-tuned-patch",
             "oracle-first-bad-major-tuned-anchor",
         }:
             run_history["oracle_diagnostic"] = {
@@ -6016,20 +9286,31 @@ def command_run_online(args: argparse.Namespace) -> int:
                 in {
                     "oracle-first-bad-major-tuned",
                     "oracle-first-bad-major-tuned-semantic",
+                    "oracle-first-bad-major-tuned-patch",
                     "oracle-first-bad-major-tuned-anchor",
                 },
                 "selection_contract": (
                     "direct-sha-anchor"
                     if is_direct_oracle_anchor_version(args.heuristic_version)
                     else (
-                        "oracle-major-semantic-search"
-                        if is_oracle_major_semantic_version(args.heuristic_version)
-                        else "keyword-retrieval"
+                        "oracle-patch-semantic-search"
+                        if is_oracle_patch_semantic_version(args.heuristic_version)
+                        else (
+                            "oracle-major-semantic-search"
+                            if is_oracle_major_semantic_version(args.heuristic_version)
+                            else "keyword-retrieval"
+                        )
                     )
                 ),
                 "normal_search_bypassed": is_direct_oracle_anchor_version(args.heuristic_version),
                 "baseline_eligible": False,
             }
+            if is_oracle_patch_semantic_version(args.heuristic_version):
+                run_history["oracle_diagnostic"]["patch_fingerprint"] = {
+                    "changed_files": list(selection_profile.oracle_patch_changed_files or []),
+                    "changed_lines": list(selection_profile.oracle_patch_anchors or []),
+                    "match_bonus": ORACLE_PATCH_MATCH_BONUS,
+                }
     save_run_history(run_history_path, run_history)
     log_progress(f"history initialized: completed_steps={completed_steps} resumed={resumed}")
 
@@ -6101,12 +9382,241 @@ def command_run_online(args: argparse.Namespace) -> int:
         model_usage_summary = {}
         run_history["model_usage"] = model_usage_summary
 
+    human_signal_pool_state: dict[str, object] | None = None
+    if human_signal_pool_enabled:
+        existing_pool_state = run_history.get("human_signal_pool")
+        if isinstance(existing_pool_state, dict) and existing_pool_state.get("phase"):
+            human_signal_pool_state = existing_pool_state
+            log_progress(
+                "resuming human signal-pool proof: "
+                f"phase={human_signal_pool_state.get('phase')} "
+                f"pool={human_signal_pool_state.get('candidate_count', 0)}"
+            )
+        else:
+            # Construct the soft signal pool over the full interval before any
+            # BCR step.  A pool miss never removes commits from this interval.
+            full_interval_metadata = load_commit_metadata(repo, unresolved, include_body=False)
+            metadata_cache.update(full_interval_metadata)
+            crash_signal_payload = profile_crash_signal_payload(profile)
+            dependency_anchors = human_dependency_anchor_files(repo, profile, crash_signal_payload)
+            pool_payload = build_human_signal_pool(
+                profile,
+                unresolved,
+                full_interval_metadata,
+                crash_signal_payload,
+                dependency_anchors=dependency_anchors,
+            )
+            human_signal_pool_state = {
+                **pool_payload,
+                "crash_signals": crash_signal_payload,
+                "direct_candidate_limit": HUMAN_SIGNAL_POOL_DIRECT_CANDIDATE_COUNT,
+                "phase": "triage",
+            }
+            pool_candidates = list(pool_payload.get("candidates", []))
+            if pool_candidates:
+                ranked_triage = human_signal_pool_triage_with_model(
+                    profile,
+                    crash_signal_payload,
+                    pool_candidates,
+                    model_config,
+                    model_usage_summary,
+                )
+                direct_candidates = ranked_triage[:HUMAN_SIGNAL_POOL_DIRECT_CANDIDATE_COUNT]
+                human_signal_pool_state.update(
+                    {
+                        "phase": "direct-candidate",
+                        "ranked_triage_candidates": ranked_triage,
+                        "post_triage_candidate_count": len(direct_candidates),
+                        "direct_candidate_shas": [str(item["sha"]) for item in direct_candidates],
+                    }
+                )
+                log_progress(
+                    "human signal-pool triage complete: "
+                    f"pool={len(pool_candidates)} direct={len(direct_candidates)}"
+                )
+            else:
+                human_signal_pool_state.update(
+                    {
+                        "phase": "fallback",
+                        "post_triage_candidate_count": 0,
+                        "direct_candidate_shas": [],
+                        "fallback_reason": "empty-direct-signal-pool",
+                    }
+                )
+                log_progress("human signal-pool is empty; falling back to full-interval BCR")
+            run_history["human_signal_pool"] = human_signal_pool_state
+            if model_usage_summary is not None:
+                run_history["model_usage"] = model_usage_summary
+            save_run_history(run_history_path, run_history)
+
+    human_signal_prior_state: dict[str, object] | None = None
+    if human_signal_prior_enabled:
+        existing_prior_state = run_history.get("human_signal_prior")
+        if isinstance(existing_prior_state, dict) and existing_prior_state.get("phase"):
+            human_signal_prior_state = existing_prior_state
+            log_progress(
+                "resuming human signal prior: "
+                f"phase={human_signal_prior_state.get('phase')} "
+                f"interval={human_signal_prior_state.get('full_interval_count', 0)}"
+            )
+        else:
+            full_interval_metadata = load_commit_metadata(repo, unresolved, include_body=True)
+            metadata_cache.update(full_interval_metadata)
+            crash_signal_payload = profile_crash_signal_payload(profile)
+            dependency_anchors = human_dependency_anchor_files(repo, profile, crash_signal_payload)
+            human_signal_prior_state = {
+                **build_human_signal_prior(
+                    profile,
+                    unresolved,
+                    full_interval_metadata,
+                    crash_signal_payload,
+                    dependency_anchors=dependency_anchors,
+                ),
+                "crash_signals": crash_signal_payload,
+                "phase": "prior",
+                "consecutive_direction_contradictions": 0,
+            }
+            run_history["human_signal_prior"] = human_signal_prior_state
+            save_run_history(run_history_path, run_history)
+            log_progress(
+                "human signal prior initialized: "
+                f"interval={human_signal_prior_state['full_interval_count']} "
+                f"floor={human_signal_prior_state['prior_floor']}"
+            )
+
+    human_frontier_state: dict[str, object] | None = None
+    if human_frontier_enabled:
+        existing_frontier_state = run_history.get("human_frontier")
+        if isinstance(existing_frontier_state, dict) and existing_frontier_state.get("phase"):
+            human_frontier_state = existing_frontier_state
+            log_progress(
+                "resuming human staged frontier: "
+                f"phase={human_frontier_state.get('phase')} "
+                f"frontier={human_frontier_state.get('candidate_count', 0)}"
+            )
+        else:
+            full_interval_metadata = load_commit_metadata(repo, unresolved, include_body=True)
+            metadata_cache.update(full_interval_metadata)
+            crash_signal_payload = profile_crash_signal_payload(profile)
+            anchor = human_frontier_anchor_from_payload(profile, crash_signal_payload)
+            dependency_analysis = human_frontier_dependency_paths(repo, profile, anchor)
+            frontier_payload = build_human_frontier_pool(
+                profile,
+                unresolved,
+                full_interval_metadata,
+                crash_signal_payload,
+                anchor=anchor,
+                dependency_paths=list(dependency_analysis["selected_paths"]),
+            )
+            frontier_shas = [str(sha) for sha in frontier_payload["candidate_shas"]]
+            human_frontier_state = {
+                **frontier_payload,
+                "crash_signals": crash_signal_payload,
+                "dependency_analysis": dependency_analysis,
+                "direct_candidate_limit": HUMAN_FRONTIER_DIRECT_CANDIDATE_COUNT,
+                "tested_frontier_shas": [],
+                "phase": "triage" if frontier_shas else "fallback",
+            }
+            if not frontier_shas:
+                human_frontier_state["fallback_reason"] = "empty-human-staged-frontier"
+                log_progress("human staged frontier is empty; falling back to full-interval BCR")
+            else:
+                ranked_triage = human_frontier_triage_with_model(
+                    profile,
+                    crash_signal_payload,
+                    list(frontier_payload["candidates"]),
+                    model_config,
+                    model_usage_summary,
+                )
+                # Triage determines membership, but the causal scorer receives
+                # candidates in the staged tier's original chronology. This
+                # keeps midpoint support a real interval signal rather than an
+                # artifact of the model's triage ranking.
+                direct_shas = [
+                    str(item["sha"])
+                    for item in sorted(
+                        ranked_triage,
+                        key=lambda item: int(item["index"]),
+                    )
+                ]
+                if not direct_shas:
+                    human_frontier_state.update(
+                        {
+                            "phase": "fallback",
+                            "fallback_reason": "human-frontier-triage-empty",
+                            "direct_candidate_shas": [],
+                        }
+                    )
+                    log_progress("human staged frontier triage returned no candidates; falling back")
+                else:
+                    human_frontier_state.update(
+                        {
+                            "phase": "search",
+                            "ranked_triage_candidates": ranked_triage,
+                            "direct_candidate_shas": direct_shas,
+                            "post_triage_candidate_count": len(direct_shas),
+                        }
+                    )
+                log_progress(
+                    "human staged frontier initialized: "
+                    f"tier={len(frontier_shas)} direct={len(direct_shas)} interval={len(unresolved)}"
+                )
+            run_history["human_frontier"] = human_frontier_state
+            save_run_history(run_history_path, run_history)
+
+    dynamic_human_evidence_state: dict[str, object] | None = None
+    dynamic_human_dependency_usage: dict[str, dict[str, int]] = {}
+    dynamic_human_crash_signals: dict[str, object] | None = None
+    if dynamic_human_evidence_enabled:
+        dynamic_human_crash_signals = profile_crash_signal_payload(
+            profile,
+            use_human_study_normalization=False,
+        )
+        dynamic_human_dependency_usage = dynamic_dependency_usage(
+            repo,
+            profile,
+            dynamic_human_crash_signals,
+        )
+        dynamic_human_evidence_state = {
+            "version": "dynamic-human-evidence-v1",
+            "crash_signals": dynamic_human_crash_signals,
+            "dependency_usage_sha256": dynamic_dependency_usage_digest(
+                dynamic_human_dependency_usage
+            ),
+            "refresh_contract": "recompute evidence from the current unresolved interval before every probe",
+            "hard_pruning": False,
+        }
+        run_history["dynamic_human_evidence"] = dynamic_human_evidence_state
+        save_run_history(run_history_path, run_history)
+        log_progress(
+            "dynamic human evidence initialized: "
+            f"terms={len(dynamic_human_dependency_usage)} full-interval eligibility retained"
+        )
+
     try:
         step = completed_steps
         while unresolved and len(unresolved) > 1 and step < args.max_steps:
             log_progress(f"step {step + 1}: unresolved before prepass={len(unresolved)}")
             unresolved_before_prepass = len(unresolved)
-            if is_direct_oracle_anchor_version(args.heuristic_version):
+            human_signal_pool_phase = (
+                str(human_signal_pool_state.get("phase"))
+                if human_signal_pool_state is not None
+                else None
+            )
+            human_signal_prior_phase = (
+                str(human_signal_prior_state.get("phase"))
+                if human_signal_prior_state is not None
+                else None
+            )
+            human_frontier_phase = (
+                str(human_frontier_state.get("phase"))
+                if human_frontier_state is not None
+                else None
+            )
+            if is_direct_oracle_anchor_version(args.heuristic_version) or human_signal_pool_phase in {
+                "direct-candidate",
+                "parent-proof",
+            } or human_frontier_phase in {"search", "parent-proof"}:
                 prepass_events = []
                 prepass_contradiction = False
             else:
@@ -6133,19 +9643,58 @@ def command_run_online(args: argparse.Namespace) -> int:
                 args.model_top_k if args.scorer == "model" else None,
                 adaptive_top_k,
             )
+            step_dynamic_human_evidence: dict[str, object] | None = None
+            if dynamic_human_evidence_enabled:
+                missing_metadata = [sha for sha in unresolved if sha not in metadata_cache]
+                if missing_metadata:
+                    metadata_cache.update(
+                        load_commit_metadata(repo, missing_metadata, include_body=False)
+                    )
+                assert dynamic_human_crash_signals is not None
+                step_dynamic_human_evidence = build_dynamic_human_evidence(
+                    selection_profile,
+                    unresolved,
+                    metadata_cache,
+                    dynamic_human_crash_signals,
+                    dependency_usage=dynamic_human_dependency_usage,
+                )
+                assert dynamic_human_evidence_state is not None
+                dynamic_human_evidence_state["last_interval_evidence"] = (
+                    dynamic_human_evidence_history_payload(step_dynamic_human_evidence)
+                )
+                run_history["dynamic_human_evidence"] = dynamic_human_evidence_state
+                save_run_history(run_history_path, run_history)
+                log_progress(
+                    "dynamic human evidence refreshed: "
+                    f"interval={len(unresolved)} crash-file-touches="
+                    f"{step_dynamic_human_evidence['crash_file_touch_count']} "
+                    f"rare-checker={step_dynamic_human_evidence['rare_checker_file']}"
+                )
             score_context_payload = (
                 model_score_context_payload(
-                    unresolved,
-                    observations,
-                    effective_top_k,
-                    args.model_frontier,
-                    args.model_diff_mode,
-                    args.model_diff_extraction,
-                    args.observation_prompt_mode,
-                    confidence_adaptive_frontier.payload() if confidence_adaptive_frontier else None,
-                    observation_conditioned_posterior.payload()
-                    if observation_conditioned_posterior
-                    else None,
+                    unresolved=unresolved,
+                    observations=observations,
+                    model_top_k=effective_top_k,
+                    model_frontier=args.model_frontier,
+                    model_diff_mode=args.model_diff_mode,
+                    model_diff_extraction=args.model_diff_extraction,
+                    observation_prompt_mode=args.observation_prompt_mode,
+                    confidence_adaptive_frontier=(
+                        confidence_adaptive_frontier.payload()
+                        if confidence_adaptive_frontier
+                        else None
+                    ),
+                    observation_conditioned_posterior=(
+                        observation_conditioned_posterior.payload()
+                        if observation_conditioned_posterior
+                        else None
+                    ),
+                    causal_context_parent_count=causal_context_parent_count,
+                    dynamic_human_evidence=(
+                        dynamic_human_evidence_history_payload(step_dynamic_human_evidence)
+                        if step_dynamic_human_evidence is not None
+                        else None
+                    ),
                 )
                 if args.scorer == "model"
                 else None
@@ -6158,7 +9707,265 @@ def command_run_online(args: argparse.Namespace) -> int:
             last_tested_sha = None
             if run_history.get("steps"):
                 last_tested_sha = str(run_history["steps"][-1].get("sha") or "") or None
-            if is_direct_oracle_anchor_version(args.heuristic_version):
+            oracle_patch_parent_sha = None
+            human_signal_pool_parent_sha = None
+            human_frontier_parent_sha = None
+            if human_frontier_phase == "search":
+                frontier_shas = [
+                    str(sha)
+                    for sha in human_frontier_state.get("direct_candidate_shas", [])
+                    if str(sha) in unresolved
+                    and str(sha) not in human_frontier_state.get("tested_frontier_shas", [])
+                ]
+                if not frontier_shas:
+                    human_frontier_state.update(
+                        {
+                            "phase": "fallback",
+                            "fallback_reason": "human-frontier-direct-candidates-exhausted",
+                        }
+                    )
+                    run_history["human_frontier"] = human_frontier_state
+                    save_run_history(run_history_path, run_history)
+                    human_frontier_phase = "fallback"
+                else:
+                    log_progress(
+                        f"step {step}: human staged frontier candidates={len(frontier_shas)}"
+                    )
+                    records, pruning_summary = make_records(
+                        repo,
+                        selection_profile,
+                        scorer=args.scorer,
+                        model_config=model_config,
+                        candidate_shas=frontier_shas,
+                        model_top_k=len(frontier_shas),
+                        model_frontier="all",
+                        candidate_pruning="off",
+                        heuristic_version=args.heuristic_version,
+                        observations=observations,
+                        metadata_cache=metadata_cache,
+                        model_cache=shared_model_cache,
+                        model_diff_mode="parent",
+                        model_diff_extraction=args.model_diff_extraction,
+                        causal_context_parent_count=causal_context_parent_count,
+                        last_tested_sha=None,
+                        model_usage_summary=model_usage_summary,
+                        model_cache_namespace=model_cache_namespace,
+                        model_score_context=score_context,
+                    )
+                    frontier_decisions = []
+                    human_frontier_state["active_direct_candidate_shas"] = frontier_shas
+            elif human_frontier_phase == "parent-proof":
+                candidate_sha = str(human_frontier_state.get("pending_candidate_sha") or "")
+                if candidate_sha not in unresolved:
+                    raise RuntimeError("human frontier parent proof candidate is outside the unresolved interval")
+                candidate_index = unresolved.index(candidate_sha)
+                if candidate_index == 0:
+                    raise RuntimeError("human frontier parent proof candidate has no in-range predecessor")
+                human_frontier_parent_sha = unresolved[candidate_index - 1]
+                parent_metadata = metadata_cache.get(human_frontier_parent_sha)
+                if parent_metadata is None:
+                    parent_metadata = load_commit_metadata(
+                        repo,
+                        [human_frontier_parent_sha],
+                        include_body=False,
+                    )[human_frontier_parent_sha]
+                    metadata_cache[human_frontier_parent_sha] = parent_metadata
+                records = [
+                    build_commit_record(
+                        repo,
+                        selection_profile,
+                        human_frontier_parent_sha,
+                        candidate_index,
+                        preloaded={
+                            "subject": parent_metadata.subject,
+                            "body": parent_metadata.body,
+                            "files": parent_metadata.changed_files,
+                            "diff": "",
+                            "diff_mode": "parent",
+                            "diff_extraction": "causal-llm-human-frontier",
+                        },
+                        heuristic_version=args.heuristic_version,
+                        load_diff=False,
+                    )
+                ]
+                pruning_summary = {"before_count": 1, "after_count": 1, "applied": False}
+                frontier_decisions = []
+            elif human_signal_pool_phase == "direct-candidate":
+                direct_candidate_shas = [
+                    str(sha)
+                    for sha in human_signal_pool_state.get("direct_candidate_shas", [])
+                    if str(sha) in unresolved
+                ]
+                if not direct_candidate_shas:
+                    human_signal_pool_state.update(
+                        {
+                            "phase": "fallback",
+                            "fallback_reason": "triaged-candidates-outside-unresolved-window",
+                        }
+                    )
+                    run_history["human_signal_pool"] = human_signal_pool_state
+                    save_run_history(run_history_path, run_history)
+                    human_signal_pool_phase = "fallback"
+                else:
+                    log_progress(
+                        f"step {step}: human signal-pool direct proof candidates={len(direct_candidate_shas)}"
+                    )
+                    records, pruning_summary = make_records(
+                        repo,
+                        selection_profile,
+                        scorer=args.scorer,
+                        model_config=model_config,
+                        candidate_shas=direct_candidate_shas,
+                        model_top_k=len(direct_candidate_shas),
+                        model_frontier="topk",
+                        candidate_pruning="off",
+                        heuristic_version=args.heuristic_version,
+                        observations=observations,
+                        metadata_cache=metadata_cache,
+                        model_cache=shared_model_cache,
+                        model_diff_mode="parent",
+                        model_diff_extraction=args.model_diff_extraction,
+                        causal_context_parent_count=causal_context_parent_count,
+                        last_tested_sha=None,
+                        model_usage_summary=model_usage_summary,
+                        model_cache_namespace=model_cache_namespace,
+                        model_score_context=score_context,
+                )
+                frontier_decisions = []
+            elif human_signal_prior_phase == "prior":
+                # Score only the normal BCR frontier. The human signal prior
+                # still assigns nonzero mass to every unresolved commit and
+                # chooses the probe after this model evidence is available.
+                log_progress(
+                    f"step {step}: human signal prior model frontier={effective_top_k} "
+                    f"unresolved={unresolved_before}"
+                )
+                frontier_decisions = []
+                records, pruning_summary = make_records(
+                    repo,
+                    selection_profile,
+                    scorer=args.scorer,
+                    model_config=model_config,
+                    candidate_shas=unresolved,
+                    model_top_k=effective_top_k if args.scorer == "model" else None,
+                    model_frontier=args.model_frontier,
+                    candidate_pruning="off",
+                    heuristic_version=args.heuristic_version,
+                    heuristic_ablation=args.heuristic_ablation,
+                    observations=observations,
+                    metadata_cache=metadata_cache,
+                    model_cache=shared_model_cache,
+                    model_diff_mode=args.model_diff_mode,
+                    model_diff_extraction=args.model_diff_extraction,
+                    causal_context_parent_count=causal_context_parent_count,
+                    last_tested_sha=last_tested_sha,
+                    model_usage_summary=model_usage_summary,
+                    model_cache_namespace=model_cache_namespace,
+                    model_score_context=score_context,
+                    model_frontier_decision_out=frontier_decisions,
+                )
+            elif dynamic_human_evidence_enabled:
+                log_progress(
+                    f"step {step}: dynamic human evidence model frontier={effective_top_k} "
+                    f"unresolved={unresolved_before}"
+                )
+                frontier_decisions = []
+                records, pruning_summary = make_records(
+                    repo,
+                    selection_profile,
+                    scorer=args.scorer,
+                    model_config=model_config,
+                    candidate_shas=unresolved,
+                    model_top_k=effective_top_k,
+                    model_frontier=args.model_frontier,
+                    candidate_pruning="off",
+                    heuristic_version=args.heuristic_version,
+                    heuristic_ablation=args.heuristic_ablation,
+                    observations=observations,
+                    metadata_cache=metadata_cache,
+                    model_cache=shared_model_cache,
+                    model_diff_mode=args.model_diff_mode,
+                    model_diff_extraction=args.model_diff_extraction,
+                    causal_context_parent_count=causal_context_parent_count,
+                    last_tested_sha=last_tested_sha,
+                    model_usage_summary=model_usage_summary,
+                    model_cache_namespace=model_cache_namespace,
+                    model_score_context=score_context,
+                    model_frontier_decision_out=frontier_decisions,
+                    dynamic_human_evidence=step_dynamic_human_evidence,
+                )
+            if human_frontier_phase not in {"search", "parent-proof"} and human_signal_pool_phase == "parent-proof":
+                candidate_sha = str(human_signal_pool_state.get("pending_candidate_sha") or "")
+                if candidate_sha not in unresolved:
+                    raise RuntimeError("human signal-pool parent proof candidate is outside the unresolved interval")
+                candidate_index = unresolved.index(candidate_sha)
+                if candidate_index == 0:
+                    raise RuntimeError("human signal-pool parent proof candidate has no in-range predecessor")
+                human_signal_pool_parent_sha = unresolved[candidate_index - 1]
+                log_progress(
+                    f"step {step}: human signal-pool parent proof {human_signal_pool_parent_sha[:12]}"
+                )
+                parent_metadata = metadata_cache.get(human_signal_pool_parent_sha)
+                if parent_metadata is None:
+                    parent_metadata = load_commit_metadata(
+                        repo,
+                        [human_signal_pool_parent_sha],
+                        include_body=False,
+                    )[human_signal_pool_parent_sha]
+                    metadata_cache[human_signal_pool_parent_sha] = parent_metadata
+                parent_record = build_commit_record(
+                    repo,
+                    selection_profile,
+                    human_signal_pool_parent_sha,
+                    candidate_index,
+                    preloaded={
+                        "subject": parent_metadata.subject,
+                        "body": parent_metadata.body,
+                        "files": parent_metadata.changed_files,
+                        "diff": "",
+                        "diff_mode": "parent",
+                        "diff_extraction": "causal-llm-human-pool",
+                    },
+                    heuristic_version=args.heuristic_version,
+                    load_diff=False,
+                )
+                records = [parent_record]
+                pruning_summary = {"before_count": 1, "after_count": 1, "applied": False}
+                frontier_decisions = []
+            elif human_frontier_phase not in {"search", "parent-proof"} and human_signal_pool_phase not in {"direct-candidate", "parent-proof"} and human_signal_prior_phase != "prior" and (
+                is_oracle_patch_semantic_version(args.heuristic_version)
+                and run_history.get("oracle_diagnostic", {}).get("pending_parent_proof")
+            ):
+                matched_sha = str(run_history["oracle_diagnostic"]["pending_parent_proof"])
+                matched_index = unresolved.index(matched_sha)
+                if matched_index == 0:
+                    raise RuntimeError("oracle patch match has no in-range predecessor to validate")
+                oracle_patch_parent_sha = unresolved[matched_index - 1]
+                log_progress(f"step {step}: oracle patch parent proof {oracle_patch_parent_sha[:12]}")
+                records, pruning_summary = make_records(
+                    repo,
+                    selection_profile,
+                    scorer=args.scorer,
+                    model_config=model_config,
+                    candidate_shas=[oracle_patch_parent_sha],
+                    model_top_k=effective_top_k if args.scorer == "model" else None,
+                    model_frontier=args.model_frontier,
+                    candidate_pruning="off",
+                    heuristic_version=args.heuristic_version,
+                    observations=observations,
+                    metadata_cache=metadata_cache,
+                    model_cache=shared_model_cache,
+                    model_diff_mode=args.model_diff_mode,
+                    model_diff_extraction=args.model_diff_extraction,
+                    causal_context_parent_count=causal_context_parent_count,
+                    last_tested_sha=last_tested_sha,
+                    model_usage_summary=model_usage_summary,
+                    model_cache_namespace=model_cache_namespace,
+                    model_score_context=score_context,
+                    confidence_adaptive_frontier=confidence_adaptive_frontier,
+                )
+                frontier_decisions = []
+            elif human_frontier_phase not in {"search", "parent-proof"} and human_signal_pool_phase not in {"direct-candidate", "parent-proof"} and human_signal_prior_phase != "prior" and is_direct_oracle_anchor_version(args.heuristic_version):
                 oracle_first_bad_sha = validate_direct_oracle_anchor(unresolved, oracle_first_bad_sha)
                 log_progress(f"step {step}: direct oracle anchor {oracle_first_bad_sha[:12]}")
                 records, pruning_summary = make_records(
@@ -6176,6 +9983,7 @@ def command_run_online(args: argparse.Namespace) -> int:
                     model_cache=shared_model_cache,
                     model_diff_mode=args.model_diff_mode,
                     model_diff_extraction=args.model_diff_extraction,
+                    causal_context_parent_count=causal_context_parent_count,
                     last_tested_sha=last_tested_sha,
                     model_usage_summary=model_usage_summary,
                     model_cache_namespace=model_cache_namespace,
@@ -6183,7 +9991,12 @@ def command_run_online(args: argparse.Namespace) -> int:
                     confidence_adaptive_frontier=confidence_adaptive_frontier,
                 )
                 frontier_decisions = []
-            else:
+            elif (
+                human_frontier_phase not in {"search", "parent-proof"}
+                and human_signal_pool_phase not in {"direct-candidate", "parent-proof"}
+                and human_signal_prior_phase != "prior"
+                and not dynamic_human_evidence_enabled
+            ):
                 log_progress(f"step {step}: make_records start unresolved={unresolved_before}")
                 frontier_decisions = []
                 records, pruning_summary = make_records(
@@ -6196,11 +10009,13 @@ def command_run_online(args: argparse.Namespace) -> int:
                     model_frontier=args.model_frontier,
                     candidate_pruning=args.candidate_pruning,
                     heuristic_version=args.heuristic_version,
+                    heuristic_ablation=args.heuristic_ablation,
                     observations=observations,
                     metadata_cache=metadata_cache,
                     model_cache=shared_model_cache,
                     model_diff_mode=args.model_diff_mode,
                     model_diff_extraction=args.model_diff_extraction,
+                    causal_context_parent_count=causal_context_parent_count,
                     last_tested_sha=last_tested_sha,
                     model_usage_summary=model_usage_summary,
                     model_cache_namespace=model_cache_namespace,
@@ -6213,8 +10028,44 @@ def command_run_online(args: argparse.Namespace) -> int:
                 run_history["model_usage"] = model_usage_summary
                 save_run_history(run_history_path, run_history)
             log_progress(f"step {step}: make_records done records={len(records)}")
-            if is_direct_oracle_anchor_version(args.heuristic_version):
+            if human_frontier_phase == "search":
+                frontier_scores = {
+                    str(item["sha"]): float(item.get("triage_score", 0.0))
+                    for item in human_frontier_state.get("ranked_triage_candidates", [])
+                    if isinstance(item, dict)
+                }
+                decision = human_frontier_direct_selection(records, frontier_scores)
+            elif human_frontier_phase == "parent-proof":
+                decision = human_frontier_parent_selection(records)
+            elif human_signal_pool_phase == "direct-candidate":
+                triage_scores = {
+                    str(item["sha"]): float(item.get("triage_score", 0.0))
+                    for item in human_signal_pool_state.get("ranked_triage_candidates", [])
+                    if isinstance(item, dict)
+                }
+                decision = human_signal_pool_direct_selection(records, triage_scores)
+            elif human_signal_pool_phase == "parent-proof":
+                decision = human_signal_pool_parent_selection(records)
+            elif human_signal_prior_phase == "prior":
+                decision = human_signal_prior_selection(
+                    records,
+                    {
+                        str(sha): float(score)
+                        for sha, score in human_signal_prior_state.get("prior_by_sha", {}).items()
+                    },
+                )
+            elif dynamic_human_evidence_enabled:
+                assert step_dynamic_human_evidence is not None
+                decision = dynamic_human_evidence_selection(
+                    records,
+                    step_dynamic_human_evidence,
+                )
+            elif oracle_patch_parent_sha is not None:
+                decision = oracle_patch_parent_selection(records)
+            elif is_direct_oracle_anchor_version(args.heuristic_version):
                 decision = oracle_direct_anchor_selection(records, oracle_first_bad_sha)
+            elif is_oracle_patch_semantic_version(args.heuristic_version):
+                decision = oracle_patch_semantic_selection(records)
             elif is_oracle_major_semantic_version(args.heuristic_version):
                 decision = oracle_major_semantic_selection(records)
             else:
@@ -6224,6 +10075,10 @@ def command_run_online(args: argparse.Namespace) -> int:
                     observations,
                     enabled=(
                         (args.scorer != "heuristic" or args.heuristic_version != "neutral")
+                        and not (
+                            args.scorer == "heuristic"
+                            and heuristic_ablation_disables_feedback(args.heuristic_ablation)
+                        )
                         and observation_conditioned_posterior is None
                     ),
                 )
@@ -6243,7 +10098,10 @@ def command_run_online(args: argparse.Namespace) -> int:
                     observation_posterior_config=observation_conditioned_posterior,
                 )
             log_progress(f"step {step}: selected {decision.selected.sha[:12]} mode={decision.selection_mode}")
-            if is_direct_oracle_anchor_version(args.heuristic_version):
+            if is_direct_oracle_anchor_version(args.heuristic_version) or human_signal_pool_phase in {
+                "direct-candidate",
+                "parent-proof",
+            } or human_frontier_phase in {"search", "parent-proof"}:
                 # An upper-bound validation must run the supplied SHA even if a
                 # previous experiment has a cached observation for it.
                 selected = decision.selected
@@ -6269,11 +10127,13 @@ def command_run_online(args: argparse.Namespace) -> int:
                         model_frontier=args.model_frontier,
                         candidate_pruning="off",
                         heuristic_version=args.heuristic_version,
+                        heuristic_ablation=args.heuristic_ablation,
                         observations=observations,
                         metadata_cache=metadata_cache,
                         model_cache=shared_model_cache,
                         model_diff_mode=args.model_diff_mode,
                         model_diff_extraction=args.model_diff_extraction,
+                        causal_context_parent_count=causal_context_parent_count,
                         last_tested_sha=last_tested_sha,
                         model_usage_summary=model_usage_summary,
                         model_cache_namespace=model_cache_namespace,
@@ -6289,6 +10149,10 @@ def command_run_online(args: argparse.Namespace) -> int:
                         observations,
                         enabled=(
                             (args.scorer != "heuristic" or args.heuristic_version != "neutral")
+                            and not (
+                                args.scorer == "heuristic"
+                                and heuristic_ablation_disables_feedback(args.heuristic_ablation)
+                            )
                             and observation_conditioned_posterior is None
                         ),
                     )
@@ -6391,10 +10255,95 @@ def command_run_online(args: argparse.Namespace) -> int:
                     "pruning": pruning_summary,
                 }
             )
+            human_signal_pool_transition_payload: dict[str, object] | None = None
+            if human_signal_pool_phase in {"direct-candidate", "parent-proof"}:
+                human_signal_pool_transition_payload = human_signal_pool_transition(
+                    unresolved,
+                    selected_sha=selected.sha,
+                    verdict=verdict,
+                    phase=human_signal_pool_phase,
+                    candidate_sha=(
+                        str(human_signal_pool_state.get("pending_candidate_sha") or "")
+                        if human_signal_pool_phase == "parent-proof"
+                        else None
+                    ),
+                )
+                unresolved = list(human_signal_pool_transition_payload["unresolved"])
+                human_signal_pool_state["phase"] = human_signal_pool_transition_payload["phase"]
+                if human_signal_pool_transition_payload["phase"] == "parent-proof":
+                    human_signal_pool_state["pending_candidate_sha"] = human_signal_pool_transition_payload[
+                        "pending_candidate_sha"
+                    ]
+                else:
+                    human_signal_pool_state.pop("pending_candidate_sha", None)
+                if human_signal_pool_transition_payload.get("direct_proof"):
+                    human_signal_pool_state["direct_proof"] = human_signal_pool_transition_payload[
+                        "direct_proof"
+                    ]
+                if human_signal_pool_transition_payload.get("fallback_reason"):
+                    human_signal_pool_state["fallback_reason"] = human_signal_pool_transition_payload[
+                        "fallback_reason"
+                    ]
+            human_frontier_transition_payload: dict[str, object] | None = None
+            if human_frontier_phase in {"search", "parent-proof"}:
+                human_frontier_transition_payload = human_frontier_transition(
+                    unresolved,
+                    selected_sha=selected.sha,
+                    verdict=verdict,
+                    phase=human_frontier_phase,
+                    frontier_shas=[
+                        str(sha)
+                        for sha in human_frontier_state.get("active_direct_candidate_shas", [])
+                    ],
+                    tested_frontier_shas=[
+                        str(sha) for sha in human_frontier_state.get("tested_frontier_shas", [])
+                    ],
+                    candidate_sha=(
+                        str(human_frontier_state.get("pending_candidate_sha") or "")
+                        if human_frontier_phase == "parent-proof"
+                        else None
+                    ),
+                )
+                unresolved = list(human_frontier_transition_payload["unresolved"])
+                human_frontier_state["phase"] = human_frontier_transition_payload["phase"]
+                human_frontier_state["active_direct_candidate_shas"] = human_frontier_transition_payload[
+                    "frontier_shas"
+                ]
+                human_frontier_state["tested_frontier_shas"] = human_frontier_transition_payload[
+                    "tested_frontier_shas"
+                ]
+                if human_frontier_transition_payload.get("pending_candidate_sha"):
+                    human_frontier_state["pending_candidate_sha"] = human_frontier_transition_payload[
+                        "pending_candidate_sha"
+                    ]
+                else:
+                    human_frontier_state.pop("pending_candidate_sha", None)
+                if human_frontier_transition_payload.get("direct_proof"):
+                    human_frontier_state["direct_proof"] = human_frontier_transition_payload[
+                        "direct_proof"
+                    ]
+                if human_frontier_transition_payload.get("fallback_reason"):
+                    human_frontier_state["fallback_reason"] = human_frontier_transition_payload[
+                        "fallback_reason"
+                    ]
+                run_history["human_frontier"] = human_frontier_state
+            human_signal_prior_transition_payload: dict[str, object] | None = None
+            if human_signal_prior_phase == "prior":
+                human_signal_prior_state, human_signal_prior_transition_payload = (
+                    update_human_signal_prior_after_verdict(
+                        human_signal_prior_state,
+                        predicted_verdict=str(decision.metadata["predicted_verdict"]),
+                        verdict=verdict,
+                    )
+                )
+                run_history["human_signal_prior"] = human_signal_prior_state
             anchor_validation_failed = (
                 is_direct_oracle_anchor_version(args.heuristic_version) and verdict != "bad"
             )
-            if is_direct_oracle_anchor_version(args.heuristic_version):
+            oracle_patch_validation_failed = False
+            if human_frontier_phase in {"search", "parent-proof"} or human_signal_pool_phase in {"direct-candidate", "parent-proof"}:
+                pass
+            elif is_direct_oracle_anchor_version(args.heuristic_version):
                 # Preserve a failed validation without changing the original interval.
                 if anchor_validation_failed:
                     run_history["oracle_diagnostic"]["anchor_verdict"] = verdict
@@ -6403,6 +10352,37 @@ def command_run_online(args: argparse.Namespace) -> int:
                     unresolved = [selected.sha]
                     run_history["oracle_diagnostic"]["anchor_verdict"] = "bad"
                     run_history["oracle_diagnostic"]["anchor_validation_passed"] = True
+            elif is_oracle_patch_semantic_version(args.heuristic_version):
+                diagnostic = run_history["oracle_diagnostic"]
+                if oracle_patch_parent_sha is not None:
+                    matched_sha = str(diagnostic.pop("pending_parent_proof"))
+                    diagnostic["parent_proof"] = {
+                        "matched_sha": matched_sha,
+                        "parent_sha": selected.sha,
+                        "parent_verdict": verdict,
+                        "passed": verdict == "good",
+                    }
+                    if verdict == "good":
+                        unresolved = [matched_sha]
+                    else:
+                        oracle_patch_validation_failed = True
+                elif verdict == "bad":
+                    selected_index = unresolved.index(selected.sha)
+                    if selected_index == 0:
+                        diagnostic["parent_proof"] = {
+                            "matched_sha": selected.sha,
+                            "parent_sha": profile.good_commit,
+                            "parent_verdict": "good-endpoint",
+                            "passed": True,
+                        }
+                        unresolved = [selected.sha]
+                    else:
+                        diagnostic["pending_parent_proof"] = selected.sha
+                        # Preserve the matched SHA while requesting its immediate
+                        # predecessor in the next iteration.
+                        unresolved = unresolved[: selected_index + 1]
+                else:
+                    unresolved = partition_interval(unresolved, selected.sha, verdict)
             else:
                 unresolved = partition_interval(unresolved, selected.sha, verdict)
             append_run_history_step(
@@ -6450,6 +10430,18 @@ def command_run_online(args: argparse.Namespace) -> int:
                     "selection_mode": decision.selection_mode,
                     "selection": selection_payload(selected),
                     "top_candidates": top_candidates,
+                    "human_signal_pool_phase": human_signal_pool_phase,
+                    "human_signal_pool_transition": human_signal_pool_transition_payload,
+                    "human_frontier_phase": human_frontier_phase,
+                    "human_frontier_transition": human_frontier_transition_payload,
+                    "human_signal_prior_phase": human_signal_prior_phase,
+                    "human_signal_prior_transition": human_signal_prior_transition_payload,
+                    "dynamic_human_evidence": (
+                        dynamic_human_evidence_history_payload(step_dynamic_human_evidence)
+                        if step_dynamic_human_evidence is not None
+                        else None
+                    ),
+                    "selection_metadata": decision.metadata,
                     **runner_history_fields,
                 },
             )
@@ -6457,7 +10449,7 @@ def command_run_online(args: argparse.Namespace) -> int:
                 run_history["steps"][-1]["runner_duration_sec"] = round(runner_duration_sec, 3)
             save_run_history(run_history_path, run_history)
             save_unresolved_window(unresolved_window_path, unresolved)
-            if anchor_validation_failed:
+            if anchor_validation_failed or oracle_patch_validation_failed:
                 run_history["status"] = "oracle_validation_failed"
                 run_history["steps_executed"] = len(run_history.get("steps", []))
                 run_history["remaining_unresolved"] = len(unresolved)
@@ -6465,8 +10457,12 @@ def command_run_online(args: argparse.Namespace) -> int:
                 run_history["unresolved_window_path"] = str(unresolved_window_path)
                 update_runner_duration_summary(run_history)
                 save_run_history(run_history_path, run_history)
+                if anchor_validation_failed:
+                    raise RuntimeError(
+                        f"direct oracle anchor {selected.sha[:12]} returned {verdict}, expected bad"
+                    )
                 raise RuntimeError(
-                    f"direct oracle anchor {selected.sha[:12]} returned {verdict}, expected bad"
+                    f"oracle patch parent {selected.sha[:12]} returned {verdict}, expected good"
                 )
     finally:
         checkout_commit(repo, original_head)
@@ -6492,6 +10488,7 @@ def command_run_online(args: argparse.Namespace) -> int:
     print(f"Issue: {profile.issue_id}")
     print(f"Scorer: {args.scorer}")
     print(f"Heuristic version: {args.heuristic_version}")
+    print(f"Heuristic ablation: {args.heuristic_ablation}")
     print(f"Search policy: {args.search_policy}")
     if args.search_policy == "calibrated-posterior":
         print(f"Calibrated prior power: {args.calibrated_prior_power}")
@@ -6554,13 +10551,14 @@ def build_parser() -> argparse.ArgumentParser:
     suggest.add_argument("--observations", default=None, help="optional path to tested-commit observation JSON")
     suggest.add_argument("--scorer", choices=("heuristic", "model"), default="heuristic", help="scoring backend")
     suggest.add_argument("--heuristic-version", choices=HEURISTIC_VERSIONS, default="tuned", help="heuristic scoring version; oracle-first-bad variants are diagnostics that leak the validated answer")
+    suggest.add_argument("--heuristic-ablation", choices=HEURISTIC_ABLATION_FACTORS, default="none", help="disable exactly one tuned heuristic factor for a controlled ablation")
     suggest.add_argument("--oracle-first-bad-sha", default=None, help="required known first-bad SHA for an oracle-first-bad diagnostic")
     suggest.add_argument("--model-name", default=None, help="optional model override for scorer=model")
     suggest.add_argument("--model-reasoning-effort", choices=("low", "medium", "high"), default=None, help="optional provider reasoning effort for scorer=model")
     suggest.add_argument("--model-top-k", type=int, default=3, help="number of heuristic-prefiltered commits to rescore with the model")
     suggest.add_argument("--model-frontier", choices=("topk", "diverse", "evidence-diverse", "all"), default="topk", help="how to choose the model rescoring frontier")
     suggest.add_argument("--model-diff-mode", choices=("parent", "last-tested"), default="parent", help="diff evidence passed to model-scored candidates")
-    suggest.add_argument("--model-diff-extraction", choices=("raw", "llm", "causal-llm", "causal-llm-impl"), default="raw", help="whether model-scored candidates use raw diff text, an LLM summary, balanced causal evidence, or implementation-first causal evidence")
+    suggest.add_argument("--model-diff-extraction", choices=("raw", "llm", "causal-llm", "causal-llm-impl", "causal-llm-human", "causal-llm-human-pool", "causal-llm-human-prior", "causal-llm-human-frontier", "causal-llm-human-dynamic", "causal-llm-crash-aware", "causal-llm-deterministic-facts", "causal-llm-deterministic-facts-artifact"), default="raw", help="whether model-scored candidates use raw diff text, an LLM summary, causal retrieval, crash-aware causal retrieval, or deterministic-facts causal ranking")
     suggest.add_argument("--observation-prompt-mode", choices=("legacy", "trace-only"), default="legacy", help="how runner-backed crash observations are formatted when scorer=model")
     suggest.add_argument("--search-policy", choices=("ranked", "hybrid", "posterior", "calibrated-posterior"), default="ranked", help="commit selection policy")
     suggest.add_argument("--candidate-pruning", choices=("off", "conservative"), default="off", help="prune obviously irrelevant commits before scoring")
@@ -6608,6 +10606,7 @@ def build_parser() -> argparse.ArgumentParser:
     eval_email.add_argument("--candidate-file", default=None, help="optional JSON file listing the candidate commit set to rank")
     eval_email.add_argument("--observations", default=None, help="optional path to tested-commit observation JSON")
     eval_email.add_argument("--heuristic-version", choices=HEURISTIC_VERSIONS, default="tuned", help="heuristic scoring version; oracle-first-bad variants are diagnostics that leak the validated answer")
+    eval_email.add_argument("--heuristic-ablation", choices=HEURISTIC_ABLATION_FACTORS, default="none", help="disable exactly one tuned heuristic factor for a controlled ablation")
     eval_email.add_argument("--oracle-first-bad-sha", default=None, help="required known first-bad SHA for an oracle-first-bad diagnostic")
     eval_email.add_argument("--model-name", default=None, help="optional model override for scorer=model")
     eval_email.add_argument("--model-reasoning-effort", choices=("low", "medium", "high"), default=None, help="optional provider reasoning effort for scorer=model")
@@ -6628,13 +10627,14 @@ def build_parser() -> argparse.ArgumentParser:
     )
     simulate.add_argument("--scorer", choices=("heuristic", "model"), default="heuristic", help="scoring backend")
     simulate.add_argument("--heuristic-version", choices=HEURISTIC_VERSIONS, default="tuned", help="heuristic scoring version; oracle-first-bad variants are diagnostics that leak the validated answer")
+    simulate.add_argument("--heuristic-ablation", choices=HEURISTIC_ABLATION_FACTORS, default="none", help="disable exactly one tuned heuristic factor for a controlled ablation")
     simulate.add_argument("--oracle-first-bad-sha", default=None, help="required known first-bad SHA for an oracle-first-bad diagnostic")
     simulate.add_argument("--model-name", default=None, help="optional model override for scorer=model")
     simulate.add_argument("--model-reasoning-effort", choices=("low", "medium", "high"), default=None, help="optional provider reasoning effort for scorer=model")
     simulate.add_argument("--model-top-k", type=int, default=3, help="number of heuristic-prefiltered commits to rescore with the model")
     simulate.add_argument("--model-frontier", choices=("topk", "diverse", "evidence-diverse", "all"), default="topk", help="how to choose the model rescoring frontier")
     simulate.add_argument("--model-diff-mode", choices=("parent", "last-tested"), default="parent", help="diff evidence passed to model-scored candidates")
-    simulate.add_argument("--model-diff-extraction", choices=("raw", "llm", "causal-llm", "causal-llm-impl"), default="raw", help="whether model-scored candidates use raw diff text, an LLM summary, balanced causal evidence, or implementation-first causal evidence")
+    simulate.add_argument("--model-diff-extraction", choices=("raw", "llm", "causal-llm", "causal-llm-impl", "causal-llm-human", "causal-llm-human-pool", "causal-llm-human-prior", "causal-llm-human-frontier", "causal-llm-human-dynamic", "causal-llm-crash-aware", "causal-llm-deterministic-facts", "causal-llm-deterministic-facts-artifact"), default="raw", help="whether model-scored candidates use raw diff text, an LLM summary, causal retrieval, crash-aware causal retrieval, or deterministic-facts causal ranking")
     simulate.add_argument("--observation-prompt-mode", choices=("legacy", "trace-only"), default="legacy", help="how runner-backed crash observations are formatted when scorer=model")
     simulate.add_argument("--search-policy", choices=("ranked", "hybrid", "posterior", "calibrated-posterior"), default="ranked", help="commit selection policy")
     simulate.add_argument("--candidate-pruning", choices=("off", "conservative"), default="off", help="prune obviously irrelevant commits before scoring")
@@ -6657,6 +10657,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     run_online.add_argument("--scorer", choices=("heuristic", "model"), default="heuristic", help="scoring backend")
     run_online.add_argument("--heuristic-version", choices=HEURISTIC_VERSIONS, default="tuned", help="heuristic scoring version; oracle-first-bad variants are diagnostics that leak the validated answer")
+    run_online.add_argument("--heuristic-ablation", choices=HEURISTIC_ABLATION_FACTORS, default="none", help="disable exactly one tuned heuristic factor for a controlled ablation")
     run_online.add_argument("--oracle-first-bad-sha", default=None, help="required known first-bad SHA for an oracle-first-bad diagnostic")
     run_online.add_argument("--heuristic-top-k", type=int, default=None, help=argparse.SUPPRESS)
     run_online.add_argument("--model-name", default=None, help="optional model override for scorer=model")
@@ -6698,7 +10699,13 @@ def build_parser() -> argparse.ArgumentParser:
     )
     run_online.add_argument("--model-frontier", choices=("topk", "diverse", "evidence-diverse", "all"), default="topk", help="how to choose the model rescoring frontier")
     run_online.add_argument("--model-diff-mode", choices=("parent", "last-tested"), default="parent", help="diff evidence passed to model-scored candidates")
-    run_online.add_argument("--model-diff-extraction", choices=("raw", "llm", "causal-llm", "causal-llm-impl"), default="raw", help="whether model-scored candidates use raw diff text, an LLM summary, balanced causal evidence, or implementation-first causal evidence")
+    run_online.add_argument("--model-diff-extraction", choices=("raw", "llm", "causal-llm", "causal-llm-impl", "causal-llm-human", "causal-llm-human-pool", "causal-llm-human-prior", "causal-llm-human-frontier", "causal-llm-human-dynamic", "causal-llm-crash-aware", "causal-llm-deterministic-facts", "causal-llm-deterministic-facts-artifact"), default="raw", help="whether model-scored candidates use raw diff text, an LLM summary, causal retrieval, crash-aware causal retrieval, or deterministic-facts causal ranking")
+    run_online.add_argument(
+        "--causal-context-parent-count",
+        type=int,
+        default=0,
+        help="for causal extraction, include this many first-parent predecessor diffs as provenance-marked context",
+    )
     run_online.add_argument("--observation-prompt-mode", choices=("legacy", "trace-only"), default="legacy", help="how runner-backed crash observations are formatted when scorer=model")
     run_online.add_argument("--search-policy", choices=("ranked", "hybrid", "posterior", "calibrated-posterior"), default="ranked", help="commit selection policy")
     run_online.add_argument("--candidate-pruning", choices=("off", "conservative"), default="off", help="prune obviously irrelevant commits before scoring")

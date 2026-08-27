@@ -23,7 +23,9 @@ ROOT_DIR=$(cd -- "${SCRIPT_DIR}/../.." && pwd)
 LLVM_DIR=${1:-"/home/derek331/research/gitbisect-work/llvm-project"}
 RUNNER="${SCRIPT_DIR}/bisect-runner.sh"
 RESULTS_DIR="${ROOT_DIR}/results/issues/pr170421"
-RESULT_NOTE="${RESULTS_DIR}/pr170421-bisect.md"
+RESULT_SUFFIX="${RESULT_SUFFIX:-}"
+RESULT_NOTE="${RESULTS_DIR}/pr170421-bisect${RESULT_SUFFIX}.md"
+BISECT_LOG="${RESULTS_DIR}/pr170421-bisect-log${RESULT_SUFFIX}.txt"
 
 DOCUMENTED_FIRST_BAD="97fdc237ddda7565c7c902cc4fc764f73e70686b"
 DOCUMENTED_FIX="4e859c5a95ec0de993f5f8e75f1b5a6733ac7489"
@@ -32,7 +34,7 @@ BAD_COMMIT="8cfda791054bf9a7cdb43369e36caae2a56032c6"
 
 mkdir -p "${RESULTS_DIR}"
 
-if [[ ! -d "${LLVM_DIR}/.git" ]]; then
+if ! git -C "${LLVM_DIR}" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
   echo "error: llvm-project checkout not found at ${LLVM_DIR}" >&2
   exit 1
 fi
@@ -80,9 +82,9 @@ git -C "${LLVM_DIR}" bisect start
 git -C "${LLVM_DIR}" bisect bad "${BAD_COMMIT}"
 git -C "${LLVM_DIR}" bisect good "${GOOD_COMMIT}"
 git -C "${LLVM_DIR}" bisect run "${RUNNER}" "${LLVM_DIR}"
-git -C "${LLVM_DIR}" bisect log > "${RESULTS_DIR}/pr170421-bisect-log.txt"
+git -C "${LLVM_DIR}" bisect log > "${BISECT_LOG}"
 
-FIRST_BAD=$(sed -n 's/^# first bad commit: \[\([0-9a-f]\{7,\}\)\].*/\1/p' "${RESULTS_DIR}/pr170421-bisect-log.txt" | tail -n 1)
+FIRST_BAD=$(sed -n 's/^# first bad commit: \[\([0-9a-f]\{7,\}\)\].*/\1/p' "${BISECT_LOG}" | tail -n 1)
 if [[ -z "${FIRST_BAD}" ]]; then
   echo "error: failed to extract first bad commit from bisect log" >&2
   exit 1
@@ -102,12 +104,12 @@ cat > "${RESULT_NOTE}" <<EOF
 - First bad commit from git bisect: \`${FIRST_BAD}\`
 - Subject: ${FIRST_BAD_SUBJECT}
 - Commit date: ${FIRST_BAD_DATE}
-- Bisect log: \`results/issues/pr170421/pr170421-bisect-log.txt\`
+- Bisect log: \`${BISECT_LOG#${ROOT_DIR}/}\`
 
 ## Command
 
 \`\`\`bash
-bash scripts/pr170421/run-bisect.sh
+RESULT_SUFFIX=${RESULT_SUFFIX} bash scripts/pr170421/run-bisect.sh
 \`\`\`
 EOF
 

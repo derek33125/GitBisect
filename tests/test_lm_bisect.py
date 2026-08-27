@@ -7,6 +7,7 @@ import sys
 import tempfile
 import types
 import unittest
+from dataclasses import replace
 from pathlib import Path
 from unittest import mock
 
@@ -36,6 +37,18 @@ def demo_profile(
 
 
 class ComputeSelectionTests(unittest.TestCase):
+    def test_direct_script_entrypoint_imports_crash_signals(self) -> None:
+        completed = subprocess.run(
+            [sys.executable, "tools/lm_bisect.py", "--help"],
+            cwd=lm_bisect.ROOT_DIR,
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+
+        self.assertEqual(completed.returncode, 0, completed.stderr)
+        self.assertIn("run-online", completed.stdout)
+
     def test_probability_midpoint_can_beat_time_midpoint(self) -> None:
         records = [
             lm_bisect.CommitRecord(
@@ -403,6 +416,137 @@ class ScoringTests(unittest.TestCase):
         self.assertEqual(record.semantic_score, 0.05)
         self.assertEqual(record.feedback_bias, 0.0)
 
+    def test_heuristic_ablation_removes_exactly_one_semantic_factor(self) -> None:
+        profile = demo_profile(
+            keywords=["VectorBug"],
+            relevant_paths=["llvm/lib/Transforms/Vectorize"],
+            high_risk_paths=["llvm/lib/Transforms"],
+        )
+        subject = "Fix VectorBug vector regression"
+        files = ["llvm/lib/Transforms/Vectorize/LoopVectorize.cpp"]
+        baseline_score, _ = lm_bisect.score_semantics(profile, subject, "", files, "")
+
+        expected_deltas = {
+            "keywords": 0.60,
+            "relevant-paths": 1.20,
+            "high-risk-paths": 0.50,
+            "risky-words": 0.40,
+        }
+        for factor, expected_delta in expected_deltas.items():
+            ablated_profile = lm_bisect.heuristic_ablation_profile(profile, factor)
+            score, evidence = lm_bisect.score_semantics(
+                ablated_profile,
+                subject,
+                "",
+                files,
+                "",
+                heuristic_ablation=factor,
+            )
+            self.assertAlmostEqual(baseline_score - score, expected_delta)
+            self.assertIn(f"heuristic ablation: {factor} disabled", evidence)
+
+    def test_buildability_ablation_neutralizes_only_build_score(self) -> None:
+        standard_score, _ = lm_bisect.score_build_probability(
+            "Update build configuration",
+            "",
+            ["llvm/CMakeLists.txt"],
+            "",
+        )
+        ablated_score, ablated_evidence = lm_bisect.score_build_probability(
+            "Update build configuration",
+            "",
+            ["llvm/CMakeLists.txt"],
+            "",
+            heuristic_ablation="buildability",
+        )
+
+        self.assertLess(standard_score, 1.0)
+        self.assertEqual(ablated_score, 1.0)
+        self.assertEqual(ablated_evidence, ["heuristic ablation: buildability disabled"])
+
+    def test_feedback_ablation_disables_only_observation_feedback(self) -> None:
+        profile = demo_profile(relevant_paths=[], high_risk_paths=[])
+        record = lm_bisect.CommitRecord(
+            index=1,
+            sha="a" * 40,
+            subject="vector loop change",
+            body="",
+            changed_files=["llvm/lib/Analysis/LoopInfo.cpp"],
+            diff_text="",
+            semantic_score=1.0,
+            build_success_prob=0.92,
+            suspicion_weight=0.0,
+            evidence=[],
+            features=["path:llvm/lib/Analysis", "term:loop"],
+        )
+        observations = [
+            lm_bisect.CommitObservation(
+                sha="b" * 40,
+                verdict="bad",
+                summary="bad",
+                features=["path:llvm/lib/Analysis", "term:loop"],
+                evidence=[],
+                log_excerpt="",
+            )
+        ]
+
+        lm_bisect.apply_feedback_bias(
+            profile,
+            [record],
+            observations,
+            enabled=not lm_bisect.heuristic_ablation_disables_feedback("feedback"),
+        )
+
+        self.assertEqual(record.semantic_score, 1.0)
+        self.assertEqual(record.feedback_bias, 0.0)
+
+    def test_heuristic_ablation_history_config_isolation(self) -> None:
+        history = lm_bisect.start_run_history_payload(
+            issue_id="demo",
+            scorer="heuristic",
+            model_name=None,
+            model_frontier="topk",
+            search_policy="calibrated-posterior",
+            hybrid_switch_window=32,
+            lambda_weight=2.0,
+            max_steps=30,
+            observation_path="results/obs.json",
+            run_history_path="results/run.json",
+            good_commit="g" * 40,
+            bad_commit="b" * 40,
+            initial_unresolved=100,
+            heuristic_ablation="keywords",
+        )
+
+        matching = lm_bisect.run_history_matches(
+            history,
+            "demo",
+            "heuristic",
+            None,
+            "topk",
+            heuristic_ablation="keywords",
+        )
+        mismatching = lm_bisect.run_history_matches(
+            history,
+            "demo",
+            "heuristic",
+            None,
+            "topk",
+            heuristic_ablation="relevant-paths",
+        )
+
+        self.assertTrue(matching)
+        self.assertFalse(mismatching)
+
+    def test_heuristic_ablation_argument_normalization_rejects_non_string_values(self) -> None:
+        args = mock.Mock()
+        args.heuristic_ablation = mock.Mock()
+
+        self.assertEqual(lm_bisect.heuristic_ablation_from_args(args), "none")
+
+        args.heuristic_ablation = "keywords"
+        self.assertEqual(lm_bisect.heuristic_ablation_from_args(args), "keywords")
+
     def test_oracle_first_bad_keywords_use_first_bad_diff_symbols(self) -> None:
         with mock.patch.object(lm_bisect, "commit_subject", return_value="[Loop] Repair MagicVectorThing"), mock.patch.object(
             lm_bisect, "commit_body", return_value=""
@@ -419,6 +563,27 @@ class ScoringTests(unittest.TestCase):
         self.assertIn("repairMagicVectorThing", keywords)
         self.assertNotIn("return", keywords)
         self.assertNotIn("general", keywords)
+
+    def test_oracle_first_bad_derivation_keeps_specific_changed_line_anchors(self) -> None:
+        with mock.patch.object(lm_bisect, "commit_subject", return_value="[Loop] Repair MagicVectorThing"), mock.patch.object(
+            lm_bisect, "commit_body", return_value=""
+        ), mock.patch.object(
+            lm_bisect, "commit_changed_files", return_value=["llvm/lib/Transforms/Scalar/MagicVectorThing.cpp"]
+        ), mock.patch.object(
+            lm_bisect,
+            "commit_diff_text",
+            return_value=(
+                "+++ b/llvm/lib/Transforms/Scalar/MagicVectorThing.cpp\n"
+                "+  State.setKnownInvariant(NewInvariant);\n"
+                "+  // A comment is not a causal patch anchor.\n"
+            ),
+        ):
+            derivation = lm_bisect.oracle_first_bad_keyword_derivation(Path("/tmp/repo"), "a" * 40)
+
+        self.assertEqual(
+            derivation["patch_anchors"],
+            ["statesetknowninvariantnewinvariant"],
+        )
 
     def test_oracle_first_bad_profile_replaces_only_authored_keywords(self) -> None:
         profile = demo_profile(
@@ -500,6 +665,39 @@ class ScoringTests(unittest.TestCase):
         self.assertTrue(any("1 keyword hits" in item for item in tuned_evidence))
         self.assertTrue(any("oracle-major keyword hits" in item for item in oracle_evidence))
 
+    def test_oracle_patch_score_prefers_exact_first_bad_fingerprint(self) -> None:
+        profile = demo_profile(
+            keywords=["IssueAssertion"],
+            relevant_paths=["llvm/lib/Transforms/Vectorize"],
+            high_risk_paths=["llvm/lib/Transforms"],
+        )
+        profile = replace(
+            profile,
+            oracle_keywords=["OracleCulpritSymbol"],
+            oracle_patch_changed_files=["llvm/lib/Transforms/Vectorize/LoopVectorize.cpp"],
+            oracle_patch_anchors=["state.setknowninvariant(newinvariant);"],
+        )
+
+        exact_score, exact_evidence = lm_bisect.score_semantics(
+            profile,
+            subject="Refine LoopVectorize",
+            body="",
+            files=["llvm/lib/Transforms/Vectorize/LoopVectorize.cpp"],
+            diff="State.setKnownInvariant(NewInvariant);",
+            heuristic_version="oracle-first-bad-major-tuned-patch",
+        )
+        sibling_score, _sibling_evidence = lm_bisect.score_semantics(
+            profile,
+            subject="Refine LoopVectorize",
+            body="",
+            files=["llvm/lib/Transforms/Vectorize/LoopVectorize.cpp"],
+            diff="State.setKnownInvariant(OldInvariant);",
+            heuristic_version="oracle-first-bad-major-tuned-patch",
+        )
+
+        self.assertGreater(exact_score, sibling_score)
+        self.assertTrue(any("oracle-patch fingerprint: 1 files, 1 changed lines" in item for item in exact_evidence))
+
     def test_parser_accepts_oracle_major_keyword_heuristic_with_explicit_sha(self) -> None:
         args = lm_bisect.build_parser().parse_args(
             [
@@ -515,6 +713,23 @@ class ScoringTests(unittest.TestCase):
 
         self.assertEqual(args.heuristic_version, "oracle-first-bad-major")
         self.assertEqual(args.oracle_first_bad_sha, "a" * 40)
+
+    def test_parser_accepts_causal_first_parent_context(self) -> None:
+        args = lm_bisect.build_parser().parse_args(
+            [
+                "run-online",
+                "--issue",
+                "demo",
+                "--scorer",
+                "model",
+                "--model-diff-extraction",
+                "causal-llm",
+                "--causal-context-parent-count",
+                "5",
+            ]
+        )
+
+        self.assertEqual(args.causal_context_parent_count, 5)
 
     def test_parser_accepts_combined_oracle_major_tuned_heuristic(self) -> None:
         args = lm_bisect.build_parser().parse_args(
@@ -580,6 +795,74 @@ class ScoringTests(unittest.TestCase):
         )
 
         self.assertEqual(args.heuristic_version, "oracle-first-bad-major-tuned-semantic")
+
+    def test_parser_accepts_oracle_patch_fingerprint_heuristic(self) -> None:
+        args = lm_bisect.build_parser().parse_args(
+            [
+                "run-online",
+                "--issue",
+                "demo",
+                "--heuristic-version",
+                "oracle-first-bad-major-tuned-patch",
+                "--oracle-first-bad-sha",
+                "a" * 40,
+            ]
+        )
+
+        self.assertEqual(args.heuristic_version, "oracle-first-bad-major-tuned-patch")
+
+    def test_oracle_patch_selection_prefers_fingerprint_score(self) -> None:
+        records = [
+            lm_bisect.CommitRecord(
+                index=1,
+                sha="a" * 40,
+                subject="same file sibling",
+                body="",
+                changed_files=[],
+                diff_text="",
+                semantic_score=101.0,
+                build_success_prob=0.99,
+                suspicion_weight=0.0,
+                selection_score=0.99,
+            ),
+            lm_bisect.CommitRecord(
+                index=2,
+                sha="b" * 40,
+                subject="exact leaked patch",
+                body="",
+                changed_files=[],
+                diff_text="",
+                semantic_score=201.0,
+                build_success_prob=0.95,
+                suspicion_weight=0.0,
+                selection_score=0.50,
+            ),
+        ]
+
+        decision = lm_bisect.oracle_patch_semantic_selection(records)
+
+        self.assertEqual(decision.selected.sha, "b" * 40)
+        self.assertEqual(decision.selection_mode, "oracle-patch-semantic")
+
+    def test_oracle_patch_parent_proof_requires_one_candidate(self) -> None:
+        record = lm_bisect.CommitRecord(
+            index=1,
+            sha="a" * 40,
+            subject="parent proof",
+            body="",
+            changed_files=[],
+            diff_text="",
+            semantic_score=1.0,
+            build_success_prob=0.95,
+            suspicion_weight=0.0,
+        )
+
+        decision = lm_bisect.oracle_patch_parent_selection([record])
+
+        self.assertEqual(decision.selected.sha, "a" * 40)
+        self.assertEqual(decision.selection_mode, "oracle-patch-parent-proof")
+        with self.assertRaisesRegex(ValueError, "exactly one candidate"):
+            lm_bisect.oracle_patch_parent_selection([record, record])
 
     def test_direct_oracle_anchor_selects_known_first_bad_over_higher_scored_commit(self) -> None:
         records = [
@@ -2069,6 +2352,110 @@ class RankingHelperTests(unittest.TestCase):
 
 
 class ModelPromptTests(unittest.TestCase):
+    def test_deterministic_facts_prompt_uses_ordinal_schema(self) -> None:
+        profile = demo_profile()
+        item = {
+            "sha": "a" * 40,
+            "subject": "[LoopUnswitch] Update MemorySSA",
+            "body": "",
+            "files": ["llvm/lib/Transforms/Scalar/SimpleLoopUnswitch.cpp"],
+            "causal_retrieval": {
+                "crash_signals": {
+                    "kind": "assertion",
+                    "assertion": "MemorySSA dominance invariant",
+                    "source_paths": ["llvm/lib/Analysis/MemorySSA.cpp"],
+                    "symbols": ["MemorySSAUpdater::applyUpdates"],
+                    "pass_tokens": ["simple-loop-unswitch"],
+                    "query_terms": ["MemorySSAUpdater"],
+                },
+                "repository_facts": {
+                    "rare_checker": {
+                        "path": "llvm/lib/Analysis/MemorySSA.cpp",
+                        "touch_count": 6,
+                        "polarity": "checker-penalty",
+                    },
+                    "contact_paths": [
+                        "unswitchTrivialBranch -> MSSAU->applyUpdates"
+                    ],
+                    "no_call_path_found": False,
+                },
+                "selected_hunks": [
+                    {
+                        "path": "llvm/lib/Transforms/Scalar/SimpleLoopUnswitch.cpp",
+                        "header": "@@ static bool unswitchTrivialBranch",
+                        "patch": "+ MSSAU->applyUpdates(Updates);",
+                        "match_reasons": ["crash-query-term"],
+                    }
+                ],
+                "contract_contexts": [
+                    {
+                        "path": "llvm/lib/Analysis/MemorySSA.cpp",
+                        "symbol": "verifyOptResult",
+                        "context": "assert(MSSA.dominates(A, B));",
+                        "source_sha": "b" * 40,
+                    }
+                ],
+            },
+        }
+
+        prompt = lm_bisect.build_deterministic_facts_ranking_prompt(profile, [item])
+
+        self.assertIn("Structured crash evidence", prompt)
+        self.assertIn("Repository facts", prompt)
+        self.assertIn("unswitchTrivialBranch -> MSSAU->applyUpdates", prompt)
+        self.assertIn('"rank"', prompt)
+        self.assertIn('"mechanism"', prompt)
+        self.assertIn('"explains_failure"', prompt)
+        self.assertNotIn('"semantic_score"', prompt)
+        self.assertNotIn('"build_success_prob"', prompt)
+
+    def test_deterministic_facts_normalizes_ordinal_judgment(self) -> None:
+        item = {
+            "sha": "a" * 40,
+            "causal_retrieval": {
+                "repository_facts": {
+                    "contact_paths": ["caller -> API->applyUpdates"],
+                    "no_call_path_found": False,
+                }
+            },
+        }
+        judgment = lm_bisect.normalize_deterministic_facts_judgment(
+            item,
+            {
+                "sha": "a" * 40,
+                "rank": 1,
+                "mechanism": "invariant-break",
+                "explains_failure": True,
+                "confidence": 0.8,
+                "evidence": ["changed API call"],
+            },
+            candidate_count=3,
+        )
+
+        self.assertEqual(judgment["rank"], 1)
+        self.assertEqual(judgment["mechanism"], "invariant-break")
+        self.assertTrue(judgment["explains_failure"])
+        self.assertEqual(judgment["confidence"], 0.8)
+        calibrated = lm_bisect.deterministic_facts_model_result(item, judgment)
+        self.assertGreater(calibrated["semantic_score"], 0.1)
+        self.assertEqual(calibrated["build_success_prob"], 1.0)
+        self.assertIn("ordinal-rank:1", calibrated["evidence"])
+
+    def test_deterministic_facts_does_not_treat_false_string_as_failure_explanation(self) -> None:
+        judgment = lm_bisect.normalize_deterministic_facts_judgment(
+            {"sha": "a" * 40, "causal_retrieval": {}},
+            {
+                "sha": "a" * 40,
+                "rank": 1,
+                "mechanism": "unrelated",
+                "explains_failure": "false",
+                "confidence": 0.2,
+            },
+            candidate_count=1,
+        )
+
+        self.assertFalse(judgment["explains_failure"])
+
     def test_build_model_scoring_prompt_is_contrastive(self) -> None:
         profile = demo_profile(
             keywords=["licm", "writeonly", "hoist"],
@@ -2690,6 +3077,64 @@ index 3..4 100644
         self.assertIn("llvm/lib/Transforms/Vectorize/VPlan.cpp", git_output.call_args_list[0].args[1])
         self.assertNotIn("llvm/lib/Support/Noise.cpp", git_output.call_args_list[0].args[1])
 
+    def test_causal_retrieval_range_retains_candidate_and_predecessor_provenance(self) -> None:
+        profile = demo_profile(
+            keywords=["vectorizer"],
+            relevant_paths=["llvm/lib/Transforms/Vectorize"],
+        )
+        candidate = "a" * 40
+        predecessor = "b" * 40
+        item = {
+            "sha": candidate,
+            "subject": "candidate vectorizer change",
+            "files": ["llvm/lib/Transforms/Vectorize/VPlan.cpp"],
+            "diff": """diff --git a/llvm/lib/Transforms/Vectorize/VPlan.cpp b/llvm/lib/Transforms/Vectorize/VPlan.cpp
+--- a/llvm/lib/Transforms/Vectorize/VPlan.cpp
++++ b/llvm/lib/Transforms/Vectorize/VPlan.cpp
+@@ -1 +1 @@ VPlan::buildRecipe()
+-return OldCandidate;
++return NewCandidate;
+""",
+        }
+        predecessor_diff = """diff --git a/llvm/lib/Transforms/Vectorize/VPlan.cpp b/llvm/lib/Transforms/Vectorize/VPlan.cpp
+--- a/llvm/lib/Transforms/Vectorize/VPlan.cpp
++++ b/llvm/lib/Transforms/Vectorize/VPlan.cpp
+@@ -1 +1 @@ VPlan::buildRecipe()
+-return OldPrecursor;
++return VectorizerPrecursor;
+"""
+
+        with mock.patch.object(
+            lm_bisect,
+            "first_parent_commit_range",
+            return_value=[candidate, predecessor],
+        ), mock.patch.object(
+            lm_bisect,
+            "commit_subject_and_files",
+            return_value=("predecessor vectorizer change", ["llvm/lib/Transforms/Vectorize/VPlan.cpp"]),
+        ), mock.patch.object(
+            lm_bisect,
+            "commit_parent_diff_for_files",
+            return_value=predecessor_diff,
+        ), mock.patch.object(
+            lm_bisect,
+            "function_context_at_commit",
+            return_value="",
+        ):
+            retrieval = lm_bisect.retrieve_causal_diff_evidence(
+                Path("/tmp/fake-llvm-project"),
+                profile,
+                item,
+                context_parent_count=1,
+            )
+
+        self.assertEqual(retrieval["context_parent_count_requested"], 1)
+        self.assertEqual(retrieval["context_parent_count_observed"], 1)
+        self.assertEqual([commit["sha"] for commit in retrieval["context_commits"]], [candidate, predecessor])
+        self.assertEqual(retrieval["selected_hunks"][0]["source_sha"], candidate)
+        self.assertEqual(retrieval["selected_hunks"][0]["source_distance"], 0)
+        self.assertIn(predecessor, {hunk["source_sha"] for hunk in retrieval["selected_hunks"]})
+
     def test_implementation_first_causal_retrieval_prefers_source_but_keeps_test_fallback(self) -> None:
         profile = demo_profile(
             keywords=["vectorizer"],
@@ -2840,6 +3285,1784 @@ index 3..4 100644
         self.assertEqual(selected[0], "llvm/lib/Analysis/MemorySSA.cpp")
         self.assertEqual(selected[1], "llvm/test/Transforms/Vectorize/vectorizer.ll")
 
+    def test_human_guided_retrieval_prioritizes_direct_crash_signal_hunks(self) -> None:
+        profile = demo_profile(
+            keywords=["optimizer"],
+            relevant_paths=["llvm/lib/Transforms"],
+            high_risk_paths=["llvm/lib"],
+        )
+        direct = {
+            "path": "llvm/lib/Analysis/MemorySSA.cpp",
+            "header": "@@ verifyOptResult",
+            "patch": "+ bool ClobberWalker::verifyOptResult();",
+        }
+        generic = {
+            "path": "llvm/lib/Transforms/Scalar/Noise.cpp",
+            "header": "@@ optimize",
+            "patch": "+ void optimize();",
+        }
+        signals = {
+            "kind": "assertion",
+            "assertion": "OtherClobbers must dominate",
+            "source_paths": ["llvm/lib/Analysis/MemorySSA.cpp"],
+            "symbols": ["ClobberWalker::verifyOptResult"],
+            "pass_tokens": ["simple-loop-unswitch"],
+            "query_terms": ["verifyOptResult", "ClobberWalker", "MemorySSA"],
+        }
+
+        with mock.patch.object(lm_bisect, "first_parent_commit_range", return_value=["a" * 40]), mock.patch.object(
+            lm_bisect, "parse_unified_diff_hunks", return_value=[generic, direct]
+        ), mock.patch.object(lm_bisect, "function_context_at_commit", return_value=""):
+            retrieval = lm_bisect.retrieve_causal_diff_evidence(
+                Path("/tmp/fake-llvm-project"),
+                profile,
+                {
+                    "sha": "a" * 40,
+                    "subject": "candidate",
+                    "files": [generic["path"], direct["path"]],
+                    "diff": "candidate diff",
+                },
+                retrieval_policy="human-guided",
+                crash_signal_payload=signals,
+            )
+
+        self.assertEqual(retrieval["retrieval_policy"], "human-guided")
+        self.assertEqual(retrieval["selected_hunks"][0]["path"], direct["path"])
+        self.assertIn("crash-source-path", retrieval["selected_hunks"][0]["match_reasons"])
+        self.assertEqual(retrieval["signal_reachability"], "direct")
+        self.assertEqual(retrieval["crash_signals"]["kind"], "assertion")
+
+    def test_human_guided_retrieval_records_text_unreachable_negative_evidence(self) -> None:
+        profile = demo_profile(keywords=[], relevant_paths=[], high_risk_paths=[])
+        hunk = {
+            "path": "llvm/lib/Support/Unrelated.cpp",
+            "header": "@@ unrelated",
+            "patch": "+ void unrelated();",
+        }
+
+        with mock.patch.object(lm_bisect, "first_parent_commit_range", return_value=["a" * 40]), mock.patch.object(
+            lm_bisect, "parse_unified_diff_hunks", return_value=[hunk]
+        ), mock.patch.object(lm_bisect, "function_context_at_commit", return_value=""):
+            retrieval = lm_bisect.retrieve_causal_diff_evidence(
+                Path("/tmp/fake-llvm-project"),
+                profile,
+                {
+                    "sha": "a" * 40,
+                    "subject": "candidate",
+                    "files": [hunk["path"]],
+                    "diff": "candidate diff",
+                },
+                retrieval_policy="human-guided",
+                crash_signal_payload={
+                    "kind": "verifier",
+                    "source_paths": ["llvm/lib/IR/Verifier.cpp"],
+                    "symbols": ["Verifier::verify"],
+                    "pass_tokens": [],
+                    "query_terms": ["Verifier"],
+                },
+            )
+
+        self.assertEqual(retrieval["signal_reachability"], "text-unreachable")
+        self.assertIn("no crash-anchor contact found", retrieval["negative_evidence"])
+
+    def test_crash_aware_retrieval_penalizes_rare_checker_and_uses_dependency_weight(self) -> None:
+        profile = replace(
+            demo_profile(
+                keywords=[],
+                relevant_paths=[],
+                high_risk_paths=[],
+            ),
+            bad_commit="b" * 40,
+        )
+        checker = {
+            "path": "llvm/lib/Analysis/MemorySSA.cpp",
+            "header": "@@ verifyOptResult",
+            "patch": "+ bool verifyOptResult();",
+        }
+        producer = {
+            "path": "llvm/lib/Transforms/Scalar/SimpleLoopUnswitch.cpp",
+            "header": "@@ applyUpdates",
+            "patch": "+ MSSAU->applyUpdates(Updates);",
+        }
+        signals = {
+            "kind": "assertion",
+            "assertion": "OtherClobbers must dominate",
+            "assert_source_file": "llvm/lib/Analysis/MemorySSA.cpp",
+            "assert_function": "verifyOptResult",
+            "source_paths": ["llvm/lib/Analysis/MemorySSA.cpp"],
+            "symbols": ["llvm::SimpleLoopUnswitchPass::run"],
+            "pass_tokens": ["simple-loop-unswitch"],
+            "query_terms": ["MemorySSAUpdater"],
+        }
+
+        with mock.patch.object(
+            lm_bisect,
+            "first_parent_commit_range",
+            return_value=["a" * 40],
+        ), mock.patch.object(
+            lm_bisect,
+            "parse_unified_diff_hunks",
+            return_value=[checker, producer],
+        ), mock.patch.object(
+            lm_bisect,
+            "function_context_at_commit",
+            return_value="",
+        ):
+            retrieval = lm_bisect.retrieve_causal_diff_evidence(
+                Path("/tmp/fake-llvm-project"),
+                profile,
+                {
+                    "sha": "a" * 40,
+                    "subject": "candidate",
+                    "files": [checker["path"], producer["path"]],
+                    "diff": "candidate diff",
+                },
+                retrieval_policy="crash-aware",
+                crash_signal_payload=signals,
+                crash_file_touch_count=5,
+                dependency_usage={
+                    "MemorySSAUpdater": {
+                        producer["path"]: 7,
+                        checker["path"]: 1,
+                    }
+                },
+            )
+
+        self.assertEqual(retrieval["retrieval_policy"], "crash-aware")
+        self.assertEqual(retrieval["selected_hunks"][0]["path"], producer["path"])
+        self.assertIn("rare-checker-file-penalty", retrieval["selected_hunks"][1]["match_reasons"])
+        self.assertIn("dependency-api-use", retrieval["selected_hunks"][0]["match_reasons"])
+        self.assertEqual(retrieval["crash_file_touch_count"], 5)
+        self.assertGreater(
+            retrieval["selected_hunks"][0]["retrieval_score"],
+            retrieval["selected_hunks"][1]["retrieval_score"],
+        )
+
+    def test_crash_aware_retrieval_adds_assertion_contract_context(self) -> None:
+        profile = replace(
+            demo_profile(),
+            bad_commit="b" * 40,
+        )
+        hunk = {
+            "path": "llvm/lib/Transforms/Scalar/SimpleLoopUnswitch.cpp",
+            "header": "@@ run",
+            "patch": "+ runUnswitch();",
+        }
+        signals = {
+            "kind": "assertion",
+            "assertion": "invariant",
+            "assert_source_file": "llvm/lib/Analysis/MemorySSA.cpp",
+            "assert_function": "verifyOptResult",
+            "source_paths": ["llvm/lib/Analysis/MemorySSA.cpp"],
+            "symbols": [],
+            "pass_tokens": [],
+            "query_terms": [],
+        }
+
+        def context(_repo, sha, path, symbol):
+            if (sha, path, symbol) == (
+                profile.bad_commit,
+                signals["assert_source_file"],
+                signals["assert_function"],
+            ):
+                return "void verifyOptResult() { checkInvariant(); }"
+            return ""
+
+        with mock.patch.object(
+            lm_bisect,
+            "first_parent_commit_range",
+            return_value=["a" * 40],
+        ), mock.patch.object(
+            lm_bisect,
+            "parse_unified_diff_hunks",
+            return_value=[hunk],
+        ), mock.patch.object(
+            lm_bisect,
+            "function_context_at_commit",
+            side_effect=context,
+        ):
+            retrieval = lm_bisect.retrieve_causal_diff_evidence(
+                Path("/tmp/fake-llvm-project"),
+                profile,
+                {
+                    "sha": "a" * 40,
+                    "subject": "candidate",
+                    "files": [hunk["path"]],
+                    "diff": "candidate diff",
+                },
+                retrieval_policy="crash-aware",
+                crash_signal_payload=signals,
+            )
+
+        self.assertEqual(retrieval["contract_contexts"][0]["source_sha"], profile.bad_commit)
+        self.assertEqual(retrieval["contract_contexts"][0]["path"], signals["assert_source_file"])
+        self.assertIn("checkInvariant", retrieval["contract_contexts"][0]["context"])
+
+    def test_deterministic_facts_retrieval_records_contact_path(self) -> None:
+        profile = replace(demo_profile(), bad_commit="b" * 40)
+        hunk = {
+            "path": "llvm/lib/Transforms/Scalar/SimpleLoopUnswitch.cpp",
+            "header": "@@ static bool unswitchTrivialBranch(Loop &L)",
+            "patch": "+ MSSAU->applyUpdates(Updates);",
+        }
+        signals = {
+            "kind": "assertion",
+            "assert_source_file": "llvm/lib/Analysis/MemorySSA.cpp",
+            "assert_function": "verifyOptResult",
+            "source_paths": ["llvm/lib/Analysis/MemorySSA.cpp"],
+            "symbols": [],
+            "pass_tokens": [],
+            "query_terms": ["MemorySSAUpdater"],
+        }
+
+        with mock.patch.object(lm_bisect, "first_parent_commit_range", return_value=["a" * 40]), mock.patch.object(
+            lm_bisect, "parse_unified_diff_hunks", return_value=[hunk]
+        ), mock.patch.object(
+            lm_bisect, "function_context_at_commit", return_value="void verifyOptResult() {}"
+        ), mock.patch.object(
+            lm_bisect, "public_header_method_surface", return_value=["applyUpdates", "moveTo"]
+        ):
+            retrieval = lm_bisect.retrieve_causal_diff_evidence(
+                Path("/tmp/fake-llvm-project"),
+                profile,
+                {"sha": "a" * 40, "subject": "candidate", "files": [hunk["path"]], "diff": "candidate diff"},
+                retrieval_policy="deterministic-facts",
+                crash_signal_payload=signals,
+            )
+
+        facts = retrieval["repository_facts"]
+        self.assertEqual(facts["destruction_surface"], ["applyUpdates", "moveTo"])
+        self.assertEqual(facts["contact_paths"], ["unswitchTrivialBranch -> MSSAU->applyUpdates"])
+        self.assertFalse(facts["no_call_path_found"])
+
+    def test_deterministic_facts_retrieval_records_no_contact_path(self) -> None:
+        profile = replace(demo_profile(), bad_commit="b" * 40)
+        hunk = {
+            "path": "llvm/lib/Transforms/Scalar/SimpleLoopUnswitch.cpp",
+            "header": "@@ static bool unswitchTrivialBranch(Loop &L)",
+            "patch": "+ return Changed;",
+        }
+        signals = {
+            "kind": "assertion",
+            "assert_source_file": "llvm/lib/Analysis/MemorySSA.cpp",
+            "assert_function": "verifyOptResult",
+            "source_paths": ["llvm/lib/Analysis/MemorySSA.cpp"],
+            "symbols": [],
+            "pass_tokens": [],
+            "query_terms": [],
+        }
+
+        with mock.patch.object(lm_bisect, "first_parent_commit_range", return_value=["a" * 40]), mock.patch.object(
+            lm_bisect, "parse_unified_diff_hunks", return_value=[hunk]
+        ), mock.patch.object(
+            lm_bisect, "function_context_at_commit", return_value=""
+        ), mock.patch.object(
+            lm_bisect, "public_header_method_surface", return_value=["applyUpdates"]
+        ):
+            retrieval = lm_bisect.retrieve_causal_diff_evidence(
+                Path("/tmp/fake-llvm-project"),
+                profile,
+                {"sha": "a" * 40, "subject": "candidate", "files": [hunk["path"]], "diff": "candidate diff"},
+                retrieval_policy="deterministic-facts",
+                crash_signal_payload=signals,
+            )
+
+        facts = retrieval["repository_facts"]
+        self.assertEqual(facts["contact_paths"], [])
+        self.assertTrue(facts["no_call_path_found"])
+
+    def test_crash_aware_context_counts_checker_touches_over_full_issue_interval(self) -> None:
+        profile = replace(
+            demo_profile(),
+            good_commit="1" * 40,
+            bad_commit="2" * 40,
+        )
+        crash_payload = {
+            "source_paths": ["llvm/lib/Analysis/MemorySSA.cpp"],
+            "query_terms": ["MemorySSAUpdater"],
+        }
+
+        with mock.patch.object(
+            lm_bisect,
+            "causal_crash_signal_payload",
+            return_value=crash_payload,
+        ), mock.patch.object(
+            lm_bisect,
+            "crash_file_touch_count_in_issue_interval",
+            return_value=6,
+        ) as touch_count, mock.patch.object(
+            lm_bisect,
+            "dynamic_dependency_usage",
+            return_value={"MemorySSAUpdater": {"llvm/lib/Transforms/Scalar/Loop.cpp": 7}},
+        ), mock.patch.object(
+            lm_bisect,
+            "public_header_method_surface",
+            return_value=["applyUpdates"],
+        ):
+            context = lm_bisect.causal_crash_aware_retrieval_context(
+                Path("/tmp/fake-llvm-project"),
+                profile,
+                "causal-llm-deterministic-facts",
+            )
+
+        touch_count.assert_called_once_with(
+            Path("/tmp/fake-llvm-project"),
+            profile,
+            crash_payload,
+        )
+        self.assertEqual(context["crash_file_touch_count"], 6)
+        self.assertEqual(context["destruction_surface"], ["applyUpdates"])
+
+    def test_human_signal_pool_prefers_pass_match_over_rare_checker_file(self) -> None:
+        profile = replace(
+            demo_profile(
+                relevant_paths=["llvm/lib/Transforms/Scalar"],
+                high_risk_paths=["llvm/lib/Analysis", "llvm/lib/Transforms/Scalar"],
+            ),
+            issue_id="pr204559",
+        )
+        shas = ["a" * 40, "b" * 40, "c" * 40]
+        metadata = {
+            shas[0]: lm_bisect.CommitMetadata(
+                sha=shas[0],
+                subject="MemorySSA checker maintenance",
+                body="",
+                changed_files=["llvm/lib/Analysis/MemorySSA.cpp"],
+            ),
+            shas[1]: lm_bisect.CommitMetadata(
+                sha=shas[1],
+                subject="Generalize loop unswitching",
+                body="",
+                changed_files=["llvm/lib/Transforms/Scalar/SimpleLoopUnswitch.cpp"],
+            ),
+            shas[2]: lm_bisect.CommitMetadata(
+                sha=shas[2],
+                subject="Unrelated scalar cleanup",
+                body="",
+                changed_files=["llvm/lib/Transforms/Scalar/SROA.cpp"],
+            ),
+        }
+        crash_payload = {
+            "kind": "assertion",
+            "source_paths": ["llvm/lib/Analysis/MemorySSA.cpp"],
+            "symbols": [],
+            "pass_tokens": ["simple-loop-unswitch"],
+            "query_terms": [],
+        }
+
+        pool = lm_bisect.build_human_signal_pool(
+            profile,
+            shas,
+            metadata,
+            crash_payload,
+        )
+
+        self.assertEqual(pool["crash_file_touch_count"], 1)
+        self.assertTrue(pool["rare_checker_file"])
+        self.assertEqual(pool["candidate_shas"], [shas[1]])
+        self.assertIn("crash-pass", pool["candidates"][0]["match_reasons"])
+        self.assertNotIn(shas[0], pool["candidate_shas"])
+
+    def test_human_signal_pool_records_dependency_anchor_matches(self) -> None:
+        profile = replace(
+            demo_profile(relevant_paths=[], high_risk_paths=[]),
+            issue_id="pr204559",
+        )
+        sha = "a" * 40
+        metadata = {
+            sha: lm_bisect.CommitMetadata(
+                sha=sha,
+                subject="Update MemorySSA user",
+                body="",
+                changed_files=["llvm/lib/Transforms/Scalar/SimpleLoopUnswitch.cpp"],
+            )
+        }
+
+        pool = lm_bisect.build_human_signal_pool(
+            profile,
+            [sha],
+            metadata,
+            {
+                "kind": "assertion",
+                "source_paths": ["llvm/lib/Analysis/MemorySSA.cpp"],
+                "symbols": [],
+                "pass_tokens": ["simple-loop-unswitch"],
+                "query_terms": [{"term": "MemorySSAUpdater", "kind": "component-updater"}],
+            },
+            dependency_anchors={
+                "MemorySSAUpdater": ["llvm/lib/Transforms/Scalar/SimpleLoopUnswitch.cpp"]
+            },
+        )
+
+        self.assertEqual(pool["candidate_shas"], [sha])
+        self.assertIn("dependency-anchor:MemorySSAUpdater", pool["candidates"][0]["match_reasons"])
+
+    def test_human_signal_pool_preserves_complete_direct_signal_set_for_triage(self) -> None:
+        profile = replace(
+            demo_profile(relevant_paths=[], high_risk_paths=[]),
+            issue_id="pr204559",
+        )
+        shas = [f"{index:040x}" for index in range(20)]
+        metadata = {
+            sha: lm_bisect.CommitMetadata(
+                sha=sha,
+                subject=f"simple-loop-unswitch update {index}",
+                body="",
+                changed_files=[f"llvm/lib/Transforms/Utils/SimpleLoopUnswitch{index}.cpp"],
+            )
+            for index, sha in enumerate(shas)
+        }
+        payload = {"source_paths": [], "symbols": [], "pass_tokens": ["simple-loop-unswitch"]}
+
+        pool = lm_bisect.build_human_signal_pool(profile, shas, metadata, payload)
+
+        self.assertEqual(pool["candidate_count_before_limit"], 20)
+        self.assertEqual(pool["candidate_count"], 20)
+        self.assertEqual(pool["candidate_shas"], shas)
+        self.assertFalse(pool["pool_truncated"])
+
+    def test_human_signal_pool_uses_documented_crash_pass_class(self) -> None:
+        profile = replace(
+            demo_profile(relevant_paths=[], high_risk_paths=[]),
+            issue_id="pr204559",
+        )
+        shas = ["a" * 40, "b" * 40]
+        metadata = {
+            shas[0]: lm_bisect.CommitMetadata(
+                sha=shas[0],
+                subject="Simple loop unswitch update",
+                body="",
+                changed_files=["llvm/lib/Transforms/Scalar/SimpleLoopUnswitch.cpp"],
+            ),
+            shas[1]: lm_bisect.CommitMetadata(
+                sha=shas[1],
+                subject="Update the running early-cse pass",
+                body="",
+                changed_files=["llvm/lib/Transforms/Scalar/EarlyCSE.cpp"],
+            ),
+        }
+        payload = {
+            "source_paths": [],
+            "symbols": [],
+            "pass_tokens": ["early-cse", "simple-loop-unswitch"],
+        }
+
+        pool = lm_bisect.build_human_signal_pool(profile, shas, metadata, payload)
+
+        self.assertEqual(pool["candidate_shas"], shas)
+        self.assertEqual(
+            pool["candidates"][1]["primary_signal_match"],
+            {"kind": "crash-pass", "term": "early-cse"},
+        )
+
+    def test_human_signal_pool_uses_human_study_symbol_stem_rule(self) -> None:
+        profile = replace(
+            demo_profile(relevant_paths=[], high_risk_paths=[]),
+            issue_id="pr50304",
+        )
+        shas = ["a" * 40, "b" * 40]
+        metadata = {
+            shas[0]: lm_bisect.CommitMetadata(
+                sha=shas[0],
+                subject="Constant fold implementation",
+                body="",
+                changed_files=["llvm/lib/Analysis/ConstantFolding.cpp"],
+            ),
+            shas[1]: lm_bisect.CommitMetadata(
+                sha=shas[1],
+                subject="Unrelated APFloat cleanup",
+                body="",
+                changed_files=["llvm/lib/Support/APFloat.cpp"],
+            ),
+        }
+        payload = {
+            "source_paths": [],
+            "symbols": ["ConstantFoldCall", "SimplifyCall"],
+            "pass_tokens": [],
+        }
+
+        pool = lm_bisect.build_human_signal_pool(profile, shas, metadata, payload)
+
+        self.assertEqual(pool["candidate_shas"], [shas[0]])
+        self.assertEqual(
+            pool["candidates"][0]["primary_signal_match"],
+            {"kind": "crash-symbol", "term": "ConstantFoldCall"},
+        )
+
+    def test_human_signal_pool_accepts_namespaced_symbol_policy_anchor(self) -> None:
+        profile = replace(
+            demo_profile(relevant_paths=[], high_risk_paths=[]),
+            issue_id="pr204589",
+        )
+        sha = "a" * 40
+        metadata = {
+            sha: lm_bisect.CommitMetadata(
+                sha=sha,
+                subject="Generalize loop unswitching",
+                body="",
+                changed_files=["llvm/lib/Transforms/Scalar/SimpleLoopUnswitch.cpp"],
+            )
+        }
+
+        pool = lm_bisect.build_human_signal_pool(
+            profile,
+            [sha],
+            metadata,
+            {
+                "source_paths": [],
+                "symbols": ["llvm::SimpleLoopUnswitchPass::run"],
+                "pass_tokens": [],
+            },
+        )
+
+        self.assertEqual(pool["candidate_shas"], [sha])
+
+    def test_human_signal_pool_accepts_qualified_symbol_policy_suffix(self) -> None:
+        profile = replace(
+            demo_profile(relevant_paths=[], high_risk_paths=[]),
+            issue_id="pr52635",
+        )
+        sha = "a" * 40
+        metadata = {
+            sha: lm_bisect.CommitMetadata(
+                sha=sha,
+                subject="Emit XRay table",
+                body="",
+                changed_files=["llvm/lib/CodeGen/AsmPrinter/AsmPrinter.cpp"],
+            )
+        }
+
+        pool = lm_bisect.build_human_signal_pool(
+            profile,
+            [sha],
+            metadata,
+            {
+                "source_paths": [],
+                "symbols": ["llvm::AsmPrinter::emitXRayTable"],
+                "pass_tokens": [],
+            },
+        )
+
+        self.assertEqual(pool["candidate_shas"], [sha])
+
+    def test_human_signal_pool_excludes_unit_test_only_symbol_matches(self) -> None:
+        profile = replace(
+            demo_profile(relevant_paths=[], high_risk_paths=[]),
+            issue_id="pr204589",
+        )
+        shas = ["a" * 40, "b" * 40]
+        metadata = {
+            shas[0]: lm_bisect.CommitMetadata(
+                sha=shas[0],
+                subject="Unit test only",
+                body="",
+                changed_files=["llvm/unittests/Transforms/Utils/SimpleLoopUnswitchPass.cpp"],
+            ),
+            shas[1]: lm_bisect.CommitMetadata(
+                sha=shas[1],
+                subject="Source implementation",
+                body="",
+                changed_files=["llvm/lib/Transforms/Scalar/SimpleLoopUnswitchPass.cpp"],
+            ),
+        }
+
+        pool = lm_bisect.build_human_signal_pool(
+            profile,
+            shas,
+            metadata,
+            {
+                "source_paths": [],
+                "symbols": ["llvm::SimpleLoopUnswitchPass::run"],
+                "pass_tokens": [],
+            },
+        )
+
+        self.assertEqual(pool["candidate_shas"], [shas[1]])
+
+    def test_human_signal_pool_does_not_expand_primary_signal_with_broad_matches(self) -> None:
+        profile = replace(
+            demo_profile(relevant_paths=[], high_risk_paths=[]),
+            issue_id="pr204559",
+        )
+        shas = ["a" * 40, "b" * 40]
+        metadata = {
+            shas[0]: lm_bisect.CommitMetadata(
+                sha=shas[0],
+                subject="unrelated MemorySSA maintenance",
+                body="",
+                changed_files=["llvm/lib/Analysis/MemorySSA.cpp"],
+            ),
+            shas[1]: lm_bisect.CommitMetadata(
+                sha=shas[1],
+                subject="Generalize simple loop unswitching",
+                body="",
+                changed_files=["llvm/lib/Transforms/Scalar/SimpleLoopUnswitch.cpp"],
+            ),
+        }
+
+        pool = lm_bisect.build_human_signal_pool(
+            profile,
+            shas,
+            metadata,
+            {
+                "source_paths": ["llvm/lib/Analysis/MemorySSA.cpp"],
+                "symbols": [],
+                "pass_tokens": ["simple-loop-unswitch"],
+                "query_terms": [{"term": "MemorySSA", "kind": "assertion-class"}],
+            },
+            dependency_anchors={"MemorySSAUpdater": ["llvm/lib/Analysis/MemorySSA.cpp"]},
+        )
+
+        self.assertEqual(pool["candidate_shas"], [shas[1]])
+        self.assertIn("crash-pass:simple-loop-unswitch", pool["candidates"][0]["match_reasons"])
+
+    def test_human_signal_pool_only_computes_broad_provenance_for_primary_matches(self) -> None:
+        profile = replace(
+            demo_profile(relevant_paths=[], high_risk_paths=[]),
+            issue_id="pr204559",
+        )
+        shas = ["a" * 40, "b" * 40]
+        metadata = {
+            shas[0]: lm_bisect.CommitMetadata(
+                sha=shas[0],
+                subject="unrelated MemorySSA maintenance",
+                body="",
+                changed_files=["llvm/lib/Analysis/MemorySSA.cpp"],
+            ),
+            shas[1]: lm_bisect.CommitMetadata(
+                sha=shas[1],
+                subject="Generalize simple loop unswitching",
+                body="",
+                changed_files=["llvm/lib/Transforms/Scalar/SimpleLoopUnswitch.cpp"],
+            ),
+        }
+        payload = {
+            "source_paths": ["llvm/lib/Analysis/MemorySSA.cpp"],
+            "symbols": [],
+            "pass_tokens": ["simple-loop-unswitch"],
+            "query_terms": [{"term": "MemorySSA", "kind": "assertion-class"}],
+        }
+
+        with mock.patch.object(
+            lm_bisect,
+            "human_signal_pool_candidate_reasons",
+            wraps=lm_bisect.human_signal_pool_candidate_reasons,
+        ) as candidate_reasons:
+            pool = lm_bisect.build_human_signal_pool(profile, shas, metadata, payload)
+
+        self.assertEqual(pool["candidate_shas"], [shas[1]])
+        self.assertEqual(candidate_reasons.call_count, 1)
+
+    def test_human_signal_pool_proof_failure_falls_back_with_valid_interval(self) -> None:
+        unresolved = ["a" * 40, "b" * 40, "c" * 40, "d" * 40]
+
+        after_candidate = lm_bisect.human_signal_pool_transition(
+            unresolved,
+            selected_sha="c" * 40,
+            verdict="bad",
+            phase="direct-candidate",
+        )
+        after_parent = lm_bisect.human_signal_pool_transition(
+            after_candidate["unresolved"],
+            selected_sha="b" * 40,
+            verdict="bad",
+            phase="parent-proof",
+            candidate_sha="c" * 40,
+        )
+
+        self.assertEqual(after_candidate["phase"], "parent-proof")
+        self.assertEqual(after_candidate["pending_candidate_sha"], "c" * 40)
+        self.assertEqual(after_parent["phase"], "fallback")
+        self.assertEqual(after_parent["fallback_reason"], "parent-proof-not-good:bad")
+        self.assertEqual(after_parent["unresolved"], ["a" * 40, "b" * 40])
+
+    def test_human_signal_pool_triage_prompt_uses_crash_provenance_without_diff(self) -> None:
+        prompt = lm_bisect.build_human_signal_pool_triage_prompt(
+            replace(demo_profile(), issue_id="pr204559"),
+            {
+                "kind": "assertion",
+                "assertion": "MemorySSA invariant",
+                "source_paths": ["llvm/lib/Analysis/MemorySSA.cpp"],
+                "symbols": ["llvm::SimpleLoopUnswitchPass::run"],
+                "pass_tokens": ["simple-loop-unswitch"],
+            },
+            [
+                {
+                    "sha": "a" * 40,
+                    "subject": "Generalize loop unswitching",
+                    "changed_files": ["llvm/lib/Transforms/Scalar/SimpleLoopUnswitch.cpp"],
+                    "match_reasons": ["crash-pass", "dependency-anchor:MemorySSAUpdater"],
+                    "prior_score": 4.5,
+                }
+            ],
+        )
+
+        self.assertIn("MemorySSA invariant", prompt)
+        self.assertIn("crash-pass", prompt)
+        self.assertIn("dependency-anchor:MemorySSAUpdater", prompt)
+        self.assertIn("at most 3 candidates", prompt)
+        self.assertNotIn("Diff:", prompt)
+
+    def test_human_signal_pool_triage_prompt_supports_bounded_frontier_size(self) -> None:
+        prompt = lm_bisect.build_human_signal_pool_triage_prompt(
+            replace(demo_profile(), issue_id="pr204559"),
+            {"kind": "assertion"},
+            [],
+            max_candidates=12,
+        )
+
+        self.assertIn("at most 12 candidates", prompt)
+
+    def test_human_signal_pool_direct_selection_prefers_causal_model_score(self) -> None:
+        records = [
+            lm_bisect.CommitRecord(
+                index=1,
+                sha="a" * 40,
+                subject="weaker",
+                body="",
+                changed_files=[],
+                diff_text="",
+                semantic_score=5.0,
+                build_success_prob=0.9,
+                suspicion_weight=0.0,
+                causal_evidence={"confidence": 0.9},
+            ),
+            lm_bisect.CommitRecord(
+                index=2,
+                sha="b" * 40,
+                subject="stronger",
+                body="",
+                changed_files=[],
+                diff_text="",
+                semantic_score=6.0,
+                build_success_prob=0.9,
+                suspicion_weight=0.0,
+                causal_evidence={"confidence": 0.7},
+            ),
+        ]
+
+        decision = lm_bisect.human_signal_pool_direct_selection(
+            records,
+            {"a" * 40: 0.9, "b" * 40: 0.2},
+        )
+
+        self.assertEqual(decision.selected.sha, "b" * 40)
+        self.assertEqual(decision.selection_mode, "human-signal-pool-direct")
+
+    def test_human_frontier_intersects_staged_crash_and_dependency_evidence(self) -> None:
+        profile = replace(
+            demo_profile(
+                keywords=["unswitch"],
+                relevant_paths=["llvm/lib/Transforms/Scalar"],
+                high_risk_paths=["llvm/lib/Transforms"],
+            ),
+            issue_id="pr204559",
+        )
+        shas = [chr(ord("a") + index) * 40 for index in range(4)]
+        metadata = {
+            shas[0]: lm_bisect.CommitMetadata(
+                shas[0], "Unswitch cleanup", "", ["llvm/lib/Transforms/Scalar/NoSignal.cpp"]
+            ),
+            shas[1]: lm_bisect.CommitMetadata(
+                shas[1], "Unswitch producer", "", ["llvm/lib/Transforms/Scalar/SignalOnly.cpp"]
+            ),
+            shas[2]: lm_bisect.CommitMetadata(
+                shas[2], "Unswitch producer", "", ["llvm/lib/Transforms/Scalar/Producer.cpp"]
+            ),
+            shas[3]: lm_bisect.CommitMetadata(
+                shas[3], "unrelated", "", ["llvm/lib/Transforms/Scalar/NoSignal.cpp"]
+            ),
+        }
+        payload = {
+            "source_paths": [],
+            "symbols": [],
+            "pass_tokens": ["signal-only", "producer"],
+            "query_terms": [{"term": "MemorySSAUpdater", "kind": "component-updater"}],
+        }
+
+        frontier = lm_bisect.build_human_frontier_pool(
+            profile,
+            shas,
+            metadata,
+            payload,
+            anchor={"term": "MemorySSAUpdater", "kind": "component-updater"},
+            dependency_paths=["llvm/lib/Transforms/Scalar/Producer.cpp"],
+        )
+
+        self.assertEqual(frontier["tiers"]["t1"]["count"], 4)
+        self.assertEqual(frontier["tiers"]["t2"]["count"], 2)
+        self.assertEqual(frontier["tiers"]["t3"]["count"], 1)
+        self.assertEqual(frontier["candidate_shas"], [shas[2]])
+        self.assertEqual(frontier["candidates"][0]["match_reasons"], ["keyword", "relevant-path", "high-risk-path", "crash-pass", "dependency-path"])
+
+    def test_human_frontier_dependency_scan_matches_human_cpp_header_scope(self) -> None:
+        profile = replace(demo_profile(), issue_id="pr204559", bad_commit="b" * 40)
+        # The human script walks `llvm/lib` before `llvm/include`, then uses a
+        # stable descending-count sort. Equal-use files therefore keep this
+        # scan order at the top-20-percent cutoff.
+        def fake_git(_repo, *args):
+            if args[:4] != ("grep", "-c", "-F", "anchor"):
+                self.fail(f"unexpected git command: {args}")
+            scope = args[-1]
+            if scope == "llvm/lib":
+                return "\n".join(
+                    [
+                        f"{profile.bad_commit}:llvm/lib/Transforms/Scalar/Alpha.cpp:2",
+                        f"{profile.bad_commit}:llvm/lib/Analysis/CMakeLists.txt:100",
+                        f"{profile.bad_commit}:llvm/lib/Transforms/Scalar/Zeta.cpp:2",
+                    ]
+                )
+            if scope == "llvm/include":
+                return f"{profile.bad_commit}:llvm/include/llvm/Analysis/Anchor.h:1"
+            self.fail(f"unexpected grep scope: {scope}")
+
+        with mock.patch.object(lm_bisect, "git", side_effect=fake_git) as mocked_git:
+            dependencies = lm_bisect.human_frontier_dependency_paths(
+                Path("/repo"),
+                profile,
+                {"term": "anchor", "kind": "component-updater"},
+            )
+
+        self.assertEqual(
+            dependencies["selected_paths"],
+            ["llvm/lib/Transforms/Scalar/Alpha.cpp"],
+        )
+        self.assertEqual(
+            [call.args[-1] for call in mocked_git.call_args_list],
+            ["llvm/lib", "llvm/include"],
+        )
+
+    def test_human_frontier_selection_keeps_causal_evidence_primary(self) -> None:
+        records = [
+            lm_bisect.CommitRecord(
+                index=1,
+                sha="a" * 40,
+                subject="strong causal change",
+                body="",
+                changed_files=[],
+                diff_text="",
+                semantic_score=7.0,
+                build_success_prob=0.10,
+                suspicion_weight=0.0,
+                causal_evidence={"confidence": 0.4},
+            ),
+            lm_bisect.CommitRecord(
+                index=2,
+                sha="b" * 40,
+                subject="weaker causal change",
+                body="",
+                changed_files=[],
+                diff_text="",
+                semantic_score=6.0,
+                build_success_prob=0.99,
+                suspicion_weight=0.0,
+                causal_evidence={"confidence": 0.99},
+            ),
+        ]
+
+        decision = lm_bisect.human_frontier_direct_selection(
+            records,
+            {"a" * 40: 0.1, "b" * 40: 0.9},
+        )
+
+        self.assertEqual(decision.selected.sha, "a" * 40)
+        self.assertEqual(decision.selection_mode, "human-frontier-direct")
+        self.assertEqual(decision.metadata["supporting_factors"], ["causal-confidence", "triage", "buildability", "tier-midpoint"])
+
+    def test_human_frontier_proves_single_retained_bad_candidate_with_its_parent(self) -> None:
+        unresolved = ["a" * 40, "b" * 40, "c" * 40, "d" * 40]
+
+        after_search = lm_bisect.human_frontier_transition(
+            unresolved,
+            selected_sha="c" * 40,
+            verdict="bad",
+            phase="search",
+            frontier_shas=["c" * 40],
+            tested_frontier_shas=[],
+        )
+        after_parent = lm_bisect.human_frontier_transition(
+            after_search["unresolved"],
+            selected_sha="b" * 40,
+            verdict="good",
+            phase="parent-proof",
+            frontier_shas=after_search["frontier_shas"],
+            tested_frontier_shas=after_search["tested_frontier_shas"],
+            candidate_sha="c" * 40,
+        )
+
+        self.assertEqual(after_search["phase"], "parent-proof")
+        self.assertEqual(after_parent["phase"], "resolved")
+        self.assertEqual(after_parent["unresolved"], ["c" * 40])
+
+    def test_human_frontier_bad_probe_requires_parent_proof_even_with_other_candidates(self) -> None:
+        unresolved = ["a" * 40, "b" * 40, "c" * 40, "d" * 40]
+
+        transition = lm_bisect.human_frontier_transition(
+            unresolved,
+            selected_sha="c" * 40,
+            verdict="bad",
+            phase="search",
+            frontier_shas=["b" * 40, "c" * 40],
+            tested_frontier_shas=[],
+        )
+
+        self.assertEqual(transition["phase"], "parent-proof")
+        self.assertEqual(transition["pending_candidate_sha"], "c" * 40)
+
+    def test_human_signal_prior_keeps_full_interval_with_positive_floor(self) -> None:
+        profile = replace(demo_profile(), issue_id="pr204559")
+        shas = [chr(ord("a") + index) * 40 for index in range(4)]
+        metadata = {
+            shas[0]: lm_bisect.CommitMetadata(shas[0], "unrelated", "", ["clang/lib/Sema/SemaExpr.cpp"]),
+            shas[1]: lm_bisect.CommitMetadata(
+                shas[1], "transform", "", ["llvm/lib/Transforms/Scalar/SimpleLoopUnswitch.cpp"]
+            ),
+            shas[2]: lm_bisect.CommitMetadata(
+                shas[2], "checker", "", ["llvm/lib/Analysis/MemorySSA.cpp"]
+            ),
+            shas[3]: lm_bisect.CommitMetadata(shas[3], "other", "", ["llvm/lib/IR/Instructions.cpp"]),
+        }
+
+        prior = lm_bisect.build_human_signal_prior(
+            profile,
+            shas,
+            metadata,
+            {
+                "source_paths": ["llvm/lib/Analysis/MemorySSA.cpp"],
+                "symbols": [],
+                "pass_tokens": ["simple-loop-unswitch"],
+                "query_terms": [],
+            },
+        )
+
+        self.assertEqual(prior["full_interval_count"], 4)
+        self.assertEqual(set(prior["prior_by_sha"]), set(shas))
+        self.assertTrue(all(score > 0.0 for score in prior["prior_by_sha"].values()))
+        self.assertLess(prior["prior_by_sha"][shas[2]], prior["prior_by_sha"][shas[1]])
+        self.assertFalse(prior["hard_pruning"])
+
+    def test_human_signal_prior_applies_rare_checker_penalty_without_removing_floor(self) -> None:
+        profile = replace(
+            demo_profile(),
+            issue_id="pr204559",
+            relevant_paths=[],
+            high_risk_paths=["llvm/lib/Analysis"],
+        )
+        shas = ["a" * 40, "b" * 40]
+        metadata = {
+            shas[0]: lm_bisect.CommitMetadata(
+                shas[0], "checker change", "", ["llvm/lib/Analysis/MemorySSA.cpp"]
+            ),
+            shas[1]: lm_bisect.CommitMetadata(
+                shas[1], "other analysis change", "", ["llvm/lib/Analysis/LoopInfo.cpp"]
+            ),
+        }
+
+        prior = lm_bisect.build_human_signal_prior(
+            profile,
+            shas,
+            metadata,
+            {
+                "source_paths": ["llvm/lib/Analysis/MemorySSA.cpp"],
+                "symbols": [],
+                "pass_tokens": [],
+                "query_terms": [],
+            },
+        )
+
+        self.assertGreater(prior["prior_by_sha"][shas[0]], 0.0)
+        self.assertLess(prior["prior_by_sha"][shas[0]], prior["prior_by_sha"][shas[1]])
+
+    def test_human_signal_prior_selection_clamps_weighted_midpoint(self) -> None:
+        records = [
+            lm_bisect.CommitRecord(
+                index=index + 1,
+                sha=chr(ord("a") + index) * 40,
+                subject=f"candidate {index}",
+                body="",
+                changed_files=[],
+                diff_text="",
+                semantic_score=1.0,
+                build_success_prob=0.9,
+                suspicion_weight=0.0,
+            )
+            for index in range(10)
+        ]
+        priors = {record.sha: 0.1 for record in records}
+        priors[records[0].sha] = 9.0
+
+        decision = lm_bisect.human_signal_prior_selection(records, priors)
+
+        self.assertEqual(decision.selected.sha, records[4].sha)
+        self.assertEqual(decision.selection_mode, "human-signal-prior")
+        self.assertEqual(decision.metadata["weighted_midpoint_sha"], records[0].sha)
+        self.assertTrue(decision.metadata["chronological_clamp_applied"])
+        self.assertEqual(decision.metadata["predicted_verdict"], "bad")
+
+    def test_human_signal_prior_falls_back_after_two_direction_contradictions(self) -> None:
+        state = {"phase": "prior", "consecutive_direction_contradictions": 1}
+
+        updated, event = lm_bisect.update_human_signal_prior_after_verdict(
+            state,
+            predicted_verdict="bad",
+            verdict="good",
+        )
+
+        self.assertTrue(event["contradiction"])
+        self.assertEqual(updated["consecutive_direction_contradictions"], 2)
+        self.assertEqual(updated["phase"], "fallback-bcr")
+        self.assertEqual(updated["fallback_reason"], "two-prior-direction-contradictions")
+
+    def test_human_signal_prior_uses_model_evidence_without_excluding_other_commits(self) -> None:
+        records = [
+            lm_bisect.CommitRecord(
+                index=index + 1,
+                sha=chr(ord("a") + index) * 40,
+                subject=f"candidate {index}",
+                body="",
+                changed_files=[],
+                diff_text="",
+                semantic_score=8.0 if index == 2 else 1.0,
+                build_success_prob=0.9,
+                suspicion_weight=0.0,
+                evidence=["model-scored"] if index == 2 else [],
+            )
+            for index in range(5)
+        ]
+
+        decision = lm_bisect.human_signal_prior_selection(
+            records,
+            {record.sha: 1.0 for record in records},
+        )
+
+        self.assertEqual(decision.selected.sha, records[2].sha)
+        self.assertEqual(decision.metadata["model_adjusted_candidate_count"], 1)
+
+    def test_dynamic_human_evidence_recomputes_rare_checker_polarity_for_current_interval(self) -> None:
+        profile = replace(
+            demo_profile(),
+            issue_id="pr204559",
+            relevant_paths=[],
+            high_risk_paths=[],
+        )
+        source_path = "llvm/lib/Analysis/MemorySSA.cpp"
+        full_shas = [chr(ord("a") + index) * 40 for index in range(11)]
+        metadata = {
+            sha: lm_bisect.CommitMetadata(
+                sha,
+                f"candidate {index}",
+                "",
+                [source_path] if index < 10 else ["llvm/lib/Transforms/Scalar/SimpleLoopUnswitch.cpp"],
+            )
+            for index, sha in enumerate(full_shas)
+        }
+        signals = {
+            "source_paths": [source_path],
+            "symbols": [],
+            "pass_tokens": ["simple-loop-unswitch"],
+            "query_terms": [],
+        }
+
+        full = lm_bisect.build_dynamic_human_evidence(
+            profile,
+            full_shas,
+            metadata,
+            signals,
+            dependency_usage={},
+        )
+        narrowed_shas = [full_shas[0], full_shas[-1]]
+        narrowed = lm_bisect.build_dynamic_human_evidence(
+            profile,
+            narrowed_shas,
+            metadata,
+            signals,
+            dependency_usage={},
+        )
+
+        self.assertFalse(full["rare_checker_file"])
+        self.assertTrue(narrowed["rare_checker_file"])
+        self.assertIn("crash-source-file", full["candidate_by_sha"][full_shas[0]]["reasons"])
+        self.assertIn(
+            "rare-checker-file-penalty",
+            narrowed["candidate_by_sha"][full_shas[0]]["reasons"],
+        )
+
+    def test_dynamic_human_evidence_uses_general_crash_parser(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            artifact = Path(tmpdir) / "crash.err"
+            artifact.write_text("synthetic crash artifact\n")
+            profile = replace(
+                demo_profile(),
+                issue_id="pr204559",
+                crash_artifact=str(artifact),
+            )
+            parsed_payload = {
+                "source_paths": ["llvm/lib/Analysis/MemorySSA.cpp"],
+                "symbols": [],
+                "pass_tokens": ["simple-loop-unswitch"],
+                "query_terms": [],
+            }
+            parsed_signals = mock.Mock()
+            parsed_signals.payload.return_value = parsed_payload
+            with mock.patch.object(
+                lm_bisect.crash_signals,
+                "parse_crash_report",
+                return_value=parsed_signals,
+            ) as parse_crash_report, mock.patch.object(
+                lm_bisect.crash_signals,
+                "human_study_signal_payload",
+            ) as human_study_signal_payload, mock.patch.object(
+                lm_bisect,
+                "ROOT_DIR",
+                Path(tmpdir),
+            ):
+                payload = lm_bisect.profile_crash_signal_payload(
+                    profile,
+                    use_human_study_normalization=False,
+                )
+
+        parse_crash_report.assert_called_once_with("synthetic crash artifact\n")
+        human_study_signal_payload.assert_not_called()
+        self.assertEqual(payload["artifact_status"], "loaded")
+        self.assertNotIn("normalization", payload)
+
+    def test_artifact_complete_lookup_uses_master50_crash_report_before_scoped_fallback(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            master_artifact = (
+                root
+                / "human_analysis/raw/master50-evidence-20260821/cases/pr204559/crash-assertion.err"
+            )
+            master_artifact.parent.mkdir(parents=True)
+            master_artifact.write_text("master fifty crash artifact\n")
+            parsed_signals = mock.Mock()
+            parsed_signals.payload.return_value = {"source_paths": [], "query_terms": []}
+            with mock.patch.object(lm_bisect, "ROOT_DIR", root), mock.patch.object(
+                lm_bisect.crash_signals,
+                "parse_crash_report",
+                return_value=parsed_signals,
+            ) as parse_crash_report:
+                payload = lm_bisect.profile_crash_signal_payload(
+                    replace(demo_profile(), issue_id="pr204559"),
+                    use_human_study_normalization=False,
+                    artifact_lookup="master50",
+                )
+
+        parse_crash_report.assert_called_once_with("master fifty crash artifact\n")
+        self.assertEqual(payload["artifact_status"], "loaded")
+        self.assertEqual(payload["artifact_origin"], "master50-evidence")
+
+    def test_dynamic_causal_retrieval_uses_online_crash_signal_normalization(self) -> None:
+        profile = replace(demo_profile(), issue_id="pr204559")
+        with mock.patch.object(
+            lm_bisect,
+            "profile_crash_signal_payload",
+            return_value={"query_terms": []},
+        ) as profile_crash_signal_payload:
+            lm_bisect.causal_crash_signal_payload(
+                profile,
+                "causal-llm-human-dynamic",
+            )
+
+        profile_crash_signal_payload.assert_called_once_with(
+            profile,
+            use_human_study_normalization=False,
+        )
+
+    def test_causal_prompt_explains_dynamic_checker_and_producer_rules(self) -> None:
+        prompt = lm_bisect.build_causal_diff_extraction_prompt(
+            demo_profile(),
+            {
+                "sha": "a" * 40,
+                "subject": "candidate",
+                "causal_retrieval": {
+                    "crash_signals": {},
+                    "dynamic_interval_evidence": {
+                        "rare_checker_file": True,
+                        "candidate": {
+                            "reasons": ["rare-checker-file-penalty", "dependency-api-use"]
+                        },
+                    },
+                },
+            },
+        )
+
+        self.assertIn("rare checker", prompt)
+        self.assertIn("independent producer, API-use, stack, pass", prompt)
+
+    def test_dynamic_human_evidence_keeps_every_current_candidate_eligible(self) -> None:
+        profile = replace(demo_profile(), issue_id="pr204559")
+        shas = [chr(ord("a") + index) * 40 for index in range(4)]
+        metadata = {
+            shas[0]: lm_bisect.CommitMetadata(shas[0], "unrelated", "", ["clang/lib/Sema/SemaExpr.cpp"]),
+            shas[1]: lm_bisect.CommitMetadata(shas[1], "pass", "", ["llvm/lib/Transforms/Scalar/SimpleLoopUnswitch.cpp"]),
+            shas[2]: lm_bisect.CommitMetadata(shas[2], "checker", "", ["llvm/lib/Analysis/MemorySSA.cpp"]),
+            shas[3]: lm_bisect.CommitMetadata(shas[3], "other", "", ["llvm/lib/IR/Instructions.cpp"]),
+        }
+
+        evidence = lm_bisect.build_dynamic_human_evidence(
+            profile,
+            shas,
+            metadata,
+            {
+                "source_paths": ["llvm/lib/Analysis/MemorySSA.cpp"],
+                "symbols": [],
+                "pass_tokens": ["simple-loop-unswitch"],
+                "query_terms": [],
+            },
+            dependency_usage={},
+        )
+
+        self.assertEqual(set(evidence["prior_by_sha"]), set(shas))
+        self.assertEqual(set(evidence["prior_probability_by_sha"]), set(shas))
+        self.assertTrue(all(value > 0.0 for value in evidence["prior_probability_by_sha"].values()))
+        self.assertFalse(evidence["hard_pruning"])
+
+    def test_dynamic_human_frontier_is_evidence_led_with_bounded_support(self) -> None:
+        records = [
+            lm_bisect.CommitRecord(
+                index=index + 1,
+                sha=chr(ord("a") + index) * 40,
+                subject=f"candidate {index}",
+                body="",
+                changed_files=[],
+                diff_text="",
+                semantic_score=1.0,
+                build_success_prob=0.20 + 0.10 * index,
+                suspicion_weight=0.0,
+            )
+            for index in range(6)
+        ]
+        evidence = {
+            "prior_by_sha": {
+                record.sha: float(6 - record.index)
+                for record in records
+            },
+            "candidate_by_sha": {
+                record.sha: {"sha": record.sha, "index": record.index, "prior_score": float(6 - record.index), "reasons": ["crash-query-term"]}
+                for record in records
+            },
+        }
+
+        decision = lm_bisect.resolve_dynamic_human_evidence_frontier(
+            records,
+            evidence,
+            target_count=5,
+        )
+
+        self.assertEqual(decision.effective_frontier, "dynamic-human-evidence")
+        self.assertEqual(decision.selected_shas[0], records[0].sha)
+        self.assertEqual(len(decision.selected_shas), 5)
+        self.assertIn("evidence-top", {item["role"] for item in decision.role_assignments})
+        self.assertIn("prior-mass-midpoint", {item["role"] for item in decision.role_assignments})
+        self.assertIn("buildability-support", {item["role"] for item in decision.role_assignments})
+
+    def test_dynamic_human_evidence_changes_model_score_cache_context(self) -> None:
+        arguments = (
+            ["a" * 40, "b" * 40],
+            [],
+            12,
+            "topk",
+            "parent",
+            "causal-llm-human-dynamic",
+            "trace-only",
+        )
+        first = lm_bisect.model_score_context_payload(
+            *arguments,
+            dynamic_human_evidence={"evidence_sha256": "first"},
+        )
+        second = lm_bisect.model_score_context_payload(
+            *arguments,
+            dynamic_human_evidence={"evidence_sha256": "second"},
+        )
+
+        self.assertNotEqual(
+            lm_bisect.model_score_context_id(first),
+            lm_bisect.model_score_context_id(second),
+        )
+
+    def test_dynamic_human_evidence_history_preserves_current_interval_provenance(self) -> None:
+        payload = lm_bisect.dynamic_human_evidence_history_payload(
+            {
+                "candidate_window_sha256": "window-digest",
+                "crash_file_touch_count": 5,
+                "rare_checker_file": True,
+                "prior_floor": 0.25,
+                "candidate_evidence": [
+                    {"sha": "a" * 40, "index": 1, "prior_score": 0.25, "reasons": []}
+                ],
+                "dependency_usage_sha256": "dependency-digest",
+            }
+        )
+
+        self.assertEqual(payload["candidate_window_sha256"], "window-digest")
+        self.assertEqual(payload["candidate_evidence"][0]["sha"], "a" * 40)
+        self.assertTrue(payload["rare_checker_file"])
+
+    def test_dynamic_human_evidence_requires_isolated_terra_k12_parent_configuration(self) -> None:
+        with self.assertRaisesRegex(ValueError, "--model-top-k 12"):
+            lm_bisect.validate_dynamic_human_evidence_run_config(
+                issue_id="pr204559",
+                scorer="model",
+                model_diff_mode="parent",
+                model_top_k=3,
+                run_label="dynamic",
+                model_cache_namespace="dynamic-cache",
+            )
+
+    def test_dynamic_human_evidence_runtime_records_only_surviving_interval(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tmp = Path(tmpdir)
+            repo = tmp / "repo"
+            repo.mkdir()
+            (repo / ".git").mkdir()
+            run_history = tmp / "run-history.json"
+            unresolved_window = tmp / "window.json"
+            observations = tmp / "observations.json"
+            shas = [chr(ord("a") + index) * 40 for index in range(6)]
+            profile = replace(demo_profile(), issue_id="pr204559")
+            args = lm_bisect.build_parser().parse_args(
+                [
+                    "run-online",
+                    "--issue",
+                    "pr204559",
+                    "--llvm-dir",
+                    str(repo),
+                    "--scorer",
+                    "model",
+                    "--model-name",
+                    "test-model",
+                    "--model-top-k",
+                    "12",
+                    "--model-cache-namespace",
+                    "dynamic-runtime-cache",
+                    "--model-diff-mode",
+                    "parent",
+                    "--model-diff-extraction",
+                    "causal-llm-human-dynamic",
+                    "--search-policy",
+                    "calibrated-posterior",
+                    "--observations",
+                    str(observations),
+                    "--run-label",
+                    "dynamic-runtime",
+                    "--max-steps",
+                    "2",
+                ]
+            )
+
+            def records_for_window(*_args, **kwargs):
+                candidate_shas = kwargs["candidate_shas"]
+                dynamic = kwargs["dynamic_human_evidence"]
+                decision = lm_bisect.resolve_dynamic_human_evidence_frontier(
+                    [
+                        lm_bisect.CommitRecord(
+                            index=index + 1,
+                            sha=sha,
+                            subject=f"candidate {index}",
+                            body="",
+                            changed_files=[],
+                            diff_text="",
+                            semantic_score=1.0,
+                            build_success_prob=0.9,
+                            suspicion_weight=0.0,
+                        )
+                        for index, sha in enumerate(candidate_shas)
+                    ],
+                    dynamic,
+                    target_count=min(12, len(candidate_shas)),
+                )
+                kwargs["model_frontier_decision_out"].append(decision)
+                return (
+                    [
+                        lm_bisect.CommitRecord(
+                            index=index + 1,
+                            sha=sha,
+                            subject=f"candidate {index}",
+                            body="",
+                            changed_files=[],
+                            diff_text="",
+                            semantic_score=1.0,
+                            build_success_prob=0.9,
+                            suspicion_weight=0.0,
+                            evidence=["model-scored"] if sha in decision.selected_shas else [],
+                        )
+                        for index, sha in enumerate(candidate_shas)
+                    ],
+                    {"before_count": len(candidate_shas), "after_count": len(candidate_shas), "applied": False},
+                )
+
+            metadata = {
+                sha: lm_bisect.CommitMetadata(
+                    sha,
+                    f"candidate {index}",
+                    "",
+                    ["llvm/lib/Analysis/MemorySSA.cpp"]
+                    if index < 5
+                    else ["llvm/lib/Transforms/Scalar/SimpleLoopUnswitch.cpp"],
+                )
+                for index, sha in enumerate(shas)
+            }
+            with mock.patch.object(lm_bisect, "load_profiles", return_value={}), mock.patch.object(
+                lm_bisect, "load_issue_profile", return_value=profile
+            ), mock.patch.object(
+                lm_bisect, "list_candidate_commits", return_value=shas
+            ), mock.patch.object(
+                lm_bisect, "run_history_path_for_issue", return_value=run_history
+            ), mock.patch.object(
+                lm_bisect, "unresolved_window_path_for_issue", return_value=unresolved_window
+            ), mock.patch.object(
+                lm_bisect, "git", return_value="h" * 40
+            ), mock.patch.object(
+                lm_bisect, "checkout_commit"
+            ), mock.patch.object(
+                lm_bisect,
+                "load_model_config",
+                return_value=lm_bisect.ModelConfig("key", "https://example.invalid/v1", "test-model"),
+            ), mock.patch.object(
+                lm_bisect, "load_model_cache", return_value={}
+            ), mock.patch.object(
+                lm_bisect, "profile_crash_signal_payload", return_value={
+                    "source_paths": ["llvm/lib/Analysis/MemorySSA.cpp"],
+                    "symbols": [],
+                    "pass_tokens": ["simple-loop-unswitch"],
+                    "query_terms": [],
+                }
+            ) as profile_crash_signal_payload, mock.patch.object(
+                lm_bisect, "dynamic_dependency_usage", return_value={}
+            ), mock.patch.object(
+                lm_bisect, "load_commit_metadata", return_value=metadata
+            ), mock.patch.object(
+                lm_bisect, "make_records", side_effect=records_for_window
+            ), mock.patch.object(
+                lm_bisect,
+                "run_issue_runner",
+                side_effect=[
+                    ("bad", "first probe bad", "", []),
+                    ("good", "second probe good", "", []),
+                ],
+            ), mock.patch.object(
+                lm_bisect, "save_issue_artifact_bundle", return_value=tmp / "bundle"
+            ):
+                self.assertEqual(lm_bisect.command_run_online(args), 0)
+
+            saved_history = lm_bisect.load_run_history(run_history)
+
+        profile_crash_signal_payload.assert_called_once_with(
+            profile,
+            use_human_study_normalization=False,
+        )
+        self.assertEqual(len(saved_history["steps"]), 2)
+        first, second = saved_history["steps"]
+        self.assertEqual(first["dynamic_human_evidence"]["current_interval_count"], 6)
+        self.assertLess(second["dynamic_human_evidence"]["current_interval_count"], 6)
+        surviving = {
+            entry["sha"] for entry in second["dynamic_human_evidence"]["candidate_evidence"]
+        }
+        self.assertNotIn(shas[-1], surviving)
+        with self.assertRaisesRegex(ValueError, "five-case crash-signal cohort"):
+            lm_bisect.validate_dynamic_human_evidence_run_config(
+                issue_id="pr193164",
+                scorer="model",
+                model_diff_mode="parent",
+                model_top_k=12,
+                run_label="dynamic",
+                model_cache_namespace="dynamic-cache",
+            )
+
+    def test_human_signal_prior_runtime_falls_back_after_two_wrong_directions(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tmp = Path(tmpdir)
+            repo = tmp / "repo"
+            repo.mkdir()
+            (repo / ".git").mkdir()
+            run_history = tmp / "run-history.json"
+            unresolved_window = tmp / "window.json"
+            observations = tmp / "observations.json"
+            shas = [chr(ord("a") + index) * 40 for index in range(17)]
+            profile = replace(demo_profile(), issue_id="pr204559")
+            args = lm_bisect.build_parser().parse_args(
+                [
+                    "run-online",
+                    "--issue",
+                    "pr204559",
+                    "--llvm-dir",
+                    str(repo),
+                    "--scorer",
+                    "model",
+                    "--model-name",
+                    "test-model",
+                    "--model-top-k",
+                    "3",
+                    "--model-cache-namespace",
+                    "human-prior-runtime-test-cache",
+                    "--model-diff-mode",
+                    "parent",
+                    "--model-diff-extraction",
+                    "causal-llm-human-prior",
+                    "--search-policy",
+                    "calibrated-posterior",
+                    "--observations",
+                    str(observations),
+                    "--run-label",
+                    "human-prior-runtime-test",
+                    "--max-steps",
+                    "3",
+                ]
+            )
+
+            def records_for_window(*_args, **kwargs):
+                candidate_shas = kwargs["candidate_shas"]
+                return (
+                    [
+                        lm_bisect.CommitRecord(
+                            index=index + 1,
+                            sha=sha,
+                            subject=f"candidate {index}",
+                            body="",
+                            changed_files=[],
+                            diff_text="",
+                            semantic_score=1.0,
+                            build_success_prob=0.9,
+                            suspicion_weight=0.0,
+                        )
+                        for index, sha in enumerate(candidate_shas)
+                    ],
+                    {"before_count": len(candidate_shas), "after_count": len(candidate_shas), "applied": False},
+                )
+
+            prior_payload = {
+                "full_interval_count": len(shas),
+                "prior_floor": 0.25,
+                "prior_by_sha": {sha: 1.0 for sha in shas},
+                "candidates": [],
+            }
+            with mock.patch.object(lm_bisect, "load_profiles", return_value={}), mock.patch.object(
+                lm_bisect, "load_issue_profile", return_value=profile
+            ), mock.patch.object(
+                lm_bisect, "list_candidate_commits", return_value=shas
+            ), mock.patch.object(
+                lm_bisect, "run_history_path_for_issue", return_value=run_history
+            ), mock.patch.object(
+                lm_bisect, "unresolved_window_path_for_issue", return_value=unresolved_window
+            ), mock.patch.object(
+                lm_bisect, "git", return_value="h" * 40
+            ), mock.patch.object(
+                lm_bisect, "checkout_commit"
+            ), mock.patch.object(
+                lm_bisect,
+                "load_model_config",
+                return_value=lm_bisect.ModelConfig("key", "https://example.invalid/v1", "test-model"),
+            ), mock.patch.object(
+                lm_bisect, "load_model_cache", return_value={}
+            ), mock.patch.object(
+                lm_bisect, "profile_crash_signal_payload", return_value={}
+            ), mock.patch.object(
+                lm_bisect, "human_dependency_anchor_files", return_value={}
+            ), mock.patch.object(
+                lm_bisect,
+                "load_commit_metadata",
+                return_value={sha: lm_bisect.CommitMetadata(sha, "", "", []) for sha in shas},
+            ), mock.patch.object(
+                lm_bisect, "build_human_signal_prior", return_value=prior_payload
+            ), mock.patch.object(
+                lm_bisect, "make_records", side_effect=records_for_window
+            ), mock.patch.object(
+                lm_bisect,
+                "run_issue_runner",
+                side_effect=[
+                    ("good", "first probe good", "", []),
+                    ("good", "second probe good", "", []),
+                    ("bad", "fallback probe bad", "", []),
+                ],
+            ), mock.patch.object(
+                lm_bisect, "save_issue_artifact_bundle", return_value=tmp / "bundle"
+            ):
+                self.assertEqual(lm_bisect.command_run_online(args), 0)
+
+            saved_history = lm_bisect.load_run_history(run_history)
+
+        self.assertEqual(saved_history["human_signal_prior"]["phase"], "fallback-bcr")
+        self.assertEqual(
+            saved_history["human_signal_prior"]["fallback_reason"],
+            "two-prior-direction-contradictions",
+        )
+        self.assertEqual(
+            [step["selection_mode"] for step in saved_history["steps"]],
+            ["human-signal-prior", "human-signal-prior", "calibrated-posterior"],
+        )
+
+    def test_human_signal_pool_triage_keeps_only_model_returned_frontier(self) -> None:
+        profile = replace(demo_profile(), issue_id="pr204559")
+        candidates = [
+            {"sha": "a" * 40, "index": 1, "subject": "first", "changed_files": [], "match_reasons": [], "prior_score": 1.0},
+            {"sha": "b" * 40, "index": 2, "subject": "selected", "changed_files": [], "match_reasons": [], "prior_score": 1.0},
+        ]
+        response = types.SimpleNamespace(
+            choices=[
+                types.SimpleNamespace(
+                    message=types.SimpleNamespace(
+                        content=json.dumps(
+                            [{"sha": "b" * 40, "triage_score": 0.8, "evidence": ["path"], "mechanism": "producer"}]
+                        )
+                    )
+                )
+            ]
+        )
+        config = lm_bisect.ModelConfig("key", "https://example.invalid/v1", "test")
+
+        fake_openai = types.ModuleType("openai")
+        fake_openai.OpenAI = lambda **_kwargs: object()
+        with mock.patch.dict(sys.modules, {"openai": fake_openai}), mock.patch.object(
+            lm_bisect, "model_completion_with_retry", return_value=response
+        ):
+            ranked = lm_bisect.human_signal_pool_triage_with_model(profile, {}, candidates, config)
+
+        self.assertEqual([entry["sha"] for entry in ranked], ["b" * 40])
+
+    def test_parser_accepts_human_signal_pool_causal_extraction(self) -> None:
+        args = lm_bisect.build_parser().parse_args(
+            [
+                "run-online",
+                "--issue",
+                "demo",
+                "--scorer",
+                "model",
+                "--model-diff-extraction",
+                "causal-llm-human-pool",
+            ]
+        )
+
+        self.assertEqual(args.model_diff_extraction, "causal-llm-human-pool")
+
+    def test_parser_accepts_human_signal_prior_causal_extraction(self) -> None:
+        args = lm_bisect.build_parser().parse_args(
+            [
+                "run-online",
+                "--issue",
+                "demo",
+                "--scorer",
+                "model",
+                "--model-diff-extraction",
+                "causal-llm-human-prior",
+            ]
+        )
+
+        self.assertEqual(args.model_diff_extraction, "causal-llm-human-prior")
+
+    def test_human_signal_pool_requires_isolated_model_parent_configuration(self) -> None:
+        with self.assertRaisesRegex(ValueError, "scorer=model"):
+            lm_bisect.validate_human_signal_pool_run_config(
+                issue_id="pr204559",
+                scorer="heuristic",
+                model_diff_mode="parent",
+                run_label="pilot",
+                model_cache_namespace="pilot-cache",
+            )
+        with self.assertRaisesRegex(ValueError, "parent diffs"):
+            lm_bisect.validate_human_signal_pool_run_config(
+                issue_id="pr204559",
+                scorer="model",
+                model_diff_mode="last-tested",
+                run_label="pilot",
+                model_cache_namespace="pilot-cache",
+            )
+        with self.assertRaisesRegex(ValueError, "retrospective good-signal cohort"):
+            lm_bisect.validate_human_signal_pool_run_config(
+                issue_id="pr193164",
+                scorer="model",
+                model_diff_mode="parent",
+                run_label="pilot",
+                model_cache_namespace="pilot-cache",
+            )
+        with self.assertRaisesRegex(ValueError, "distinct --run-label"):
+            lm_bisect.validate_human_signal_pool_run_config(
+                issue_id="pr204559",
+                scorer="model",
+                model_diff_mode="parent",
+                run_label=None,
+                model_cache_namespace="pilot-cache",
+            )
+        with self.assertRaisesRegex(ValueError, "distinct --model-cache-namespace"):
+            lm_bisect.validate_human_signal_pool_run_config(
+                issue_id="pr204559",
+                scorer="model",
+                model_diff_mode="parent",
+                run_label="pilot",
+                model_cache_namespace=None,
+            )
+
+    def test_human_signal_prior_requires_isolated_model_parent_configuration(self) -> None:
+        with self.assertRaisesRegex(ValueError, "scorer=model"):
+            lm_bisect.validate_human_signal_prior_run_config(
+                issue_id="pr204559",
+                scorer="heuristic",
+                model_diff_mode="parent",
+                run_label="prior",
+                model_cache_namespace="prior-cache",
+            )
+        with self.assertRaisesRegex(ValueError, "parent diffs"):
+            lm_bisect.validate_human_signal_prior_run_config(
+                issue_id="pr204559",
+                scorer="model",
+                model_diff_mode="last-tested",
+                run_label="prior",
+                model_cache_namespace="prior-cache",
+            )
+        with self.assertRaisesRegex(ValueError, "retrospective good-signal cohort"):
+            lm_bisect.validate_human_signal_prior_run_config(
+                issue_id="pr193164",
+                scorer="model",
+                model_diff_mode="parent",
+                run_label="prior",
+                model_cache_namespace="prior-cache",
+            )
+
+    def test_human_signal_prior_online_run_rejects_nonposterior_fallback(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            repo = Path(tmpdir) / "repo"
+            repo.mkdir()
+            (repo / ".git").mkdir()
+            args = lm_bisect.build_parser().parse_args(
+                [
+                    "run-online",
+                    "--issue",
+                    "pr204559",
+                    "--llvm-dir",
+                    str(repo),
+                    "--scorer",
+                    "model",
+                    "--model-diff-extraction",
+                    "causal-llm-human-prior",
+                    "--model-cache-namespace",
+                    "prior-cache",
+                    "--run-label",
+                    "prior",
+                    "--search-policy",
+                    "ranked",
+                ]
+            )
+            with mock.patch.object(lm_bisect, "load_profiles", return_value={}), mock.patch.object(
+                lm_bisect, "load_issue_profile", return_value=replace(demo_profile(), issue_id="pr204559")
+            ):
+                with self.assertRaisesRegex(ValueError, "requires --search-policy calibrated-posterior"):
+                    lm_bisect.command_run_online(args)
+
+    def test_parser_accepts_human_guided_causal_extraction(self) -> None:
+        args = lm_bisect.build_parser().parse_args(
+            [
+                "run-online",
+                "--issue",
+                "demo",
+                "--scorer",
+                "model",
+                "--model-diff-extraction",
+                "causal-llm-human",
+            ]
+        )
+
+        self.assertEqual(args.model_diff_extraction, "causal-llm-human")
+
     def test_causal_extraction_prompt_requires_structured_linkage_without_raw_diff_prefix(self) -> None:
         profile = demo_profile()
         item = {
@@ -2916,6 +5139,44 @@ index 3..4 100644
         formatted = lm_bisect.format_causal_diff_evidence(payload)
         self.assertIn("Causal confidence: 0.80", formatted)
         self.assertIn("LoopVectorize", formatted)
+
+    def test_causal_summary_keeps_dynamic_interval_provenance_for_scoring(self) -> None:
+        formatted = lm_bisect.format_causal_diff_evidence(
+            {
+                "summary": "candidate change",
+                "confidence": 0.5,
+                "retrieval": {
+                    "dynamic_interval_evidence": {
+                        "rare_checker_file": True,
+                        "candidate": {
+                            "prior_score": 3.25,
+                            "reasons": ["crash-pass", "dependency-api-use"],
+                        },
+                    }
+                },
+            }
+        )
+
+        self.assertIn("Dynamic interval evidence: rare-checker=true", formatted)
+        self.assertIn("crash-pass, dependency-api-use", formatted)
+
+    def test_model_scoring_prompt_treats_dynamic_interval_evidence_as_soft_prior(self) -> None:
+        prompt = lm_bisect.build_model_scoring_prompt(
+            demo_profile(),
+            [
+                {
+                    "sha": "a" * 40,
+                    "subject": "candidate",
+                    "body": "",
+                    "files": [],
+                    "diff_summary": "Dynamic interval evidence: rare-checker=true",
+                    "diff_extraction": "causal-llm-human-dynamic",
+                }
+            ],
+        )
+
+        self.assertIn("dynamic interval evidence, it is a soft prior", prompt)
+        self.assertIn("checker-only touch", prompt)
 
     def test_causal_extraction_fallback_preserves_retrieval_evidence(self) -> None:
         retrieval = {
@@ -3009,6 +5270,7 @@ index 3..4 100644
 
         self.assertEqual(response, "ok")
         self.assertEqual(captured["reasoning_effort"], "high")
+        self.assertNotIn("temperature", captured)
 
     def test_extract_diff_evidence_batch_falls_back_when_response_has_no_choices(self) -> None:
         profile = demo_profile()
@@ -4754,6 +7016,474 @@ class RunHistoryTests(unittest.TestCase):
         self.assertTrue(saved_history["oracle_diagnostic"]["normal_search_bypassed"])
         self.assertTrue(saved_history["oracle_diagnostic"]["anchor_validation_passed"])
 
+    def test_human_signal_pool_proves_triaged_candidate_with_its_parent(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tmp = Path(tmpdir)
+            repo = tmp / "repo"
+            repo.mkdir()
+            (repo / ".git").mkdir()
+            run_history = tmp / "run-history.json"
+            unresolved_window = tmp / "window.json"
+            observations = tmp / "observations.json"
+            shas = ["a" * 40, "b" * 40, "c" * 40, "d" * 40]
+            profile = replace(demo_profile(), issue_id="pr204559")
+            pool_candidates = [
+                {
+                    "sha": sha,
+                    "index": index + 1,
+                    "subject": f"candidate {index}",
+                    "changed_files": ["llvm/lib/Transforms/Scalar/SimpleLoopUnswitch.cpp"],
+                    "match_reasons": ["crash-pass"],
+                    "prior_score": 2.0,
+                }
+                for index, sha in enumerate(shas[1:])
+            ]
+            triage = [pool_candidates[1], pool_candidates[0], pool_candidates[2]]
+            direct_records = [
+                lm_bisect.CommitRecord(
+                    index=index + 1,
+                    sha=candidate["sha"],
+                    subject=str(candidate["subject"]),
+                    body="",
+                    changed_files=list(candidate["changed_files"]),
+                    diff_text="",
+                    semantic_score=10.0 if candidate["sha"] == shas[2] else 1.0,
+                    build_success_prob=0.9,
+                    suspicion_weight=0.0,
+                    causal_evidence={"confidence": 0.8},
+                )
+                for index, candidate in enumerate(triage)
+            ]
+            parent_record = lm_bisect.CommitRecord(
+                index=1,
+                sha=shas[1],
+                subject="immediate parent",
+                body="",
+                changed_files=["llvm/lib/Transforms/Scalar/SimpleLoopUnswitch.cpp"],
+                diff_text="",
+                semantic_score=1.0,
+                build_success_prob=0.9,
+                suspicion_weight=0.0,
+                causal_evidence={"confidence": 0.0},
+            )
+            args = lm_bisect.build_parser().parse_args(
+                [
+                    "run-online",
+                    "--issue",
+                    "pr204559",
+                    "--llvm-dir",
+                    str(repo),
+                    "--scorer",
+                    "model",
+                    "--model-name",
+                    "test-model",
+                    "--model-top-k",
+                    "3",
+                    "--model-cache-namespace",
+                    "human-pool-proof-test-cache",
+                    "--model-diff-mode",
+                    "parent",
+                    "--model-diff-extraction",
+                    "causal-llm-human-pool",
+                    "--observations",
+                    str(observations),
+                    "--run-label",
+                    "human-pool-proof-test",
+                    "--max-steps",
+                    "2",
+                ]
+            )
+
+            def records_for_pool(*_args, **kwargs):
+                candidate_shas = kwargs["candidate_shas"]
+                if candidate_shas == [entry["sha"] for entry in triage]:
+                    return direct_records, {"before_count": 3, "after_count": 3, "applied": False}
+                self.fail(f"unexpected human pool candidates: {candidate_shas}")
+
+            with mock.patch.object(lm_bisect, "load_profiles", return_value={}), mock.patch.object(
+                lm_bisect, "load_issue_profile", return_value=profile
+            ), mock.patch.object(
+                lm_bisect, "list_candidate_commits", return_value=shas
+            ), mock.patch.object(
+                lm_bisect, "run_history_path_for_issue", return_value=run_history
+            ), mock.patch.object(
+                lm_bisect, "unresolved_window_path_for_issue", return_value=unresolved_window
+            ), mock.patch.object(
+                lm_bisect, "git", return_value="h" * 40
+            ), mock.patch.object(
+                lm_bisect, "checkout_commit"
+            ), mock.patch.object(
+                lm_bisect,
+                "load_model_config",
+                return_value=lm_bisect.ModelConfig("key", "https://example.invalid/v1", "test-model"),
+            ), mock.patch.object(
+                lm_bisect, "load_model_cache", return_value={}
+            ), mock.patch.object(
+                lm_bisect, "human_dependency_anchor_files", return_value={}
+            ), mock.patch.object(
+                lm_bisect,
+                "profile_crash_signal_payload",
+                return_value={"source_paths": [], "symbols": [], "pass_tokens": ["simple-loop-unswitch"]},
+            ), mock.patch.object(
+                lm_bisect,
+                "load_commit_metadata",
+                return_value={sha: lm_bisect.CommitMetadata(sha, "", "", []) for sha in shas},
+            ), mock.patch.object(
+                lm_bisect,
+                "build_human_signal_pool",
+                return_value={
+                    "candidate_count": 3,
+                    "candidate_count_before_limit": 3,
+                    "candidates": pool_candidates,
+                    "candidate_shas": [entry["sha"] for entry in pool_candidates],
+                },
+            ), mock.patch.object(
+                lm_bisect, "human_signal_pool_triage_with_model", return_value=triage
+            ), mock.patch.object(
+                lm_bisect, "make_records", side_effect=records_for_pool
+            ) as make_records, mock.patch.object(
+                lm_bisect, "build_commit_record", return_value=parent_record
+            ) as build_parent_record, mock.patch.object(
+                lm_bisect,
+                "run_issue_runner",
+                side_effect=[
+                    ("bad", "candidate reproduces", "candidate bad", ["assertion"]),
+                    ("good", "parent passes", "parent good", ["no assertion"]),
+                ],
+            ) as run_runner, mock.patch.object(
+                lm_bisect, "save_issue_artifact_bundle", return_value=tmp / "bundle"
+            ):
+                self.assertEqual(lm_bisect.command_run_online(args), 0)
+
+            saved_history = lm_bisect.load_run_history(run_history)
+
+        self.assertEqual(make_records.call_args_list[0].kwargs["candidate_shas"], [entry["sha"] for entry in triage])
+        self.assertEqual(make_records.call_count, 1)
+        self.assertEqual(build_parent_record.call_args.args[2], shas[1])
+        self.assertFalse(build_parent_record.call_args.kwargs["load_diff"])
+        self.assertEqual(run_runner.call_count, 2)
+        self.assertEqual(saved_history["first_bad_commit"], shas[2])
+        self.assertEqual(saved_history["human_signal_pool"]["phase"], "resolved")
+        self.assertEqual(saved_history["human_signal_pool"]["direct_proof"]["parent_sha"], shas[1])
+        self.assertEqual(
+            [step["human_signal_pool_phase"] for step in saved_history["steps"]],
+            ["direct-candidate", "parent-proof"],
+        )
+
+    def test_human_signal_pool_bad_parent_falls_back_to_full_interval_bcr(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tmp = Path(tmpdir)
+            repo = tmp / "repo"
+            repo.mkdir()
+            (repo / ".git").mkdir()
+            run_history = tmp / "run-history.json"
+            unresolved_window = tmp / "window.json"
+            observations = tmp / "observations.json"
+            shas = ["a" * 40, "b" * 40, "c" * 40, "d" * 40]
+            profile = replace(demo_profile(), issue_id="pr204559")
+            triaged_candidate = {
+                "sha": shas[2],
+                "index": 3,
+                "subject": "triaged candidate",
+                "changed_files": ["llvm/lib/Transforms/Scalar/SimpleLoopUnswitch.cpp"],
+                "match_reasons": ["crash-pass"],
+                "prior_score": 2.0,
+                "triage_score": 0.9,
+            }
+            direct_record = lm_bisect.CommitRecord(
+                index=3,
+                sha=shas[2],
+                subject="triaged candidate",
+                body="",
+                changed_files=list(triaged_candidate["changed_files"]),
+                diff_text="",
+                semantic_score=10.0,
+                build_success_prob=0.9,
+                suspicion_weight=0.0,
+                causal_evidence={"confidence": 0.9},
+            )
+            parent_record = lm_bisect.CommitRecord(
+                index=2,
+                sha=shas[1],
+                subject="bad parent",
+                body="",
+                changed_files=list(triaged_candidate["changed_files"]),
+                diff_text="",
+                semantic_score=1.0,
+                build_success_prob=0.9,
+                suspicion_weight=0.0,
+                causal_evidence={"confidence": 0.0},
+            )
+            fallback_record = lm_bisect.CommitRecord(
+                index=1,
+                sha=shas[0],
+                subject="fallback first bad",
+                body="",
+                changed_files=list(triaged_candidate["changed_files"]),
+                diff_text="",
+                semantic_score=10.0,
+                build_success_prob=0.9,
+                suspicion_weight=0.0,
+                evidence=[],
+                causal_evidence={"confidence": 0.9},
+            )
+            args = lm_bisect.build_parser().parse_args(
+                [
+                    "run-online",
+                    "--issue",
+                    "pr204559",
+                    "--llvm-dir",
+                    str(repo),
+                    "--scorer",
+                    "model",
+                    "--model-name",
+                    "test-model",
+                    "--model-top-k",
+                    "3",
+                    "--model-cache-namespace",
+                    "human-pool-fallback-test-cache",
+                    "--model-diff-mode",
+                    "parent",
+                    "--model-diff-extraction",
+                    "causal-llm-human-pool",
+                    "--observations",
+                    str(observations),
+                    "--run-label",
+                    "human-pool-fallback-test",
+                    "--max-steps",
+                    "3",
+                ]
+            )
+
+            def records_for_phase(*_args, **kwargs):
+                candidate_shas = kwargs["candidate_shas"]
+                if candidate_shas == [shas[2]]:
+                    return [direct_record], {"before_count": 1, "after_count": 1, "applied": False}
+                if candidate_shas == shas[:2]:
+                    return [fallback_record], {"before_count": 2, "after_count": 2, "applied": False}
+                self.fail(f"unexpected fallback candidates: {candidate_shas}")
+
+            with mock.patch.object(lm_bisect, "load_profiles", return_value={}), mock.patch.object(
+                lm_bisect, "load_issue_profile", return_value=profile
+            ), mock.patch.object(
+                lm_bisect, "list_candidate_commits", return_value=shas
+            ), mock.patch.object(
+                lm_bisect, "run_history_path_for_issue", return_value=run_history
+            ), mock.patch.object(
+                lm_bisect, "unresolved_window_path_for_issue", return_value=unresolved_window
+            ), mock.patch.object(
+                lm_bisect, "git", return_value="h" * 40
+            ), mock.patch.object(
+                lm_bisect, "checkout_commit"
+            ), mock.patch.object(
+                lm_bisect,
+                "load_model_config",
+                return_value=lm_bisect.ModelConfig("key", "https://example.invalid/v1", "test-model"),
+            ), mock.patch.object(
+                lm_bisect, "load_model_cache", return_value={}
+            ), mock.patch.object(
+                lm_bisect, "human_dependency_anchor_files", return_value={}
+            ), mock.patch.object(
+                lm_bisect,
+                "profile_crash_signal_payload",
+                return_value={"source_paths": [], "symbols": [], "pass_tokens": ["simple-loop-unswitch"]},
+            ), mock.patch.object(
+                lm_bisect,
+                "load_commit_metadata",
+                return_value={sha: lm_bisect.CommitMetadata(sha, "", "", []) for sha in shas},
+            ), mock.patch.object(
+                lm_bisect,
+                "build_human_signal_pool",
+                return_value={
+                    "candidate_count": 1,
+                    "candidate_count_before_limit": 1,
+                    "candidates": [triaged_candidate],
+                    "candidate_shas": [shas[2]],
+                },
+            ), mock.patch.object(
+                lm_bisect, "human_signal_pool_triage_with_model", return_value=[triaged_candidate]
+            ), mock.patch.object(
+                lm_bisect, "make_records", side_effect=records_for_phase
+            ) as make_records, mock.patch.object(
+                lm_bisect, "build_commit_record", return_value=parent_record
+            ) as build_parent_record, mock.patch.object(
+                lm_bisect,
+                "run_issue_runner",
+                side_effect=[
+                    ("bad", "candidate reproduces", "candidate bad", ["assertion"]),
+                    ("bad", "parent also reproduces", "parent bad", ["assertion"]),
+                    ("bad", "fallback candidate reproduces", "fallback bad", ["assertion"]),
+                ],
+            ), mock.patch.object(
+                lm_bisect, "save_issue_artifact_bundle", return_value=tmp / "bundle"
+            ):
+                self.assertEqual(lm_bisect.command_run_online(args), 0)
+
+            saved_history = lm_bisect.load_run_history(run_history)
+
+        self.assertEqual([call.kwargs["candidate_shas"] for call in make_records.call_args_list], [[shas[2]], shas[:2]])
+        self.assertEqual(build_parent_record.call_args.args[2], shas[1])
+        self.assertEqual(saved_history["human_signal_pool"]["phase"], "fallback")
+        self.assertEqual(saved_history["human_signal_pool"]["fallback_reason"], "parent-proof-not-good:bad")
+        self.assertEqual(saved_history["first_bad_commit"], shas[0])
+        self.assertEqual(saved_history["steps"][2]["human_signal_pool_phase"], "fallback")
+
+    def test_human_frontier_triages_then_proves_causal_candidate_and_parent(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tmp = Path(tmpdir)
+            repo = tmp / "repo"
+            repo.mkdir()
+            (repo / ".git").mkdir()
+            run_history = tmp / "run-history.json"
+            unresolved_window = tmp / "window.json"
+            observations = tmp / "observations.json"
+            shas = ["a" * 40, "b" * 40, "c" * 40, "d" * 40]
+            profile = replace(demo_profile(), issue_id="pr204559")
+            frontier_candidates = [
+                {
+                    "sha": shas[1],
+                    "index": 2,
+                    "subject": "weaker frontier candidate",
+                    "changed_files": ["llvm/lib/Transforms/Scalar/SimpleLoopUnswitch.cpp"],
+                    "match_reasons": ["crash-pass", "dependency-path"],
+                    "prior_score": 2.0,
+                },
+                {
+                    "sha": shas[2],
+                    "index": 3,
+                    "subject": "causal frontier candidate",
+                    "changed_files": ["llvm/lib/Transforms/Scalar/SimpleLoopUnswitch.cpp"],
+                    "match_reasons": ["crash-pass", "dependency-path"],
+                    "prior_score": 2.0,
+                },
+            ]
+            # The model ranks the later candidate first, but the direct proof
+            # frontier must retain the staged tier's chronological order so
+            # midpoint support is meaningful rather than a triage-order proxy.
+            triage = [
+                {**frontier_candidates[1], "triage_score": 0.95},
+                {**frontier_candidates[0], "triage_score": 0.50},
+            ]
+            direct_records = [
+                lm_bisect.CommitRecord(
+                    index=index + 1,
+                    sha=candidate["sha"],
+                    subject=str(candidate["subject"]),
+                    body="",
+                    changed_files=list(candidate["changed_files"]),
+                    diff_text="",
+                    semantic_score=7.0 if candidate["sha"] == shas[2] else 3.0,
+                    build_success_prob=0.9,
+                    suspicion_weight=0.0,
+                    causal_evidence={"confidence": 0.8},
+                )
+                for index, candidate in enumerate(frontier_candidates)
+            ]
+            parent_record = lm_bisect.CommitRecord(
+                index=2,
+                sha=shas[1],
+                subject="immediate parent",
+                body="",
+                changed_files=["llvm/lib/Transforms/Scalar/SimpleLoopUnswitch.cpp"],
+                diff_text="",
+                semantic_score=1.0,
+                build_success_prob=0.9,
+                suspicion_weight=0.0,
+            )
+            args = lm_bisect.build_parser().parse_args(
+                [
+                    "run-online",
+                    "--issue", "pr204559",
+                    "--llvm-dir", str(repo),
+                    "--scorer", "model",
+                    "--model-name", "test-model",
+                    "--model-top-k", "12",
+                    "--model-cache-namespace", "human-frontier-runtime-test-cache",
+                    "--model-diff-mode", "parent",
+                    "--model-diff-extraction", "causal-llm-human-frontier",
+                    "--search-policy", "calibrated-posterior",
+                    "--observations", str(observations),
+                    "--run-label", "human-frontier-runtime-test",
+                    "--max-steps", "2",
+                ]
+            )
+
+            def records_for_frontier(*_args, **kwargs):
+                self.assertEqual(kwargs["candidate_shas"], [shas[1], shas[2]])
+                return direct_records, {"before_count": 2, "after_count": 2, "applied": False}
+
+            with mock.patch.object(lm_bisect, "load_profiles", return_value={}), mock.patch.object(
+                lm_bisect, "load_issue_profile", return_value=profile
+            ), mock.patch.object(
+                lm_bisect, "list_candidate_commits", return_value=shas
+            ), mock.patch.object(
+                lm_bisect, "run_history_path_for_issue", return_value=run_history
+            ), mock.patch.object(
+                lm_bisect, "unresolved_window_path_for_issue", return_value=unresolved_window
+            ), mock.patch.object(
+                lm_bisect, "git", return_value="h" * 40
+            ), mock.patch.object(
+                lm_bisect, "checkout_commit"
+            ), mock.patch.object(
+                lm_bisect,
+                "load_model_config",
+                return_value=lm_bisect.ModelConfig("key", "https://example.invalid/v1", "test-model"),
+            ), mock.patch.object(
+                lm_bisect, "load_model_cache", return_value={}
+            ), mock.patch.object(
+                lm_bisect,
+                "profile_crash_signal_payload",
+                return_value={"query_terms": [{"term": "MemorySSAUpdater", "kind": "component-updater"}]},
+            ), mock.patch.object(
+                lm_bisect,
+                "human_frontier_dependency_paths",
+                return_value={"selected_paths": ["llvm/lib/Transforms/Scalar/SimpleLoopUnswitch.cpp"]},
+            ), mock.patch.object(
+                lm_bisect,
+                "load_commit_metadata",
+                return_value={sha: lm_bisect.CommitMetadata(sha, "", "", []) for sha in shas},
+            ), mock.patch.object(
+                lm_bisect,
+                "build_human_frontier_pool",
+                return_value={
+                    "candidate_count": 2,
+                    "candidate_shas": [shas[1], shas[2]],
+                    "candidates": frontier_candidates,
+                },
+            ), mock.patch.object(
+                lm_bisect, "human_frontier_triage_with_model", return_value=triage
+            ), mock.patch.object(
+                lm_bisect, "make_records", side_effect=records_for_frontier
+            ) as make_records, mock.patch.object(
+                lm_bisect, "build_commit_record", return_value=parent_record
+            ) as build_parent_record, mock.patch.object(
+                lm_bisect,
+                "run_issue_runner",
+                side_effect=[
+                    ("bad", "candidate reproduces", "candidate bad", ["assertion"]),
+                    ("good", "parent passes", "parent good", ["no assertion"]),
+                ],
+            ), mock.patch.object(
+                lm_bisect, "save_issue_artifact_bundle", return_value=tmp / "bundle"
+            ):
+                self.assertEqual(lm_bisect.command_run_online(args), 0)
+
+            saved_history = lm_bisect.load_run_history(run_history)
+
+        self.assertEqual(make_records.call_count, 1)
+        self.assertEqual(build_parent_record.call_args.args[2], shas[1])
+        self.assertEqual(saved_history["first_bad_commit"], shas[2])
+        self.assertEqual(saved_history["human_frontier"]["phase"], "resolved")
+        self.assertEqual(saved_history["human_frontier"]["direct_proof"]["parent_sha"], shas[1])
+        self.assertEqual(
+            [step["human_frontier_phase"] for step in saved_history["steps"]],
+            ["search", "parent-proof"],
+        )
+        self.assertEqual(
+            saved_history["steps"][1]["selection_mode"],
+            "human-frontier-parent-proof",
+        )
+
 
 class MetadataLoadingTests(unittest.TestCase):
     def test_commit_diff_text_tolerates_non_utf8_patch_bytes(self) -> None:
@@ -5315,18 +8045,53 @@ class MetadataLoadingTests(unittest.TestCase):
         extracted_key = lm_bisect.model_score_cache_key(sha, "parent", None, "llm")
         causal_key = lm_bisect.model_score_cache_key(sha, "parent", None, "causal-llm")
         causal_impl_key = lm_bisect.model_score_cache_key(sha, "parent", None, "causal-llm-impl")
+        deterministic_facts_key = lm_bisect.model_score_cache_key(
+            sha,
+            "parent",
+            None,
+            "causal-llm-deterministic-facts",
+        )
+        artifact_complete_facts_key = lm_bisect.model_score_cache_key(
+            sha,
+            "parent",
+            None,
+            "causal-llm-deterministic-facts-artifact",
+        )
         last_tested_key = lm_bisect.model_score_cache_key(sha, "last-tested", "a" * 40, "llm")
 
         self.assertEqual(raw_key, sha)
         self.assertNotEqual(raw_key, extracted_key)
         self.assertNotEqual(extracted_key, causal_key)
         self.assertNotEqual(causal_key, causal_impl_key)
+        self.assertNotEqual(causal_key, deterministic_facts_key)
+        self.assertNotEqual(deterministic_facts_key, artifact_complete_facts_key)
         self.assertIn("extract:llm", extracted_key)
         self.assertIn("extract:causal-llm", causal_key)
         self.assertIn(lm_bisect.CAUSAL_DIFF_EXTRACTION_VERSION, causal_key)
         self.assertIn(lm_bisect.CAUSAL_IMPL_DIFF_EXTRACTION_VERSION, causal_impl_key)
+        self.assertIn(lm_bisect.CAUSAL_DETERMINISTIC_FACTS_DIFF_EXTRACTION_VERSION, deterministic_facts_key)
+        self.assertIn(
+            lm_bisect.CAUSAL_DETERMINISTIC_FACTS_ARTIFACT_DIFF_EXTRACTION_VERSION,
+            artifact_complete_facts_key,
+        )
         self.assertIn("diff:last-tested-candidate-files", last_tested_key)
         self.assertIn("extract:llm", last_tested_key)
+
+    def test_model_score_cache_key_distinguishes_causal_parent_context(self) -> None:
+        sha = "b" * 40
+        without_context = lm_bisect.model_score_cache_key(
+            sha,
+            diff_extraction="causal-llm",
+            causal_context_parent_count=0,
+        )
+        with_context = lm_bisect.model_score_cache_key(
+            sha,
+            diff_extraction="causal-llm",
+            causal_context_parent_count=5,
+        )
+
+        self.assertNotEqual(without_context, with_context)
+        self.assertIn("causal-first-parent-context:5", with_context)
 
     def test_make_records_causal_extraction_persists_evidence_and_features(self) -> None:
         profile = demo_profile()
@@ -5398,10 +8163,249 @@ class MetadataLoadingTests(unittest.TestCase):
 
         self.assertEqual(records[0].diff_extraction, "causal-llm")
         commit_diff.assert_not_called()
+
+    def test_make_records_human_causal_extraction_dispatches_human_guided_retrieval(self) -> None:
+        profile = demo_profile()
+        repo = Path("/tmp/fake-llvm-project")
+        sha = "b" * 40
+        metadata_cache = {
+            sha: lm_bisect.CommitMetadata(
+                sha=sha,
+                subject="candidate",
+                body="",
+                changed_files=["llvm/lib/Analysis/MemorySSA.cpp"],
+            )
+        }
+        model_config = lm_bisect.ModelConfig(
+            api_key="k",
+            base_url="http://example.invalid",
+            model_name="gpt-5.6-terra",
+        )
+        crash_payload = {"kind": "assertion", "query_terms": ["verifyOptResult"]}
+        causal_evidence = {
+            "summary": "Changes clobber verification.",
+            "changed_symbols": ["ClobberWalker::verifyOptResult"],
+            "behavioral_change": ["updates clobber selection"],
+            "issue_link": {
+                "assertion_or_trace": ["verifyOptResult assertion"],
+                "reproducer": [],
+                "pass_or_subsystem": ["MemorySSA"],
+                "explanation": "The changed path reaches the asserted invariant.",
+            },
+            "confidence": 0.8,
+            "build_risk": [],
+            "retrieval": {"selected_files": ["llvm/lib/Analysis/MemorySSA.cpp"]},
+        }
+
+        with mock.patch.object(lm_bisect, "load_commit_metadata", return_value=metadata_cache), mock.patch.object(
+            lm_bisect,
+            "profile_crash_signal_payload",
+            return_value=crash_payload,
+        ), mock.patch.object(
+            lm_bisect,
+            "retrieve_causal_diff_evidence",
+            return_value=causal_evidence["retrieval"],
+        ) as retrieve, mock.patch.object(
+            lm_bisect,
+            "extract_causal_diff_evidence_batch_with_model",
+            return_value={sha: causal_evidence},
+        ), mock.patch.object(
+            lm_bisect,
+            "score_model_batch_with_backfill",
+            return_value={
+                sha: {
+                    "semantic_score": 4.0,
+                    "build_success_prob": 0.9,
+                    "evidence": ["causal-scored"],
+                    "features": ["term:model"],
+                }
+            },
+        ):
+            records, _summary = lm_bisect.make_records(
+                repo,
+                profile,
+                scorer="model",
+                model_config=model_config,
+                candidate_shas=[sha],
+                model_top_k=1,
+                metadata_cache={},
+                model_cache={},
+                model_diff_extraction="causal-llm-human",
+            )
+
+        self.assertEqual(records[0].diff_extraction, "causal-llm-human")
+        self.assertEqual(retrieve.call_args.kwargs["retrieval_policy"], "human-guided")
+        self.assertEqual(retrieve.call_args.kwargs["crash_signal_payload"], crash_payload)
         self.assertEqual(records[0].causal_evidence, causal_evidence)
-        self.assertIn("term:vplanbuildrecipe", records[0].features)
+        self.assertIn("term:clobberwalkerverifyoptresult", records[0].features)
         self.assertIn("Causal confidence: 0.80", records[0].diff_summary)
         self.assertEqual(lm_bisect.selection_payload(records[0])["causal_evidence"], causal_evidence)
+
+    def test_make_records_crash_aware_extraction_uses_retrieval_without_dynamic_selection(self) -> None:
+        profile = demo_profile()
+        repo = Path("/tmp/fake-llvm-project")
+        sha = "b" * 40
+        metadata = {
+            sha: lm_bisect.CommitMetadata(
+                sha=sha,
+                subject="candidate",
+                body="",
+                changed_files=["llvm/lib/Transforms/Scalar/Loop.cpp"],
+            )
+        }
+        model_config = lm_bisect.ModelConfig(
+            api_key="k",
+            base_url="http://example.invalid",
+            model_name="gpt-5.6-terra",
+        )
+        crash_payload = {
+            "kind": "assertion",
+            "source_paths": ["llvm/lib/Analysis/MemorySSA.cpp"],
+            "query_terms": ["MemorySSAUpdater"],
+        }
+        causal_evidence = {
+            "summary": "candidate evidence",
+            "changed_symbols": [],
+            "behavioral_change": [],
+            "issue_link": {},
+            "confidence": 0.5,
+            "build_risk": [],
+            "retrieval": {},
+        }
+
+        with mock.patch.object(lm_bisect, "load_commit_metadata", return_value=metadata), mock.patch.object(
+            lm_bisect,
+            "profile_crash_signal_payload",
+            return_value=crash_payload,
+        ), mock.patch.object(
+            lm_bisect,
+            "dynamic_dependency_usage",
+            return_value={"MemorySSAUpdater": {"llvm/lib/Transforms/Scalar/Loop.cpp": 3}},
+        ), mock.patch.object(
+            lm_bisect,
+            "retrieve_causal_diff_evidence",
+            return_value=causal_evidence["retrieval"],
+        ) as retrieve, mock.patch.object(
+            lm_bisect,
+            "extract_causal_diff_evidence_batch_with_model",
+            return_value={sha: causal_evidence},
+        ), mock.patch.object(
+            lm_bisect,
+            "score_model_batch_with_backfill",
+            return_value={
+                sha: {
+                    "semantic_score": 4.0,
+                    "build_success_prob": 0.9,
+                    "evidence": ["causal-scored"],
+                    "features": [],
+                }
+            },
+        ):
+            records, _summary = lm_bisect.make_records(
+                repo,
+                profile,
+                scorer="model",
+                model_config=model_config,
+                candidate_shas=[sha],
+                model_top_k=1,
+                metadata_cache={},
+                model_cache={},
+                model_diff_extraction="causal-llm-crash-aware",
+            )
+
+        self.assertEqual(records[0].diff_extraction, "causal-llm-crash-aware")
+        self.assertEqual(retrieve.call_args.kwargs["retrieval_policy"], "crash-aware")
+        self.assertEqual(retrieve.call_args.kwargs["crash_signal_payload"], crash_payload)
+        self.assertEqual(retrieve.call_args.kwargs["crash_file_touch_count"], 0)
+        self.assertEqual(
+            retrieve.call_args.kwargs["dependency_usage"],
+            {"MemorySSAUpdater": {"llvm/lib/Transforms/Scalar/Loop.cpp": 3}},
+        )
+
+    def test_make_records_deterministic_facts_uses_single_ordinal_model_call(self) -> None:
+        profile = demo_profile()
+        repo = Path("/tmp/fake-llvm-project")
+        sha = "b" * 40
+        metadata = {
+            sha: lm_bisect.CommitMetadata(
+                sha=sha,
+                subject="candidate",
+                body="",
+                changed_files=["llvm/lib/Transforms/Scalar/Loop.cpp"],
+            )
+        }
+        model_config = lm_bisect.ModelConfig(
+            api_key="k",
+            base_url="http://example.invalid",
+            model_name="gpt-5.6-terra",
+        )
+        retrieval = {
+            "selected_files": ["llvm/lib/Transforms/Scalar/Loop.cpp"],
+            "selected_hunks": [],
+            "crash_signals": {"kind": "assertion"},
+            "repository_facts": {
+                "contact_paths": ["Loop -> MSSAU->applyUpdates"],
+                "no_call_path_found": False,
+                "destruction_surface": ["applyUpdates"],
+                "crash_file": {"polarity": "hot-file-support", "paths": []},
+                "dependency_api_use": {"Loop.cpp": 3},
+            },
+            "contract_contexts": [],
+        }
+        model_result = {
+            sha: {
+                "semantic_score": 3.0,
+                "build_success_prob": 0.9,
+                "evidence": ["ordinal-rank:1"],
+                "features": ["term:invariant-break"],
+                "ordinal_judgment": {"rank": 1, "mechanism": "invariant-break"},
+                "repository_facts": retrieval["repository_facts"],
+            }
+        }
+
+        with mock.patch.object(lm_bisect, "load_commit_metadata", return_value=metadata), mock.patch.object(
+            lm_bisect,
+            "profile_crash_signal_payload",
+            return_value={"kind": "assertion", "query_terms": ["MemorySSAUpdater"]},
+        ), mock.patch.object(
+            lm_bisect,
+            "retrieve_causal_diff_evidence",
+            return_value=retrieval,
+        ) as retrieve, mock.patch.object(
+            lm_bisect,
+            "deterministic_facts_rank_commits",
+            return_value=model_result,
+        ) as rank, mock.patch.object(
+            lm_bisect,
+            "extract_causal_diff_evidence_batch_with_model",
+            side_effect=AssertionError("v15 must not run causal extraction"),
+        ), mock.patch.object(
+            lm_bisect,
+            "score_model_batch_with_backfill",
+            side_effect=AssertionError("v15 must not run absolute-score scorer"),
+        ), mock.patch.object(
+            lm_bisect,
+            "score_build_probability",
+            return_value=(0.9, ["deterministic buildability"]),
+        ):
+            records, _summary = lm_bisect.make_records(
+                repo,
+                profile,
+                scorer="model",
+                model_config=model_config,
+                candidate_shas=[sha],
+                model_top_k=1,
+                metadata_cache={},
+                model_cache={},
+                model_diff_extraction="causal-llm-deterministic-facts",
+            )
+
+        self.assertEqual(records[0].diff_extraction, "causal-llm-deterministic-facts")
+        self.assertEqual(records[0].semantic_score, 3.0)
+        self.assertEqual(records[0].build_success_prob, 0.9)
+        retrieve.assert_called_once()
+        self.assertEqual(retrieve.call_args.kwargs["retrieval_policy"], "deterministic-facts")
+        rank.assert_called_once()
 
     def test_make_records_rejects_last_tested_causal_extraction(self) -> None:
         with self.assertRaisesRegex(ValueError, "parent diffs"):

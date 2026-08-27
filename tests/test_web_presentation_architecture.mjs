@@ -22,6 +22,7 @@ assert.match(focusedResults, /id="topk-trajectory-body"/, "focused page needs a 
 assert.match(focusedResults, /id="keyword-body"/, "focused page needs a keyword result table");
 assert.match(focusedResults, /id="keyword-vocab"/, "focused page must show keyword vocabularies");
 assert.match(focusedResults, /Oracle first-bad diagnostic/, "focused page must label the diagnostic column");
+assert.match(focusedResults, /Oracle patch proof/, "focused page must show the answer-leaking patch-proof diagnostic");
 assert.match(focusedResults, /Convergence by issue/, "focused page must show per-issue convergence charts");
 assert.match(focusedResults, /id="convergence-charts"/, "focused page needs a convergence chart container");
 assert.match(runtime, /LM-bisect runtime architecture/, "runtime architecture heading is missing");
@@ -95,6 +96,20 @@ assert.equal(site.focused_comparisons.keywords.aggregate.oracle_first_bad.avg_st
 assert.equal(site.focused_comparisons.keywords.aggregate.oracle_first_bad.first_bad_matches, 10);
 assert.equal(site.focused_comparisons.keywords.oracle_first_bad.status, "diagnostic-only");
 assert.match(site.focused_comparisons.keywords.oracle_first_bad.warning, /leaks ground truth/i);
+assert.equal(site.focused_comparisons.keywords.oracle_posterior_control.status, "diagnostic-only, 9/10 completed; 1 stopped");
+assert.equal(site.focused_comparisons.keywords.oracle_patch_proof.status, "diagnostic-only, partial");
+assert.equal(site.focused_comparisons.keywords.oracle_patch_proof.completed_count, 4);
+assert.equal(site.focused_comparisons.keywords.oracle_patch_proof.running_count, 1);
+assert.equal(site.focused_comparisons.keywords.oracle_patch_proof.unresolved_count, 5);
+assert.equal(site.focused_comparisons.keywords.aggregate.oracle_patch_proof.count, 4);
+assert.equal(site.focused_comparisons.keywords.aggregate.oracle_patch_proof.avg_steps, 2);
+assert.match(site.focused_comparisons.keywords.oracle_patch_proof.definition, /bad\(candidate\).*good\(parent\)/i);
+const patchProofRows = site.focused_comparisons.keywords.rows;
+assert.equal(patchProofRows.find((row) => row.issue === "pr204559").oracle_patch_proof.state, "completed");
+assert.equal(patchProofRows.find((row) => row.issue === "pr204559").oracle_patch_proof.steps, 2);
+assert.equal(patchProofRows.find((row) => row.issue === "pr48154").oracle_patch_proof.state, "unresolved");
+assert.equal(patchProofRows.find((row) => row.issue === "pr48154").oracle_patch_proof.skips, 30);
+assert.equal(patchProofRows.find((row) => row.issue === "pr193164").oracle_patch_proof.state, "running");
 for (const row of site.focused_comparisons.keywords.rows) {
   assert.ok(row.oracle_first_bad.steps > 0, `${row.issue} needs an oracle diagnostic result`);
   assert.equal(row.oracle_first_bad.skips, 0, `${row.issue} oracle result must be skip-free`);

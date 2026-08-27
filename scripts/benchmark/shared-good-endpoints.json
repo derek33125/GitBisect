@@ -1,0 +1,98 @@
+[
+  {
+    "issue": "pr202003",
+    "bad_version": "llvmorg-22.1.0",
+    "bad_ref": "54ed4695d46a178b80578a3114b6dd70a8c59ec2"
+  },
+  {
+    "issue": "pr201855",
+    "bad_version": "llvmorg-22.1.0",
+    "bad_ref": "d83abac82bd290e16a38ab79f6207f0bc3a07b3c"
+  },
+  {
+    "issue": "pr198257",
+    "bad_version": "llvmorg-22.1.0",
+    "bad_ref": "f0200959c5d1ca6ab3f6c28441d70ebcf00267cb"
+  },
+  {
+    "issue": "pr200987",
+    "bad_version": "llvmorg-17.0.0",
+    "bad_ref": "b1d1bb2ad2a272d2ddd41ae307b25aee420219ec"
+  },
+  {
+    "issue": "pr203193",
+    "bad_version": "llvmorg-22.1.0",
+    "bad_ref": "b0c658458d48496adac2b38981b7096adc0a27d1"
+  },
+  {
+    "issue": "pr200330",
+    "bad_version": "llvmorg-22.1.0",
+    "bad_ref": "6d2a90bd8bf321df0d1c3f2953fcc51ce5344b13"
+  },
+  {
+    "issue": "pr199162",
+    "bad_version": "llvmorg-22.0.0",
+    "bad_ref": "ff243860d7934d763dea4f3fa345b4bfef6d393c"
+  },
+  {
+    "issue": "pr197067",
+    "bad_version": "llvmorg-21.0.0",
+    "bad_ref": "f27b3a7c4f860730901dff92196f58f012303dcd"
+  },
+  {
+    "issue": "pr121274",
+    "bad_version": "llvmorg-20.0.0",
+    "bad_ref": "4e5935f6631f0f0cd828559ec29ed931bc0333d3^"
+  },
+  {
+    "issue": "pr173943",
+    "bad_version": "llvmorg-19.0.0",
+    "bad_ref": "1076362c9ca8d89937d4ed654dff3428d3db6a48^"
+  },
+  {
+    "issue": "pr56571",
+    "bad_version": "llvmorg-14.0.6",
+    "bad_ref": "llvmorg-14.0.6"
+  },
+  {
+    "issue": "pr153916",
+    "bad_version": "llvmorg-21.1.0",
+    "bad_ref": "3623fe661ae35c6c80ac221f14d85be76aa870f1"
+  },
+  {
+    "issue": "pr157334",
+    "bad_version": "llvmorg-22.0.0",
+    "bad_ref": "ce70773cff2ab6b5d9b8d7a97ee62c75762a51d2"
+  },
+  {
+    "issue": "pr204790",
+    "bad_version": "llvmorg-22.1.8",
+    "bad_ref": "ca7933e47d3a3451d81e72ac174dcb5aa28b59d1"
+  },
+  {
+    "issue": "pr171879",
+    "bad_version": "llvmorg-21.1.8",
+    "bad_ref": "2078da43e25a4623cab2d0d60decddf709aaea28"
+  },
+  {
+    "issue": "pr203722",
+    "bad_version": "llvmorg-20.1.8",
+    "bad_ref": "llvmorg-20.1.8"
+  },
+  {
+    "issue": "pr48768",
+    "bad_version": "llvmorg-13.0.0",
+    "bad_ref": "llvmorg-13.0.0",
+    "status": "dropped"
+  },
+  {
+    "issue": "pr114758",
+    "bad_version": "llvmorg-20.1.0",
+    "bad_ref": "llvmorg-20.1.0"
+  },
+  {
+    "issue": "pr73885",
+    "bad_version": "llvmorg-18.0.0",
+    "bad_ref": "1680fa415f8b871b71bf7b76e78177ea5bf54b8d^"
+  }
+]

@@ -55,6 +55,12 @@ export LM_BISECT_BUILD_TYPE="${LM_BISECT_BUILD_TYPE:-Release}"
 export LM_BISECT_ENABLE_ASSERTIONS="${LM_BISECT_ENABLE_ASSERTIONS:-ON}"
 export CCACHE_MAXSIZE="${CCACHE_MAXSIZE:-20G}"
 export CMAKE_BUILD_PARALLEL_LEVEL="${JOBS}"
+RUN_ONLINE_MAX_LANES="${RUN_ONLINE_MAX_LANES:-3}"
+
+if [[ ! "${RUN_ONLINE_MAX_LANES}" =~ ^[1-9][0-9]*$ ]]; then
+  echo "error: RUN_ONLINE_MAX_LANES must be a positive integer" >&2
+  exit 2
+fi
 
 if [[ ! -x "${PY}" ]]; then
   echo "error: Python executable not found: ${PY}" >&2
@@ -67,9 +73,9 @@ fi
 
 mkdir -p "${WORK_ROOT}" "${RESERVATION_DIR}" "$(dirname "${LOG}")"
 
-active_run_online_lanes() {
-  ps -eo args= \
-    | awk '/tools\/lm_bisect.py run-online/ && !/run-validated-heuristic-expansion-queue/ {count++} END {print count + 0}'
+active_run_online_pids() {
+  ps -eo pid=,args= \
+    | awk '/tools\/lm_bisect.py run-online/ && !/run-validated-heuristic-expansion-queue/ {print $1}'
 }
 
 active_lane_reservations() {
@@ -93,17 +99,52 @@ release_lane_reservation() {
   fi
 }
 
+reservation_owns_process() {
+  local process_pid="$1"
+  local current_pid="${process_pid}"
+  local parent_pid reservation_pid
+
+  # A controller retains its reservation while its preflight and run-online
+  # child execute. Walk the child ancestry so the pair consumes one lane.
+  while [[ -n "${current_pid}" && "${current_pid}" != "1" ]]; do
+    while IFS= read -r reservation_pid; do
+      if [[ "${current_pid}" == "${reservation_pid}" ]]; then
+        return 0
+      fi
+    done < <(awk -F= '$1 == "pid" {print $2}' "${RESERVATION_DIR}"/*.slot 2>/dev/null)
+
+    parent_pid="$(ps -o ppid= -p "${current_pid}" 2>/dev/null | tr -d '[:space:]')"
+    if [[ -z "${parent_pid}" || "${parent_pid}" == "${current_pid}" ]]; then
+      return 1
+    fi
+    current_pid="${parent_pid}"
+  done
+  return 1
+}
+
+active_unreserved_run_online_lanes() {
+  local process_pid
+  local count=0
+
+  while IFS= read -r process_pid; do
+    if ! reservation_owns_process "${process_pid}"; then
+      ((count += 1))
+    fi
+  done < <(active_run_online_pids)
+  printf '%s\n' "${count}"
+}
+
 acquire_lane_reservation() {
   while true; do
-    local active reserved
-    active="$(active_run_online_lanes)"
+    local unreserved reserved
     exec 9>"${LOCK_FILE}"
     flock -x 9
     # Endpoint preflight can take longer than ten minutes. A reservation lives
     # until its owning controller exits, not until a wall-clock timeout.
     reclaim_dead_lane_reservations
     reserved="$(active_lane_reservations)"
-    if (( active + reserved < 3 )); then
+    unreserved="$(active_unreserved_run_online_lanes)"
+    if (( unreserved + reserved < RUN_ONLINE_MAX_LANES )); then
       RESERVATION_PATH="${RESERVATION_DIR}/${LANE}-$$-$(date +%s).slot"
       printf 'lane=%s\npid=%s\ncreated=%s\n' "${LANE}" "$$" "$(date -Iseconds)" >"${RESERVATION_PATH}"
       flock -u 9
@@ -112,7 +153,7 @@ acquire_lane_reservation() {
     fi
     flock -u 9
     exec 9>&-
-    echo "[${LANE}] $(date -Iseconds) waiting: ${active} run-online lanes active, ${reserved} startup reservations" | tee -a "${LOG}"
+    echo "[${LANE}] $(date -Iseconds) waiting: ${unreserved} unreserved run-online lanes active, ${reserved} controller reservations" | tee -a "${LOG}"
     sleep 600
   done
 }

@@ -34,6 +34,351 @@
       "clang/include/clang"
     ]
   },
+  "pr168912": {
+    "issue_id": "pr168912",
+    "issue_url": "https://github.com/llvm/llvm-project/issues/168912",
+    "title": "AArch64 SVE small-vector extending-load assertion",
+    "good_commit": "94b15a1ece37963c9804fc7f0c498d140ea5fd9d",
+    "good_ref": "llvmorg-21.1.8 normalized merge-base good anchor",
+    "bad_commit": "b5a3b8b704cf7f54531f18966cdcc25f5c4e5044",
+    "bisect_log": "results/issues/pr168912/pr168912-git-bisect-pr168912-git-aws-20260628a.txt",
+    "runner": "scripts/pr168912/bisect-runner.sh",
+    "bug_report_summary": "llc crashes for a reduced AArch64 SVE LLVM IR reproducer while lowering a small-vector multiply. The target signal is Unexpected vector MULL size in skipExtensionForVectorMULL/AArch64ISelLowering. The completed Git baseline identifies an AArch64 extending-load optimization as the first bad commit, so AArch64 SIMD/SVE lowering and extending-load combines are the primary risk areas.",
+    "keywords": [
+      "crash",
+      "assertion",
+      "AArch64",
+      "SVE",
+      "small vector",
+      "MULL",
+      "Unexpected vector MULL size",
+      "skipExtensionForVectorMULL",
+      "AArch64ISelLowering",
+      "extending load",
+      "SIMD lowering"
+    ],
+    "relevant_paths": [
+      "llvm/lib/Target/AArch64/AArch64ISelLowering.cpp",
+      "llvm/lib/Target/AArch64",
+      "llvm/lib/CodeGen/SelectionDAG",
+      "llvm/test/CodeGen/AArch64"
+    ],
+    "high_risk_paths": [
+      "llvm/lib/Target/AArch64",
+      "llvm/include/llvm/Target/AArch64",
+      "llvm/lib/CodeGen",
+      "llvm/include/llvm/CodeGen",
+      "llvm/test/CodeGen/AArch64"
+    ]
+  },
+  "pr205971": {
+    "issue_id": "pr205971",
+    "issue_url": "https://github.com/llvm/llvm-project/issues/205971",
+    "title": "Clang member-template specialization frontend crash",
+    "good_commit": "e9f758a59b2f887acb07e26e2d480c7369a72009",
+    "good_ref": "llvmorg-22.1.0 normalized merge-base good anchor",
+    "bad_commit": "e44d060dfd617e8a5e37b61adcb38ed4ac5d782d",
+    "bisect_log": "results/issues/pr205971/pr205971-git-bisect-pr205971-git-edu-20260629a.txt",
+    "runner": "scripts/pr205971/bisect-runner.sh",
+    "bug_report_summary": "Clang crashes for invalid nested member-template specialization declarations. The target signal is Only member templates can be member template specializations in setMemberSpecialization/DeclTemplate.h. The Git baseline identifies the member-specialization implementation change as first bad, so template specialization lookup, Sema template declaration handling, and AST template metadata are the primary risk areas.",
+    "keywords": [
+      "crash",
+      "member template",
+      "member specialization",
+      "Only member templates can be member template specializations",
+      "setMemberSpecialization",
+      "DeclTemplate",
+      "partial specialization",
+      "template declaration",
+      "SemaTemplate",
+      "clang frontend"
+    ],
+    "relevant_paths": [
+      "clang/lib/Sema",
+      "clang/lib/AST",
+      "clang/include/clang/AST/DeclTemplate.h",
+      "clang/include/clang/Sema",
+      "clang/test/SemaTemplate"
+    ],
+    "high_risk_paths": [
+      "clang/lib/Sema",
+      "clang/lib/AST",
+      "clang/include/clang/AST",
+      "clang/include/clang/Sema",
+      "clang/test/SemaTemplate",
+      "clang/test/SemaCXX"
+    ]
+  },
+  "pr206007": {
+    "issue_id": "pr206007",
+    "issue_url": "https://github.com/llvm/llvm-project/issues/206007",
+    "title": "LoopVectorize loop-verifier assertion in opt",
+    "good_commit": "e9f758a59b2f887acb07e26e2d480c7369a72009",
+    "good_ref": "llvmorg-22.1.0 normalized merge-base good anchor",
+    "bad_commit": "e44d060dfd617e8a5e37b61adcb38ed4ac5d782d",
+    "bisect_log": "results/issues/pr206007/pr206007-git-bisect-pr206007-git-edu-20260629a.txt",
+    "runner": "scripts/pr206007/bisect-runner.sh",
+    "bug_report_summary": "opt crashes after loop-vectorization while verifying loop structure for a reduced LLVM IR testcase. The target signal is Loop block has no in-loop successors in verifyLoop/GenericLoopInfoImpl. The Git baseline identifies a ScalarEvolution ControlsOnlyExit change, so loop analysis, loop canonicalization, ScalarEvolution, and LoopVectorize are the primary risk areas.",
+    "keywords": [
+      "crash",
+      "LoopVectorize",
+      "loop verifier",
+      "Loop block has no in-loop successors",
+      "verifyLoop",
+      "GenericLoopInfoImpl",
+      "ScalarEvolution",
+      "ControlsOnlyExit",
+      "loop analysis",
+      "opt"
+    ],
+    "relevant_paths": [
+      "llvm/lib/Analysis/LoopInfo.cpp",
+      "llvm/lib/Analysis/ScalarEvolution.cpp",
+      "llvm/lib/Transforms/Vectorize",
+      "llvm/lib/Transforms/Utils",
+      "llvm/test/Transforms/LoopVectorize"
+    ],
+    "high_risk_paths": [
+      "llvm/lib/Analysis",
+      "llvm/include/llvm/Analysis",
+      "llvm/lib/Transforms/Vectorize",
+      "llvm/lib/Transforms/Utils",
+      "llvm/test/Transforms"
+    ]
+  },
+  "pr165246": {
+    "issue_id": "pr165246",
+    "issue_url": "https://github.com/llvm/llvm-project/issues/165246",
+    "title": "Clang parser crash for invalid decltype declaration",
+    "good_commit": "94b15a1ece37963c9804fc7f0c498d140ea5fd9d",
+    "good_ref": "llvmorg-21.1.8 normalized merge-base good anchor",
+    "bad_commit": "4f3eb803343711c69e287da8a3272ab9449b53a9",
+    "bisect_log": "results/issues/pr165246/pr165246-git-bisect-pr165246-git-aws-20260629a.txt",
+    "runner": "scripts/pr165246/bisect-runner.sh",
+    "bug_report_summary": "Clang crashes while parsing the invalid declaration int decltype {}. The target signal is AnnotatePreviousCachedTokens in PPCaching.cpp. The Git baseline identifies a parser crash fix as the first bad commit, so parser token caching, declaration parsing, diagnostics, and recovery paths are the primary risk areas.",
+    "keywords": [
+      "crash",
+      "parser",
+      "invalid declaration",
+      "decltype",
+      "AnnotatePreviousCachedTokens",
+      "PPCaching",
+      "CachedTokens",
+      "token cache",
+      "ParseDecl",
+      "clang frontend"
+    ],
+    "relevant_paths": [
+      "clang/lib/Parse/PPCaching.cpp",
+      "clang/lib/Parse",
+      "clang/lib/Lex",
+      "clang/include/clang/Parse",
+      "clang/test/Parser"
+    ],
+    "high_risk_paths": [
+      "clang/lib/Parse",
+      "clang/lib/Lex",
+      "clang/include/clang/Parse",
+      "clang/include/clang/Lex",
+      "clang/test/Parser",
+      "clang/test/Sema"
+    ]
+  },
+  "pr167514": {
+    "issue_id": "pr167514",
+    "issue_url": "https://github.com/llvm/llvm-project/issues/167514",
+    "title": "Clang C++20 CTAD alias-guide template crash",
+    "good_commit": "f2ccf80136a01ca69f766becafb329db6c54c0c8",
+    "good_ref": "llvmorg-19.1.7 normalized merge-base good anchor",
+    "bad_commit": "3623fe661ae35c6c80ac221f14d85be76aa870f1",
+    "bisect_log": "results/issues/pr167514/pr167514-git-bisect-pr167514-git-aws-20260629a.txt",
+    "runner": "scripts/pr167514/bisect-runner.sh",
+    "bug_report_summary": "Clang crashes for a C++20 concepts and CTAD alias-guide testcase. The target signal is getTemplateArgumentPackPatternForRewrite with unexpected pack arguments during template instantiation. The Git baseline identifies substituted-argument ordering for CTAD alias guides as first bad, so Sema template argument deduction, concepts, CTAD, and alias-template rewriting are the primary risk areas.",
+    "keywords": [
+      "crash",
+      "C++20",
+      "concepts",
+      "CTAD",
+      "alias guide",
+      "template argument pack",
+      "getTemplateArgumentPackPatternForRewrite",
+      "unexpected pack arguments",
+      "SemaTemplateInstantiate",
+      "deduction guide"
+    ],
+    "relevant_paths": [
+      "clang/lib/Sema/SemaTemplateInstantiate.cpp",
+      "clang/lib/Sema",
+      "clang/include/clang/Sema",
+      "clang/lib/AST",
+      "clang/test/SemaTemplate",
+      "clang/test/SemaCXX"
+    ],
+    "high_risk_paths": [
+      "clang/lib/Sema",
+      "clang/include/clang/Sema",
+      "clang/lib/AST",
+      "clang/include/clang/AST",
+      "clang/test/SemaTemplate",
+      "clang/test/SemaCXX"
+    ]
+  },
+  "pr200648": {
+    "issue_id": "pr200648",
+    "issue_url": "https://github.com/llvm/llvm-project/issues/200648",
+    "title": "Clang CodeGen crash for nested generic lambda",
+    "good_commit": "94b15a1ece37963c9804fc7f0c498d140ea5fd9d",
+    "good_ref": "llvmorg-21.1.8 normalized merge-base good anchor",
+    "bad_commit": "4434dabb69916856b824f68a64b029c67175e532",
+    "bisect_log": "results/issues/pr200648/pr200648-git-bisect-pr200648-git-aws-20260629a.txt",
+    "runner": "scripts/pr200648/bisect-runner.sh",
+    "bug_report_summary": "Clang crashes while emitting a nested generic lambda in a trailing decltype expression. The target signal is VarDecl::evaluateValueImpl and !Init->isValueDependent in ConstantEmitter/CodeGenModule. The Git baseline identifies non-dependent lambda marking as first bad, so dependent-expression classification, generic lambdas, constant evaluation, and CodeGen value emission are the primary risk areas.",
+    "keywords": [
+      "crash",
+      "generic lambda",
+      "nested lambda",
+      "trailing decltype",
+      "VarDecl::evaluateValueImpl",
+      "Init->isValueDependent",
+      "ConstantEmitter",
+      "CodeGenModule",
+      "dependent expression",
+      "CodeGen"
+    ],
+    "relevant_paths": [
+      "clang/lib/CodeGen/CGExprConstant.cpp",
+      "clang/lib/CodeGen/CodeGenModule.cpp",
+      "clang/lib/AST/ExprConstant.cpp",
+      "clang/lib/Sema",
+      "clang/test/CodeGenCXX"
+    ],
+    "high_risk_paths": [
+      "clang/lib/CodeGen",
+      "clang/lib/AST",
+      "clang/lib/Sema",
+      "clang/include/clang/CodeGen",
+      "clang/include/clang/AST",
+      "clang/test/CodeGenCXX"
+    ]
+  },
+  "pr204561": {
+    "issue_id": "pr204561",
+    "issue_url": "https://github.com/llvm/llvm-project/issues/204561",
+    "title": "Clang member-specialization template assertion",
+    "good_commit": "e9f758a59b2f887acb07e26e2d480c7369a72009",
+    "good_ref": "llvmorg-22.1.0 normalized merge-base good anchor",
+    "bad_commit": "4f3eb803343711c69e287da8a3272ab9449b53a9",
+    "bisect_log": "results/issues/pr204561/pr204561-git-bisect-pr204561-git-edu-20260629a.txt",
+    "runner": "scripts/pr204561/bisect-runner.sh",
+    "bug_report_summary": "Clang crashes for a malformed member-template specialization testcase. The target signal is hasAcceptableMemberSpecialization and not a member specialization in SemaLookup.cpp. The Git baseline identifies the member-specialization implementation change as first bad, so Sema template lookup, specialization acceptability checks, and AST template metadata are the primary risk areas.",
+    "keywords": [
+      "crash",
+      "member specialization",
+      "member template",
+      "hasAcceptableMemberSpecialization",
+      "not a member specialization",
+      "SemaLookup",
+      "template lookup",
+      "partial specialization",
+      "SemaTemplate",
+      "clang frontend"
+    ],
+    "relevant_paths": [
+      "clang/lib/Sema/SemaLookup.cpp",
+      "clang/lib/Sema",
+      "clang/lib/AST",
+      "clang/include/clang/Sema",
+      "clang/test/SemaTemplate"
+    ],
+    "high_risk_paths": [
+      "clang/lib/Sema",
+      "clang/lib/AST",
+      "clang/include/clang/Sema",
+      "clang/include/clang/AST",
+      "clang/test/SemaTemplate",
+      "clang/test/SemaCXX"
+    ]
+  },
+  "pr165039": {
+    "issue_id": "pr165039",
+    "issue_url": "https://github.com/llvm/llvm-project/issues/165039",
+    "title": "Clang consteval std::array placeholder crash",
+    "good_commit": "94b15a1ece37963c9804fc7f0c498d140ea5fd9d",
+    "good_ref": "llvmorg-21.1.8 normalized merge-base good anchor",
+    "bad_commit": "078e99ef017cac3899e5dbc2ed917f173c9eedad",
+    "bisect_log": "results/issues/pr165039/pr165039-git-bisect-pending.txt",
+    "runner": "scripts/pr165039/bisect-runner.sh",
+    "bug_report_summary": "Clang crashes or fails during C++20 consteval evaluation of a std::array non-type template argument used to build a tuple. The target signal includes cannot compile this l-value expression yet, Unexpected placeholder builtin type, CodeGenTypes, constant evaluation, and template argument handling, so commits touching constant evaluation, C++20 NTTP support, placeholder/builtin type lowering, Sema template handling, or CodeGen type conversion are high risk.",
+    "keywords": [
+      "crash",
+      "consteval",
+      "std::array",
+      "non-type template argument",
+      "nttp",
+      "Unexpected placeholder builtin type",
+      "cannot compile this l-value expression yet",
+      "CodeGenTypes",
+      "constant evaluation",
+      "C++20",
+      "clang frontend"
+    ],
+    "relevant_paths": [
+      "clang/lib/AST/ExprConstant.cpp",
+      "clang/lib/AST",
+      "clang/lib/Sema",
+      "clang/lib/CodeGen",
+      "clang/include/clang/AST",
+      "clang/test/SemaCXX",
+      "clang/test/CodeGenCXX"
+    ],
+    "high_risk_paths": [
+      "clang/lib/AST",
+      "clang/lib/Sema",
+      "clang/lib/CodeGen",
+      "clang/include/clang/AST",
+      "clang/include/clang/Sema",
+      "clang/test/SemaCXX",
+      "clang/test/CodeGenCXX"
+    ]
+  },
+  "pr50655": {
+    "issue_id": "pr50655",
+    "issue_url": "https://github.com/llvm/llvm-project/issues/50655",
+    "title": "ARM cmpxchg pseudo expansion assertion",
+    "good_commit": "8e464dd76befbc4a39a1d21968a3d5f543e29312",
+    "good_ref": "llvmorg-12.0.1 normalized merge-base good anchor",
+    "bad_commit": "f819e4c7d0f6efef3cc1042cc45582320bf6c0a2",
+    "bisect_log": "results/issues/pr50655/pr50655-git-bisect-pending.txt",
+    "runner": "scripts/pr50655/bisect-runner.sh",
+    "bug_report_summary": "Clang crashes for a Thumbv7 compare-and-swap builtin during ARM pseudo-instruction expansion. The target signal includes ARMExpandPseudo::ExpandCMP_SWAP, DesiredReg used for UXT op must be tGPR, tGPRRegClass.contains, and Thumb code generation, so commits touching ARM atomic expansion, pseudo expansion, register-class constraints, Thumb lowering, or related CodeGen tests are high risk.",
+    "keywords": [
+      "crash",
+      "assertion",
+      "ARM",
+      "Thumb",
+      "cmpxchg",
+      "compare and swap",
+      "ARMExpandPseudo",
+      "ExpandCMP_SWAP",
+      "tGPRRegClass",
+      "DesiredReg used for UXT op must be tGPR",
+      "codegen"
+    ],
+    "relevant_paths": [
+      "llvm/lib/Target/ARM",
+      "llvm/test/CodeGen/ARM",
+      "llvm/lib/CodeGen",
+      "llvm/include/llvm/CodeGen",
+      "clang/lib/CodeGen"
+    ],
+    "high_risk_paths": [
+      "llvm/lib/Target/ARM",
+      "llvm/test/CodeGen/ARM",
+      "llvm/lib/CodeGen",
+      "llvm/include/llvm/CodeGen",
+      "clang/lib/CodeGen"
+    ]
+  },
   "pr54556": {
     "issue_id": "pr54556",
     "issue_url": "https://github.com/llvm/llvm-project/issues/54556",
@@ -554,6 +899,240 @@
       "clang/include/clang"
     ]
   },
+  "pr199162": {
+    "issue_id": "pr199162",
+    "issue_url": "https://github.com/llvm/llvm-project/issues/199162",
+    "title": "OpenACC reduction assertion Ty->isScalarType",
+    "good_commit": "93248729cfae82a5ca2323d4a8e15aa3b9b9c707",
+    "good_ref": "llvmorg-18.1.8",
+    "bad_commit": "ff243860d7934d763dea4f3fa345b4bfef6d393c",
+    "bisect_log": "results/issues/pr199162/pr199162-git-bisect-pr199162-git-20260619.txt",
+    "runner": "scripts/pr199162/bisect-runner.sh",
+    "bug_report_summary": "Clang crashes/asserts for an OpenACC reduction over a variable-length array. The target assertion is Ty->isScalarType in OpenACC semantic analysis while generating reduction initialization recipe expressions, so commits touching SemaOpenACC, OpenACC reduction checking, expression/type classification, or clang frontend semantic diagnostics are high risk.",
+    "keywords": [
+      "crash",
+      "assertion",
+      "openacc",
+      "reduction",
+      "variable length array",
+      "vla",
+      "Ty->isScalarType",
+      "SemaOpenACC",
+      "GenerateReductionInitRecipeExpr",
+      "semantic analysis",
+      "clang frontend"
+    ],
+    "relevant_paths": [
+      "clang/lib/Sema/SemaOpenACC.cpp",
+      "clang/lib/Sema",
+      "clang/include/clang/Sema",
+      "clang/lib/AST",
+      "clang/include/clang/AST"
+    ],
+    "high_risk_paths": [
+      "clang/lib/Sema",
+      "clang/include/clang/Sema",
+      "clang/lib/AST",
+      "clang/include/clang/AST",
+      "clang/test/SemaOpenACC"
+    ]
+  },
+  "pr173943": {
+    "issue_id": "pr173943",
+    "issue_url": "https://github.com/llvm/llvm-project/issues/173943",
+    "title": "Clang crash with explicit object parameter call in C++03 mode",
+    "good_commit": "93248729cfae82a5ca2323d4a8e15aa3b9b9c707",
+    "good_ref": "llvmorg-18.1.8",
+    "bad_commit": "a4bf6cd7cfb1a1421ba92bca9d017b49936c55e4",
+    "bisect_log": "results/issues/pr173943/pr173943-git-bisect-20260620-local-pr173943.txt",
+    "runner": "scripts/pr173943/bisect-runner.sh",
+    "bug_report_summary": "Clang crashes while compiling a reduced C++ explicit-object-parameter testcase under -std=c++03. The target crash signal includes CheckArityMismatch and TooManyArguments while parsing or semantically diagnosing an invalid call expression, so commits touching Sema overload/call checking, parser handling for explicit object parameters, and C++ deducing-this support are high risk.",
+    "keywords": [
+      "crash",
+      "assertion",
+      "explicit object parameter",
+      "deducing this",
+      "c++03",
+      "CheckArityMismatch",
+      "TooManyArguments",
+      "call expression",
+      "overload resolution",
+      "sema",
+      "parser"
+    ],
+    "relevant_paths": [
+      "clang/lib/Sema",
+      "clang/include/clang/Sema",
+      "clang/lib/Parse",
+      "clang/lib/AST",
+      "clang/include/clang/AST"
+    ],
+    "high_risk_paths": [
+      "clang/lib/Sema",
+      "clang/include/clang/Sema",
+      "clang/lib/Parse",
+      "clang/lib/AST",
+      "clang/test/SemaCXX",
+      "clang/test/CXX"
+    ]
+  },
+  "pr200987": {
+    "issue_id": "pr200987",
+    "issue_url": "https://github.com/llvm/llvm-project/issues/200987",
+    "title": "Clang optimizer crash in SCEVExpander for asm goto loop",
+    "good_commit": "b0daacf58f417634f7c7c9496589d723592a8f5a",
+    "good_ref": "llvmorg-16.0.6",
+    "bad_commit": "b1d1bb2ad2a272d2ddd41ae307b25aee420219ec",
+    "bisect_log": "results/issues/pr200987/pr200987-git-bisect-pr200987-git-20260620.txt",
+    "runner": "scripts/pr200987/bisect-runner.sh",
+    "bug_report_summary": "Clang crashes at -O1 on a reduced C testcase using asm goto outputs and a pointer loop. The target crash signal includes isKnownSentinel, SCEVExpander, and rewriteLoopExitValues, so commits touching ScalarEvolution, loop exit rewriting, asm-goto codegen semantics, and optimizer loop canonicalization are high risk.",
+    "keywords": [
+      "crash",
+      "asm goto",
+      "asm goto outputs",
+      "isKnownSentinel",
+      "SCEVExpander",
+      "ScalarEvolution",
+      "rewriteLoopExitValues",
+      "loop exit values",
+      "pointer loop",
+      "optimizer",
+      "codegen"
+    ],
+    "relevant_paths": [
+      "llvm/lib/Analysis/ScalarEvolution.cpp",
+      "llvm/lib/Transforms/Scalar",
+      "llvm/lib/Transforms/Utils",
+      "clang/lib/CodeGen",
+      "clang/test/CodeGen/asm-goto.c"
+    ],
+    "high_risk_paths": [
+      "llvm/lib/Analysis",
+      "llvm/lib/Transforms",
+      "llvm/include/llvm/Analysis",
+      "clang/lib/CodeGen",
+      "clang/test/CodeGen"
+    ]
+  },
+  "pr199526": {
+    "issue_id": "pr199526",
+    "issue_url": "https://github.com/llvm/llvm-project/issues/199526",
+    "title": "Clang Sema assertion for vectorcall destructor override",
+    "good_commit": "e9f758a59b2f887acb07e26e2d480c7369a72009",
+    "good_ref": "normalized merge-base good anchor for llvmorg-22.1.0 and fix-parent",
+    "bad_commit": "942292bf75168377cc06dfa2ba90a552d6d24a69",
+    "bisect_log": "results/issues/pr199526/pr199526-bisect-log.txt",
+    "runner": "scripts/pr199526/bisect-runner.sh",
+    "bug_report_summary": "Clang crashes/asserts while compiling a reduced C++ testcase with a virtual destructor annotated vectorcall and an overriding derived destructor. The crash signal includes defaultedDestructorIsDeleted, a Sema property not yet computed, DeclCXX.h, and destructor override handling, so commits touching CXXRecordDecl, destructor deletion/defaulting, override checks, calling conventions, and Sema class semantics are high risk.",
+    "keywords": [
+      "crash",
+      "assertion",
+      "vectorcall",
+      "destructor",
+      "override",
+      "defaultedDestructorIsDeleted",
+      "DeclCXX",
+      "CXXRecordDecl",
+      "sema",
+      "class semantics",
+      "calling convention"
+    ],
+    "relevant_paths": [
+      "clang/lib/Sema",
+      "clang/lib/AST",
+      "clang/include/clang/AST/DeclCXX.h",
+      "clang/include/clang/Sema",
+      "clang/test/SemaCXX"
+    ],
+    "high_risk_paths": [
+      "clang/lib/Sema",
+      "clang/lib/AST",
+      "clang/include/clang/AST",
+      "clang/include/clang/Sema",
+      "clang/test/SemaCXX",
+      "clang/test/CXX"
+    ]
+  },
+  "pr197067": {
+    "issue_id": "pr197067",
+    "issue_url": "https://github.com/llvm/llvm-project/issues/197067",
+    "title": "Clang unreachable while mangling a deduction guide in C++20 concepts code",
+    "good_commit": "8c2574832ed2064996389e4259eaf0bea0fa7951",
+    "good_ref": "llvmorg-20.1.8",
+    "bad_commit": "f27b3a7c4f860730901dff92196f58f012303dcd",
+    "bisect_log": "results/issues/pr197067/pr197067-git-bisect-pr197067-git-20260618.txt",
+    "runner": "scripts/pr197067/bisect-runner.sh",
+    "bug_report_summary": "Clang hits an unreachable while emitting LLVM IR for a reduced C++20 concepts testcase. The target crash signal includes Can't mangle a deduction guide name, ItaniumMangle, and template constraint checking around a deduction guide used through a requires-expression callback, so commits touching constraint satisfaction, implicit this access in constraints, deduction guides, Sema concepts, or Itanium name mangling are high risk.",
+    "keywords": [
+      "crash",
+      "unreachable",
+      "deduction guide",
+      "Can't mangle a deduction guide name",
+      "ItaniumMangle",
+      "concepts",
+      "requires expression",
+      "constraints",
+      "implicit this",
+      "c++20",
+      "clang frontend"
+    ],
+    "relevant_paths": [
+      "clang/lib/Sema",
+      "clang/include/clang/Sema",
+      "clang/lib/AST/ItaniumMangle.cpp",
+      "clang/lib/AST",
+      "clang/lib/CodeGen",
+      "clang/test/SemaTemplate",
+      "clang/test/CXX"
+    ],
+    "high_risk_paths": [
+      "clang/lib/Sema",
+      "clang/include/clang/Sema",
+      "clang/lib/AST",
+      "clang/include/clang/AST",
+      "clang/lib/CodeGen",
+      "clang/test/SemaCXX",
+      "clang/test/SemaTemplate",
+      "clang/test/CXX"
+    ]
+  },
+  "pr202003": {
+    "issue_id": "pr202003",
+    "issue_url": "https://github.com/llvm/llvm-project/issues/202003",
+    "title": "X86 SLP vectorizer crash at -O2",
+    "good_commit": "e9f758a59b2f887acb07e26e2d480c7369a72009",
+    "good_ref": "llvmorg-21.1.8 shared good anchor",
+    "bad_commit": "54ed4695d46a178b80578a3114b6dd70a8c59ec2",
+    "bisect_log": "results/issues/pr202003/pr202003-git-bisect-20260614-git.txt",
+    "runner": "scripts/pr202003/bisect-runner.sh",
+    "bug_report_summary": "Clang crashes at -O2 while compiling a reduced C testcase. The target crash signal includes OpTE1.isSame, Expected same first part of scalars, SLPVectorizer, and vector tree/operator matching, so commits touching SLP vectorization, vector tree scheduling, BoUpSLP, cost modeling, or X86 vector lowering are high risk.",
+    "keywords": [
+      "crash",
+      "assertion",
+      "SLPVectorizer",
+      "OpTE1.isSame",
+      "Expected same first part of scalars",
+      "vector tree",
+      "BoUpSLP",
+      "x86",
+      "optimizer",
+      "O2"
+    ],
+    "relevant_paths": [
+      "llvm/lib/Transforms/Vectorize/SLPVectorizer.cpp",
+      "llvm/lib/Transforms/Vectorize",
+      "llvm/lib/Analysis",
+      "llvm/lib/Target/X86",
+      "llvm/test/Transforms/SLPVectorizer"
+    ],
+    "high_risk_paths": [
+      "llvm/lib/Transforms/Vectorize",
+      "llvm/include/llvm/Transforms/Vectorize",
+      "llvm/lib/Analysis",
+      "llvm/lib/Target/X86",
+      "llvm/test/Transforms/SLPVectorizer"
+    ]
+  },
   "skip-pr199918-riscv": {
     "issue_id": "skip-pr199918-riscv",
     "issue_url": "https://github.com/llvm/llvm-project/issues/199918",
@@ -586,6 +1165,816 @@
       "llvm/test/CodeGen/RISCV",
       "llvm/include/llvm",
       "llvm/utils/TableGen"
+    ]
+  },
+  "pr197797": {
+    "issue_id": "pr197797",
+    "issue_url": "https://github.com/llvm/llvm-project/issues/197797",
+    "title": "Clang AST printer unreachable for explicit instantiation declaration",
+    "good_commit": "e9f758a59b2f887acb07e26e2d480c7369a72009",
+    "good_ref": "llvmorg-22.1.0 normalized good anchor",
+    "bad_commit": "76cdf6012b883529e3d608ed4e30d622ba43e10c",
+    "bisect_log": "results/issues/pr197797/pr197797-git-bisect-pr197797-git-20260619.txt",
+    "runner": "scripts/pr197797/bisect-runner.sh",
+    "bug_report_summary": "Clang crashes while AST-printing a reduced C++ explicit-instantiation declaration. The crash signal includes unexpected specialization kind, DeclPrinter.cpp, AST printing, and explicit instantiation declaration source info, so commits touching AST declaration representation, DeclPrinter, template instantiation declarations, and diagnostic/source-info preservation are high risk.",
+    "keywords": [
+      "crash",
+      "unreachable",
+      "explicit instantiation",
+      "ExplicitInstantiationDecl",
+      "DeclPrinter",
+      "ast print",
+      "specialization kind",
+      "template",
+      "source info",
+      "clang frontend"
+    ],
+    "relevant_paths": [
+      "clang/lib/AST",
+      "clang/include/clang/AST",
+      "clang/lib/Sema",
+      "clang/test/AST",
+      "clang/test/SemaTemplate"
+    ],
+    "high_risk_paths": [
+      "clang/lib/AST",
+      "clang/include/clang/AST",
+      "clang/lib/Sema",
+      "clang/include/clang/Sema",
+      "clang/test/AST",
+      "clang/test/SemaTemplate"
+    ]
+  },
+  "pr198257": {
+    "issue_id": "pr198257",
+    "issue_url": "https://github.com/llvm/llvm-project/issues/198257",
+    "title": "LoopVectorize crash in VPRecipeBuilder reduction-store replacement",
+    "good_commit": "e9f758a59b2f887acb07e26e2d480c7369a72009",
+    "good_ref": "llvmorg-22.1.0 normalized good anchor",
+    "bad_commit": "f0200959c5d1ca6ab3f6c28441d70ebcf00267cb",
+    "bisect_log": "results/issues/pr198257/pr198257-git-bisect-20260617-git-pr198257.txt",
+    "runner": "scripts/pr198257/bisect-runner.sh",
+    "bug_report_summary": "Clang crashes at -O2/-O3 on a reduced C testcase in LoopVectorize. The target signal includes replaceWithFinalIfReductionStore, VPRecipeBuilder, LoopVectorize, and reduction-store handling, so commits touching VPlan recipes, reduction selects/stores, tail folding, and loop vectorization are high risk.",
+    "keywords": [
+      "crash",
+      "LoopVectorize",
+      "VPRecipeBuilder",
+      "replaceWithFinalIfReductionStore",
+      "reduction",
+      "store",
+      "VPlan",
+      "vectorizer",
+      "O2",
+      "O3"
+    ],
+    "relevant_paths": [
+      "llvm/lib/Transforms/Vectorize",
+      "llvm/include/llvm/Transforms/Vectorize",
+      "llvm/test/Transforms/LoopVectorize"
+    ],
+    "high_risk_paths": [
+      "llvm/lib/Transforms/Vectorize",
+      "llvm/include/llvm/Transforms/Vectorize",
+      "llvm/lib/Analysis",
+      "llvm/test/Transforms/LoopVectorize"
+    ]
+  },
+  "pr198339": {
+    "issue_id": "pr198339",
+    "issue_url": "https://github.com/llvm/llvm-project/issues/198339",
+    "title": "LoongArch vector FP_EXTEND legalization unreachable in llc",
+    "good_commit": "e9f758a59b2f887acb07e26e2d480c7369a72009",
+    "good_ref": "llvmorg-22.1.0 normalized good anchor",
+    "bad_commit": "6b13656fd8386f979e061cc97e32b607ee3fcdf4",
+    "bisect_log": "results/issues/pr198339/pr198339-git-bisect-pr198339-git-20260619.txt",
+    "runner": "scripts/pr198339/bisect-runner.sh",
+    "bug_report_summary": "llc crashes for a reduced LoongArch vector fpext IR testcase. The target signal includes Don't know how to legalize this operation, LoongArchISelLowering, vector FP_EXTEND from half to float, and LASX/LSX lowering, so commits touching LoongArch vector legalization or FP_EXTEND lowering are high risk.",
+    "keywords": [
+      "crash",
+      "unreachable",
+      "LoongArch",
+      "FP_EXTEND",
+      "fpext",
+      "legalize",
+      "LoongArchISelLowering",
+      "LASX",
+      "LSX",
+      "vector"
+    ],
+    "relevant_paths": [
+      "llvm/lib/Target/LoongArch",
+      "llvm/test/CodeGen/LoongArch",
+      "llvm/lib/CodeGen/SelectionDAG"
+    ],
+    "high_risk_paths": [
+      "llvm/lib/Target/LoongArch",
+      "llvm/test/CodeGen/LoongArch",
+      "llvm/lib/CodeGen",
+      "llvm/include/llvm/CodeGen"
+    ]
+  },
+  "pr200330": {
+    "issue_id": "pr200330",
+    "issue_url": "https://github.com/llvm/llvm-project/issues/200330",
+    "title": "X86 TTI gather/scatter cost crash under vectorizer maximize bandwidth",
+    "good_commit": "e9f758a59b2f887acb07e26e2d480c7369a72009",
+    "good_ref": "llvmorg-22.1.0 normalized good anchor",
+    "bad_commit": "6d2a90bd8bf321df0d1c3f2953fcc51ce5344b13",
+    "bisect_log": "results/issues/pr200330/pr200330-git-bisect-20260614-local.txt",
+    "runner": "scripts/pr200330/bisect-runner.sh",
+    "bug_report_summary": "Clang crashes on reduced LLVM IR with -O3, -march=znver5, and -vectorizer-maximize-bandwidth. The target signal includes dyn_cast on a non-existent value, X86TTIImpl, getGatherScatterOpCost, and vectorizer cost modeling, so X86 target transform info and vectorizer cost-model commits are high risk.",
+    "keywords": [
+      "crash",
+      "dyn_cast",
+      "X86TTIImpl",
+      "getGatherScatterOpCost",
+      "gather scatter",
+      "znver5",
+      "vectorizer",
+      "cost model",
+      "maximize bandwidth",
+      "TargetTransformInfo"
+    ],
+    "relevant_paths": [
+      "llvm/lib/Target/X86",
+      "llvm/lib/Analysis",
+      "llvm/lib/Transforms/Vectorize",
+      "llvm/test/Analysis/CostModel",
+      "llvm/test/Transforms/LoopVectorize"
+    ],
+    "high_risk_paths": [
+      "llvm/lib/Target/X86",
+      "llvm/lib/Analysis",
+      "llvm/lib/Transforms/Vectorize",
+      "llvm/include/llvm/Analysis",
+      "llvm/test/Analysis"
+    ]
+  },
+  "pr200742": {
+    "issue_id": "pr200742",
+    "issue_url": "https://github.com/llvm/llvm-project/issues/200742",
+    "title": "LoopVectorize reduction-store crash in opt",
+    "good_commit": "e9f758a59b2f887acb07e26e2d480c7369a72009",
+    "good_ref": "llvmorg-22.1.0 normalized good anchor",
+    "bad_commit": "a67efda258fa73c7b6b915fb31b8412b800a15e9",
+    "bisect_log": "results/issues/pr200742/pr200742-git-bisect-pr200742-git-20260618.txt",
+    "runner": "scripts/pr200742/bisect-runner.sh",
+    "bug_report_summary": "opt crashes while running loop-vectorize on reduced LLVM IR. The target signal includes replaceWithFinalIfReductionStore, LoopVectorize, VPRecipeBuilder, and reduction-select/tail-folding behavior, so VPlan and loop-vectorizer reduction-store commits are high risk.",
+    "keywords": [
+      "crash",
+      "LoopVectorize",
+      "VPRecipeBuilder",
+      "replaceWithFinalIfReductionStore",
+      "reduction",
+      "tail folding",
+      "VPlan",
+      "opt",
+      "loop-vectorize",
+      "store"
+    ],
+    "relevant_paths": [
+      "llvm/lib/Transforms/Vectorize",
+      "llvm/include/llvm/Transforms/Vectorize",
+      "llvm/test/Transforms/LoopVectorize"
+    ],
+    "high_risk_paths": [
+      "llvm/lib/Transforms/Vectorize",
+      "llvm/include/llvm/Transforms/Vectorize",
+      "llvm/lib/Analysis",
+      "llvm/test/Transforms/LoopVectorize"
+    ]
+  },
+  "pr201855": {
+    "issue_id": "pr201855",
+    "issue_url": "https://github.com/llvm/llvm-project/issues/201855",
+    "title": "SLPVectorizer unscheduled dependency assertion",
+    "good_commit": "e9f758a59b2f887acb07e26e2d480c7369a72009",
+    "good_ref": "llvmorg-21.1.8 shared good anchor",
+    "bad_commit": "d83abac82bd290e16a38ab79f6207f0bc3a07b3c",
+    "bisect_log": "results/issues/pr201855/pr201855-git-bisect-20260614-git.txt",
+    "runner": "scripts/pr201855/bisect-runner.sh",
+    "bug_report_summary": "Clang crashes at -O2 on a reduced C testcase with an SLPVectorizer assertion. The target signal includes UnscheduledDeps >= 0, Expected valid number of unscheduled deps, SLPVectorizer, and schedule dependency accounting, so commits touching BoUpSLP scheduling, tree entries, vectorization dependencies, and SLP cost modeling are high risk.",
+    "keywords": [
+      "crash",
+      "SLPVectorizer",
+      "UnscheduledDeps",
+      "Expected valid number of unscheduled deps",
+      "BoUpSLP",
+      "scheduling",
+      "dependency",
+      "vectorizer",
+      "O2",
+      "optimizer"
+    ],
+    "relevant_paths": [
+      "llvm/lib/Transforms/Vectorize/SLPVectorizer.cpp",
+      "llvm/lib/Transforms/Vectorize",
+      "llvm/test/Transforms/SLPVectorizer",
+      "llvm/lib/Analysis"
+    ],
+    "high_risk_paths": [
+      "llvm/lib/Transforms/Vectorize",
+      "llvm/include/llvm/Transforms/Vectorize",
+      "llvm/lib/Analysis",
+      "llvm/test/Transforms/SLPVectorizer"
+    ]
+  },
+  "pr201444": {
+    "issue_id": "pr201444",
+    "issue_url": "https://github.com/llvm/llvm-project/issues/201444",
+    "title": "X86 DAG combine low-bits constraint assertion",
+    "good_commit": "e9f758a59b2f887acb07e26e2d480c7369a72009",
+    "good_ref": "same-history merge-base candidate for llvmorg-22.1.0 and bad endpoint",
+    "bad_commit": "fb6153a65039b06319cb4b9ce2fafa84d75daa6b",
+    "bisect_log": "results/issues/pr201444/pr201444-git-bisect-pending.txt",
+    "runner": "scripts/pr201444/bisect-runner.sh",
+    "bug_report_summary": "Clang crashes at -O1 on a reduced C testcase during X86 DAG instruction selection. The target signal includes the assertion 'low bits constraint must survive width adjustment', peekThroughBitPosExtTrunc, combineBTToBitOpFlag, X86ISelLowering.cpp, and X86 SelectionDAG combine logic, so commits touching X86 target lowering, DAG combine, bit-test lowering, and integer width/sign-extension reasoning are high risk.",
+    "keywords": [
+      "crash",
+      "assertion",
+      "X86ISelLowering",
+      "low bits constraint",
+      "peekThroughBitPosExtTrunc",
+      "combineBTToBitOpFlag",
+      "SelectionDAG",
+      "DAG combine",
+      "O1",
+      "backend"
+    ],
+    "relevant_paths": [
+      "llvm/lib/Target/X86/X86ISelLowering.cpp",
+      "llvm/lib/Target/X86",
+      "llvm/lib/CodeGen/SelectionDAG",
+      "llvm/include/llvm/CodeGen",
+      "llvm/test/CodeGen/X86"
+    ],
+    "high_risk_paths": [
+      "llvm/lib/Target/X86",
+      "llvm/lib/CodeGen/SelectionDAG",
+      "llvm/include/llvm/CodeGen",
+      "llvm/test/CodeGen/X86"
+    ]
+  },
+  "pr202043": {
+    "issue_id": "pr202043",
+    "issue_url": "https://github.com/llvm/llvm-project/issues/202043",
+    "title": "AlignmentFromAssumptions bitfield assertion in optimizer",
+    "good_commit": "e9f758a59b2f887acb07e26e2d480c7369a72009",
+    "good_ref": "normalized merge-base good anchor for llvmorg-22.1.0 and bad endpoint",
+    "bad_commit": "11cf29581486565b04767ce313602312824d0109",
+    "bisect_log": "results/issues/pr202043/pr202043-git-bisect-pr202043-git-normalized-20260620.txt",
+    "runner": "scripts/pr202043/bisect-runner.sh",
+    "bug_report_summary": "Clang crashes on reduced C code with an AlignmentFromAssumptions assertion. The target signal includes UserValue <= UserMaxValue, Bitfields.h, AlignmentFromAssumptions, and assumption/operand-bundle alignment folding, so commits touching InstCombine assumptions, alignment metadata, and value-range bitfield utilities are high risk.",
+    "keywords": [
+      "crash",
+      "AlignmentFromAssumptions",
+      "UserValue <= UserMaxValue",
+      "Bitfields",
+      "alignment",
+      "assumption",
+      "operand bundle",
+      "InstCombine",
+      "value range",
+      "optimizer"
+    ],
+    "relevant_paths": [
+      "llvm/lib/Transforms/Scalar",
+      "llvm/lib/Transforms/InstCombine",
+      "llvm/lib/Analysis",
+      "llvm/include/llvm/ADT/Bitfields.h",
+      "llvm/test/Transforms/InstCombine"
+    ],
+    "high_risk_paths": [
+      "llvm/lib/Transforms",
+      "llvm/lib/Analysis",
+      "llvm/include/llvm/ADT",
+      "llvm/include/llvm/Analysis",
+      "llvm/test/Transforms"
+    ]
+  },
+  "pr203278": {
+    "issue_id": "pr203278",
+    "issue_url": "https://github.com/llvm/llvm-project/issues/203278",
+    "title": "Microsoft mangler unreachable for auto return type",
+    "good_commit": "f2ccf80136a01ca69f766becafb329db6c54c0c8",
+    "good_ref": "llvmorg-19.1.7 validated older good anchor",
+    "bad_commit": "4434dabb69916856b824f68a64b029c67175e532",
+    "bisect_log": "results/issues/pr203278/pr203278-git-bisect-aws-20260622.txt",
+    "runner": "scripts/pr203278/bisect-runner.sh",
+    "bug_report_summary": "Clang crashes for a C++20 Windows/MSVC target reproducer in Microsoft name mangling. The target signal includes Invalid type expected, mangleAutoReturnType, MicrosoftMangle, auto return type handling, and an unreachable frontend crash, so commits touching Microsoft ABI mangling, auto return type deduction, and C++ frontend AST/Sema type plumbing are high risk.",
+    "keywords": [
+      "crash",
+      "unreachable",
+      "MicrosoftMangle",
+      "mangleAutoReturnType",
+      "auto return type",
+      "msvc target",
+      "C++20",
+      "name mangling",
+      "clang frontend",
+      "Invalid type expected"
+    ],
+    "relevant_paths": [
+      "clang/lib/AST/MicrosoftMangle.cpp",
+      "clang/lib/AST",
+      "clang/lib/Sema",
+      "clang/include/clang/AST",
+      "clang/test/CodeGenCXX"
+    ],
+    "high_risk_paths": [
+      "clang/lib/AST",
+      "clang/lib/Sema",
+      "clang/include/clang/AST",
+      "clang/include/clang/Sema",
+      "clang/test/CodeGenCXX"
+    ]
+  },
+  "pr203261": {
+    "issue_id": "pr203261",
+    "issue_url": "https://github.com/llvm/llvm-project/issues/203261",
+    "title": "Deduction guide declarator assertion in Sema",
+    "good_commit": "94b15a1ece37963c9804fc7f0c498d140ea5fd9d",
+    "good_ref": "llvmorg-21.1.8 validated older good anchor",
+    "bad_commit": "4434dabb69916856b824f68a64b029c67175e532",
+    "bisect_log": "results/issues/pr203261/pr203261-git-bisect-aws-20260622.txt",
+    "runner": "scripts/pr203261/bisect-runner.sh",
+    "bug_report_summary": "Clang crashes during C++ semantic analysis for a reduced deduction-guide reproducer. The target signal includes expected QualifiedTemplate, CheckDeductionGuideDeclarator, SemaDeclCXX.cpp, and deduction guide declarator checking, so commits touching C++ deduction guides, template declarators, overload/Sema checks, and related diagnostics are high risk.",
+    "keywords": [
+      "crash",
+      "assertion",
+      "deduction guide",
+      "CheckDeductionGuideDeclarator",
+      "QualifiedTemplate",
+      "SemaDeclCXX",
+      "template",
+      "declarator",
+      "C++ frontend",
+      "clang"
+    ],
+    "relevant_paths": [
+      "clang/lib/Sema/SemaDeclCXX.cpp",
+      "clang/lib/Sema",
+      "clang/include/clang/Sema",
+      "clang/test/SemaCXX",
+      "clang/test/SemaTemplate"
+    ],
+    "high_risk_paths": [
+      "clang/lib/Sema",
+      "clang/include/clang/Sema",
+      "clang/lib/AST",
+      "clang/include/clang/AST",
+      "clang/test/SemaCXX",
+      "clang/test/SemaTemplate"
+    ]
+  },
+  "pr204178": {
+    "issue_id": "pr204178",
+    "issue_url": "https://github.com/llvm/llvm-project/issues/204178",
+    "title": "Itanium mangler ParmDepth assertion for abi_tag constrained overload",
+    "good_commit": "d0b54bb50e5110a004b41fc06dadf3fee70834b7",
+    "good_ref": "llvmorg-17.0.6 validated older good anchor",
+    "bad_commit": "3b5b5c1ec4a3095ab096dd780e84d7ab81f3d7ff",
+    "bisect_log": "results/issues/pr204178/pr204178-git-bisect-pending.txt",
+    "runner": "scripts/pr204178/bisect-runner.sh",
+    "bug_report_summary": "Clang crashes on a reduced C++20 reproducer involving an abi_tag inline namespace, constrained auto parameter, and trailing return type. The target signal includes ParmDepth < Depth, ItaniumMangle, CXXNameMangler, and template/concept parameter mangling, so commits touching Itanium ABI mangling, C++20 concepts, constrained declarations, and AST/Sema template parameter depth handling are high risk.",
+    "keywords": [
+      "crash",
+      "assertion",
+      "ParmDepth",
+      "ItaniumMangle",
+      "CXXNameMangler",
+      "abi_tag",
+      "concept",
+      "constrained auto",
+      "C++20",
+      "name mangling"
+    ],
+    "relevant_paths": [
+      "clang/lib/AST/ItaniumMangle.cpp",
+      "clang/lib/AST",
+      "clang/lib/Sema",
+      "clang/include/clang/AST",
+      "clang/test/CodeGenCXX"
+    ],
+    "high_risk_paths": [
+      "clang/lib/AST",
+      "clang/lib/Sema",
+      "clang/include/clang/AST",
+      "clang/include/clang/Sema",
+      "clang/test/CodeGenCXX"
+    ]
+  },
+  "pr204589": {
+    "issue_id": "pr204589",
+    "issue_url": "https://github.com/llvm/llvm-project/issues/204589",
+    "title": "MemorySSA removeFromLookups assertion at -O3",
+    "good_commit": "e9f758a59b2f887acb07e26e2d480c7369a72009",
+    "good_ref": "llvmorg-22.1.0 normalized good anchor",
+    "bad_commit": "baad7c3238b3203c974787fc4881453b6b23a0b6",
+    "bisect_log": "results/issues/pr204589/pr204589-git-bisect-pending.txt",
+    "runner": "scripts/pr204589/bisect-runner.sh",
+    "bug_report_summary": "Clang crashes at -O3 on a reduced C testcase while updating MemorySSA. The target signal includes Trying to remove memory access that still has uses, MemorySSA::removeFromLookups, MemorySSA.cpp, and optimizer memory-access bookkeeping, so commits touching MemorySSA updates, MemorySSA users, loop/CGSCC transformations, and scalar optimizer invalidation are high risk.",
+    "keywords": [
+      "crash",
+      "assertion",
+      "MemorySSA",
+      "removeFromLookups",
+      "memory access",
+      "still has uses",
+      "MemorySSA.cpp",
+      "optimizer",
+      "O3",
+      "scalar transforms"
+    ],
+    "relevant_paths": [
+      "llvm/lib/Analysis/MemorySSA.cpp",
+      "llvm/include/llvm/Analysis/MemorySSA.h",
+      "llvm/lib/Transforms/Scalar",
+      "llvm/lib/Transforms/Utils",
+      "llvm/test/Transforms"
+    ],
+    "high_risk_paths": [
+      "llvm/lib/Analysis",
+      "llvm/include/llvm/Analysis",
+      "llvm/lib/Transforms/Scalar",
+      "llvm/lib/Transforms/Utils",
+      "llvm/test/Transforms"
+    ]
+  },
+  "pr121365": {
+    "issue_id": "pr121365",
+    "issue_url": "https://github.com/llvm/llvm-project/issues/121365",
+    "title": "AArch64 GlobalISel invalid extend/trunc assertion",
+    "good_commit": "93248729cfae82a5ca2323d4a8e15aa3b9b9c707",
+    "good_ref": "llvmorg-18.1.8 validated older good anchor",
+    "bad_commit": "f035351af785b7349ab7bcd55149c781ceca24cb",
+    "bisect_log": "results/issues/pr121365/pr121365-git-bisect-pending.txt",
+    "runner": "scripts/pr121365/bisect-runner.sh",
+    "bug_report_summary": "AArch64 GlobalISel crashes on reduced IR with a shufflevector of i1 lanes. The target signal includes invalid extend/trunc, validateTruncExt, MachineIRBuilder, Legalizer, and GlobalISel, so commits touching AArch64 GlobalISel legalization, MachineIRBuilder trunc/ext construction, and shuffle-vector lowering are high risk.",
+    "keywords": [
+      "crash",
+      "assertion",
+      "GlobalISel",
+      "AArch64",
+      "Legalizer",
+      "MachineIRBuilder",
+      "validateTruncExt",
+      "invalid extend/trunc",
+      "shufflevector",
+      "i1"
+    ],
+    "relevant_paths": [
+      "llvm/lib/Target/AArch64",
+      "llvm/lib/CodeGen/GlobalISel",
+      "llvm/include/llvm/CodeGen/GlobalISel",
+      "llvm/lib/CodeGen/MachineIRBuilder.cpp",
+      "llvm/test/CodeGen/AArch64"
+    ],
+    "high_risk_paths": [
+      "llvm/lib/Target/AArch64",
+      "llvm/lib/CodeGen/GlobalISel",
+      "llvm/include/llvm/CodeGen/GlobalISel",
+      "llvm/lib/CodeGen",
+      "llvm/test/CodeGen/AArch64"
+    ]
+  },
+  "pr193164": {
+    "issue_id": "pr193164",
+    "issue_url": "https://github.com/llvm/llvm-project/issues/193164",
+    "title": "LoopVectorize VPlan phi-like recipe ordering assertion",
+    "good_commit": "e9f758a59b2f887acb07e26e2d480c7369a72009",
+    "good_ref": "llvmorg-22.1.0 validated older good anchor",
+    "bad_commit": "cac7fe50e0fbedfb14028c170d83386efeb1265b",
+    "bisect_log": "results/issues/pr193164/pr193164-git-bisect-pending.txt",
+    "runner": "scripts/pr193164/bisect-runner.sh",
+    "bug_report_summary": "Clang crashes at -O3 on the real GitHub attachment crash-62b480.cpp with a LoopVectorize/VPlan assertion: Found phi-like recipe after non-phi recipe. The target signal includes VPlan recipe ordering, phi-like recipes, LoopVectorize, SmallVector-backed recipe storage, and vectorizer plan construction, so commits touching VPlan, VPRecipeBuilder, LoopVectorize, and vectorizer recipe ordering are high risk.",
+    "keywords": [
+      "crash",
+      "assertion",
+      "LoopVectorize",
+      "VPlan",
+      "VPRecipe",
+      "VPRecipeBuilder",
+      "phi-like recipe",
+      "non-phi recipe",
+      "SmallVector",
+      "O3"
+    ],
+    "relevant_paths": [
+      "llvm/lib/Transforms/Vectorize/LoopVectorize.cpp",
+      "llvm/lib/Transforms/Vectorize/VPlan",
+      "llvm/include/llvm/Transforms/Vectorize",
+      "llvm/test/Transforms/LoopVectorize",
+      "llvm/test/Transforms/Vectorize"
+    ],
+    "high_risk_paths": [
+      "llvm/lib/Transforms/Vectorize",
+      "llvm/include/llvm/Transforms/Vectorize",
+      "llvm/lib/Analysis",
+      "llvm/test/Transforms/LoopVectorize",
+      "llvm/test/Transforms/Vectorize"
+    ]
+  },
+  "pr156249": {
+    "issue_id": "pr156249",
+    "issue_url": "https://github.com/llvm/llvm-project/issues/156249",
+    "title": "RISC-V LiveIntervals/RegisterCoalescer assertion with callbr",
+    "good_commit": "8c2574832ed2064996389e4259eaf0bea0fa7951",
+    "good_ref": "llvmorg-20.1.8 normalized good anchor",
+    "bad_commit": "66955aa8003468bdfec098a512fb0df30ce66dd8",
+    "bisect_log": "results/issues/pr156249/pr156249-git-bisect-pending.txt",
+    "runner": "scripts/pr156249/bisect-runner.sh",
+    "bug_report_summary": "RISC-V llc -O2 crashes on reduced LLVM IR using vector values and callbr. The target signal includes Wrong value out of predecessor, LiveIntervals::extendSegmentsToUses, RegisterCoalescer, RISC-V DAG/CodeGen, and machine verifier style predecessor/value tracking, so commits touching LiveIntervals, register coalescing, RISC-V vector lowering, PHI/callbr control-flow handling, and machine SSA liveness are high risk.",
+    "keywords": [
+      "crash",
+      "assertion",
+      "RISC-V",
+      "RISCV",
+      "LiveIntervals",
+      "extendSegmentsToUses",
+      "RegisterCoalescer",
+      "Wrong value out of predecessor",
+      "callbr",
+      "vector"
+    ],
+    "relevant_paths": [
+      "llvm/lib/CodeGen/LiveIntervals.cpp",
+      "llvm/lib/CodeGen/RegisterCoalescer.cpp",
+      "llvm/lib/CodeGen/MachineVerifier.cpp",
+      "llvm/lib/Target/RISCV",
+      "llvm/test/CodeGen/RISCV"
+    ],
+    "high_risk_paths": [
+      "llvm/lib/CodeGen",
+      "llvm/include/llvm/CodeGen",
+      "llvm/lib/Target/RISCV",
+      "llvm/test/CodeGen/RISCV",
+      "llvm/test/CodeGen"
+    ]
+  },
+  "pr194000": {
+    "issue_id": "pr194000",
+    "issue_url": "https://github.com/llvm/llvm-project/issues/194000",
+    "title": "AArch64 SVE partial reduction vectorizer unreachable",
+    "good_commit": "e9f758a59b2f887acb07e26e2d480c7369a72009",
+    "good_ref": "llvmorg-22.1.0 normalized good anchor",
+    "bad_commit": "30fa4153a556f51143b1145af8c603581c80369a",
+    "bisect_log": "results/issues/pr194000/pr194000-git-bisect-pending.txt",
+    "runner": "scripts/pr194000/bisect-runner.sh",
+    "bug_report_summary": "AArch64 clang -O3 with SVE crashes on a partial-reduction loop. The target signal includes Unsupported expression, createPartialReductionExpression, VPlanTransforms, LoopVectorize, SVE reduction code generation, and AArch64 vector lowering, so commits touching LoopVectorize/VPlan partial reductions, scalable-vector reductions, and AArch64 SVE cost/lowering behavior are high risk.",
+    "keywords": [
+      "crash",
+      "unreachable",
+      "AArch64",
+      "SVE",
+      "LoopVectorize",
+      "VPlanTransforms",
+      "createPartialReductionExpression",
+      "Unsupported expression",
+      "partial reduction",
+      "scalable vector"
+    ],
+    "relevant_paths": [
+      "llvm/lib/Transforms/Vectorize/LoopVectorize.cpp",
+      "llvm/lib/Transforms/Vectorize/VPlanTransforms.cpp",
+      "llvm/lib/Transforms/Vectorize/VPlan",
+      "llvm/lib/Target/AArch64",
+      "llvm/test/Transforms/LoopVectorize",
+      "llvm/test/CodeGen/AArch64"
+    ],
+    "high_risk_paths": [
+      "llvm/lib/Transforms/Vectorize",
+      "llvm/include/llvm/Transforms/Vectorize",
+      "llvm/lib/Target/AArch64",
+      "llvm/lib/Analysis",
+      "llvm/test/Transforms/LoopVectorize",
+      "llvm/test/CodeGen/AArch64"
+    ]
+  },
+  "pr204559": {
+    "issue_id": "pr204559",
+    "issue_url": "https://github.com/llvm/llvm-project/issues/204559",
+    "title": "MemorySSA clobber walker verification assertion at -O1",
+    "good_commit": "e9f758a59b2f887acb07e26e2d480c7369a72009",
+    "good_ref": "llvmorg-22.1.0 normalized good anchor",
+    "bad_commit": "baad7c3238b3203c974787fc4881453b6b23a0b6",
+    "bisect_log": "results/issues/pr204559/pr204559-git-bisect-pending.txt",
+    "runner": "scripts/pr204559/bisect-runner.sh",
+    "bug_report_summary": "Clang crashes at -O1 on a reduced C testcase in MemorySSA clobber-walker verification. The target signal includes OtherClobbers, MSSA.dominates, ClobberWalker::verifyOptResult, MemorySSA.cpp, and optimizer memory dependence reasoning, so commits touching MemorySSA, MemorySSA-backed scalar optimizations, and dominance/update correctness are high risk.",
+    "keywords": [
+      "crash",
+      "assertion",
+      "MemorySSA",
+      "ClobberWalker",
+      "verifyOptResult",
+      "OtherClobbers",
+      "MSSA.dominates",
+      "MemorySSA.cpp",
+      "O1",
+      "optimizer"
+    ],
+    "relevant_paths": [
+      "llvm/lib/Analysis/MemorySSA.cpp",
+      "llvm/include/llvm/Analysis/MemorySSA.h",
+      "llvm/lib/Transforms/Scalar",
+      "llvm/lib/Transforms/Utils",
+      "llvm/test/Analysis/MemorySSA"
+    ],
+    "high_risk_paths": [
+      "llvm/lib/Analysis",
+      "llvm/include/llvm/Analysis",
+      "llvm/lib/Transforms/Scalar",
+      "llvm/lib/Transforms/Utils",
+      "llvm/test/Analysis",
+      "llvm/test/Transforms"
+    ]
+  },
+  "pr48154": {
+    "issue_id": "pr48154",
+    "issue_url": "https://github.com/llvm/llvm-project/issues/48154",
+    "title": "InstCombine/Attributor verifier incompatible attributes crash",
+    "good_commit": "2e10b7a39b930ef8d9c4362509d8835b221fbc0a",
+    "good_ref": "llvmorg-11.1.0 normalized good anchor",
+    "bad_commit": "2b4716d6dff1c9a5e64b3487a0b2388e3ff18b30",
+    "bisect_log": "results/issues/pr48154/pr48154-git-bisect-pending.txt",
+    "runner": "scripts/pr48154/bisect-runner.sh",
+    "bug_report_summary": "Clang crashes or rejects generated IR after InstCombine/Attributor optimization with verifier evidence about incompatible attributes. The target signal includes Wrong types for attribute, Broken function found, InstCombine, and Attributor, so commits touching Attributor attribute inference, InstCombine call/site rewriting, IR attribute propagation, or verifier attribute rules are high risk.",
+    "keywords": [
+      "crash",
+      "verifier",
+      "Broken function found",
+      "Wrong types for attribute",
+      "InstCombine",
+      "Attributor",
+      "attribute",
+      "optimizer",
+      "module attributor"
+    ],
+    "relevant_paths": [
+      "llvm/lib/Transforms/IPO/Attributor.cpp",
+      "llvm/lib/Transforms/IPO/AttributorAttributes.cpp",
+      "llvm/lib/Transforms/InstCombine",
+      "llvm/lib/IR/Verifier.cpp",
+      "llvm/test/Transforms/Attributor",
+      "llvm/test/Transforms/InstCombine"
+    ],
+    "high_risk_paths": [
+      "llvm/lib/Transforms/IPO",
+      "llvm/lib/Transforms/InstCombine",
+      "llvm/lib/IR",
+      "llvm/include/llvm/IR",
+      "llvm/test/Transforms"
+    ]
+  },
+  "pr49535": {
+    "issue_id": "pr49535",
+    "issue_url": "https://github.com/llvm/llvm-project/issues/49535",
+    "title": "ValueTracking invertible operand assertion",
+    "good_commit": "8e464dd76befbc4a39a1d21968a3d5f543e29312",
+    "good_ref": "llvmorg-12.0.1 normalized good anchor",
+    "bad_commit": "fd15e2b825f26dd7eac3b4a52aab36c88e52850a",
+    "bisect_log": "results/issues/pr49535/pr49535-git-bisect-pending.txt",
+    "runner": "scripts/pr49535/bisect-runner.sh",
+    "bug_report_summary": "Clang crashes at -O2 on a compact C testcase with a ValueTracking assertion around getInvertibleOperand. The target signal includes BO1->getOperand, ValueTracking, getInvertibleOperand, and InstCombine, so commits touching ValueTracking simplification, invertible operand reasoning, InstCombine arithmetic transforms, or related analysis helpers are high risk.",
+    "keywords": [
+      "crash",
+      "assertion",
+      "ValueTracking",
+      "getInvertibleOperand",
+      "BO1->getOperand",
+      "InstCombine",
+      "invertible",
+      "optimizer",
+      "O2"
+    ],
+    "relevant_paths": [
+      "llvm/lib/Analysis/ValueTracking.cpp",
+      "llvm/include/llvm/Analysis/ValueTracking.h",
+      "llvm/lib/Transforms/InstCombine",
+      "llvm/lib/Transforms/Utils",
+      "llvm/test/Transforms/InstCombine",
+      "llvm/test/Analysis"
+    ],
+    "high_risk_paths": [
+      "llvm/lib/Analysis",
+      "llvm/include/llvm/Analysis",
+      "llvm/lib/Transforms/InstCombine",
+      "llvm/lib/Transforms/Scalar",
+      "llvm/lib/Transforms/Utils",
+      "llvm/test/Transforms"
+    ]
+  },
+  "pr50304": {
+    "issue_id": "pr50304",
+    "issue_url": "https://github.com/llvm/llvm-project/issues/50304",
+    "title": "APFloat/ConstantFold representability assertion",
+    "good_commit": "8e464dd76befbc4a39a1d21968a3d5f543e29312",
+    "good_ref": "llvmorg-12.0.1 normalized good anchor",
+    "bad_commit": "4aa1c141bd674564aaee83516b7e338aa3aae9e3",
+    "bisect_log": "results/issues/pr50304/pr50304-git-bisect-pending.txt",
+    "runner": "scripts/pr50304/bisect-runner.sh",
+    "bug_report_summary": "Clang crashes at -O1 on a very small C testcase with an APFloat/ConstantFold assertion about whether semantics are representable. The target signal includes getSemantics().isRepresentableBy, APFloat, ConstantFold, and EarlyCSE, so commits touching constant folding, floating-point constant semantics, APFloat conversions, or EarlyCSE simplification are high risk.",
+    "keywords": [
+      "crash",
+      "assertion",
+      "APFloat",
+      "ConstantFold",
+      "getSemantics",
+      "isRepresentableBy",
+      "EarlyCSE",
+      "floating point",
+      "O1"
+    ],
+    "relevant_paths": [
+      "llvm/lib/Analysis/ConstantFolding.cpp",
+      "llvm/lib/IR/Constants.cpp",
+      "llvm/lib/Support/APFloat.cpp",
+      "llvm/lib/Transforms/Scalar/EarlyCSE.cpp",
+      "llvm/test/Transforms/InstSimplify",
+      "llvm/test/Transforms/EarlyCSE"
+    ],
+    "high_risk_paths": [
+      "llvm/lib/Analysis",
+      "llvm/lib/IR",
+      "llvm/lib/Support",
+      "llvm/lib/Transforms/Scalar",
+      "llvm/test/Transforms"
+    ]
+  },
+  "pr50585": {
+    "issue_id": "pr50585",
+    "issue_url": "https://github.com/llvm/llvm-project/issues/50585",
+    "title": "Optimizer verifier domination failure",
+    "good_commit": "8e464dd76befbc4a39a1d21968a3d5f543e29312",
+    "good_ref": "llvmorg-12.0.1 normalized good anchor",
+    "bad_commit": "0a1ca2ad4ce239abc8d844f33048af58648edb80",
+    "bisect_log": "results/issues/pr50585/pr50585-git-bisect-pending.txt",
+    "runner": "scripts/pr50585/bisect-runner.sh",
+    "bug_report_summary": "Clang crashes or aborts at -O1 on a compact C testcase after producing invalid IR. The target signal includes Instruction does not dominate all uses, Broken function found, Verifier, and backend fatal-error output, so commits touching dominance preservation, scalar optimizer rewrites, IR verifier-sensitive transformations, or CFG/value replacement utilities are high risk.",
+    "keywords": [
+      "crash",
+      "verifier",
+      "Instruction does not dominate all uses",
+      "Broken function found",
+      "dominance",
+      "optimizer",
+      "fatal error",
+      "O1"
+    ],
+    "relevant_paths": [
+      "llvm/lib/IR/Verifier.cpp",
+      "llvm/lib/Transforms/Scalar",
+      "llvm/lib/Transforms/Utils",
+      "llvm/lib/Analysis",
+      "llvm/test/Transforms",
+      "llvm/test/Verifier"
+    ],
+    "high_risk_paths": [
+      "llvm/lib/IR",
+      "llvm/include/llvm/IR",
+      "llvm/lib/Transforms/Scalar",
+      "llvm/lib/Transforms/Utils",
+      "llvm/lib/Analysis",
+      "llvm/test/Transforms"
+    ]
+  },
+  "pr52635": {
+    "issue_id": "pr52635",
+    "issue_url": "https://github.com/llvm/llvm-project/issues/52635",
+    "title": "AArch64 XRay MCSymbolRefExpr assertion",
+    "good_commit": "e26a78e70857273c83aaacd4aa0edb36effe70e3",
+    "good_ref": "llvmorg-10.0.1 normalized good anchor",
+    "bad_commit": "10bc12588dac532fad044b2851dde8e7b9121e88",
+    "bisect_log": "results/issues/pr52635/pr52635-git-bisect-pending.txt",
+    "runner": "scripts/pr52635/bisect-runner.sh",
+    "bug_report_summary": "llc crashes on reduced AArch64 IR involving XRay patchable-function-entry metadata. The target signal includes MCSymbolRefExpr, Symbol assertion failure, AArch64 Assembly Printer, and emitXRayTable, so commits touching AArch64 assembly emission, XRay table emission, MC symbol/reference handling, and patchable-function metadata lowering are high risk.",
+    "keywords": [
+      "crash",
+      "assertion",
+      "AArch64",
+      "MCSymbolRefExpr",
+      "Symbol",
+      "XRay",
+      "emitXRayTable",
+      "patchable-function-entry",
+      "MC",
+      "llc"
+    ],
+    "relevant_paths": [
+      "llvm/lib/Target/AArch64",
+      "llvm/lib/CodeGen/AsmPrinter",
+      "llvm/lib/MC",
+      "llvm/include/llvm/MC",
+      "llvm/lib/XRay",
+      "llvm/test/CodeGen/AArch64"
+    ],
+    "high_risk_paths": [
+      "llvm/lib/Target/AArch64",
+      "llvm/lib/CodeGen",
+      "llvm/lib/MC",
+      "llvm/include/llvm/MC",
+      "llvm/lib/XRay",
+      "llvm/test/CodeGen"
     ]
   }
 }

@@ -66,5 +66,19 @@ class RelevanceClassificationTests(unittest.TestCase):
         self.assertEqual(assessment.classification, "partial")
 
 
+class CausalInterpretationTests(unittest.TestCase):
+    def test_scoped_cases_have_a_manual_causal_interpretation(self) -> None:
+        self.assertEqual(
+            set(audit_first_bad_relevance.CAUSAL_INTERPRETATIONS),
+            set(audit_first_bad_relevance.SCOPED_ISSUES),
+        )
+
+    def test_indirect_case_explains_downstream_detector(self) -> None:
+        interpretation = audit_first_bad_relevance.CAUSAL_INTERPRETATIONS["pr50585"]
+
+        self.assertEqual(interpretation.role, "indirect-enabling")
+        self.assertIn("verifier", interpretation.explanation)
+
+
 if __name__ == "__main__":
     unittest.main()

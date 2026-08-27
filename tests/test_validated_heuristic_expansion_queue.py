@@ -46,6 +46,21 @@ class ValidatedHeuristicExpansionQueueTests(unittest.TestCase):
             text.index('run_heuristic "${issue}"'),
         )
 
+    def test_queue_does_not_count_a_reserved_controller_and_its_child_twice(self) -> None:
+        text = SCRIPT.read_text()
+
+        self.assertIn("active_unreserved_run_online_lanes", text)
+        self.assertIn("reservation_owns_process", text)
+        self.assertIn("unreserved + reserved < RUN_ONLINE_MAX_LANES", text)
+        self.assertNotIn("active + reserved < 3", text)
+
+    def test_queue_accepts_an_explicit_remote_lane_capacity(self) -> None:
+        text = SCRIPT.read_text()
+
+        self.assertIn('RUN_ONLINE_MAX_LANES="${RUN_ONLINE_MAX_LANES:-3}"', text)
+        self.assertIn('RUN_ONLINE_MAX_LANES must be a positive integer', text)
+        self.assertIn('unreserved + reserved < RUN_ONLINE_MAX_LANES', text)
+
 
 if __name__ == "__main__":
     unittest.main()

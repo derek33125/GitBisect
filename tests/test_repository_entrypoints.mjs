@@ -17,10 +17,12 @@ for (const heading of [
   "## Method Families",
   "## Fixed-k12 Variants",
   "## Scoped-10 Results",
+  "## Master-50 Results",
 ]) {
   assert.match(root, new RegExp(heading));
 }
 assert.match(root, /benchmark-results\/scoped10/);
+assert.match(root, /benchmark-results\/master50/);
 assert.match(root, /web-presentation-data/);
 
 const baseline = readFileSync(baselineReadme, "utf8");
@@ -61,5 +63,16 @@ const variants = JSON.parse(readFileSync(join(resultsDir, "k12-variants.json"), 
 assert.equal(variants.rows.length, 10);
 assert.equal(variants.reference.aggregate.total_steps, 111);
 assert.equal(variants.configurations.find((config) => config.key === "causal").k12.aggregate.total_steps, 107);
+
+const master50Dir = "benchmark-results/master50";
+assert.ok(existsSync(master50Dir), "the master-50 public result bundle is missing");
+const master50Files = readdirSync(master50Dir).sort();
+assert.ok(master50Files.every((name) => name.endsWith(".json")), "the master-50 bundle must contain JSON only");
+const master50 = JSON.parse(readFileSync(join(master50Dir, "manifest.json"), "utf8"));
+assert.equal(master50.scope, "master-50");
+assert.equal(master50.issue_count, 50);
+assert.equal(master50.issues.length, 50);
+const master50cmp = JSON.parse(readFileSync(join(master50Dir, "preferred-comparison.json"), "utf8"));
+assert.equal(master50cmp.length, 50);
 
 console.log("repository entry points and scoped result bundle are complete");

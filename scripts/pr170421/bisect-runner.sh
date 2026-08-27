@@ -55,7 +55,17 @@ if ! command -v ninja >/dev/null 2>&1; then
   exit 125
 fi
 
-if ! command -v gcc >/dev/null 2>&1 && ! command -v clang >/dev/null 2>&1; then
+if [[ -n "${CC:-}" ]] && ! command -v "${CC}" >/dev/null 2>&1; then
+  echo "error: C compiler not found: ${CC}" >&2
+  exit 125
+fi
+
+if [[ -n "${CXX:-}" ]] && ! command -v "${CXX}" >/dev/null 2>&1; then
+  echo "error: C++ compiler not found: ${CXX}" >&2
+  exit 125
+fi
+
+if [[ -z "${CC:-}" ]] && ! command -v gcc >/dev/null 2>&1 && ! command -v clang >/dev/null 2>&1; then
   echo "error: no C compiler found" >&2
   exit 125
 fi
@@ -130,6 +140,14 @@ if [[ -n "${CMAKE_C_COMPILER_LAUNCHER:-}" ]]; then
     -DCMAKE_C_COMPILER_LAUNCHER="${CMAKE_C_COMPILER_LAUNCHER}"
     -DCMAKE_CXX_COMPILER_LAUNCHER="${CMAKE_CXX_COMPILER_LAUNCHER}"
   )
+fi
+
+if [[ -n "${CC:-}" ]]; then
+  configure_args+=(-DCMAKE_C_COMPILER="${CC}")
+fi
+
+if [[ -n "${CXX:-}" ]]; then
+  configure_args+=(-DCMAKE_CXX_COMPILER="${CXX}")
 fi
 
 if ! run_background_friendly cmake "${configure_args[@]}"; then

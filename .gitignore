@@ -25,6 +25,7 @@ doc/
 docs/
 tools/generate_lm_bisect_method_figure.py
 tools/generate_trace_presentation_pdf.py
+human_analysis/
 *.md
 *.pdf
 *.aux
@@ -53,3 +54,8 @@ NUL
 Thumbs.db
 *~
 *.swp
+
+# For the key
+.server_key
+.vercel
+.env*
