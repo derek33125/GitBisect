@@ -50,12 +50,181 @@ async function boot() {
     renderLiveTopK20();
   }
   if ($("#topk-body")) renderFocusedComparisons();
-  if ($("#k12-variant-body")) renderK12VariantComparison();
+  if ($("#k12-variant-body")) {
+    renderK12VariantComparison();
+    renderExpansionComparison();
+    renderTerraBcrComparison();
+  }
+  if ($("#deterministic-facts-bcr-body")) {
+    renderDeterministicFactsBcr();
+    renderDeterministicFactsV16Window();
+  }
+  if ($("#heuristic-factor-ablation-body")) {
+    renderHeuristicFactorAblation();
+  }
   if ($("#runtime-example-content")) renderRuntimeExample();
+  if ($("#master-status-body")) renderMasterStatus();
+  if ($("#causality-cases")) renderCausalityStudy();
   if ($("#issue-select")) {
     buildControls();
     renderExplorer();
   }
+}
+
+function renderCausalityStudy() {
+  const study = state.data.first_bad_causality_study;
+  const summary = $("#causality-summary");
+  const deployability = $("#causality-deployability");
+  const cases = $("#causality-cases");
+  const rules = $("#causality-rules");
+  const exclusions = $("#causality-exclusions");
+  if (!study || !summary || !deployability || !cases || !rules || !exclusions) return;
+
+  const chips = (items, kind) =>
+    items.filter(Boolean).map((item) => '<code class="causality-chip ' + kind + '">' + esc(item) + "</code>").join("");
+  const roleLabel = (role) => role === "indirect-enabling" ? "indirect producer" : role;
+
+  summary.innerHTML = [
+    ["Validated boundaries", study.aggregate.total_cases, "scoped issues reviewed"],
+    ["Direct mechanism match", study.aggregate.direct, "same subsystem, symbol, or feature path"],
+    ["Indirect producer match", study.aggregate.indirect_enabling, "upstream state later rejected downstream"],
+    ["No visible match", study.aggregate.no_visible_match, "after manual source review"],
+  ].map(
+    ([label, value, detail]) =>
+      '<article class="causality-metric"><span>' + esc(label) + "</span><strong>" + esc(value) +
+      "</strong><small>" + esc(detail) + "</small></article>"
+  ).join("");
+  deployability.textContent = study.deployability_notice;
+
+  cases.innerHTML = study.cases.map((row, index) => {
+    const role = roleLabel(row.causal_role);
+    const traceLimited = /wrapper-only|not retained/i.test(row.trace_evidence.quality);
+    const traceNote = row.trace_evidence.artifact === "not retained"
+      ? "Raw crash artifact not retained; classification is source-level."
+      : "Saved artifact retained in the canonical study.";
+    return '<details class="causality-case"' + (index < 2 ? " open" : "") + ">" +
+      "<summary>" +
+      '<span class="causality-case-index">' + String(index + 1).padStart(2, "0") + "</span>" +
+      '<span class="causality-case-title"><strong>' + esc(row.issue) + "</strong><span>" + esc(row.title) + "</span></span>" +
+      '<span class="causality-role ' + esc(row.causal_role) + '">' + esc(role) + "</span>" +
+      '<span class="causality-overlap">' + esc(row.static_overlap) + " overlap</span>" +
+      "</summary>" +
+      '<div class="causality-case-body">' +
+      '<div class="causality-case-head"><div><span class="variant-label">Validated first bad</span><h3><code>' +
+      esc(row.first_bad.slice(0, 12)) + "</code></h3><p>" + esc(row.subject) + "</p></div>" +
+      '<div class="trace-evidence ' + (traceLimited ? "trace-limited" : "") + '"><span class="variant-label">Saved trace evidence / ' +
+      esc(row.trace_evidence.quality) + "</span><p>" + esc(row.trace_evidence.text) + "</p><small>" +
+      esc(traceNote) + "</small></div></div>" +
+      '<div class="causality-evidence-grid">' +
+      "<article><span>Static overlap</span><strong>" + esc(row.static_overlap) + "</strong><p>" + esc(row.overlap) + "</p></article>" +
+      "<article><span>Causal interpretation</span><strong>" + esc(role) + "</strong><p>" + esc(row.causal_explanation) + "</p></article>" +
+      "<article><span>Interpretation limit</span><strong>Boundary validated</strong><p>" + esc(row.interpretation_limit) + "</p></article>" +
+      "</div>" +
+      '<div class="causality-token-groups">' +
+      "<div><span>Crash-derived terms</span><div>" + chips(row.keywords.slice(0, 12), "term") + "</div></div>" +
+      "<div><span>Relevant paths</span><div>" + chips(row.relevant_paths.slice(0, 7), "path") + "</div></div>" +
+      "<div><span>Changed files</span><div>" + chips(row.changed_files.slice(0, 8), "file") + "</div></div>" +
+      "</div>" +
+      '<details class="causality-diff"><summary>Audited first-bad diff excerpt</summary><pre>' +
+      esc(row.diff_excerpt) + "</pre></details></div></details>";
+  }).join("");
+
+  rules.innerHTML = study.rules.map((rule) =>
+    '<article class="causality-rule"><div class="causality-rule-number">' + esc(rule.number) + "</div><div><h3>" +
+    esc(rule.title) + "</h3><p>" + esc(rule.summary) + "</p><ul>" +
+    rule.rationale.map((item) => "<li>" + esc(item) + "</li>").join("") +
+    "</ul></div></article>"
+  ).join("");
+  exclusions.innerHTML = "<h3>Excluded from deployable runtime input</h3><ul>" +
+    study.exclusions.map((item) => "<li>" + esc(item) + "</li>").join("") +
+    "</ul>";
+}
+
+function renderMasterStatus() {
+  const status = state.data.master_status;
+  const body = $("#master-status-body");
+  const count = $("#master-status-count");
+  const search = $("#master-status-search");
+  const metrics = $("#master-status-metrics");
+  if (!status || !body || !count || !search || !metrics) return;
+
+  metrics.innerHTML = [
+    `<article class="master-metric"><span>Tracked issues</span><strong>${esc(status.summary.total_issues)}</strong><small>all rows in the canonical ledger</small></article>`,
+    ...status.summary.methods.map(
+      (method) => `<article class="master-metric"><span>${esc(method.label)}</span><strong>${esc(method.valid_results)}</strong><small>valid terminal results</small></article>`,
+    ),
+  ].join("");
+
+  const renderMethodCell = (result) => {
+    if (result.state === "completed") return `<td class="master-method completed">${esc(result.steps)} / ${esc(result.skips)}</td>`;
+    if (result.state === "running") return '<td class="master-method running">running</td>';
+    if (result.state === "stopped") return `<td class="master-method running">stopped<br /><small>${esc(result.steps ?? 0)} steps retained</small></td>`;
+    if (result.state === "non_clean") return `<td class="master-method non-clean">${esc(result.steps ?? "-")} / ${esc(result.skips ?? "-")}<br /><small>non-clean</small></td>`;
+    return '<td class="master-method">-</td>';
+  };
+
+  const renderRows = () => {
+    const query = search.value.trim().toLowerCase();
+    const rows = status.rows.filter((row) => {
+      if (!query) return true;
+      return Object.entries(row).some(([key, value]) => {
+        if (value && typeof value === "object") {
+          return `${key} ${value.state} ${value.steps ?? ""} ${value.skips ?? ""}`.toLowerCase().includes(query);
+        }
+        return String(value).toLowerCase().includes(query);
+      });
+    });
+    count.textContent = `${rows.length} / ${status.rows.length} rows`;
+    body.innerHTML = rows
+      .map(
+        (row) => `<tr>
+          <td class="left"><strong>${esc(row.issue)}</strong></td>
+          <td class="left">${esc(row.state)}</td>
+          <td class="master-interval" title="${esc(row.interval_source || "no endpoint-matched run history or explicit ledger interval")}">${row.interval_commits === null ? "<small>unavailable</small>" : esc(Number(row.interval_commits).toLocaleString())}</td>
+          ${renderMethodCell(row.git)}
+          ${renderMethodCell(row.legacy_lm)}
+          ${renderMethodCell(row.tuned_heuristic)}
+          ${renderMethodCell(row.weak_general_heuristic)}
+          ${renderMethodCell(row.bcr)}
+          <td><code>${esc(row.good_anchor)}</code></td>
+          <td><code>${esc(row.bad_anchor)}</code></td>
+          <td><code>${esc(row.first_bad)}</code></td>
+          <td class="left master-notes">${esc(row.notes)}</td>
+        </tr>`
+      )
+      .join("");
+  };
+  search.addEventListener("input", renderRows);
+  renderRows();
+}
+
+function renderCausalRetrievalExample() {
+  const example = state.data.k12_variants?.causal_retrieval_example;
+  const el = $("#causal-retrieval-example");
+  if (!example || !el) return;
+
+  const retrieval = example.retrieval;
+  const causal = example.causal_evidence;
+  const handoff = example.shared_scorer_handoff;
+  const hunk = retrieval.selected_hunks[0];
+  const context = retrieval.function_contexts[0];
+  const link = causal.issue_link || {};
+  el.innerHTML = `
+    <article class="causal-retrieval-summary">
+      <div><span class="variant-label">Saved example / ${esc(example.issue)} step ${esc(example.step)}</span><h3>Candidate <code>${esc(example.candidate_sha)}</code> is retrieved before it is scored</h3><p>${esc(example.candidate_subject)} was ranked ${esc(example.candidate_rank)} in the causal top-k12 frontier. It is not the SHA built in this step, which lets the example distinguish BCR evidence generation from the later deterministic choice and runner verdict.</p></div>
+      <dl><dt>Parent diff</dt><dd>${esc(Number(retrieval.raw_diff_chars).toLocaleString())} chars, ${retrieval.raw_diff_truncated ? "truncated" : "not truncated"}</dd><dt>Retrieved</dt><dd>${esc(retrieval.selected_files.length)} files, ${esc(retrieval.selected_hunks.length)} hunks, ${esc(retrieval.function_contexts.length)} contexts</dd><dt>Omitted</dt><dd>${esc(retrieval.omitted_hunk_count)} lower-ranked hunks</dd></dl>
+    </article>
+    <div class="causal-retrieval-flow">
+      <article><span class="variant-label">1 / deterministic retrieval</span><h3>From changed files to top hunks</h3><p>Changed files are ranked first: <code>+8 relevant path</code>, <code>+4 high-risk path</code>, <code>+2 issue/path-token overlap</code>, keeping at most 20. Parent-diff hunks are then parsed and ranked by <code>4 * relevant-path + 2 * issue-keyword + visible-symbol count</code>; ties prefer any matched hunk, then the shorter patch. High-risk paths influence file selection and remain an auditable match reason. The first eight matching hunks are retained, or the top eight fall back when none match.</p><p class="code-ref"><code>select_causal_retrieval_files</code> &rarr; <code>commit_parent_diff_for_files</code> &rarr; <code>parse_unified_diff_hunks</code> &rarr; <code>retrieve_causal_diff_evidence</code>.</p></article>
+      <article><span class="variant-label">2 / actual retrieved hunk</span><h3><code>${esc(hunk.path)}</code></h3><p><strong>Reasons:</strong> ${esc(hunk.match_reasons.join(", "))}<br /><strong>Symbols:</strong> ${esc(hunk.symbols.join(", "))}</p><pre class="formula">${esc(hunk.header)}\n${esc(hunk.patch)}</pre></article>
+      <article><span class="variant-label">3 / retrieved function context</span><h3><code>${esc(context.path)}</code></h3><p><strong>Symbol:</strong> <code>${esc(context.symbol)}</code>. Context is loaded at the candidate SHA for up to four unique hunk symbols.</p><pre class="formula">${esc(context.context)}</pre></article>
+    </div>
+    <article class="causal-evidence-card">
+      <span class="variant-label">4 / BCR-only causal extractor</span><h3>Structured evidence retained under <code>causal_evidence</code></h3><p>${esc(causal.summary)}</p><div class="causal-evidence-grid"><div><strong>Changed symbols</strong><p>${esc(causal.changed_symbols.join(", "))}</p></div><div><strong>Mechanism</strong><p>${esc(causal.behavioral_change.join(" "))}</p></div><div><strong>Issue link</strong><p>${esc(link.explanation || "No explanation saved.")}</p></div><div><strong>Confidence</strong><p>${esc(causal.confidence)}; ${esc(causal.build_risk.join("; "))}</p></div></div>
+    </article>
+    <article class="causal-handoff-card">
+      <span class="variant-label">5 / shared scorer handoff</span><h3>BCR retrieval becomes the shared scorer's <code>diff_summary</code>; it is not copied into generic <code>evidence</code></h3><p>The causal extractor serializes its output with <code>format_causal_diff_evidence</code>, and the normal <code>model_score_commits</code> prompt receives that text for this candidate. The shared scorer then returns a semantic score and a build-success probability. Later, <code>record.evidence</code> contains only <code>model-scored</code>, the scorer's short reasons, and features; it is not the BCR retrieval payload.</p><div class="causal-handoff-grid"><span>extraction <code>${esc(handoff.diff_extraction)}</code></span><span>summary injected ${handoff.diff_summary_injected ? "yes" : "no"}</span><span>semantic score <strong>${esc(handoff.semantic_score)}</strong></span><span>build success <strong>${esc(handoff.build_success_prob)}</strong></span><span>selection score <strong>${esc(handoff.selection_score)}</strong></span></div><p class="tiny-note">This candidate was not selected for the runner. The recorded <code>${esc(handoff.runner_verdict)}</code> verdict belongs to selected SHA <code>${esc(handoff.runner_selected_sha)}</code>, and is another separate artifact.</p>
+    </article>`;
 }
 
 function renderK12VariantCell(cell, referenceSteps) {
@@ -77,6 +246,7 @@ function renderK12VariantCell(cell, referenceSteps) {
 function renderK12VariantComparison() {
   const variants = state.data.k12_variants;
   if (!variants) return;
+  renderCausalRetrievalExample();
   const cards = $("#k12-variant-cards");
   cards.innerHTML = variants.configurations
     .map((config) => {
@@ -114,6 +284,202 @@ function renderK12VariantComparison() {
         .join("")}</tr>`;
     })
     .join("");
+}
+
+function renderExpansionComparison() {
+  const comparison = state.data.expansion_comparison;
+  if (!comparison) return;
+  const original = comparison.aggregate.original;
+  const causal = comparison.aggregate.causal;
+  const heuristic = comparison.aggregate.heuristic;
+  $("#expansion-method-cards").innerHTML = comparison.methods
+    .map((method) => {
+      const stats = comparison.aggregate[method.key];
+      const delta = stats.vs_original?.step_delta;
+      const comparisonLine = method.key === "original"
+        ? `${stats.count}/${stats.count} boundary matches in the common reference.`
+        : `${stats.vs_original.wins}/${stats.vs_original.ties}/${stats.vs_original.losses} W/T/L vs original; ${delta > 0 ? "+" : ""}${delta} total builds.`;
+      return `<article class="expansion-method"><div class="variant-label">${esc(method.label)}</div><h3>${esc(stats.avg_steps)} mean builds</h3><p><strong>Observed:</strong> ${esc(method.observed_advantage)}</p><p><strong>Limit:</strong> ${esc(method.observed_limitation)}</p><p><strong>Expansion role:</strong> ${esc(method.expansion_role)}</p><small>${esc(comparisonLine)}</small></article>`;
+    })
+    .join("");
+  $("#expansion-type-body").innerHTML = comparison.by_type
+    .map((group) => {
+      const delta = group.causal_step_delta_vs_original;
+      const cls = delta < 0 ? "cell-good" : delta > 0 ? "cell-warn" : "";
+      return `<tr><td class="left">${esc(group.label)}</td><td>${esc(group.count)}</td><td>${esc(group.heuristic_avg_steps)}</td><td>${esc(group.original_avg_steps)}</td><td>${esc(group.causal_avg_steps)}</td><td>${esc(group.causal_wins)} / ${esc(group.causal_ties)} / ${esc(group.causal_losses)}</td><td class="${cls}">${delta > 0 ? "+" : ""}${esc(delta)}</td></tr>`;
+    })
+    .join("");
+  $("#expansion-recommendation").innerHTML = `<strong>Observed aggregate:</strong> heuristic ${esc(heuristic.total_steps)} builds (${esc(heuristic.avg_steps)} mean), original model ${esc(original.total_steps)} (${esc(original.avg_steps)}), causal model ${esc(causal.total_steps)} (${esc(causal.avg_steps)}). <strong>Recommendation:</strong> ${esc(comparison.recommendation)}<br /><span>${esc(comparison.caveat)}</span>`;
+}
+
+function renderTerraBcrComparison() {
+  const comparison = state.data.terra_bcr_comparison;
+  if (!comparison) return;
+  const terra = comparison.aggregate.terra;
+  const parentWindow = comparison.aggregate.parent_window;
+  const formatDelta = (result) =>
+    `${result.wins} / ${result.ties} / ${result.losses} W/T/L, ${result.step_delta > 0 ? "+" : ""}${result.step_delta} builds`;
+
+  $("#terra-bcr-summary").innerHTML = [
+    ["Terra BCR", `${terra.mean_steps} mean`, `${terra.total_steps} builds, ${terra.completed} terminal cases`],
+    ["Versus mini BCR", formatDelta(terra.vs_mini_bcr), "same BCR/top-k12 contract"],
+    ["Versus parent+LLM k3", formatDelta(terra.vs_parent_llm_topk3), "different frontier size"],
+    ["Boundary evidence", `${terra.canonical_boundary_matches}/10 canonical`, `${terra.skip_total} skips; one apply/reapply representation case`],
+  ]
+    .map(
+      ([label, metric, detail]) =>
+        `<article class="variant-summary-card"><h3>${esc(label)}</h3><div class="variant-arm"><strong>${esc(metric)}</strong><span>${esc(detail)}</span></div></article>`
+    )
+    .join("");
+
+  $("#parent-window-summary").innerHTML = [
+    ["Parent window", `${parentWindow.mean_steps} mean`, `${parentWindow.total_steps} builds, ${parentWindow.completed} terminal cases`],
+    ["Versus single-parent Terra", formatDelta(parentWindow.vs_terra_single_parent), "same model, frontier, and causal extractor"],
+    ["Versus parent+LLM k3", formatDelta(parentWindow.vs_parent_llm_topk3), "different model, extraction, and frontier size"],
+    ["Boundary evidence", `${parentWindow.canonical_boundary_matches}/10 canonical`, `${parentWindow.skip_total} skip; one apply/reapply representation case`],
+  ]
+    .map(
+      ([label, metric, detail]) =>
+        `<article class="variant-summary-card"><h3>${esc(label)}</h3><div class="variant-arm"><strong>${esc(metric)}</strong><span>${esc(detail)}</span></div></article>`
+    )
+    .join("");
+
+  $("#terra-bcr-body").innerHTML = comparison.rows
+    .map((row) => {
+      const delta = row.terra_bcr_steps - row.mini_bcr_steps;
+      const deltaClass = delta < 0 ? "cell-good" : delta > 0 ? "cell-warn" : "";
+      const windowDelta = row.parent_window_steps - row.terra_bcr_steps;
+      const windowDeltaClass = windowDelta < 0 ? "cell-good" : windowDelta > 0 ? "cell-warn" : "";
+      const terraCell = `${row.terra_bcr_steps}${delta ? ` <small>(${delta > 0 ? "+" : ""}${delta} vs mini)</small>` : ""}`;
+      const windowCell = `${row.parent_window_steps}${windowDelta ? ` <small>(${windowDelta > 0 ? "+" : ""}${windowDelta} vs single)</small>` : ""}`;
+      return `<tr><td class="left"><strong>${esc(row.issue)}</strong><span class="issue-title">${esc(row.title)}</span></td><td class="num">${esc(row.legacy_lm_steps)}</td><td class="num">${esc(row.parent_llm_topk3_steps)}</td><td class="num">${esc(row.mini_bcr_steps)}</td><td class="num ${deltaClass}" title="${esc(row.run_label)} on ${esc(row.source)}">${terraCell}</td><td class="num ${windowDeltaClass}" title="${esc(row.parent_window_run_label)} on ${esc(row.parent_window_source)}; ${esc(row.parent_window_skips)} skips">${windowCell}</td><td class="left" title="${esc(row.note)}">${row.parent_window_canonical_boundary ? "canonical" : "apply/reapply"}</td></tr>`;
+    })
+    .join("");
+
+  $("#terra-bcr-note").innerHTML = `<strong>Verified model:</strong> <code>${esc(
+    comparison.model.name
+  )}</code> with <code>${esc(comparison.model.reasoning_effort)}</code> reasoning effort. ${esc(
+    comparison.model.note
+  )}<br /><strong>Parent-window contract:</strong> ${esc(comparison.parent_window_configuration)}<br /><strong>Scope:</strong> ${esc(comparison.scope)}<br /><strong>Caveat:</strong> ${esc(
+    comparison.caveat
+  )}`;
+  renderLmRepeatability();
+}
+
+function renderLmRepeatability() {
+  const repeatability = state.data.terra_bcr_comparison?.repeatability;
+  if (!repeatability) return;
+  const replay = repeatability.cached_same_host_replay;
+  const topk3 = repeatability.cross_host_parent_topk3;
+  const topk20 = repeatability.cross_host_parent_topk20;
+  $("#lm-repeatability-summary").innerHTML = [
+    ["Cached replay", `${replay.exact_step_and_verdict_paths}/${replay.issue_groups} exact paths`, "same-host default score cache"],
+    ["Cross-host top-k3", `${topk3.boundary_agreements}/${topk3.issue_groups} boundaries`, `mean |step delta| ${topk3.mean_absolute_step_delta}`],
+    ["Cross-host top-k20", `${topk20.boundary_agreements}/${topk20.issue_groups} boundaries`, `mean selected-SHA overlap ${topk20.mean_selected_sha_jaccard}`],
+    ["Parent window", `${repeatability.parent_window_independent_repeats} independent repeats`, "repeatability not yet measured for this exact method"],
+  ]
+    .map(
+      ([label, metric, detail]) =>
+        `<article class="variant-summary-card"><h3>${esc(label)}</h3><div class="variant-arm"><strong>${esc(metric)}</strong><span>${esc(detail)}</span></div></article>`
+    )
+    .join("");
+
+  const cohorts = [
+    ["Parent+LLM top-k3, AWS vs EDU", topk3],
+    ["Parent+LLM 600k top-k20, AWS vs EDU", topk20],
+  ];
+  $("#lm-repeatability-body").innerHTML = cohorts
+    .map(
+      ([label, row]) => `<tr><td class="left"><strong>${esc(label)}</strong></td><td>${esc(row.issue_groups)}</td><td>${esc(row.boundary_agreements)} / ${esc(row.issue_groups)}</td><td>${esc(row.mean_absolute_step_delta)}</td><td>${esc(row.max_absolute_step_delta)}</td><td>${esc(row.mean_selected_sha_jaccard)}</td><td>${esc(row.mean_same_position_rate)}</td></tr>`
+    )
+    .join("");
+  $("#lm-repeatability-note").innerHTML = `<strong>Observed:</strong> ${esc(
+    repeatability.conclusion
+  )}<br /><strong>Cache control:</strong> ${esc(
+    repeatability.cache_caveat
+  )}<br /><strong>Current window-method limit:</strong> ${esc(repeatability.parent_window_caveat)}`;
+}
+
+function renderExperimentCell(result, baselineSteps = null) {
+  if (!result || result.state === "not_run") return '<span class="variant-state">not run</span>';
+  if (result.state !== "completed") {
+    const steps = typeof result.steps === "number" && result.steps > 0 ? ` (${result.steps})` : "";
+    return `<span class="variant-state ${esc(result.state)}">${esc(result.state)}${esc(steps)}</span>`;
+  }
+  const delta = typeof baselineSteps === "number" ? result.steps - baselineSteps : 0;
+  const cls = delta < 0 ? "cell-good" : delta > 0 ? "cell-warn" : "";
+  const suffix = baselineSteps != null && delta ? ` <small>(${delta > 0 ? "+" : ""}${delta})</small>` : "";
+  return `<span class="${cls}">${esc(result.steps)}${suffix}</span>`;
+}
+
+function renderDeterministicFactsBcr() {
+  const comparison = state.data.deterministic_facts_bcr;
+  if (!comparison) return;
+  const aggregate = comparison.aggregate;
+  const deltaText = (value) =>
+    `${value.wins} / ${value.ties} / ${value.losses} W/T/L; ${value.step_delta > 0 ? "+" : ""}${value.step_delta} builds on n=${value.compared}`;
+  $("#deterministic-facts-bcr-summary").innerHTML = `<strong>Human-study BCR V15:</strong> ${esc(aggregate.completed)} terminal zero-skip cases, ${esc(aggregate.total_steps)} runner builds, ${esc(aggregate.mean_steps)} mean. ${esc(aggregate.canonical_boundary_matches)} match the Git/reference boundary; ${esc(aggregate.accepted_alternate_boundaries)} is the known original-apply versus reapply representation. No accepted V15 histories remain interrupted or queued.<br /><strong>Matched comparison:</strong> versus single-parent BCR ${esc(deltaText(aggregate.vs_terra_single_parent))}; versus historical human-guided BCR ${esc(deltaText(aggregate.vs_human_guided))}; versus five-parent-window BCR ${esc(deltaText(aggregate.vs_parent_window))}.`;
+  $("#deterministic-facts-rule-cards").innerHTML = comparison.integration.rules
+    .map(
+      (rule) =>
+        `<article class="expansion-method"><div class="variant-label">Rule ${esc(rule.number)}</div><h3>${esc(rule.title)}</h3><p>${esc(rule.applied_as)}</p></article>`
+    )
+    .join("");
+  $("#deterministic-facts-bcr-body").innerHTML = comparison.rows
+    .map(
+      (row) =>
+        `<tr><td class="left"><strong>${esc(row.issue)}</strong><span class="issue-title">${esc(row.title)}</span></td><td class="num">${esc(row.terra_single_parent.steps)}</td><td class="num">${esc(row.human_guided.steps)}</td><td class="num">${esc(row.parent_window.steps)}</td><td class="num">${renderExperimentCell(row.deterministic_facts, row.terra_single_parent.steps)}</td><td class="left" title="${esc(row.deterministic_facts.note || row.deterministic_facts.run_label || "")}">${esc(row.deterministic_facts.state)}</td></tr>`
+    )
+    .join("");
+  $("#deterministic-facts-bcr-note").innerHTML = `<strong>What changed:</strong> ${esc(comparison.integration.summary)} <strong>Configuration:</strong> ${esc(comparison.configuration)} <strong>Scope:</strong> ${esc(comparison.scope)}`;
+}
+
+function renderDeterministicFactsV16Window() {
+  const v15 = state.data.deterministic_facts_bcr;
+  const v16 = state.data.deterministic_facts_bcr_v16_window;
+  if (!v15 || !v16) return;
+  const aggregate = v16.aggregate;
+  const delta = aggregate.vs_v15;
+  const deltaText = `${delta.wins} / ${delta.ties} / ${delta.losses} W/T/L; ${
+    delta.step_delta > 0 ? "+" : ""
+  }${delta.step_delta} builds on n=${delta.compared}`;
+  const v16ByIssue = new Map(v16.rows.map((row) => [row.issue, row.v16_window]));
+
+  $("#deterministic-facts-bcr-summary").innerHTML += `<br /><strong>V16 artifact-complete, five-parent window:</strong> ${esc(aggregate.completed)} terminal zero-skip cases, ${esc(aggregate.total_steps)} runner builds, ${esc(aggregate.mean_steps)} mean. It is ${esc(aggregate.total_steps - v15.aggregate.total_steps)} build higher than V15 on this cohort (${esc(deltaText)}), so the added artifact lookup and parent window do not show a scoped-ten efficiency gain.`;
+  $("#deterministic-facts-bcr-body").innerHTML = v15.rows
+    .map((row) => {
+      const v16Row = v16ByIssue.get(row.issue);
+      return `<tr><td class="left"><strong>${esc(row.issue)}</strong><span class="issue-title">${esc(row.title)}</span></td><td class="num">${esc(row.terra_single_parent.steps)}</td><td class="num">${esc(row.human_guided.steps)}</td><td class="num">${esc(row.parent_window.steps)}</td><td class="num">${renderExperimentCell(row.deterministic_facts, row.terra_single_parent.steps)}</td><td class="num">${renderExperimentCell(v16Row, row.deterministic_facts.steps)}</td><td class="left" title="${esc(v16Row.note || v16Row.run_label || "")}">${esc(v16Row.state)}</td></tr>`;
+    })
+    .join("");
+  $("#deterministic-facts-bcr-note").innerHTML += ` <strong>V16 configuration:</strong> ${esc(v16.configuration)} <strong>V16 scope:</strong> ${esc(v16.scope)}`;
+}
+
+function renderHeuristicFactorAblation() {
+  const ablation = state.data.heuristic_factor_ablation;
+  if (!ablation) return;
+  $("#heuristic-factor-formula").textContent = ablation.baseline.formula;
+  $("#heuristic-factor-ablation-cards").innerHTML = ablation.factors
+    .map((factor) => {
+      const aggregate = factor.aggregate;
+      const delta = aggregate.step_delta > 0 ? `+${aggregate.step_delta}` : aggregate.step_delta;
+      return `<article class="variant-summary-card"><h3>${esc(factor.label)}</h3><div class="variant-arm"><strong>${esc(aggregate.mean_steps ?? "-")}</strong><span>clean mean, n=${esc(aggregate.completed_clean)}</span><small>${esc(factor.disabled_component)} disabled. W/T/L ${esc(aggregate.wins)}/${esc(aggregate.ties)}/${esc(aggregate.losses)} vs baseline; ${esc(delta)} builds. ${esc(aggregate.non_clean)} skip-capped and ${esc(aggregate.interrupted_or_running)} running excluded.</small></div></article>`;
+    })
+    .join("");
+  const factorsByIssue = new Map();
+  for (const factor of ablation.factors) {
+    for (const row of factor.rows) factorsByIssue.set(`${factor.key}:${row.issue}`, row);
+  }
+  const issues = ablation.factors[0]?.rows || [];
+  $("#heuristic-factor-ablation-body").innerHTML = issues
+    .map((base) => {
+      const cells = ablation.factors.map(
+        (factor) => factorsByIssue.get(`${factor.key}:${base.issue}`)?.result
+      );
+      return `<tr><td class="left"><strong>${esc(base.issue)}</strong><span class="issue-title">${esc(base.title)}</span></td><td class="num cell-reference">${esc(base.baseline.steps)}</td>${cells.map((result) => `<td class="num">${renderExperimentCell(result, base.baseline.steps)}</td>`).join("")}</tr>`;
+    })
+    .join("");
+  $("#heuristic-factor-ablation-note").innerHTML = `<strong>Baseline contract:</strong> ${esc(ablation.baseline.scope)} A factor is only compared on rows with a clean terminal result; the current evidence is partial and must not be read as a full-cohort ranking.`;
 }
 
 function renderKeywordExamples() {
@@ -467,6 +833,30 @@ function renderKeywordComparison(keywords) {
     { label: "Shared crash heuristic", metrics: keywords.aggregate.shared_crash },
     { label: "Weak maintenance heuristic", metrics: keywords.aggregate.weak_maintenance },
   ]);
+  const patchProof = keywords.oracle_patch_proof;
+  const failedPreflight = patchProof.failed_preflight.join(", ");
+  const completedIssues = patchProof.completed_issues.join(", ") || "none";
+  const runningIssues = patchProof.running_issues.join(", ") || "none";
+  const unresolvedIssues = patchProof.unresolved_issues.join(", ") || "none";
+  $("#oracle-patch-proof").innerHTML =
+    "<strong>Patch-fingerprint proof diagnostic:</strong> " +
+    esc(patchProof.definition) +
+    " <strong>Current result:</strong> " +
+    esc(patchProof.completed_count) +
+    " accepted proofs (" +
+    esc(completedIssues) +
+    "), " +
+    esc(patchProof.running_count) +
+    " active run (" +
+    esc(runningIssues) +
+    "), and " +
+    esc(patchProof.unresolved_count) +
+    " retained 30-step all-skip non-results (" +
+    esc(unresolvedIssues) +
+    "). The retained zero-step preflight failures are " +
+    esc(failedPreflight) +
+    ". " +
+    esc(patchProof.warning);
   $("#keyword-note").innerHTML =
     "<strong>Interpretation:</strong> " +
     esc(keywords.comparison_note) +
@@ -476,7 +866,13 @@ function renderKeywordComparison(keywords) {
     "</strong> mean builds, <strong>" +
     esc(keywords.aggregate.oracle_first_bad.first_bad_matches) +
     "/10</strong> canonical first-bad boundaries, and is excluded from the comparison because " +
-    esc(keywords.oracle_first_bad.warning);
+    esc(keywords.oracle_first_bad.warning) +
+    " The answer-term posterior control has <strong>" +
+    esc(keywords.aggregate.oracle_posterior_control.avg_steps) +
+    "</strong> mean builds across <strong>" +
+    esc(keywords.aggregate.oracle_posterior_control.count) +
+    "/10</strong> completed rows; " +
+    esc(keywords.oracle_posterior_control.warning);
   renderKeywordVocabulary(keywords);
   $("#keyword-body").innerHTML = keywords.rows
     .map((row) => {
@@ -501,6 +897,12 @@ function renderKeywordComparison(keywords) {
         '<td class="num oracle-diagnostic" title="Diagnostic only; derived from the known first-bad commit.">' +
         esc(row.oracle_first_bad.steps) +
         "</td>" +
+        '<td class="num oracle-diagnostic" title="Diagnostic only; leaked terms with normal calibrated-posterior selection.">' +
+        diagnosticCellText(row.oracle_posterior_control) +
+        "</td>" +
+        '<td class="num oracle-diagnostic" title="Diagnostic only; exact first-bad patch fingerprint plus runner-backed parent proof.">' +
+        diagnosticCellText(row.oracle_patch_proof) +
+        "</td>" +
         '<td class="left oracle-keywords"><details><summary>' +
         esc(row.oracle_first_bad.generated_keywords.length) +
         ' generated terms</summary><div class="oracle-keyword-list">' +
@@ -510,6 +912,14 @@ function renderKeywordComparison(keywords) {
       );
     })
     .join("");
+}
+
+function diagnosticCellText(result) {
+  if (result.state === "completed") return esc(result.steps);
+  if (result.state === "running") return "running (" + esc(result.steps) + ")";
+  if (result.state === "stopped") return "stopped (" + esc(result.steps) + ")";
+  if (result.state === "unresolved") return "unresolved (" + esc(result.skips) + " skips)";
+  return "-";
 }
 
 const CONVERGENCE_COLORS = {

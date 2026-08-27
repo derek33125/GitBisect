@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Master Benchmark Status - LLM-Guided Git Bisect</title>
+    <meta name="description" content="Searchable canonical master status table for LLVM crash bisection experiments." />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <header class="site-header compact-header">
+      <div class="wrap">
+        <div class="eyebrow">Canonical benchmark ledger</div>
+        <h1>Master Status Report</h1>
+        <p class="lede">The full issue table used to coordinate local, EDU, and AWS runs. It is generated from <code>results/master-status-report.md</code>; this page does not maintain a second experiment ledger.</p>
+        <p class="scope" id="scope-note"></p>
+      </div>
+    </header>
+    <nav class="tabbar" aria-label="Presentation pages">
+      <div class="wrap tabbar-inner">
+        <a href="./index.html" class="tab">Overview &amp; results</a>
+        <a href="./focused-results.html" class="tab">Focused comparisons</a>
+        <a href="./k12-variants.html" class="tab">Variant matrix</a>
+        <a href="./human-analysis.html" class="tab">Human study &amp; ablations</a>
+        <a href="./causality-study.html" class="tab">Causality study</a>
+        <a href="./master-status.html" class="tab active">Master status</a>
+        <a href="./runtime.html" class="tab">Runtime &amp; LLM I/O</a>
+        <a href="./explorer.html" class="tab">Trace explorer</a>
+      </div>
+    </nav>
+    <main class="wrap">
+      <section class="section">
+        <div class="page-kicker">Live source / complete ledger</div>
+        <h2>Search the canonical table</h2>
+        <p class="section-sub">Each method cell is <code>steps / skips</code>. Interval commits come from an endpoint-matched retained run history, including packaged EDU/AWS results, otherwise an explicit canonical-ledger count; unavailable means neither source exists. Every new BCR or heuristic <code>run-history.json</code> records <code>initial_unresolved</code>, so rebuilding this page automatically backfills its exact endpoint-matched interval. Valid-result counts include only terminal, clean rows; running, endpoint-invalid, non-unique, and mismatch results remain visible but are excluded.</p>
+        <div id="master-status-metrics" class="master-metrics" aria-label="Master method coverage"></div>
+        <div class="master-toolbar">
+          <label for="master-status-search">Filter rows</label>
+          <input id="master-status-search" type="search" placeholder="e.g. pr165039, BCR, heuristic, completed, skip" autocomplete="off" />
+          <span id="master-status-count"></span>
+        </div>
+        <div class="table-scroll master-table-wrap">
+          <table class="cmp master-table">
+            <thead><tr><th class="left">Issue</th><th class="left">State</th><th>Interval<br /><small>commits</small></th><th>Git bisect<br /><small>steps / skips</small></th><th>Legacy LM-bisect<br /><small>steps / skips</small></th><th>Issue-specific heuristic<br /><small>steps / skips</small></th><th>Weak-general heuristic<br /><small>steps / skips</small></th><th>BCR top-k12<br /><small>steps / skips</small></th><th>Good anchor</th><th>Bad anchor</th><th>First bad</th><th class="left">Notes</th></tr></thead>
+            <tbody id="master-status-body"></tbody>
+          </table>
+        </div>
+        <p class="note">The source ledger retains host and run-history detail for auditability. This matrix derives the method columns from that ledger; `V1 causal model` rows are counted as BCR only where the report records the validated causal-LLM top-k12 configuration.</p>
+      </section>
+    </main>
+    <footer class="site-footer"><div class="wrap"><p id="footer-note"></p></div></footer>
+    <script src="./app.js"></script>
+  </body>
+</html>

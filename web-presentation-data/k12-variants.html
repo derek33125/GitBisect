@@ -24,6 +24,9 @@
         <a href="./index.html" class="tab">Overview &amp; results</a>
         <a href="./focused-results.html" class="tab">Focused comparisons</a>
         <a href="./k12-variants.html" class="tab active">Variant matrix</a>
+        <a href="./human-analysis.html" class="tab">Human study &amp; ablations</a>
+        <a href="./causality-study.html" class="tab">Causality study</a>
+        <a href="./master-status.html" class="tab">Master status</a>
         <a href="./runtime.html" class="tab">Runtime &amp; LLM I/O</a>
         <a href="./explorer.html" class="tab">Trace explorer</a>
       </div>
@@ -34,11 +37,12 @@
         <h2>Exactly what changes from the base loop</h2>
         <p class="section-sub">The base run uses a parent diff, LLM extraction, a semantic top-k frontier, calibrated-posterior selection, and a runner-backed good/bad/skip update. Every card below changes one decision point while retaining the same issue profile, endpoints, runner, and terminal boundary rule.</p>
         <article class="variant-base" id="variant-base-contract">
-          <div><span class="variant-label">Base parent-diff + LLM</span><h3>One deterministic search loop with one bounded model call</h3><p>For every unresolved candidate, the deterministic prefilter scores issue terms, paths, and build likelihood. It sends only the top-k candidates to the LLM. The LLM ranks that frontier using the issue report and extracted parent-diff evidence. The selector builds one chosen SHA, records the runner verdict, and contracts the good/bad interval.</p></div>
+          <div><span class="variant-label">Base parent-diff + LLM</span><h3>One deterministic search loop with two model stages</h3><p>For every unresolved candidate, the deterministic prefilter scores issue terms, paths, and build likelihood. It sends only the top-k candidates to an extraction call, then gives the extracted evidence to the scorer. The selector builds one chosen SHA, records the runner verdict, and contracts the good/bad interval.</p></div>
           <pre class="formula"><span class="cm"># unchanged control flow</span>
 records = prefilter(unresolved, issue_profile)
 frontier = semantic_top_k(records, k)
-scores = LLM(issue, extract_parent_diff(frontier))
+diff_evidence = LLM_extract(issue, parent_diff(frontier))
+scores = LLM_score(issue, diff_evidence)
 candidate = calibrated_posterior_select(scores, unresolved)
 verdict = build_and_reproduce(candidate)  <span class="hl"># good | bad | skip</span>
 unresolved = update_interval(unresolved, candidate, verdict)</pre>
@@ -63,14 +67,15 @@ frontier = [semantic_leader,
           <article class="variant-method">
             <div class="variant-label">Variant 2 / evidence</div>
             <h3>Structured causal parent-diff reasoning</h3>
-            <p><strong>Change:</strong> replaces generic LLM diff compression with retrieval plus a structured causal extraction. The frontier remains semantic top-k.</p>
-            <pre class="formula"><span class="cm"># base extractor: summary(diff)</span>
-retrieval = top_hunks(parent_diff,
-  relevant_path + high_risk_path + issue_keyword)
-evidence = LLM({changed_symbols, behavioral_change,
-  assertion_or_trace_link, reproducer_link,
-  pass_or_subsystem_link, confidence, build_risk})</pre>
-            <p><strong>Why it differs:</strong> the scorer receives a typed explanation and selected function context rather than a broad diff summary. This makes the connection to the assertion, reproducer, or pass inspectable.</p>
+            <p><strong>Change:</strong> BCR replaces the generic raw-diff summary. It keeps the semantic top-k frontier and the shared scorer, but swaps only the extraction stage.</p>
+            <pre class="formula"><span class="cm"># generic method</span>
+parent_diff &rarr; LLM_extract(raw diff) &rarr; normalized summary &rarr; shared scorer
+
+<span class="cm"># BCR replacement extraction</span>
+parent_diff &rarr; file ranking &rarr; hunk ranking &rarr; context lookup
+            &rarr; causal LLM extraction &rarr; normalized causal evidence
+            &rarr; shared scorer</pre>
+            <p><strong>What does not happen:</strong> no second generic raw-diff summary runs in parallel. The BCR causal extraction is the only extraction output for that candidate. Its normalized causal evidence is supplied as the scorer's <code>diff_summary</code>; generic scorer <code>evidence</code> remains a separate short rationale.</p>
             <div class="variant-example"><strong>Trace example, pr204559 step 1:</strong> candidate <code>d518f8ff6740</code> extracted <code>ClobberWalker::addSearches</code>, <code>checkClobberSanity</code>, and a loop-carried MemorySSA test. Its causal evidence linked cross-iteration clobber-walker handling to the reported verification assertion with confidence <code>0.84</code>.</div>
             <p class="code-ref"><code>retrieve_causal_diff_evidence</code>; <code>build_causal_diff_extraction_prompt</code>; <code>model_diff_extraction=causal-llm</code>.</p>
             <dl><dt>k3</dt><dd>Historical causal extraction run.</dd><dt>k12</dt><dd>Same extraction with 12 LLM-scored candidates.</dd></dl>
@@ -105,15 +110,21 @@ frontier = semantic_top_k       if confidence &gt;= threshold
         </div>
         <p class="variant-caveat">The examples describe real saved step artifacts or the exact implemented rule. They explain control-flow differences; they do not imply that a policy is valid on every row. The result matrix below applies the endpoint-validity and completion filters.</p>
       </section>
+      <section class="section" id="causal-retrieval">
+        <div class="page-kicker">02 / BCR retrieval path</div>
+        <h2>How BCR retrieves evidence</h2>
+        <p class="section-sub">This renders one actual saved causal top-k12 candidate. The path is parent diff &rarr; file ranking &rarr; hunk ranking &rarr; context lookup &rarr; causal extraction &rarr; shared scoring handoff. BCR replaces generic extraction rather than adding a parallel summary branch.</p>
+        <div id="causal-retrieval-example"></div>
+      </section>
       <section class="section">
-        <div class="page-kicker">02 / Matched completion</div>
+        <div class="page-kicker">03 / Matched completion</div>
         <h2>Aggregate runner build steps</h2>
         <p class="section-sub">Lower is better. Each card compares a configuration only with the common reference on the exact rows that configuration has completed validly. It never treats a pending or invalid row as a loss.</p>
         <div class="variant-summary" id="k12-variant-cards"></div>
         <div class="focused-note" id="k12-variant-note"></div>
       </section>
       <section class="section">
-        <div class="page-kicker">03 / Per issue</div>
+        <div class="page-kicker">04 / Per issue</div>
         <h2>Runner build steps to a terminal boundary</h2>
         <p class="section-sub">Completed values are terminal, endpoint-valid histories. <strong>running</strong> includes the recorded current step count; <strong>not run</strong> means that arm was never launched; <strong>invalid</strong> is excluded due to provenance or endpoint failure.</p>
         <div class="table-scroll variant-table-wrap">
@@ -127,7 +138,50 @@ frontier = semantic_top_k       if confidence &gt;= threshold
         </div>
         <p class="note">The historical and fixed-k12 arms differ in frontier size and launch time. This page reports observations; it does not claim a controlled causal effect of k alone.</p>
       </section>
-      <section class="section page-links"><a class="next-page" href="./focused-results.html"><span>Compare</span><strong>Return to top-k and heuristic controls</strong><b>&larr;</b></a><a class="next-page" href="./runtime.html"><span>Inspect</span><strong>See the runtime architecture and LLM boundary</strong><b>&rarr;</b></a></section>
+      <section class="section" id="expansion-guidance">
+        <div class="page-kicker">05 / Benchmark expansion</div>
+        <h2>What each method contributes on new issues</h2>
+        <p class="section-sub">This direct three-way comparison uses endpoint-valid completed rows only: issue-specific heuristic, the original parent-diff plus LLM top-k3 reference, and structured causal parent-diff reasoning. The causal arm is fixed-k12, so the result is operational rather than an isolation of frontier size from extraction.</p>
+        <div class="expansion-methods" id="expansion-method-cards"></div>
+        <div class="table-scroll expansion-table-wrap">
+          <table class="cmp expansion-table">
+            <thead><tr><th class="left">Crash family</th><th>Cases</th><th>Heuristic<br />mean</th><th>Original model<br />mean</th><th>Causal model<br />mean</th><th>Causal vs original<br />W / T / L</th><th>Step delta</th></tr></thead>
+            <tbody id="expansion-type-body"></tbody>
+          </table>
+        </div>
+        <div class="focused-note" id="expansion-recommendation"></div>
+      </section>
+      <section class="section" id="terra-bcr-comparison">
+        <div class="page-kicker">06 / Stronger model check</div>
+        <h2>GPT-5.6 Terra BCR versus retained LM-bisect baselines</h2>
+        <p class="section-sub">This is the completed stronger-model BCR cohort. It preserves the BCR contract: parent diffs, causal retrieval, top-k12, calibrated-posterior selection, and trace-only runner evidence. The only intended model change is <code>gpt-5.6-terra</code> at high reasoning effort.</p>
+        <div class="variant-summary" id="terra-bcr-summary"></div>
+        <div id="parent-window-comparison" class="focused-note">
+          <h3>Five-parent window context</h3>
+          <p>For each candidate, this completed cohort adds the candidate's own parent diff and five first-parent predecessors before causal extraction. The scorer still receives structured causal evidence, not six raw diffs, and the frontier remains top-k12.</p>
+          <div class="variant-summary" id="parent-window-summary"></div>
+        </div>
+        <div class="table-scroll variant-table-wrap">
+          <table class="cmp variant-table">
+            <thead><tr><th class="left">Issue</th><th>Legacy LM</th><th>Parent+LLM<br />k3</th><th>Mini BCR<br />k12</th><th>Terra BCR<br />single parent</th><th>Terra BCR<br />5-parent window</th><th>Boundary</th></tr></thead>
+            <tbody id="terra-bcr-body"></tbody>
+          </table>
+        </div>
+        <div class="focused-note" id="terra-bcr-note"></div>
+        <div id="lm-repeatability" class="focused-note">
+          <h3>Boundary stable, path variable</h3>
+          <p>Retained repeated configurations separate deterministic cache replay from cross-host reruns. Boundary agreement, step-count spread, and selected-commit overlap answer different reproducibility questions.</p>
+          <div class="variant-summary" id="lm-repeatability-summary"></div>
+          <div class="table-scroll variant-table-wrap">
+            <table class="cmp variant-table">
+              <thead><tr><th class="left">Repeat cohort</th><th>Issue pairs</th><th>Boundary agreement</th><th>Mean |step delta|</th><th>Max |step delta|</th><th>Selected-SHA overlap</th><th>Same-position rate</th></tr></thead>
+              <tbody id="lm-repeatability-body"></tbody>
+            </table>
+          </div>
+          <p id="lm-repeatability-note"></p>
+        </div>
+      </section>
+      <section class="section page-links"><a class="next-page" href="./focused-results.html"><span>Compare</span><strong>Return to top-k and heuristic controls</strong><b>&larr;</b></a><a class="next-page" href="./human-analysis.html"><span>Study</span><strong>Read the human findings and heuristic ablations</strong><b>&rarr;</b></a><a class="next-page" href="./runtime.html"><span>Inspect</span><strong>See the runtime architecture and LLM boundary</strong><b>&rarr;</b></a></section>
     </main>
     <footer class="site-footer"><div class="wrap"><p id="footer-note"></p></div></footer>
     <script src="./app.js"></script>

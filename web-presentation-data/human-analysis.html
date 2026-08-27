@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Human Study and Ablations - LLM-Guided Git Bisect</title>
+    <meta name="description" content="Human crash-causality findings, their crash-aware BCR integration, completed runner-backed results, and tuned-heuristic factor ablations." />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <header class="site-header compact-header">
+      <div class="wrap">
+        <div class="eyebrow">Scoped-10 / human analysis and ablations</div>
+        <h1>Human Study &amp; Ablations</h1>
+        <p class="lede">The human retrospective study is converted into an auditable crash-aware BCR retrieval policy, then measured separately from the deterministic heuristic scoring factors.</p>
+        <p class="scope" id="scope-note"></p>
+      </div>
+    </header>
+    <nav class="tabbar" aria-label="Presentation pages">
+      <div class="wrap tabbar-inner">
+        <a href="./index.html" class="tab">Overview &amp; results</a>
+        <a href="./focused-results.html" class="tab">Focused comparisons</a>
+        <a href="./k12-variants.html" class="tab">Variant matrix</a>
+        <a href="./human-analysis.html" class="tab active">Human study &amp; ablations</a>
+        <a href="./causality-study.html" class="tab">Causality study</a>
+        <a href="./master-status.html" class="tab">Master status</a>
+        <a href="./runtime.html" class="tab">Runtime &amp; LLM I/O</a>
+        <a href="./explorer.html" class="tab">Trace explorer</a>
+      </div>
+    </nav>
+    <main class="wrap">
+      <section class="section" id="human-analysis-bcr">
+        <div class="page-kicker">01 / What the study found</div>
+        <h2>Crash evidence is a prior, not a first-bad locator</h2>
+        <p class="section-sub">Across the scoped ten, the retrospective analysis classified six first-bad changes as direct mechanism matches and four as indirect enablers. The crash site is often a checker rather than the producer, so the method must preserve every unresolved commit and use crash evidence to improve retrieval rather than as a hard candidate filter.</p>
+        <div class="focused-note" id="deterministic-facts-bcr-summary"></div>
+        <div class="expansion-methods" id="deterministic-facts-rule-cards"></div>
+      </section>
+      <section class="section" id="human-analysis-integration">
+        <div class="page-kicker">02 / What changed in BCR</div>
+        <h2>V15 sends deterministic facts and real hunks to one ordinal judge</h2>
+        <p class="section-sub">Original BCR retrieves parent-diff evidence, asks one LLM to compress it, then asks a second LLM for an absolute semantic score. V15 keeps the top-k12 frontier and runner update, but moves fact construction into code and removes that extract-then-score pair: one ordinal LLM call judges failure mechanism from selected real hunks plus structured crash and repository facts. V16 retains that loop, adds artifact-complete lookup for future master-50 runs, and supplies five parent contexts per candidate.</p>
+        <article class="variant-base">
+          <div><span class="variant-label">BCR V15 / deterministic facts</span><h3>Use the known crash contract before the first build</h3><p>Code parses the bad-endpoint crash artifact and ranks parent-diff hunks with stack business symbols, pass tokens, assertion terms, signed crash-file frequency, dependency/API use, assertion-contract context, destruction surface, and explicit contact-path or no-contact facts. A rare crash file is treated as a likely checker. These are weights, never eligibility filters.</p></div>
+          <pre class="formula"><span class="cm"># original BCR: two LLM calls</span>
+evidence = causal_LLM_extract(selected_hunks, context)
+semantic = LLM_absolute_score(evidence, issue_summary)
+
+<span class="cm"># V15: code builds facts; one LLM judges mechanism</span>
+facts = crash_contract + checker_polarity + dependency_use
+facts += invariant_context + destruction_surface + contact_path
+ordinal = LLM_rank_mechanism(selected_real_hunks, facts)
+posterior = calibrate_ordinal_in_code(ordinal, unresolved)
+candidate = calibrated_posterior_select(posterior, unresolved)</pre>
+        </article>
+      </section>
+      <section class="section" id="human-guided-method-comparison">
+        <div class="page-kicker">Method contract / evidence and leakage</div>
+        <h2>Human-guided BCR is crash-informed, not first-bad-informed</h2>
+        <p class="section-sub">The phrase "human-guided" describes where the extra retrieval signals came from, not that a human supplied the answer. The important boundary is whether the run receives information derived from the unknown first-bad commit. Parsing the crash artifact at runtime is valid: a bisect starts with a known bad endpoint and can inspect its failure report. Supplying the first-bad SHA, its patch, or an anchor selected after seeing ground truth is answer leakage.</p>
+        <div class="variant-methods">
+          <article class="variant-method">
+            <span class="variant-label">Original BCR / causal-llm</span>
+            <h3>Issue profile plus candidate parent-diff evidence</h3>
+            <p>For each unresolved interval, it ranks changed files and hunks using the issue profile, relevant and high-risk paths, and issue keywords. It retrieves bounded function context, asks one causal extractor to summarize the candidate change, and sends that evidence to the shared calibrated-posterior scorer.</p>
+            <div class="variant-example"><code>issue profile + parent diff -> file/hunk ranking -> function context -> causal extraction -> posterior scoring</code></div>
+            <dl>
+              <dt>Input</dt><dd>No crash-artifact signal in the production retrieval policy.</dd>
+              <dt>Status</dt><dd><span class="badge badge-good">No first-bad leakage</span></dd>
+            </dl>
+          </article>
+          <article class="variant-method">
+            <span class="variant-label">Historical Human-guided BCR / causal-llm-human</span>
+            <h3>Original loop plus step-zero crash signals</h3>
+            <p>It parses the supplied crash or assertion artifact before the first probe and adds source paths, business stack symbols, pass tokens, and assertion query terms to file and hunk ranking. The historical pilot used <code>human-study-v1</code> normalization, which was designed retrospectively from this scoped study.</p>
+            <div class="variant-example"><code>crash artifact at runtime -> normalized signals -> parent-diff ranking -> causal extraction -> posterior scoring</code></div>
+            <dl>
+              <dt>Input</dt><dd>Known bad-endpoint artifact; no first-bad SHA or first-bad patch.</dd>
+              <dt>Status</dt><dd><span class="badge badge-skip">Not direct answer leakage</span>, but study-tuned and not a clean deployable baseline.</dd>
+            </dl>
+          </article>
+          <article class="variant-method">
+            <span class="variant-label">Human-study BCR V15 / causal-llm-deterministic-facts</span>
+            <h3>Runtime crash facts plus one ordinal mechanism judgment</h3>
+            <p>It uses the general runtime parser, then has deterministic code rank crash-aware hunks and compute checker polarity, assertion-contract, destruction-surface, dependency-use, and contact-path facts. Selected real hunks and those facts go directly to one ordinal rank/mechanism/confidence call; code calibrates the result into the existing posterior.</p>
+            <div class="variant-example"><code>parse artifact -> deterministic hunk/fact construction -> one ordinal mechanism call -> code calibration -> posterior scoring</code></div>
+            <dl>
+              <dt>Input</dt><dd>Runtime crash artifact and known bad endpoint only; no study-selected anchor map, first-bad SHA, or first-bad patch.</dd>
+              <dt>Status</dt><dd><span class="badge badge-good">No first-bad leakage</span></dd>
+            </dl>
+          </article>
+          <article class="variant-method">
+            <span class="variant-label">V16 window BCR / causal-llm-deterministic-facts-artifact</span>
+            <h3>V15 loop with artifact-complete lookup and five parent diffs</h3>
+            <p>V16 keeps V15's deterministic fact construction, single ordinal mechanism call, and calibrated posterior. It first discovers packaged <code>crash-assertion.err</code> artifacts for broader master-50 coverage, then supplies the candidate diff plus five first-parent contexts. Compatibility compiler settings are execution plumbing only and do not change retrieval or scoring.</p>
+            <div class="variant-example"><code>artifact lookup -> deterministic facts + candidate/5-parent diffs -> one ordinal mechanism call -> code calibration</code></div>
+            <dl>
+              <dt>Input</dt><dd>Runtime crash artifact and known bad endpoint only; no first-bad SHA, patch, or ground-truth-selected anchor.</dd>
+              <dt>Status</dt><dd><span class="badge badge-good">No first-bad leakage</span></dd>
+            </dl>
+          </article>
+        </div>
+        <div class="focused-note">
+          <strong>How to read the claim:</strong> runtime parsing is not the leak. The historical method is "not direct answer leakage" because it does not receive the first-bad identity, but its fixed normalization was shaped after reviewing this cohort, so its result is reported as a historical study-tuned comparison. V15 derives facts from the artifact and repository at runtime, does not use a ground-truth-selected per-issue signal, and never treats those facts as a build observation.
+        </div>
+        <div class="variant-caveat">
+          <strong>Separate diagnostic methods:</strong> the answer-informed pool/frontier methods (<code>causal-llm-human-pool</code>, <code>human-prior</code>, and <code>human-frontier</code>) and oracle heuristic variants use retrospective signal mappings or first-bad-derived information. They must not be grouped with <code>causal-llm-human</code> or V15 when claiming a non-leaking baseline.
+        </div>
+      </section>
+      <section class="section" id="human-analysis-partial-results">
+        <div class="page-kicker">03 / Runner-backed result</div>
+        <h2>Human-study BCR V15 completes the scoped ten; V16 follows it across the same cases</h2>
+        <p class="section-sub">This table compares the valid human-study loop with completed Terra single-parent BCR, historical Human-guided BCR, and the historical five-parent-window BCR. Every accepted V15 and V16 row is an endpoint-valid, zero-skip terminal history; nine match the Git/reference boundary and pr49535 retains the known original-apply versus reapply representation.</p>
+        <div class="table-scroll variant-table-wrap">
+          <table class="cmp variant-table">
+            <thead><tr><th class="left">Issue</th><th>Terra BCR<br />single parent</th><th>Human-guided<br />BCR</th><th>Terra BCR<br />5-parent window</th><th>Human-study<br />BCR V15</th><th>V16 artifact-complete<br />5-parent window</th><th>V16 state</th></tr></thead>
+            <tbody id="deterministic-facts-bcr-body"></tbody>
+          </table>
+        </div>
+        <p class="note" id="deterministic-facts-bcr-note"></p>
+      </section>
+      <section class="section" id="heuristic-factor-ablation">
+        <div class="page-kicker">04 / Heuristic scoring ablation</div>
+        <h2>Which tuned-heuristic factors carry the ranking signal?</h2>
+        <p class="section-sub">The baseline is a deterministic semantic score followed by calibrated-posterior selection. Each ablation removes exactly one factor; endpoints, runner, candidate interval, posterior policy, and all remaining factors stay fixed. Skip-capped and running histories stay visible but never enter the clean aggregate.</p>
+        <article class="variant-base" id="heuristic-factor-baseline">
+          <div><span class="variant-label">Tuned baseline</span><h3>Semantic relevance, buildability, and observed feedback</h3><p>Issue-specific crash terms and path priors generate semantic relevance. Build-success probability prevents selection of candidates likely to fail for unrelated configuration reasons. Runner observations then reweight later candidates, while only a successful reproduction contracts the actual good/bad interval.</p></div>
+          <pre class="formula" id="heuristic-factor-formula"></pre>
+        </article>
+        <div class="variant-summary" id="heuristic-factor-ablation-cards"></div>
+        <div class="table-scroll variant-table-wrap">
+          <table class="cmp variant-table">
+            <thead><tr><th class="left">Issue</th><th>Tuned<br />baseline</th><th>Minus<br />keywords</th><th>Minus relevant<br />paths</th><th>Minus high-risk<br />paths</th><th>Minus risky<br />words</th><th>Minus<br />buildability</th><th>Minus<br />feedback</th></tr></thead>
+            <tbody id="heuristic-factor-ablation-body"></tbody>
+          </table>
+        </div>
+        <p class="note" id="heuristic-factor-ablation-note"></p>
+      </section>
+      <section class="section page-links"><a class="next-page" href="./k12-variants.html"><span>Compare</span><strong>Return to the isolated policy variants</strong><b>&larr;</b></a><a class="next-page" href="./causality-study.html"><span>Inspect</span><strong>Read the per-case causality study</strong><b>&rarr;</b></a></section>
+    </main>
+    <footer class="site-footer"><div class="wrap"><p id="footer-note"></p></div></footer>
+    <script src="./app.js"></script>
+  </body>
+</html>

@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>First-Bad Trace Causality Study - LLM-Guided Git Bisect</title>
+    <meta name="description" content="Detailed scoped-ten audit connecting validated first-bad commits to saved LLVM crash and assertion evidence." />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500,600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <header class="site-header compact-header">
+      <div class="wrap">
+        <div class="eyebrow">Scoped-10 / retrospective first-bad audit</div>
+        <h1>First-Bad Trace Causality Study</h1>
+        <p class="lede">A detailed review of each validated first-bad change against its saved crash report, assertion, or runner verdict. The objective is to identify retrieval signals that generalize to a future LM-bisect run, including indirect producer changes that a downstream verifier reports later.</p>
+        <p class="scope" id="scope-note"></p>
+      </div>
+    </header>
+    <nav class="tabbar" aria-label="Presentation pages">
+      <div class="wrap tabbar-inner">
+        <a href="./index.html" class="tab">Overview &amp; results</a>
+        <a href="./focused-results.html" class="tab">Focused comparisons</a>
+        <a href="./k12-variants.html" class="tab">Variant matrix</a>
+        <a href="./human-analysis.html" class="tab">Human study &amp; ablations</a>
+        <a href="./causality-study.html" class="tab active">Causality study</a>
+        <a href="./master-status.html" class="tab">Master status</a>
+        <a href="./runtime.html" class="tab">Runtime &amp; LLM I/O</a>
+        <a href="./explorer.html" class="tab">Trace explorer</a>
+      </div>
+    </nav>
+    <main class="wrap">
+      <section class="section">
+        <div class="page-kicker">01 / Audited result</div>
+        <h2>Every scoped boundary has a plausible causal path</h2>
+        <p class="section-sub">The study separates direct matches to the crashing subsystem from indirect-enabling changes that create invalid CFG, IR, MemorySSA, or attributes which a later analysis or verifier detects. A causal classification is evidence of plausibility, not a replacement for reduction or debugger-level proof.</p>
+        <div class="causality-summary" id="causality-summary"></div>
+        <div class="causality-notice"><strong>Retrospective evidence only.</strong> <span id="causality-deployability"></span></div>
+      </section>
+      <section class="section">
+        <div class="page-kicker">02 / Case evidence</div>
+        <h2>Ten validated first-bad changes, in detail</h2>
+        <p class="section-sub">Open a case to inspect the saved crash/trace wording, first-bad subject, path and symbol overlap, causal interpretation, and an audited parent-diff excerpt. Raw artifacts are summarized here so the static bundle does not depend on server paths.</p>
+        <div class="causality-case-list" id="causality-cases"></div>
+      </section>
+      <section class="section">
+        <div class="page-kicker">03 / Deployable conclusion</div>
+        <h2>Rules for causal retrieval and ranking</h2>
+        <p class="section-sub">These rules use only issue evidence available before bisection and each candidate's diff. They deliberately do not use the known first-bad SHA, changed-file fingerprint, or answer-derived terms from this retrospective study.</p>
+        <div class="causality-rules" id="causality-rules"></div>
+        <div class="causality-exclusions" id="causality-exclusions"></div>
+      </section>
+      <section class="section page-links"><a class="next-page" href="./k12-variants.html"><span>Inspect</span><strong>See BCR retrieval and scoring flow</strong><b>&larr;</b></a><a class="next-page" href="./runtime.html"><span>Apply</span><strong>See pipeline artifacts and LLM I/O</strong><b>&rarr;</b></a></section>
+    </main>
+    <footer class="site-footer"><div class="wrap"><p id="footer-note"></p></div></footer>
+    <script src="./app.js"></script>
+  </body>
+</html>

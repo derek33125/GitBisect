@@ -23,6 +23,9 @@
         <a href="./index.html" class="tab">Overview &amp; results</a>
         <a href="./focused-results.html" class="tab active">Focused comparisons</a>
         <a href="./k12-variants.html" class="tab">Variant matrix</a>
+        <a href="./human-analysis.html" class="tab">Human study &amp; ablations</a>
+        <a href="./causality-study.html" class="tab">Causality study</a>
+        <a href="./master-status.html" class="tab">Master status</a>
         <a href="./runtime.html" class="tab">Runtime &amp; LLM I/O</a>
         <a href="./explorer.html" class="tab">Trace explorer</a>
       </div>
@@ -46,11 +49,12 @@
       <section class="section">
         <div class="page-kicker">02 / Keyword robustness</div>
         <h2>Keyword robustness</h2>
-        <p class="section-sub">Compare git bisect, one fixed parent-diff + LLM reference, and three heuristic vocabularies. The heuristic variants keep endpoints, runner, search policy, paths, and build settings fixed; only their terms differ.</p>
+        <p class="section-sub">Compare git bisect, one fixed parent-diff + LLM reference, and three heuristic vocabularies. The heuristic variants keep endpoints, runner, search policy, paths, and build settings fixed; only their terms differ. Answer-leaking diagnostics are displayed for upper-bound analysis only and remain excluded from method comparison.</p>
         <div class="focused-cards" id="keyword-cards"></div>
         <div class="focused-note" id="keyword-note"></div>
+        <div class="focused-note oracle-patch-proof" id="oracle-patch-proof"></div>
         <div class="keyword-vocab-grid" id="keyword-vocab"></div>
-        <div class="table-scroll"><table class="cmp focused-table"><thead><tr><th class="left">Issue</th><th>git bisect</th><th>Parent+LLM top-k3</th><th>Issue-specific</th><th>Shared crash</th><th>Weak maintenance</th><th>Oracle first-bad diagnostic</th><th class="left">Generated diagnostic keywords</th></tr></thead><tbody id="keyword-body"></tbody></table></div>
+        <div class="table-scroll"><table class="cmp focused-table"><thead><tr><th class="left">Issue</th><th>git bisect</th><th>Parent+LLM top-k3</th><th>Issue-specific</th><th>Shared crash</th><th>Weak maintenance</th><th>Oracle first-bad diagnostic</th><th>Oracle posterior</th><th>Oracle patch proof</th><th class="left">Generated diagnostic keywords</th></tr></thead><tbody id="keyword-body"></tbody></table></div>
       </section>
       <section class="section">
         <div class="page-kicker">03 / Search efficiency</div>
