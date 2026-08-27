@@ -1,0 +1,1970 @@
+{
+  "source": "results/master-status-report.md",
+  "columns": [
+    "Issue",
+    "State",
+    "Interval commits",
+    "Git bisect (steps / skips)",
+    "Legacy LM-bisect (steps / skips)",
+    "Issue-specific heuristic (steps / skips)",
+    "Weak-general heuristic (steps / skips)",
+    "BCR top-k12 (steps / skips)",
+    "Good Anchor",
+    "Bad Anchor",
+    "First Bad Commit",
+    "Notes"
+  ],
+  "issue_count": 50,
+  "rows": [
+    {
+      "issue": "pr120802",
+      "state": "completed git + legacy LM + tuned and weak-general heuristics; prior AWS git rerun invalid",
+      "interval_commits": 19595,
+      "interval_source": "run-history",
+      "good_anchor": "08d094a0e457360ad8b94b017d2dc277e697ca76",
+      "bad_anchor": "e19b7dc36bc047b9eb72078d034596be766da350",
+      "first_bad": "93d7002dc4644b0a6f15a998dff0d55c72012e87",
+      "local_git": "done",
+      "local_lm": "n/a",
+      "remote_git": "n/a",
+      "remote_lm": "legacy LM done on edu-server; both heuristics done on aws-server",
+      "git": {
+        "state": "completed",
+        "steps": 16,
+        "skips": 0
+      },
+      "legacy_lm": {
+        "state": "completed",
+        "steps": 10,
+        "skips": 0
+      },
+      "tuned_heuristic": {
+        "state": "completed",
+        "steps": 11,
+        "skips": 0
+      },
+      "weak_general_heuristic": {
+        "state": "completed",
+        "steps": 12,
+        "skips": 0
+      },
+      "bcr": {
+        "state": "not_run",
+        "steps": null,
+        "skips": null
+      },
+      "notes": "edu-server legacy model history pr120802-model-gpt-5.4-mini-calibrated-posterior-obs-trace-only-server-model-20260610.json completed with unresolved=1. Fresh AWS tuned control aws-master-specific-20260809-a revalidated the recorded endpoints (good exit 0, bad exit 1), completed in 11 runner builds with 0 skips, and ended at the recorded Git boundary. Fresh AWS weak-general aws-master-weak-general-20260809-b completed in 12 runner builds with 0 skips and exactly matched Git. AWS Git rerun pr120802-git-aws-20260621 remains invalid because the known-bad build returned skip with SmallVector incomplete-type errors under Ubuntu 26.04/GCC 15."
+    },
+    {
+      "issue": "pr121365",
+      "state": "completed git + legacy LM + tuned and weak-general heuristics",
+      "interval_commits": 35139,
+      "interval_source": "run-history",
+      "good_anchor": "93248729cfae82a5ca2323d4a8e15aa3b9b9c707",
+      "bad_anchor": "f035351af785b7349ab7bcd55149c781ceca24cb",
+      "first_bad": "13a78fd1ac886b3119574bbffb327489f335e713",
+      "local_git": "n/a",
+      "local_lm": "n/a",
+      "remote_git": "done on edu-server",
+      "remote_lm": "legacy LM and weak-general done on edu-server; tuned done on aws-server",
+      "git": {
+        "state": "completed",
+        "steps": 17,
+        "skips": 0
+      },
+      "legacy_lm": {
+        "state": "completed",
+        "steps": 12,
+        "skips": 0
+      },
+      "tuned_heuristic": {
+        "state": "completed",
+        "steps": 11,
+        "skips": 0
+      },
+      "weak_general_heuristic": {
+        "state": "completed",
+        "steps": 12,
+        "skips": 0
+      },
+      "bcr": {
+        "state": "not_run",
+        "steps": null,
+        "skips": null
+      },
+      "notes": "Fresh AWS tuned aws-expansion-tuned-20260815-b completed in 11 runner builds and EDU weak-general in 12, both zero-skip exact matches at 13a78fd1ac886b3119574bbffb327489f335e713."
+    },
+    {
+      "issue": "pr156249",
+      "state": "completed git + legacy LM + tuned and weak-general heuristics",
+      "interval_commits": 53279,
+      "interval_source": "run-history",
+      "good_anchor": "8c2574832ed2064996389e4259eaf0bea0fa7951",
+      "bad_anchor": "66955aa8003468bdfec098a512fb0df30ce66dd8",
+      "first_bad": "43f2968a028fbc6b4fac5ba6d18ad9d27eb4ef76",
+      "local_git": "n/a",
+      "local_lm": "n/a",
+      "remote_git": "done on aws-server",
+      "remote_lm": "legacy LM and weak-general done on edu-server; tuned done on aws-server",
+      "git": {
+        "state": "completed",
+        "steps": 19,
+        "skips": 0
+      },
+      "legacy_lm": {
+        "state": "completed",
+        "steps": 14,
+        "skips": 0
+      },
+      "tuned_heuristic": {
+        "state": "completed",
+        "steps": 14,
+        "skips": 0
+      },
+      "weak_general_heuristic": {
+        "state": "completed",
+        "steps": 13,
+        "skips": 0
+      },
+      "bcr": {
+        "state": "not_run",
+        "steps": null,
+        "skips": null
+      },
+      "notes": "RISC-V llc -O2 LiveIntervals/RegisterCoalescer crash. AWS validation found bad endpoint bad and normalized llvmorg-20.1.8 good. AWS Git completed with the recorded boundary. Valid clean EDU legacy LM completed in 14 steps; EDU weak-general edu-master-general-batch-a-20260730 completed in 13 builds, 0 skips, and matched Git. Fresh AWS tuned aws-master-specific-20260809-c2 completed in 14 builds, 0 skips, and exactly matched Git. Initial EDU model attempt on a shared checkout remains invalid."
+    },
+    {
+      "issue": "pr165039",
+      "state": "completed git + legacy LM + BCR + tuned and weak-general heuristics",
+      "interval_commits": 9324,
+      "interval_source": "run-history",
+      "good_anchor": "94b15a1ece37963c9804fc7f0c498d140ea5fd9d",
+      "bad_anchor": "078e99ef017cac3899e5dbc2ed917f173c9eedad",
+      "first_bad": "078e99ef017cac3899e5dbc2ed917f173c9eedad",
+      "local_git": "n/a",
+      "local_lm": "legacy LM done on edu-server",
+      "remote_git": "done on edu-server",
+      "remote_lm": "BCR and both heuristics done on aws-server/edu-server",
+      "git": {
+        "state": "completed",
+        "steps": 16,
+        "skips": 0
+      },
+      "legacy_lm": {
+        "state": "completed",
+        "steps": 7,
+        "skips": 0
+      },
+      "tuned_heuristic": {
+        "state": "completed",
+        "steps": 9,
+        "skips": 0
+      },
+      "weak_general_heuristic": {
+        "state": "completed",
+        "steps": 10,
+        "skips": 0
+      },
+      "bcr": {
+        "state": "completed",
+        "steps": 5,
+        "skips": 0
+      },
+      "notes": "Closed Clang frontend consteval/std::array crash from issue #165039, labeled crash and regression:22. AWS validation produced usable interval 94b15a1e..078e99ef; Edu Git found 078e99ef... in 16 commands and the historical pre-extraction legacy LM reached it in 7 runner steps. Fresh AWS BCR causal-llm top-k12 retry aws-v1-master-followup-20260729-pr165039-retry1 completed in 5 builds, 0 skips, and exactly matched Git; 34 model requests / 364,823 tokens, average build 3193.687s. Fresh EDU tuned edu-tuned-expansion-a-20260801 completed in 9 builds, 0 skips, and exactly matched Git. Fresh AWS weak-general aws-master-weak-general-20260809-b completed in 10 builds with zero skips and exactly matched Git. The earlier missing-wrapper prepass remains a non-result."
+    },
+    {
+      "issue": "pr165246",
+      "state": "completed git + tuned and weak-general heuristics",
+      "interval_commits": null,
+      "interval_source": null,
+      "good_anchor": "94b15a1ece37963c9804fc7f0c498d140ea5fd9d",
+      "bad_anchor": "4f3eb803343711c69e287da8a3272ab9449b53a9",
+      "first_bad": "55f1b91d50a0f3706ad62d497d3c8a5ec572d59e",
+      "local_git": "n/a",
+      "local_lm": "n/a",
+      "remote_git": "done on aws-server",
+      "remote_lm": "tuned done on edu-server; weak-general done on aws-server",
+      "git": {
+        "state": "completed",
+        "steps": 18,
+        "skips": 0
+      },
+      "legacy_lm": {
+        "state": "not_run",
+        "steps": null,
+        "skips": null
+      },
+      "tuned_heuristic": {
+        "state": "completed",
+        "steps": 12,
+        "skips": 0
+      },
+      "weak_general_heuristic": {
+        "state": "completed",
+        "steps": 14,
+        "skips": 0
+      },
+      "bcr": {
+        "state": "not_run",
+        "steps": null,
+        "skips": null
+      },
+      "notes": "Open Clang parser invalid-code crash candidate. AWS validation found a usable interval and Git found [Clang] Fix a crash when parsing an invalid decltype (#148798) in 18 commands, 0 skips. Fresh EDU preflight reconfirmed the interval; tuned heuristic edu-heuristic-expansion-20260727 completed in 12 runner builds, 0 skips. AWS weak-general aws-master-weak-general-20260728 completed independently in 14 builds, 0 skips, with the same boundary. Both are deterministic controls, not BCR evidence. Target signal: AnnotatePreviousCachedTokens / PPCaching.cpp; reproducer is int decltype {}."
+    },
+    {
+      "issue": "pr165445",
+      "state": "completed git + legacy LM + tuned and weak-general heuristics",
+      "interval_commits": 3324,
+      "interval_source": "run-history",
+      "good_anchor": "4be4b82e74f1b06f18efd1c6be3582daba2e6739",
+      "bad_anchor": "222fc11f2b8f25f6a0f4976272ef1bb7bf49521d",
+      "first_bad": "fccc6ee7021811a27ab1303d19407f703853ab92",
+      "local_git": "done",
+      "local_lm": "legacy LM done",
+      "remote_git": "done",
+      "remote_lm": "weak-general done on edu-server; tuned done on aws-server",
+      "git": {
+        "state": "completed",
+        "steps": 14,
+        "skips": 0
+      },
+      "legacy_lm": {
+        "state": "completed",
+        "steps": 7,
+        "skips": 0
+      },
+      "tuned_heuristic": {
+        "state": "completed",
+        "steps": 10,
+        "skips": 0
+      },
+      "weak_general_heuristic": {
+        "state": "completed",
+        "steps": 13,
+        "skips": 0
+      },
+      "bcr": {
+        "state": "not_run",
+        "steps": null,
+        "skips": null
+      },
+      "notes": "EDU Git baseline and local clean legacy-LM history completed in 14 and 7 steps. EDU weak-general edu-master-general-batch-a-20260730 completed in 13 builds, 0 skips, and matched the same first-bad commit. Fresh AWS tuned aws-master-specific-20260809-c2 completed in 10 builds, 0 skips, and exactly matched Git."
+    },
+    {
+      "issue": "pr167514",
+      "state": "completed git + BCR + tuned and weak-general heuristics",
+      "interval_commits": null,
+      "interval_source": null,
+      "good_anchor": "f2ccf80136a01ca69f766becafb329db6c54c0c8",
+      "bad_anchor": "3623fe661ae35c6c80ac221f14d85be76aa870f1",
+      "first_bad": "fd4f94ddbf0c0f0c9d0185e6036fe51de5ab2ef3",
+      "local_git": "n/a",
+      "local_lm": "n/a",
+      "remote_git": "done on aws-server",
+      "remote_lm": "BCR and weak-general done on aws-server; tuned done on edu-server",
+      "git": {
+        "state": "completed",
+        "steps": 18,
+        "skips": 0
+      },
+      "legacy_lm": {
+        "state": "not_run",
+        "steps": null,
+        "skips": null
+      },
+      "tuned_heuristic": {
+        "state": "completed",
+        "steps": 11,
+        "skips": 0
+      },
+      "weak_general_heuristic": {
+        "state": "completed",
+        "steps": 14,
+        "skips": 0
+      },
+      "bcr": {
+        "state": "completed",
+        "steps": 9,
+        "skips": 0
+      },
+      "notes": "Open Clang C++20 concepts/CTAD crash candidate. AWS BCR causal-llm top-k12 completed in 9 runner builds, 0 skips, and exactly matched Git; 53 model requests / 576,983 tokens, average build 2185.296s. AWS weak-general independently completed in 14 builds and EDU tuned edu-heuristic-expansion-20260727 completed in 11, both 0 skips and exact boundary matches. Retain the earlier paused pre-recovery artifact as non-result. Target signal: getTemplateArgumentPackPatternForRewrite; issue says crash starts since Clang 21."
+    },
+    {
+      "issue": "pr168912",
+      "state": "completed git + BCR + tuned and weak-general heuristics",
+      "interval_commits": 16108,
+      "interval_source": "run-history",
+      "good_anchor": "94b15a1ece37963c9804fc7f0c498d140ea5fd9d",
+      "bad_anchor": "b5a3b8b704cf7f54531f18966cdcc25f5c4e5044",
+      "first_bad": "69b4190d5f1b483524f2f539f373960ef8de8d84",
+      "local_git": "n/a",
+      "local_lm": "n/a",
+      "remote_git": "done on aws-server",
+      "remote_lm": "BCR and weak-general done on aws-server; tuned done on edu-server",
+      "git": {
+        "state": "completed",
+        "steps": 17,
+        "skips": 0
+      },
+      "legacy_lm": {
+        "state": "not_run",
+        "steps": null,
+        "skips": null
+      },
+      "tuned_heuristic": {
+        "state": "completed",
+        "steps": 10,
+        "skips": 0
+      },
+      "weak_general_heuristic": {
+        "state": "completed",
+        "steps": 10,
+        "skips": 0
+      },
+      "bcr": {
+        "state": "completed",
+        "steps": 10,
+        "skips": 0
+      },
+      "notes": "AArch64 llc crash candidate. AWS BCR and weak-general controls each completed in 10 runner builds, 0 skips, and matched Git. EDU tuned edu-heuristic-expansion-20260727 independently completed in 10 builds, 0 skips, and matched the same boundary. Target signal: Unexpected vector MULL size / skipExtensionForVectorMULL."
+    },
+    {
+      "issue": "pr170421",
+      "state": "completed git + legacy LM + tuned + weak-general heuristics",
+      "interval_commits": 20901,
+      "interval_source": "run-history",
+      "good_anchor": "8e4fb4beada4ca34a2775512964ebe478967049d",
+      "bad_anchor": "8cfda791054bf9a7cdb43369e36caae2a56032c6",
+      "first_bad": "97fdc237ddda7565c7c902cc4fc764f73e70686b",
+      "local_git": "done + GCC-11 done",
+      "local_lm": "legacy LM done",
+      "remote_git": "n/a",
+      "remote_lm": "tuned and weak-general done on edu-server",
+      "git": {
+        "state": "completed",
+        "steps": 16,
+        "skips": 0
+      },
+      "legacy_lm": {
+        "state": "completed",
+        "steps": 11,
+        "skips": 0
+      },
+      "tuned_heuristic": {
+        "state": "completed",
+        "steps": 13,
+        "skips": 0
+      },
+      "weak_general_heuristic": {
+        "state": "completed",
+        "steps": 15,
+        "skips": 0
+      },
+      "bcr": {
+        "state": "not_run",
+        "steps": null,
+        "skips": null
+      },
+      "notes": "Strong exact-interval case. GCC-11 Docker Git bisect found the same boundary. EDU tuned edu-controls-specific-early-20260727 completed in 13 and EDU weak-general edu-master-general-batch-a-20260730 in 15 builds; both are skip-free exact matches."
+    },
+    {
+      "issue": "pr172195",
+      "state": "completed git + legacy LM + tuned and weak-general heuristics",
+      "interval_commits": 17154,
+      "interval_source": "run-history",
+      "good_anchor": "8e2cd28cd4ba46613a46467b0c91b1cabead26cd",
+      "bad_anchor": "86c5539aa89ac61058e3ba4fc0ae578c2879bf9e",
+      "first_bad": "e8219e5ce84db26fd521ce5091d18e75c7afbc6a",
+      "local_git": "done",
+      "local_lm": "legacy LM done",
+      "remote_git": "done",
+      "remote_lm": "tuned done on edu-server; weak-general done on aws-server",
+      "git": {
+        "state": "completed",
+        "steps": 16,
+        "skips": 1
+      },
+      "legacy_lm": {
+        "state": "completed",
+        "steps": 11,
+        "skips": 0
+      },
+      "tuned_heuristic": {
+        "state": "completed",
+        "steps": 12,
+        "skips": 0
+      },
+      "weak_general_heuristic": {
+        "state": "completed",
+        "steps": 12,
+        "skips": 0
+      },
+      "bcr": {
+        "state": "not_run",
+        "steps": null,
+        "skips": null
+      },
+      "notes": "Email baseline comparison case. The retained EDU tuned run edu-master-specific-direct-20260728 completed in 12 builds, 0 skips, and matched the Git boundary. Fresh AWS weak-general aws-master-weak-general-20260809-b completed in 12 builds, 0 skips, and exactly matched Git."
+    },
+    {
+      "issue": "pr173943",
+      "state": "completed git + legacy LM + tuned and weak-general heuristics",
+      "interval_commits": 18926,
+      "interval_source": "run-history",
+      "good_anchor": "93248729cfae82a5ca2323d4a8e15aa3b9b9c707",
+      "bad_anchor": "a4bf6cd7cfb1a1421ba92bca9d017b49936c55e4",
+      "first_bad": "d0223b9ffc40146fb4a948ebfa652dc95499b7ba",
+      "local_git": "done",
+      "local_lm": "legacy LM done",
+      "remote_git": "done validation",
+      "remote_lm": "both heuristics done on aws-server/edu-server",
+      "git": {
+        "state": "completed",
+        "steps": 17,
+        "skips": 0
+      },
+      "legacy_lm": {
+        "state": "completed",
+        "steps": 11,
+        "skips": 0
+      },
+      "tuned_heuristic": {
+        "state": "completed",
+        "steps": 11,
+        "skips": 0
+      },
+      "weak_general_heuristic": {
+        "state": "completed",
+        "steps": 12,
+        "skips": 0
+      },
+      "bcr": {
+        "state": "not_run",
+        "steps": null,
+        "skips": null
+      },
+      "notes": "Local legacy LM completed in 11 steps at the Git boundary. Fresh AWS tuned aws-expansion-tuned-20260815-b completed in 11 runner builds and EDU weak-general edu-expansion-general-20260815-e in 12; both are zero-skip exact matches."
+    },
+    {
+      "issue": "pr176682",
+      "state": "completed git + legacy LM + tuned and weak-general heuristics",
+      "interval_commits": 20302,
+      "interval_source": "run-history",
+      "good_anchor": "3623fe661ae35c6c80ac221f14d85be76aa870f1",
+      "bad_anchor": "af98aadc63637ac674d403c77ccba42b05a3d11c",
+      "first_bad": "782759b757f69c6be98bd8079bc57e8f49b7ec86",
+      "local_git": "done",
+      "local_lm": "legacy LM done",
+      "remote_git": "n/a",
+      "remote_lm": "tuned done on edu-server; weak-general done on aws-server",
+      "git": {
+        "state": "completed",
+        "steps": 17,
+        "skips": 0
+      },
+      "legacy_lm": {
+        "state": "completed",
+        "steps": 12,
+        "skips": 0
+      },
+      "tuned_heuristic": {
+        "state": "completed",
+        "steps": 10,
+        "skips": 0
+      },
+      "weak_general_heuristic": {
+        "state": "completed",
+        "steps": 14,
+        "skips": 0
+      },
+      "bcr": {
+        "state": "not_run",
+        "steps": null,
+        "skips": null
+      },
+      "notes": "Existing legacy-LM result used 12 steps. Independent EDU tuned-heuristic control edu-master-specific-direct-20260728 completed in 10 runner builds, 0 skips, and exactly matched the Git boundary. Fresh AWS weak-general aws-master-weak-general-20260809-b completed in 14 builds, 0 skips, and exactly matched Git. Keep the two nonidentical methods separate."
+    },
+    {
+      "issue": "pr190445",
+      "state": "completed git + legacy LM + tuned and weak-general heuristics",
+      "interval_commits": 20547,
+      "interval_source": "run-history",
+      "good_anchor": "827731c0bf12b0ce8d70e15ebf9f731e7961fe51",
+      "bad_anchor": "cf192f561b113a2c422197d92944d7852e0b2996",
+      "first_bad": "6dc188d4eb15cbe9bdece3d940f03d93b926328c",
+      "local_git": "done",
+      "local_lm": "n/a",
+      "remote_git": "n/a",
+      "remote_lm": "legacy LM done on edu-server; both heuristics done on aws-server",
+      "git": {
+        "state": "completed",
+        "steps": 16,
+        "skips": 0
+      },
+      "legacy_lm": {
+        "state": "completed",
+        "steps": 13,
+        "skips": 1
+      },
+      "tuned_heuristic": {
+        "state": "completed",
+        "steps": 11,
+        "skips": 0
+      },
+      "weak_general_heuristic": {
+        "state": "completed",
+        "steps": 13,
+        "skips": 0
+      },
+      "bcr": {
+        "state": "not_run",
+        "steps": null,
+        "skips": null
+      },
+      "notes": "The historical legacy LM resume recorded one dirty-worktree checkout skip, then completed at the Git boundary in 13 total steps. Fresh AWS tuned aws-expansion-tuned-20260815-a completed in 11 runner builds and weak-general aws-master-weak-general-20260812-c in 13, both zero-skip exact matches."
+    },
+    {
+      "issue": "pr191581",
+      "state": "completed git + legacy LM + tuned and weak-general heuristics",
+      "interval_commits": 50116,
+      "interval_source": "run-history",
+      "good_anchor": "87f0227cb60147a26a1eeb4fb06e3b505e9c7261",
+      "bad_anchor": "45494d9c165965a8f5aaccd00c7301c166bcd575",
+      "first_bad": "1ab0e7dd60e26ac7c7fc64a273485522f5c5ba02",
+      "local_git": "done",
+      "local_lm": "legacy LM done",
+      "remote_git": "n/a",
+      "remote_lm": "tuned done on edu-server; weak-general done on aws-server",
+      "git": {
+        "state": "completed",
+        "steps": 19,
+        "skips": 0
+      },
+      "legacy_lm": {
+        "state": "completed",
+        "steps": 13,
+        "skips": 0
+      },
+      "tuned_heuristic": {
+        "state": "completed",
+        "steps": 13,
+        "skips": 0
+      },
+      "weak_general_heuristic": {
+        "state": "completed",
+        "steps": 13,
+        "skips": 0
+      },
+      "bcr": {
+        "state": "not_run",
+        "steps": null,
+        "skips": null
+      },
+      "notes": "EDU tuned edu-master-specific-direct-20260728 completed in 13 builds, 0 skips, and exactly matched the clean Git/legacy-LM boundary. Fresh AWS weak-general aws-master-weak-general-20260809-b completed in 13 runner builds with zero skips and exactly matched Git."
+    },
+    {
+      "issue": "pr192829",
+      "state": "completed git + legacy LM + tuned and weak-general heuristics; AWS git rerun complete",
+      "interval_commits": 20611,
+      "interval_source": "run-history",
+      "good_anchor": "3623fe661ae35c6c80ac221f14d85be76aa870f1",
+      "bad_anchor": "1ab49a973e210e97d61e5db6557180dcb92c3e98",
+      "first_bad": "1f67b945ab2164f8f489eca636ccae5f0e58fc8b",
+      "local_git": "done",
+      "local_lm": "n/a",
+      "remote_git": "done on aws-server",
+      "remote_lm": "legacy LM done on edu-server; both heuristics done on aws-server",
+      "git": {
+        "state": "completed",
+        "steps": 12,
+        "skips": 0
+      },
+      "legacy_lm": {
+        "state": "completed",
+        "steps": 9,
+        "skips": 0
+      },
+      "tuned_heuristic": {
+        "state": "completed",
+        "steps": 12,
+        "skips": 0
+      },
+      "weak_general_heuristic": {
+        "state": "completed",
+        "steps": 14,
+        "skips": 0
+      },
+      "bcr": {
+        "state": "not_run",
+        "steps": null,
+        "skips": null
+      },
+      "notes": "edu-server model history completed with unresolved=1. AWS rerun pr192829-git-aws-20260621 completed and found the same first bad commit. Fresh AWS tuned control aws-master-specific-20260809-a completed in 12 runner builds with zero skips and matched the same boundary. Fresh AWS weak-general aws-master-weak-general-20260809-b completed in 14 builds with zero skips and the same boundary."
+    },
+    {
+      "issue": "pr193164",
+      "state": "completed git + model + tuned and weak-general heuristics",
+      "interval_commits": 12559,
+      "interval_source": "run-history",
+      "good_anchor": "e9f758a59b2f887acb07e26e2d480c7369a72009",
+      "bad_anchor": "1bec68a29602838d31f2dd4eb9d0de182f2c53d3",
+      "first_bad": "cac7fe50e0fbedfb14028c170d83386efeb1265b",
+      "local_git": "validation done with truncated repro",
+      "local_lm": "n/a",
+      "remote_git": "done on aws-server",
+      "remote_lm": "model and both heuristics done on aws-server",
+      "git": {
+        "state": "completed",
+        "steps": 17,
+        "skips": 0
+      },
+      "legacy_lm": {
+        "state": "completed",
+        "steps": 12,
+        "skips": 0
+      },
+      "tuned_heuristic": {
+        "state": "completed",
+        "steps": 12,
+        "skips": 0
+      },
+      "weak_general_heuristic": {
+        "state": "completed",
+        "steps": 13,
+        "skips": 0
+      },
+      "bcr": {
+        "state": "not_run",
+        "steps": null,
+        "skips": null
+      },
+      "notes": "Earlier local queue used a truncated reproducer and returned good, but the real GitHub attachment crash-62b480.cpp reproduces the expected Found phi-like recipe after non-phi recipe assertion. Corrected AWS Git and model runs found [VPlan] Make canonical IV part of the region (#156262) in 17 and 12 steps. Fresh AWS tuned aws-master-specific-20260809-c2 completed in 12 builds and weak-general aws-master-weak-general-20260812-c in 13; both have zero skips and match the same boundary. Search-path graph artifacts: results/issues/pr193164/pr193164-search-paths-git-vs-model-20260624.{png,svg,md}."
+    },
+    {
+      "issue": "pr194000",
+      "state": "completed git + legacy LM + tuned and weak-general heuristics",
+      "interval_commits": 13464,
+      "interval_source": "run-history",
+      "good_anchor": "e9f758a59b2f887acb07e26e2d480c7369a72009",
+      "bad_anchor": "30fa4153a556f51143b1145af8c603581c80369a",
+      "first_bad": "730a07f225ab29c41e7db2e9db99aa619874ff46",
+      "local_git": "n/a",
+      "local_lm": "n/a",
+      "remote_git": "done on aws-server",
+      "remote_lm": "legacy LM done on edu-server; both heuristics done on aws-server",
+      "git": {
+        "state": "completed",
+        "steps": 16,
+        "skips": 0
+      },
+      "legacy_lm": {
+        "state": "completed",
+        "steps": 11,
+        "skips": 0
+      },
+      "tuned_heuristic": {
+        "state": "completed",
+        "steps": 13,
+        "skips": 0
+      },
+      "weak_general_heuristic": {
+        "state": "completed",
+        "steps": 11,
+        "skips": 0
+      },
+      "bcr": {
+        "state": "not_run",
+        "steps": null,
+        "skips": null
+      },
+      "notes": "AArch64 SVE vectorizer crash: createPartialReductionExpression / Unsupported expression. AWS validation found a usable 13,464-commit interval and Git found [LV] Only create partial reductions when profitable. (#181706). Valid edu legacy LM completed in 11 steps. Fresh AWS controls aws-master-specific-20260809-a and aws-master-weak-general-20260809-a completed in 13 and 11 runner builds respectively, both with zero skips and the same first-bad boundary. Initial edu model attempts remain invalid shared-checkout/contaminated-observation artifacts."
+    },
+    {
+      "issue": "pr195788",
+      "state": "completed git + legacy LM + tuned and weak-general heuristics",
+      "interval_commits": 149009,
+      "interval_source": "run-history",
+      "good_anchor": "d2b30c38ff585ddec8fe05fac734c0bb2a6bacc3",
+      "bad_anchor": "297e3e94c90ea75d72bcd881a300c852d8a4d725",
+      "first_bad": "62116c8f0b5b7aac3d53f1bd2445356ae6866048",
+      "local_git": "done",
+      "local_lm": "legacy LM done",
+      "remote_git": "n/a",
+      "remote_lm": "tuned heuristic done on aws-server; weak-general done on edu-server",
+      "git": {
+        "state": "completed",
+        "steps": 22,
+        "skips": 0
+      },
+      "legacy_lm": {
+        "state": "completed",
+        "steps": 12,
+        "skips": 0
+      },
+      "tuned_heuristic": {
+        "state": "completed",
+        "steps": 13,
+        "skips": 0
+      },
+      "weak_general_heuristic": {
+        "state": "completed",
+        "steps": 14,
+        "skips": 0
+      },
+      "bcr": {
+        "state": "not_run",
+        "steps": null,
+        "skips": null
+      },
+      "notes": "Local Git found [clangd] consider ~^foo() to target the destructor, not the type; local legacy LM completed in 12 steps. Fresh AWS tuned control aws-master-specific-20260809-a completed in 13 runner builds with zero skips and matched the same boundary. Synced EDU weak-general edu-master-weak-general-pr195788-probe-20260818-a completed in 14 builds, 0 skips, and matched the same boundary; SHA-256 verified before recording."
+    },
+    {
+      "issue": "pr196244",
+      "state": "completed git + legacy LM + tuned and weak-general heuristics",
+      "interval_commits": 257823,
+      "interval_source": "run-history",
+      "good_anchor": "19a71f6bdf2dddb10764939e7f0ec2b98dba76c9",
+      "bad_anchor": "4434dabb69916856b824f68a64b029c67175e532",
+      "first_bad": "d0aa6c58beef0a6663aacba8904e286c1925c572",
+      "local_git": "done",
+      "local_lm": "done",
+      "remote_git": "done",
+      "remote_lm": "tuned and weak-general done on edu-server",
+      "git": {
+        "state": "completed",
+        "steps": 21,
+        "skips": 0
+      },
+      "legacy_lm": {
+        "state": "completed",
+        "steps": 12,
+        "skips": 0
+      },
+      "tuned_heuristic": {
+        "state": "completed",
+        "steps": 16,
+        "skips": 0
+      },
+      "weak_general_heuristic": {
+        "state": "completed",
+        "steps": 18,
+        "skips": 0
+      },
+      "bcr": {
+        "state": "not_run",
+        "steps": null,
+        "skips": null
+      },
+      "notes": "The canonical clean legacy baseline is the 12-step compat-stdheaders run. Fresh EDU tuned edu-expansion-tuned-20260815-d completed in 16 runner builds and weak-general edu-expansion-general-20260815-e completed in 18; both had zero skips, one remaining commit, and exactly matched Git. Both histories and observations were copied locally with SHA-256 verification on 2026-08-17."
+    },
+    {
+      "issue": "pr196450",
+      "state": "completed git + legacy LM + tuned and weak-general heuristics",
+      "interval_commits": 59337,
+      "interval_source": "run-history",
+      "good_anchor": "f34bba6980332ba9447397fc8bd8a0951b224747",
+      "bad_anchor": "cf192f561b113a2c422197d92944d7852e0b2996",
+      "first_bad": "6e78aef646c22b7087cbf7939c8016f4f59614a1",
+      "local_git": "done",
+      "local_lm": "legacy LM done",
+      "remote_git": "done",
+      "remote_lm": "tuned done on edu-server; weak-general done on aws-server",
+      "git": {
+        "state": "completed",
+        "steps": 19,
+        "skips": 0
+      },
+      "legacy_lm": {
+        "state": "completed",
+        "steps": 12,
+        "skips": 0
+      },
+      "tuned_heuristic": {
+        "state": "completed",
+        "steps": 15,
+        "skips": 0
+      },
+      "weak_general_heuristic": {
+        "state": "completed",
+        "steps": 15,
+        "skips": 0
+      },
+      "bcr": {
+        "state": "not_run",
+        "steps": null,
+        "skips": null
+      },
+      "notes": "The saved 20-step legacy history duplicated its first eight steps after resume; the canonical unique legacy count is 12. Retained EDU tuned control edu-master-specific-20260813-a completed in 15 runner builds with zero skips and matched the Git boundary. Fresh AWS weak-general control aws-master-weak-general-20260809-b also completed in 15 runner builds with zero skips and matched the same boundary."
+    },
+    {
+      "issue": "pr197067",
+      "state": "completed git + legacy LM + tuned and weak-general heuristics",
+      "interval_commits": 54777,
+      "interval_source": "run-history",
+      "good_anchor": "8c2574832ed2064996389e4259eaf0bea0fa7951",
+      "bad_anchor": "f27b3a7c4f860730901dff92196f58f012303dcd",
+      "first_bad": "a9d491b17f4f0a131f68a5dbdac8d34c7c8427db",
+      "local_git": "n/a",
+      "local_lm": "n/a",
+      "remote_git": "done",
+      "remote_lm": "legacy LM and both heuristics done",
+      "git": {
+        "state": "completed",
+        "steps": 19,
+        "skips": 0
+      },
+      "legacy_lm": {
+        "state": "completed",
+        "steps": 10,
+        "skips": 0
+      },
+      "tuned_heuristic": {
+        "state": "completed",
+        "steps": 13,
+        "skips": 0
+      },
+      "weak_general_heuristic": {
+        "state": "completed",
+        "steps": 14,
+        "skips": 0
+      },
+      "bcr": {
+        "state": "not_run",
+        "steps": null,
+        "skips": null
+      },
+      "notes": "Interval size is 54,777 commits; first-bad subject is [Clang] Don't allow implicit this access when checking function constraints (#151276). Edu legacy LM completed in 10 steps. Fresh AWS controls aws-master-specific-20260809-b and aws-master-weak-general-20260809-b completed in 13 and 14 runner builds respectively, both with zero skips and the same boundary."
+    },
+    {
+      "issue": "pr197797",
+      "state": "completed git + legacy LM + BCR + tuned and weak-general heuristics",
+      "interval_commits": 15071,
+      "interval_source": "run-history",
+      "good_anchor": "e9f758a59b2f887acb07e26e2d480c7369a72009",
+      "bad_anchor": "76cdf6012b883529e3d608ed4e30d622ba43e10c",
+      "first_bad": "fb024337497f4c158ea16bfb90e50138d9a2a0c6",
+      "local_git": "n/a",
+      "local_lm": "n/a",
+      "remote_git": "done on edu-server",
+      "remote_lm": "legacy LM, BCR, weak-general, and tuned heuristic done on aws-server/edu-server",
+      "git": {
+        "state": "completed",
+        "steps": 17,
+        "skips": 0
+      },
+      "legacy_lm": {
+        "state": "completed",
+        "steps": 10,
+        "skips": 0
+      },
+      "tuned_heuristic": {
+        "state": "completed",
+        "steps": 11,
+        "skips": 0
+      },
+      "weak_general_heuristic": {
+        "state": "completed",
+        "steps": 12,
+        "skips": 0
+      },
+      "bcr": {
+        "state": "completed",
+        "steps": 8,
+        "skips": 0
+      },
+      "notes": "Interval size is 15,071 commits; first-bad subject is [Clang][AST] Introduce ExplicitInstantiationDecl to preserve source info and fix diagnostic locations (#191658). Historical legacy LM took 10 steps and fresh AWS BCR took 8. Fresh AWS weak-general aws-master-weak-general-20260809-b completed in 12 runner builds with zero skips and matched the same boundary. Preserved EDU tuned edu-master-specific-20260813-a completed in 11 runner builds with zero skips and exactly matched Git."
+    },
+    {
+      "issue": "pr198257",
+      "state": "completed git + legacy LM + BCR + tuned and weak-general heuristics",
+      "interval_commits": 15737,
+      "interval_source": "run-history",
+      "good_anchor": "e9f758a59b2f887acb07e26e2d480c7369a72009",
+      "bad_anchor": "f0200959c5d1ca6ab3f6c28441d70ebcf00267cb",
+      "first_bad": "f612211116e1234a1ffc36c64aa662c0a462eac4",
+      "local_git": "n/a",
+      "local_lm": "n/a",
+      "remote_git": "done",
+      "remote_lm": "legacy LM and BCR done on aws-server; both heuristics done on aws-server",
+      "git": {
+        "state": "completed",
+        "steps": 17,
+        "skips": 0
+      },
+      "legacy_lm": {
+        "state": "completed",
+        "steps": 9,
+        "skips": 0
+      },
+      "tuned_heuristic": {
+        "state": "completed",
+        "steps": 10,
+        "skips": 0
+      },
+      "weak_general_heuristic": {
+        "state": "completed",
+        "steps": 10,
+        "skips": 0
+      },
+      "bcr": {
+        "state": "completed",
+        "steps": 8,
+        "skips": 0
+      },
+      "notes": "Edu Git baseline was copied locally. Historical pre-extraction legacy LM pr198257-model-aws-20260622 completed in 9 steps. Fresh AWS BCR causal-llm top-k12 aws-bcr-master-20260729-pr198257 completed in 8 builds, 0 skips, and matched Git; 41 model requests / 627,740 tokens, average build 2656.482s. Fresh AWS weak-general aws-master-weak-general-20260809-b completed in 10 runner builds with zero skips and exactly matched Git. Fresh AWS tuned aws-master-specific-20260809-c2 completed in 10 builds, 0 skips, and exactly matched Git."
+    },
+    {
+      "issue": "pr198339",
+      "state": "completed git + legacy LM + BCR + tuned and weak-general heuristics",
+      "interval_commits": 17909,
+      "interval_source": "run-history",
+      "good_anchor": "e9f758a59b2f887acb07e26e2d480c7369a72009",
+      "bad_anchor": "6b13656fd8386f979e061cc97e32b607ee3fcdf4",
+      "first_bad": "f478220dd06278c6ee725db710eb587ca80130d2",
+      "local_git": "n/a",
+      "local_lm": "n/a",
+      "remote_git": "done on edu-server",
+      "remote_lm": "legacy LM and tuned heuristic done on edu-server; BCR done on aws-server; weak-general done on aws-server",
+      "git": {
+        "state": "completed",
+        "steps": 17,
+        "skips": 0
+      },
+      "legacy_lm": {
+        "state": "completed",
+        "steps": 8,
+        "skips": 0
+      },
+      "tuned_heuristic": {
+        "state": "completed",
+        "steps": 10,
+        "skips": 0
+      },
+      "weak_general_heuristic": {
+        "state": "completed",
+        "steps": 10,
+        "skips": 0
+      },
+      "bcr": {
+        "state": "completed",
+        "steps": 11,
+        "skips": 0
+      },
+      "notes": "Edu Git baseline completed on 2026-06-19. Interval size 17,909 commits; first-bad subject: [LoongArch] Add support for vector FP_EXTEND from vxf32 to vxf64 (#164746). Historical pre-extraction legacy LM completed in 8 steps. Fresh AWS BCR causal-llm top-k12 aws-bcr-master-20260729-pr198339 completed in 11 builds, 0 skips, and matched Git; 58 model requests / 778,036 tokens, average build 830.246s. Fresh EDU tuned edu-tuned-expansion-b-20260801 completed in 10 builds, 0 skips, and exactly matched Git. Fresh AWS weak-general aws-master-weak-general-20260809-b completed in 10 builds with zero skips and the same boundary."
+    },
+    {
+      "issue": "pr199162",
+      "state": "priority skip-study / model complete",
+      "interval_commits": 94428,
+      "interval_source": "run-history",
+      "good_anchor": "93248729cfae82a5ca2323d4a8e15aa3b9b9c707",
+      "bad_anchor": "ff243860d7934d763dea4f3fa345b4bfef6d393c",
+      "first_bad": "5e924fa7640041f7081deed9787dc10d8007e7f9",
+      "local_git": "n/a",
+      "local_lm": "n/a",
+      "remote_git": "stopped skip-heavy git",
+      "remote_lm": "done",
+      "git": {
+        "state": "non_clean",
+        "steps": null,
+        "skips": 24
+      },
+      "legacy_lm": {
+        "state": "completed",
+        "steps": 11,
+        "skips": 0
+      },
+      "tuned_heuristic": {
+        "state": "not_run",
+        "steps": null,
+        "skips": null
+      },
+      "weak_general_heuristic": {
+        "state": "not_run",
+        "steps": null,
+        "skips": null
+      },
+      "bcr": {
+        "state": "not_run",
+        "steps": null,
+        "skips": null
+      },
+      "notes": "edu-server git lane was stopped after 2 bad, 24 skip, 0 good verdicts. Replacement edu-server model run completed in 11 steps from a 94,428-commit window; final unresolved commit is an OpenACC reduction init lowering change. Skip reason is valid OpenACC semantic checking: raw repro_rc=1 diagnostic OpenACC 'reduction' variable must be of scalar type... occurs before the target Ty->isScalarType() assertion."
+    },
+    {
+      "issue": "pr199526",
+      "state": "completed git + legacy LM + BCR + tuned and weak-general heuristics",
+      "interval_commits": 16925,
+      "interval_source": "run-history",
+      "good_anchor": "e9f758a59b2f887acb07e26e2d480c7369a72009",
+      "bad_anchor": "942292bf75168377cc06dfa2ba90a552d6d24a69",
+      "first_bad": "291e4e97777d707079f5fe14326649cfc1eb8337",
+      "local_git": "n/a",
+      "local_lm": "n/a",
+      "remote_git": "done",
+      "remote_lm": "legacy LM done on edu-server; BCR and both heuristics done on aws-server",
+      "git": {
+        "state": "completed",
+        "steps": 17,
+        "skips": 0
+      },
+      "legacy_lm": {
+        "state": "completed",
+        "steps": 12,
+        "skips": 0
+      },
+      "tuned_heuristic": {
+        "state": "completed",
+        "steps": 10,
+        "skips": 0
+      },
+      "weak_general_heuristic": {
+        "state": "completed",
+        "steps": 12,
+        "skips": 0
+      },
+      "bcr": {
+        "state": "completed",
+        "steps": 9,
+        "skips": 0
+      },
+      "notes": "Historical pre-extraction legacy LM pr199526-model-20260621-server completed in 12 steps from a 16,925-commit interval and matched Git. Fresh AWS BCR causal-llm top-k12 retry1 completed in 9 builds, 0 skips, and exactly matched Git; 36 model requests / 378,789 tokens. Fresh AWS tuned aws-master-specific-20260809-c2 completed in 10 builds and weak-general aws-master-weak-general-20260809-b in 12, both with zero skips and the exact Git boundary. Initial AWS BCR prepass aws-bcr-master-20260730-pr199526 exited 127 before any runner verdict because its tool bundle was not deployed; exclude it."
+    },
+    {
+      "issue": "pr200330",
+      "state": "completed git + legacy LM + BCR + tuned and weak-general heuristics",
+      "interval_commits": 17282,
+      "interval_source": "run-history",
+      "good_anchor": "e9f758a59b2f887acb07e26e2d480c7369a72009",
+      "bad_anchor": "6d2a90bd8bf321df0d1c3f2953fcc51ce5344b13",
+      "first_bad": "a63eacee2db2c6ea75c67aca729cc3d32426200b",
+      "local_git": "done",
+      "local_lm": "not run",
+      "remote_git": "n/a",
+      "remote_lm": "legacy LM done on edu-server; BCR, tuned, and weak-general done on aws-server",
+      "git": {
+        "state": "completed",
+        "steps": 17,
+        "skips": 0
+      },
+      "legacy_lm": {
+        "state": "completed",
+        "steps": 13,
+        "skips": 0
+      },
+      "tuned_heuristic": {
+        "state": "completed",
+        "steps": 15,
+        "skips": 0
+      },
+      "weak_general_heuristic": {
+        "state": "completed",
+        "steps": 13,
+        "skips": 0
+      },
+      "bcr": {
+        "state": "completed",
+        "steps": 14,
+        "skips": 0
+      },
+      "notes": "Git baseline complete. Historical pre-extraction legacy LM pr200330-model-edu-20260622 completed in 13 steps and matched Git. Fresh AWS BCR causal-llm top-k12 completed in 14 builds, 0 skips, and exactly matched Git; 69 model requests / 887,480 tokens. Fresh AWS tuned aws-master-specific-20260809-c2 completed in 15 runner builds with zero skips and exactly matched Git. Fresh AWS weak-general aws-master-weak-general-20260812-c completed in 13 runner builds with zero skips and exactly matched Git."
+    },
+    {
+      "issue": "pr200648",
+      "state": "completed git + BCR + tuned and weak-general heuristics",
+      "interval_commits": null,
+      "interval_source": null,
+      "good_anchor": "94b15a1ece37963c9804fc7f0c498d140ea5fd9d",
+      "bad_anchor": "4434dabb69916856b824f68a64b029c67175e532",
+      "first_bad": "525e68e9e9a44e88eb88ef2d6f058a482972c989",
+      "local_git": "n/a",
+      "local_lm": "n/a",
+      "remote_git": "done on aws-server",
+      "remote_lm": "BCR and weak-general done on aws-server; tuned done on edu-server",
+      "git": {
+        "state": "completed",
+        "steps": 18,
+        "skips": 0
+      },
+      "legacy_lm": {
+        "state": "not_run",
+        "steps": null,
+        "skips": null
+      },
+      "tuned_heuristic": {
+        "state": "completed",
+        "steps": 14,
+        "skips": 0
+      },
+      "weak_general_heuristic": {
+        "state": "completed",
+        "steps": 14,
+        "skips": 0
+      },
+      "bcr": {
+        "state": "completed",
+        "steps": 9,
+        "skips": 0
+      },
+      "notes": "Open Clang CodeGen crash candidate. AWS BCR completed in 9 and weak-general in 14 runner builds, both exact and skip-free. EDU tuned edu-heuristic-expansion-20260727 independently completed in 14 builds, 0 skips, and matched Git. Retain the earlier paused pre-recovery artifact as non-result. Target signal: VarDecl::evaluateValueImpl / !Init->isValueDependent."
+    },
+    {
+      "issue": "pr200742",
+      "state": "completed git + legacy LM + BCR + tuned + weak-general heuristics",
+      "interval_commits": 17299,
+      "interval_source": "run-history",
+      "good_anchor": "e9f758a59b2f887acb07e26e2d480c7369a72009",
+      "bad_anchor": "a67efda258fa73c7b6b915fb31b8412b800a15e9",
+      "first_bad": "f612211116e1234a1ffc36c64aa662c0a462eac4",
+      "local_git": "n/a",
+      "local_lm": "n/a",
+      "remote_git": "done",
+      "remote_lm": "legacy LM, BCR, tuned, and weak-general done on aws-server/edu-server",
+      "git": {
+        "state": "completed",
+        "steps": 17,
+        "skips": 0
+      },
+      "legacy_lm": {
+        "state": "completed",
+        "steps": 10,
+        "skips": 0
+      },
+      "tuned_heuristic": {
+        "state": "completed",
+        "steps": 10,
+        "skips": 0
+      },
+      "weak_general_heuristic": {
+        "state": "completed",
+        "steps": 12,
+        "skips": 0
+      },
+      "bcr": {
+        "state": "completed",
+        "steps": 10,
+        "skips": 0
+      },
+      "notes": "Git baseline completed on 2026-06-18. Interval size 17,299 commits; first-bad subject: [VPlan] Introduce reduction selects for tail folding in foldTailByMasking. NFCI (#192987). Historical legacy LM completed in 10 steps and EDU weak-general completed in 12. AWS BCR causal-llm top-k12 completed in 10 builds, 0 skips, and exactly matched Git; 53 model requests / 796,182 tokens. Fresh EDU tuned edu-tuned-expansion-c-20260801 completed in 10 builds, 0 skips, and exactly matched Git."
+    },
+    {
+      "issue": "pr200987",
+      "state": "completed git + legacy LM + tuned and weak-general heuristics",
+      "interval_commits": 133662,
+      "interval_source": "run-history",
+      "good_anchor": "b0daacf58f417634f7c7c9496589d723592a8f5a",
+      "bad_anchor": "b1d1bb2ad2a272d2ddd41ae307b25aee420219ec",
+      "first_bad": "329ef60f3e21fd6845e8e8b0da405cae7eb27267",
+      "local_git": "n/a",
+      "local_lm": "n/a",
+      "remote_git": "done",
+      "remote_lm": "legacy LM done on edu-server; both heuristics done on aws-server",
+      "git": {
+        "state": "completed",
+        "steps": 20,
+        "skips": 0
+      },
+      "legacy_lm": {
+        "state": "completed",
+        "steps": 11,
+        "skips": 0
+      },
+      "tuned_heuristic": {
+        "state": "completed",
+        "steps": 15,
+        "skips": 0
+      },
+      "weak_general_heuristic": {
+        "state": "completed",
+        "steps": 14,
+        "skips": 0
+      },
+      "bcr": {
+        "state": "not_run",
+        "steps": null,
+        "skips": null
+      },
+      "notes": "Edu Git completed in 20 commands over a 133,662-commit interval and the legacy LM completed in 11 steps. Fresh AWS tuned control aws-master-specific-20260809-c2 completed in 15 runner builds with zero skips and matched the same first-bad boundary. Fresh AWS weak-general aws-master-weak-general-20260812-c completed in 14 runner builds, 0 skips, and exactly matched Git."
+    },
+    {
+      "issue": "pr201444",
+      "state": "completed git + legacy LM + tuned + weak-general heuristic + BCR",
+      "interval_commits": 17742,
+      "interval_source": "run-history",
+      "good_anchor": "e9f758a59b2f887acb07e26e2d480c7369a72009",
+      "bad_anchor": "fb6153a65039b06319cb4b9ce2fafa84d75daa6b",
+      "first_bad": "6bcdd843e302063c4f0d36204686155149a6bb0a",
+      "local_git": "n/a",
+      "local_lm": "n/a",
+      "remote_git": "done on aws-server",
+      "remote_lm": "legacy LM and BCR done on aws-server; tuned done on aws-server; weak-general done on edu-server",
+      "git": {
+        "state": "completed",
+        "steps": 17,
+        "skips": 0
+      },
+      "legacy_lm": {
+        "state": "completed",
+        "steps": 11,
+        "skips": 0
+      },
+      "tuned_heuristic": {
+        "state": "completed",
+        "steps": 11,
+        "skips": 0
+      },
+      "weak_general_heuristic": {
+        "state": "completed",
+        "steps": 12,
+        "skips": 0
+      },
+      "bcr": {
+        "state": "completed",
+        "steps": 15,
+        "skips": 0
+      },
+      "notes": "AWS Git baseline completed with interval size 17,742 and first-bad subject [X86] Merge BT with a matching BTR/BTS/BTC (#193612). Historical legacy LM completed in 11 runner steps. The AWS tuned control completed in 11 builds and the EDU weak-general control in 12, both skip-free and matching Git. AWS BCR aws-bcr-master-followup-b-20260730 completed in 15 builds, 0 skips, and exactly matched Git."
+    },
+    {
+      "issue": "pr201855",
+      "state": "completed git + legacy LM + tuned + weak-general heuristic + BCR",
+      "interval_commits": 17911,
+      "interval_source": "run-history",
+      "good_anchor": "e9f758a59b2f887acb07e26e2d480c7369a72009",
+      "bad_anchor": "d83abac82bd290e16a38ab79f6207f0bc3a07b3c",
+      "first_bad": "c095488da4586f4d98c13f9793088b444e686a4a",
+      "local_git": "n/a",
+      "local_lm": "n/a",
+      "remote_git": "done",
+      "remote_lm": "legacy LM, BCR, and tuned done on aws-server; weak-general done on edu-server",
+      "git": {
+        "state": "completed",
+        "steps": 17,
+        "skips": 0
+      },
+      "legacy_lm": {
+        "state": "completed",
+        "steps": 11,
+        "skips": 0
+      },
+      "tuned_heuristic": {
+        "state": "completed",
+        "steps": 10,
+        "skips": 0
+      },
+      "weak_general_heuristic": {
+        "state": "completed",
+        "steps": 12,
+        "skips": 0
+      },
+      "bcr": {
+        "state": "completed",
+        "steps": 10,
+        "skips": 0
+      },
+      "notes": "Edu Git baseline was copied locally and shared-good llvmorg-21.1.8 validated good. Historical AWS legacy LM completed in 11 steps, EDU weak-general in 12, and the AWS tuned control in 10. AWS BCR aws-bcr-master-followup-a-20260730 completed in 10 builds, 0 skips, and exactly matched Git."
+    },
+    {
+      "issue": "pr202003",
+      "state": "completed git + legacy LM + BCR + tuned and weak-general heuristics",
+      "interval_commits": 18188,
+      "interval_source": "run-history",
+      "good_anchor": "e9f758a59b2f887acb07e26e2d480c7369a72009",
+      "bad_anchor": "54ed4695d46a178b80578a3114b6dd70a8c59ec2",
+      "first_bad": "be529fc55f2fd365855a3971f2b919bd0c4d18dc",
+      "local_git": "n/a",
+      "local_lm": "n/a",
+      "remote_git": "done",
+      "remote_lm": "legacy LM, BCR, and both heuristics done on aws-server",
+      "git": {
+        "state": "completed",
+        "steps": 18,
+        "skips": 0
+      },
+      "legacy_lm": {
+        "state": "completed",
+        "steps": 13,
+        "skips": 0
+      },
+      "tuned_heuristic": {
+        "state": "completed",
+        "steps": 11,
+        "skips": 0
+      },
+      "weak_general_heuristic": {
+        "state": "completed",
+        "steps": 12,
+        "skips": 0
+      },
+      "bcr": {
+        "state": "completed",
+        "steps": 10,
+        "skips": 0
+      },
+      "notes": "Historical edu-server LM completed in 13 steps with final unresolved matching Git. AWS BCR causal-llm top-k12 completed in 10 builds, 0 skips, and exactly matched Git; 58 model requests / 565,836 tokens. AWS batched tuned heuristic completed in 11 builds, 0 skips, and matched the same boundary. Fresh AWS weak-general aws-master-weak-general-20260812-c completed in 12 builds with zero skips and exactly matched Git."
+    },
+    {
+      "issue": "pr202043",
+      "state": "completed normalized git + legacy LM + tuned and weak-general heuristic mismatch",
+      "interval_commits": 18515,
+      "interval_source": "run-history",
+      "good_anchor": "e9f758a59b2f887acb07e26e2d480c7369a72009",
+      "bad_anchor": "11cf29581486565b04767ce313602312824d0109",
+      "first_bad": "3064291c9f54dff3416145b06bd31cc38211da1d;",
+      "local_git": "n/a",
+      "local_lm": "n/a",
+      "remote_git": "done",
+      "remote_lm": "legacy LM and weak-general done on edu-server; tuned heuristic done on aws-server",
+      "git": {
+        "state": "completed",
+        "steps": 18,
+        "skips": 0
+      },
+      "legacy_lm": {
+        "state": "non_clean",
+        "steps": 10,
+        "skips": 0
+      },
+      "tuned_heuristic": {
+        "state": "non_clean",
+        "steps": 10,
+        "skips": 0
+      },
+      "weak_general_heuristic": {
+        "state": "non_clean",
+        "steps": 12,
+        "skips": 0
+      },
+      "bcr": {
+        "state": "not_run",
+        "steps": null,
+        "skips": null
+      },
+      "notes": "Normalized merge-base interval size 18,515 commits. Fresh AWS tuned aws-master-specific-20260809-c2 revalidated the profile endpoints (good exit 0, bad exit 1), completed in 10 runner builds with 0 skips, and reached the same original-apply commit as the historical legacy LM. Synced EDU weak-general edu-expansion-general-skipstudy-20260815-g completed in 12 builds with 0 skips and the same original-apply commit. Git reports the reapply commit 3064291c9f54...; retain both heuristic rows as terminal noncanonical evidence, not clean matches."
+    },
+    {
+      "issue": "pr202343",
+      "state": "completed git + legacy LM + tuned and weak-general heuristics; AWS git rerun complete",
+      "interval_commits": 19519,
+      "interval_source": "run-history",
+      "good_anchor": "24a30daaa559829ad079f2ff7f73eb4e18095f88",
+      "bad_anchor": "3623fe661ae35c6c80ac221f14d85be76aa870f1",
+      "first_bad": "2071ea24a27c7009feac699e3e70ee50f185134f",
+      "local_git": "done",
+      "local_lm": "n/a",
+      "remote_git": "done on aws-server",
+      "remote_lm": "legacy LM done on edu-server; both heuristics done on aws-server",
+      "git": {
+        "state": "completed",
+        "steps": 13,
+        "skips": 1
+      },
+      "legacy_lm": {
+        "state": "completed",
+        "steps": 13,
+        "skips": 0
+      },
+      "tuned_heuristic": {
+        "state": "completed",
+        "steps": 14,
+        "skips": 0
+      },
+      "weak_general_heuristic": {
+        "state": "completed",
+        "steps": 15,
+        "skips": 0
+      },
+      "bcr": {
+        "state": "not_run",
+        "steps": null,
+        "skips": null
+      },
+      "notes": "Edu legacy LM completed with unresolved=1. AWS Git rerun pr202343-git-aws-20260621 found the same first bad commit and retained one Git skip. Fresh AWS tuned control aws-master-specific-20260809-c2 completed in 14 runner builds with zero skips and matched the same boundary. Fresh AWS weak-general aws-master-weak-general-20260812-c completed in 15 builds, 0 skips, and exactly matched Git."
+    },
+    {
+      "issue": "pr203261",
+      "state": "completed git + legacy LM + tuned and weak-general heuristics + BCR",
+      "interval_commits": 20547,
+      "interval_source": "run-history",
+      "good_anchor": "94b15a1ece37963c9804fc7f0c498d140ea5fd9d",
+      "bad_anchor": "4434dabb69916856b824f68a64b029c67175e532",
+      "first_bad": "89ce8718be80ead58ef5942d2d5052a528e79fee",
+      "local_git": "n/a",
+      "local_lm": "n/a",
+      "remote_git": "done on aws-server",
+      "remote_lm": "legacy LM, tuned, and weak-general done on edu-server; BCR done on aws-server",
+      "git": {
+        "state": "completed",
+        "steps": 18,
+        "skips": 0
+      },
+      "legacy_lm": {
+        "state": "completed",
+        "steps": 10,
+        "skips": 0
+      },
+      "tuned_heuristic": {
+        "state": "completed",
+        "steps": 11,
+        "skips": 0
+      },
+      "weak_general_heuristic": {
+        "state": "completed",
+        "steps": 13,
+        "skips": 0
+      },
+      "bcr": {
+        "state": "completed",
+        "steps": 9,
+        "skips": 0
+      },
+      "notes": "Local endpoint validation found bad endpoint reproduces and good anchor is good. AWS Git and the 10-step EDU legacy LM match the recorded boundary. EDU weak-general edu-controls-general-late-20260727 completed in 13 builds, and fresh tuned edu-expanded-tuned-20260814-a completed in 11; both have zero skips and match Git. Fresh AWS BCR aws-bcr-master-followup-c-20260730 completed in 9 builds, 0 skips, at the same boundary."
+    },
+    {
+      "issue": "pr203278",
+      "state": "completed git + legacy LM + tuned and weak-general heuristics",
+      "interval_commits": 59337,
+      "interval_source": "run-history",
+      "good_anchor": "f2ccf80136a01ca69f766becafb329db6c54c0c8",
+      "bad_anchor": "4434dabb69916856b824f68a64b029c67175e532",
+      "first_bad": "43b88851cefe68645aa59b1fccc8390a8a31f469",
+      "local_git": "n/a",
+      "local_lm": "n/a",
+      "remote_git": "done on aws-server",
+      "remote_lm": "legacy LM and both heuristics done on aws-server/edu-server",
+      "git": {
+        "state": "completed",
+        "steps": 19,
+        "skips": 0
+      },
+      "legacy_lm": {
+        "state": "completed",
+        "steps": 13,
+        "skips": 0
+      },
+      "tuned_heuristic": {
+        "state": "completed",
+        "steps": 13,
+        "skips": 0
+      },
+      "weak_general_heuristic": {
+        "state": "completed",
+        "steps": 14,
+        "skips": 0
+      },
+      "bcr": {
+        "state": "not_run",
+        "steps": null,
+        "skips": null
+      },
+      "notes": "EDU tuned edu-expanded-tuned-20260814-a completed in 13 runner builds with zero skips and exactly matched the boundary; the independent weak-general control completed in 14 builds, also zero-skip and exact."
+    },
+    {
+      "issue": "pr204178",
+      "state": "model complete on local and AWS / git skip-blocked",
+      "interval_commits": 18751,
+      "interval_source": "run-history",
+      "good_anchor": "d0b54bb50e5110a004b41fc06dadf3fee70834b7",
+      "bad_anchor": "3b5b5c1ec4a3095ab096dd780e84d7ab81f3d7ff",
+      "first_bad": "1aadd4766e97b80ba8e907e26603150c1238cf35",
+      "local_git": "model done locally",
+      "local_lm": "n/a",
+      "remote_git": "compat git non-unique on aws-server",
+      "remote_lm": "done on aws-server",
+      "git": {
+        "state": "non_clean",
+        "steps": 18,
+        "skips": 1
+      },
+      "legacy_lm": {
+        "state": "completed",
+        "steps": 21,
+        "skips": 1
+      },
+      "tuned_heuristic": {
+        "state": "not_run",
+        "steps": null,
+        "skips": null
+      },
+      "weak_general_heuristic": {
+        "state": "not_run",
+        "steps": null,
+        "skips": null
+      },
+      "bcr": {
+        "state": "not_run",
+        "steps": null,
+        "skips": null
+      },
+      "notes": "Edu validation confirmed LLVM 18.1.8 bad and LLVM 17.0.6 good. Local model-guided LM-bisect completed in 22 total steps with final unresolved/first bad 1aadd4766e97b80ba8e907e26603150c1238cf35. Corrected AWS model lane aws-model-gcc13-compat2-cleanobs-20260625 completed independently in 21 recorded steps with 1 skip and the same first-bad commit; average runner time 1036.634s. AWS compat git-bisect pr204178-git-aws-compat-20260628a ran 18 log commands with 1 skip and ended non-unique: possible first bad 1aadd4766e97... or skipped 4b163e343cfa.... The skipped commit fails building LLVM itself at llvm/include/llvm/Demangle/ItaniumDemangle.h:22:10: fatal error: __cxxabi_config.h: No such file or directory, so it is source-build/toolchain compatibility, not the target crash. Earlier AWS all-skip model attempts are invalid setup artifacts."
+    },
+    {
+      "issue": "pr204559",
+      "state": "completed git + legacy LM + BCR + tuned and weak-general heuristics",
+      "interval_commits": 19791,
+      "interval_source": "run-history",
+      "good_anchor": "e9f758a59b2f887acb07e26e2d480c7369a72009",
+      "bad_anchor": "baad7c3238b3203c974787fc4881453b6b23a0b6",
+      "first_bad": "5a5d0fb1e471b3a1e842aee1f993e885c8d19713",
+      "local_git": "stopped duplicate backup",
+      "local_lm": "n/a",
+      "remote_git": "done on aws-server",
+      "remote_lm": "legacy LM done on edu-server; BCR and both heuristics done on aws-server",
+      "git": {
+        "state": "completed",
+        "steps": 17,
+        "skips": 0
+      },
+      "legacy_lm": {
+        "state": "completed",
+        "steps": 9,
+        "skips": 0
+      },
+      "tuned_heuristic": {
+        "state": "completed",
+        "steps": 11,
+        "skips": 0
+      },
+      "weak_general_heuristic": {
+        "state": "completed",
+        "steps": 12,
+        "skips": 0
+      },
+      "bcr": {
+        "state": "completed",
+        "steps": 10,
+        "skips": 0
+      },
+      "notes": "Interval size is 19,791 commits. AWS Git and the 9-step EDU legacy LM match the [SimpleLoopUnswitch] first-bad commit. Fresh AWS BCR aws-bcr-master-followup-d-20260730 completed in 10 builds. Fresh AWS tuned aws-master-specific-20260809-c2 completed in 11 and weak-general aws-master-weak-general-20260812-c in 12; all three are skip-free exact Git-boundary matches. Redundant local Git backup was stopped."
+    },
+    {
+      "issue": "pr204561",
+      "state": "completed git + BCR + tuned and weak-general heuristics",
+      "interval_commits": 20034,
+      "interval_source": "run-history",
+      "good_anchor": "e9f758a59b2f887acb07e26e2d480c7369a72009",
+      "bad_anchor": "4f3eb803343711c69e287da8a3272ab9449b53a9",
+      "first_bad": "f505ceabdd2339f078cd6886d3f52cc622abd5c9",
+      "local_git": "n/a",
+      "local_lm": "n/a",
+      "remote_git": "done on edu-server",
+      "remote_lm": "BCR and weak-general done on aws-server; tuned done on edu-server",
+      "git": {
+        "state": "completed",
+        "steps": 18,
+        "skips": 0
+      },
+      "legacy_lm": {
+        "state": "not_run",
+        "steps": null,
+        "skips": null
+      },
+      "tuned_heuristic": {
+        "state": "completed",
+        "steps": 11,
+        "skips": 0
+      },
+      "weak_general_heuristic": {
+        "state": "completed",
+        "steps": 12,
+        "skips": 0
+      },
+      "bcr": {
+        "state": "completed",
+        "steps": 10,
+        "skips": 0
+      },
+      "notes": "Open Clang SemaTemplate crash candidate. AWS BCR completed in 10 and weak-general in 12 runner builds, both exact and skip-free. EDU tuned edu-heuristic-expansion-20260727 completed in 11 builds, 0 skips, and matched Git. Retain the earlier paused BCR artifact as non-result. Target signal: hasAcceptableMemberSpecialization."
+    },
+    {
+      "issue": "pr204589",
+      "state": "completed git + model + tuned and weak-general heuristics",
+      "interval_commits": 19791,
+      "interval_source": "run-history",
+      "good_anchor": "e9f758a59b2f887acb07e26e2d480c7369a72009",
+      "bad_anchor": "baad7c3238b3203c974787fc4881453b6b23a0b6",
+      "first_bad": "5a5d0fb1e471b3a1e842aee1f993e885c8d19713",
+      "local_git": "stopped duplicate backup",
+      "local_lm": "n/a",
+      "remote_git": "done on aws-server",
+      "remote_lm": "model and both heuristics done on aws-server",
+      "git": {
+        "state": "completed",
+        "steps": 17,
+        "skips": 0
+      },
+      "legacy_lm": {
+        "state": "completed",
+        "steps": 11,
+        "skips": 0
+      },
+      "tuned_heuristic": {
+        "state": "completed",
+        "steps": 11,
+        "skips": 0
+      },
+      "weak_general_heuristic": {
+        "state": "completed",
+        "steps": 12,
+        "skips": 0
+      },
+      "bcr": {
+        "state": "not_run",
+        "steps": null,
+        "skips": null
+      },
+      "notes": "Interval size is 19,791 commits. AWS git found [SimpleLoopUnswitch] Generalize the notion of trivial unswitching (#193989) in 17 git-bisect log commands with zero skips. AWS model-guided LM-bisect completed in 11 steps. Fresh AWS tuned aws-master-specific-20260809-c2 completed in 11 builds and weak-general aws-master-weak-general-20260812-c in 12; both are skip-free exact Git-boundary matches. Redundant local and edu git backups were stopped."
+    },
+    {
+      "issue": "pr205971",
+      "state": "completed git + V1 causal model + tuned and weak-general heuristics",
+      "interval_commits": 17954,
+      "interval_source": "run-history",
+      "good_anchor": "e9f758a59b2f887acb07e26e2d480c7369a72009",
+      "bad_anchor": "e44d060dfd617e8a5e37b61adcb38ed4ac5d782d",
+      "first_bad": "f505ceabdd2339f078cd6886d3f52cc622abd5c9",
+      "local_git": "n/a",
+      "local_lm": "n/a",
+      "remote_git": "done on edu-server",
+      "remote_lm": "V1 and weak-general done on aws-server; tuned done on edu-server",
+      "git": {
+        "state": "completed",
+        "steps": 17,
+        "skips": 0
+      },
+      "legacy_lm": {
+        "state": "not_run",
+        "steps": null,
+        "skips": null
+      },
+      "tuned_heuristic": {
+        "state": "completed",
+        "steps": 11,
+        "skips": 0
+      },
+      "weak_general_heuristic": {
+        "state": "completed",
+        "steps": 11,
+        "skips": 0
+      },
+      "bcr": {
+        "state": "completed",
+        "steps": 10,
+        "skips": 0
+      },
+      "notes": "Clang member-template specialization crash. AWS V1 causal-llm top-k12 follow-up completed in 10 runner builds and AWS weak-general independently completed in 11. Fresh EDU tuned edu-expanded-tuned-20260814-b also completed in 11 runner builds. All three are skip-free and exactly match the Git boundary. Target signal: Only member templates can be member template specializations."
+    },
+    {
+      "issue": "pr206007",
+      "state": "completed git + V1 causal model + tuned and weak-general heuristics",
+      "interval_commits": 17954,
+      "interval_source": "run-history",
+      "good_anchor": "e9f758a59b2f887acb07e26e2d480c7369a72009",
+      "bad_anchor": "e44d060dfd617e8a5e37b61adcb38ed4ac5d782d",
+      "first_bad": "ffffe9c1696ad3ca59d9783e7511b16f41e4c3ae",
+      "local_git": "n/a",
+      "local_lm": "n/a",
+      "remote_git": "done on edu-server",
+      "remote_lm": "V1 and weak-general done on aws-server; tuned done on edu-server",
+      "git": {
+        "state": "completed",
+        "steps": 17,
+        "skips": 0
+      },
+      "legacy_lm": {
+        "state": "not_run",
+        "steps": null,
+        "skips": null
+      },
+      "tuned_heuristic": {
+        "state": "completed",
+        "steps": 9,
+        "skips": 0
+      },
+      "weak_general_heuristic": {
+        "state": "completed",
+        "steps": 10,
+        "skips": 0
+      },
+      "bcr": {
+        "state": "completed",
+        "steps": 8,
+        "skips": 0
+      },
+      "notes": "LoopVectorize/loop-verifier opt crash. AWS V1 causal-llm top-k12 follow-up completed in 8 runner builds and AWS weak-general in 10. Fresh EDU tuned edu-expanded-tuned-20260814-b completed in 9 runner builds. All three are skip-free and exactly match Git. Target signal: Loop block has no in-loop successors."
+    },
+    {
+      "issue": "pr48154",
+      "state": "completed git + legacy LM + tuned and weak-general heuristics",
+      "interval_commits": 17273,
+      "interval_source": "run-history",
+      "good_anchor": "2e10b7a39b930ef8d9c4362509d8835b221fbc0a",
+      "bad_anchor": "2b4716d6dff1c9a5e64b3487a0b2388e3ff18b30",
+      "first_bad": "20e989e9de6abcf9a684978a2688acc4ea01036f",
+      "local_git": "n/a",
+      "local_lm": "n/a",
+      "remote_git": "done on edu-server",
+      "remote_lm": "legacy LM and weak-general done on aws-server; tuned done on edu-server",
+      "git": {
+        "state": "completed",
+        "steps": 17,
+        "skips": 0
+      },
+      "legacy_lm": {
+        "state": "completed",
+        "steps": 17,
+        "skips": 0
+      },
+      "tuned_heuristic": {
+        "state": "completed",
+        "steps": 16,
+        "skips": 0
+      },
+      "weak_general_heuristic": {
+        "state": "completed",
+        "steps": 15,
+        "skips": 0
+      },
+      "bcr": {
+        "state": "not_run",
+        "steps": null,
+        "skips": null
+      },
+      "notes": "Fresh EDU tuned edu-expansion-tuned-20260815-d completed in 16 runner builds and AWS weak-general in 15; both have zero skips and exactly match 20e989e9de6abcf9a684978a2688acc4ea01036f."
+    },
+    {
+      "issue": "pr49535",
+      "state": "completed git + legacy LM mismatch + tuned heuristic mismatch; weak-general exact",
+      "interval_commits": 9089,
+      "interval_source": "run-history",
+      "good_anchor": "8e464dd76befbc4a39a1d21968a3d5f543e29312",
+      "bad_anchor": "fd15e2b825f26dd7eac3b4a52aab36c88e52850a",
+      "first_bad": "6792e26c0d0f2260f1e12693382e184f5ea1966f;",
+      "local_git": "n/a",
+      "local_lm": "n/a",
+      "remote_git": "done on edu-server",
+      "remote_lm": "legacy LM and weak-general done on edu-server; tuned done on aws-server",
+      "git": {
+        "state": "completed",
+        "steps": 16,
+        "skips": 0
+      },
+      "legacy_lm": {
+        "state": "non_clean",
+        "steps": 12,
+        "skips": 0
+      },
+      "tuned_heuristic": {
+        "state": "non_clean",
+        "steps": 11,
+        "skips": 0
+      },
+      "weak_general_heuristic": {
+        "state": "completed",
+        "steps": 11,
+        "skips": 0
+      },
+      "bcr": {
+        "state": "not_run",
+        "steps": null,
+        "skips": null
+      },
+      "notes": "The clean legacy LM and fresh AWS tuned aws-expansion-tuned-skipstudy-20260815-f both converge to original-apply be20eae25f50f5ef648aeefa1143e1c31e4410fc, in 12 and 11 steps. Git reaches the reapply 6792e26c0d0...; retain the tuned run as terminal non-clean mismatch evidence. Synced EDU weak-general edu10-general-keyword-heuristic-c-20260711a completed in 11 builds, 0 skips, and exactly reached Git's reapply boundary."
+    },
+    {
+      "issue": "pr50304",
+      "state": "completed git + model + tuned and weak-general heuristics; last-diff comparison done",
+      "interval_commits": 14311,
+      "interval_source": "run-history",
+      "good_anchor": "8e464dd76befbc4a39a1d21968a3d5f543e29312",
+      "bad_anchor": "4aa1c141bd674564aaee83516b7e338aa3aae9e3",
+      "first_bad": "c9c05a91c4843c243d508c39bdfbc5e26f311af2",
+      "local_git": "validation done",
+      "local_lm": "n/a",
+      "remote_git": "done on aws-server",
+      "remote_lm": "model and tuned done on aws-server; weak-general done on edu-server",
+      "git": {
+        "state": "completed",
+        "steps": 17,
+        "skips": 0
+      },
+      "legacy_lm": {
+        "state": "completed",
+        "steps": 9,
+        "skips": 0
+      },
+      "tuned_heuristic": {
+        "state": "completed",
+        "steps": 13,
+        "skips": 0
+      },
+      "weak_general_heuristic": {
+        "state": "completed",
+        "steps": 15,
+        "skips": 0
+      },
+      "bcr": {
+        "state": "not_run",
+        "steps": null,
+        "skips": null
+      },
+      "notes": "Compact C clang -O1 APFloat/ConstantFold crash from Bugzilla 50960. AWS git found [ConstantFolding] Use APFloat for constant folding. NFC in 17 commands and the clean historical model completed in 9. Fresh AWS tuned aws-expansion-tuned-20260815-a completed in 13 runner builds and fresh EDU weak-general edu-expanded-weak-general-20260814-c in 15; both have zero skips and exactly match the same boundary. The last-tested comparison remains separately preserved."
+    },
+    {
+      "issue": "pr50585",
+      "state": "completed git + model + tuned and weak-general heuristics; last-diff comparison done",
+      "interval_commits": 16855,
+      "interval_source": "run-history",
+      "good_anchor": "8e464dd76befbc4a39a1d21968a3d5f543e29312",
+      "bad_anchor": "0a1ca2ad4ce239abc8d844f33048af58648edb80",
+      "first_bad": "e38b7e894808ec2a0c976ab01e44364f167508d3",
+      "local_git": "validation done",
+      "local_lm": "n/a",
+      "remote_git": "done on aws-server",
+      "remote_lm": "model and tuned done on aws-server; weak-general done on edu-server",
+      "git": {
+        "state": "completed",
+        "steps": 18,
+        "skips": 0
+      },
+      "legacy_lm": {
+        "state": "completed",
+        "steps": 11,
+        "skips": 0
+      },
+      "tuned_heuristic": {
+        "state": "completed",
+        "steps": 14,
+        "skips": 0
+      },
+      "weak_general_heuristic": {
+        "state": "completed",
+        "steps": 11,
+        "skips": 0
+      },
+      "bcr": {
+        "state": "not_run",
+        "steps": null,
+        "skips": null
+      },
+      "notes": "Compact C clang -O1 verifier/backend crash. AWS old-source compatibility validation produced a 16,855-commit interval, and Git found [DivRemPairs] Add an initial case for hoisting to a common predecessor. in 18 commands. The clean historical model completed in 11 steps. Fresh AWS tuned aws-expansion-tuned-20260815-b completed in 14 runner builds and fresh EDU weak-general edu-expanded-weak-general-20260814-c in 11; both have zero skips and exactly match e38b7e894808ec2a0c976ab01e44364f167508d3. Last-tested comparison pr50585-lastdiff-aws-20260630a remains separately preserved."
+    },
+    {
+      "issue": "pr50655",
+      "state": "completed git + model + tuned and weak-general heuristics",
+      "interval_commits": 17514,
+      "interval_source": "run-history",
+      "good_anchor": "8e464dd76befbc4a39a1d21968a3d5f543e29312",
+      "bad_anchor": "f819e4c7d0f6efef3cc1042cc45582320bf6c0a2",
+      "first_bad": "34c098b780a27a90b5614ea3b949b9269835f2a5",
+      "local_git": "n/a",
+      "local_lm": "n/a",
+      "remote_git": "done on aws-server",
+      "remote_lm": "model and tuned done on aws-server; weak-general done on edu-server",
+      "git": {
+        "state": "completed",
+        "steps": 17,
+        "skips": 0
+      },
+      "legacy_lm": {
+        "state": "completed",
+        "steps": 9,
+        "skips": 0
+      },
+      "tuned_heuristic": {
+        "state": "completed",
+        "steps": 9,
+        "skips": 0
+      },
+      "weak_general_heuristic": {
+        "state": "completed",
+        "steps": 11,
+        "skips": 0
+      },
+      "bcr": {
+        "state": "not_run",
+        "steps": null,
+        "skips": null
+      },
+      "notes": "ARM codegen crash from issue #50655 / Bugzilla 51313. AWS git found [ARM] Prevent spilling between ldrex/strex pairs in 17 commands and the clean historical model completed in 9, both skip-free. Fresh AWS tuned aws-expansion-tuned-20260815-a also completed in 9 runner builds, while EDU weak-general edu-expanded-weak-general-20260814-c completed in 11; both have zero skips and exactly match 34c098b780a...."
+    },
+    {
+      "issue": "pr52635",
+      "state": "completed git + legacy LM + tuned and weak-general heuristics",
+      "interval_commits": 13008,
+      "interval_source": "run-history",
+      "good_anchor": "e26a78e70857273c83aaacd4aa0edb36effe70e3",
+      "bad_anchor": "10bc12588dac532fad044b2851dde8e7b9121e88",
+      "first_bad": "10bc12588dac532fad044b2851dde8e7b9121e88",
+      "local_git": "compatibility validation done; git done locally",
+      "local_lm": "legacy LM done locally",
+      "remote_git": "n/a",
+      "remote_lm": "both heuristics done on aws-server/edu-server",
+      "git": {
+        "state": "completed",
+        "steps": 25,
+        "skips": 8
+      },
+      "legacy_lm": {
+        "state": "completed",
+        "steps": 12,
+        "skips": 0
+      },
+      "tuned_heuristic": {
+        "state": "completed",
+        "steps": 10,
+        "skips": 0
+      },
+      "weak_general_heuristic": {
+        "state": "completed",
+        "steps": 11,
+        "skips": 0
+      },
+      "bcr": {
+        "state": "not_run",
+        "steps": null,
+        "skips": null
+      },
+      "notes": "Fresh EDU tuned edu-expansion-tuned-20260815-d completed in 10 runner builds and AWS weak-general in 11; both have zero skips and exactly match 10bc12588dac532fad044b2851dde8e7b9121e88."
+    },
+    {
+      "issue": "pr65982",
+      "state": "invalid endpoint model artifact",
+      "interval_commits": 4001,
+      "interval_source": "run-history",
+      "good_anchor": "6009708b4367171ccdbf4b5905cb6a803753fe18",
+      "bad_anchor": "abacab6e0c30ff0f6327e7b4fbc044af0a195efe",
+      "first_bad": "ab720289ca8f9b04674b915f6a74d81847c9c341",
+      "local_git": "done",
+      "local_lm": "done",
+      "remote_git": "blocked",
+      "remote_lm": "done",
+      "git": {
+        "state": "non_clean",
+        "steps": 16,
+        "skips": 0
+      },
+      "legacy_lm": {
+        "state": "not_run",
+        "steps": null,
+        "skips": null
+      },
+      "tuned_heuristic": {
+        "state": "not_run",
+        "steps": null,
+        "skips": null
+      },
+      "weak_general_heuristic": {
+        "state": "not_run",
+        "steps": null,
+        "skips": null
+      },
+      "bcr": {
+        "state": "not_run",
+        "steps": null,
+        "skips": null
+      },
+      "notes": "Model result is not clean benchmark-comparable because merge base is already bad"
+    }
+  ]
+}

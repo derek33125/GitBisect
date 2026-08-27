@@ -1,0 +1,67 @@
+[
+  {
+    "method": "git-bisect",
+    "label": "Git bisect",
+    "rows": 50,
+    "clean_or_baseline_rows": 47,
+    "avg_steps": 17.4,
+    "median_steps": 17,
+    "skipcap_rows": 3,
+    "partial_rows": 0,
+    "missing_rows": 0,
+    "non_clean_rows": 3,
+    "valid_for_comparison": true
+  },
+  {
+    "method": "old-model-guided",
+    "label": "Legacy LM-bisect",
+    "rows": 50,
+    "clean_or_baseline_rows": 40,
+    "avg_steps": 11.32,
+    "median_steps": 11,
+    "skipcap_rows": 2,
+    "partial_rows": 0,
+    "missing_rows": 8,
+    "non_clean_rows": 2,
+    "valid_for_comparison": true
+  },
+  {
+    "method": "issue-specific-heuristic",
+    "label": "Issue-specific heuristic",
+    "rows": 50,
+    "clean_or_baseline_rows": 45,
+    "avg_steps": 11.82,
+    "median_steps": 11,
+    "skipcap_rows": 0,
+    "partial_rows": 0,
+    "missing_rows": 3,
+    "non_clean_rows": 2,
+    "valid_for_comparison": true
+  },
+  {
+    "method": "weak-general-heuristic",
+    "label": "Weak-general heuristic",
+    "rows": 50,
+    "clean_or_baseline_rows": 46,
+    "avg_steps": 12.65,
+    "median_steps": 12,
+    "skipcap_rows": 0,
+    "partial_rows": 0,
+    "missing_rows": 3,
+    "non_clean_rows": 1,
+    "valid_for_comparison": true
+  },
+  {
+    "method": "bcr-topk12",
+    "label": "BCR top-k12",
+    "rows": 50,
+    "clean_or_baseline_rows": 18,
+    "avg_steps": 9.72,
+    "median_steps": 10,
+    "skipcap_rows": 0,
+    "partial_rows": 0,
+    "missing_rows": 32,
+    "non_clean_rows": 0,
+    "valid_for_comparison": true
+  }
+]

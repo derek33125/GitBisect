@@ -22,7 +22,8 @@
     "weak-maintenance-keyword-control.json",
     "current-lanes.json",
     "runs.json",
-    "k12-variants.json"
+    "k12-variants.json",
+    "t3-gt-exclusion.json"
   ],
   "exclusions": [
     "reports and progress documents",
@@ -32,6 +33,7 @@
   ],
   "notes": [
     "This JSON-only bundle is a frozen presentation snapshot, not a runnable benchmark input.",
-    "Status and validity fields in the source tables determine whether a row contributes to an aggregate."
+    "Status and validity fields in the source tables determine whether a row contributes to an aggregate.",
+    "t3-gt-exclusion.json is a static retrieval snapshot of honest vs study T3. It is not a runner-step comparison and is marked valid_for_comparison=false."
   ]
 }

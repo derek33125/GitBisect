@@ -1,0 +1,314 @@
+{
+  "scope": "Shared 10-case comparison. This is a static retrieval snapshot of the initial good..bad interval, not a runner-step table. T1/T2/T3 never shrink the live bisect window.",
+  "generated_from": [
+    "human_analysis/human_analysis-20260817/human_analysis/dep-analysis.js",
+    "human_analysis/human_analysis-20260817/human_analysis/dep-analysis-results.json",
+    "human_analysis/human_analysis-20260817/human_analysis/dep-analysis-rest.json",
+    "human_analysis/human_analysis-20260817/human_analysis/scoped10-evidence-20260807/cases/*/first-bad-compact.diff",
+    "human_analysis/human_analysis-20260817/human_analysis/scoped10-evidence-20260807/cases/*/crash-assertion.err",
+    "human_analysis/human_analysis-20260817/human_analysis/scoped10-evidence-20260807/cases/*/metadata.json"
+  ],
+  "t3_definition": "T3 = T2 ∩ commits that touch the top-20% usage files of one grep anchor. T2 = T1 ∩ (stack symbols ∪ pass names ∪ crash file). T1 = keywords ∪ relevant_paths ∪ high_risk_paths.",
+  "honest_anchor_policy": "Most-specific real grep term: fewest files in llvm/lib + llvm/include. No first-bad SHA, no gtIncluded peek. This is the policy a runtime filter would actually run.",
+  "study_anchor_policy": "dep-analysis.js line 269: first top20 variant with gtIncluded, else anchors[0]. That pick is GT-conditioned and is not a runtime method.",
+  "valid_for_comparison": false,
+  "invalid_reason": "Offline GT-checked leftover sizes, not runner steps. Honest T3 is a hard-cut experiment on the initial interval. It is not a BCR/git-bisect lane.",
+  "aggregate": {
+    "issues": 10,
+    "t3_inapplicable": 4,
+    "honest_t3_evaluated": 6,
+    "honest_t3_gt_out": 2,
+    "honest_t3_gt_kept": 4,
+    "study_t3_gt_out": 0,
+    "study_t3_gt_kept": 6,
+    "note": "The published 14-commit leftovers are study T3, not honest T3. Honest T3 already drops GT on the two MemorySSA checker cases."
+  },
+  "gt_out_issues": ["pr204559", "pr204589"],
+  "inapplicable_issues": ["pr193164", "pr50585", "pr48154", "pr200987"],
+  "gt_kept_issues": ["pr201444", "pr50304", "pr49535", "pr52635"],
+  "rows": [
+    {
+      "issue": "pr204559",
+      "interval_size": 19791,
+      "validated_first_bad": "5a5d0fb1e471b3a1e842aee1f993e885c8d19713",
+      "gt_files": ["llvm/lib/Transforms/Scalar/SimpleLoopUnswitch.cpp"],
+      "crash_file": "llvm/lib/Analysis/MemorySSA.cpp",
+      "crash_file_is_gt": false,
+      "t1": { "n": 2046, "gt_included": true },
+      "t2": { "n": 125, "gt_included": true },
+      "honest_t3": {
+        "status": "gt_out",
+        "anchor": "verifyOptResult",
+        "anchor_file_count": 1,
+        "top20_files": ["llvm/lib/Analysis/MemorySSA.cpp"],
+        "dep_commits": 6,
+        "n": null,
+        "n_note": "Study script never materialized T2 ∩ this dep set. GT is already absent from the 6-commit dep set, so T3 cannot contain it. Upper bound is 6.",
+        "gt_included": false
+      },
+      "study_t3": {
+        "status": "gt_kept_after_peek",
+        "anchor": "MemorySSAUpdater",
+        "anchor_file_count": 40,
+        "n": 14,
+        "gt_included": true
+      },
+      "keyword_alone": { "n": 1276, "gt_included": false },
+      "code_analysis": {
+        "crash_assertion": "ClobberWalker::verifyOptResult: all_of(R.OtherClobbers, MSSA.dominates(P.Clobber, R.PrimaryClobber.Clobber))",
+        "crash_site": "llvm/lib/Analysis/MemorySSA.cpp:915",
+        "immediate_stack": [
+          "MemorySSA::ClobberWalkerBase::getClobberingMemoryAccessBase",
+          "canHoistLoad",
+          "LICMPass::run"
+        ],
+        "running_pass": "loop-mssa(... licm ..., simple-loop-unswitch<no-nontrivial;trivial>) on function main",
+        "first_bad_subject": "[SimpleLoopUnswitch] Generalize the notion of trivial unswitching (#193989)",
+        "patch_contact": "The first-bad only edits SimpleLoopUnswitch.cpp. The new latch-unswitch path rewrites CFG (delete branch-to-latch, insert branch-to-unique-latch-exit) and then calls MSSAU->applyUpdates(Updates, DT). It never names verifyOptResult or ClobberWalker.",
+        "why_gt_out": "Honest T3 greps the most-specific crash term verifyOptResult. That string lives only in MemorySSA.cpp (the detector). SimpleLoopUnswitch.cpp has zero mentions, so gtRank is empty and T3 collapses to the 6 interval commits that touch MemorySSA.cpp. The producer is one layer up: unswitch dirties MemorySSA through the updater API; LICM later walks clobbers and the checker fires.",
+        "mechanism": "checker-vs-producer. Crash file is the detector, not the first-bad."
+      },
+      "note": "Honest T3 cannot contain GT. Study T3 only keeps GT after swapping the anchor to MemorySSAUpdater because that wider API is what the patch actually calls."
+    },
+    {
+      "issue": "pr204589",
+      "interval_size": 19791,
+      "validated_first_bad": "5a5d0fb1e471b3a1e842aee1f993e885c8d19713",
+      "gt_files": ["llvm/lib/Transforms/Scalar/SimpleLoopUnswitch.cpp"],
+      "crash_file": "llvm/lib/Analysis/MemorySSA.cpp",
+      "crash_file_is_gt": false,
+      "t1": { "n": 2065, "gt_included": true },
+      "t2": { "n": 163, "gt_included": true },
+      "honest_t3": {
+        "status": "gt_out",
+        "anchor": "removeFromLookups",
+        "anchor_file_count": 3,
+        "top20_files": ["llvm/lib/Analysis/MemorySSAUpdater.cpp"],
+        "dep_commits": 1,
+        "n": null,
+        "n_note": "Study script never materialized T2 ∩ this dep set. GT is already absent from the 1-commit dep set, so T3 cannot contain it. Upper bound is 1.",
+        "gt_included": false
+      },
+      "study_t3": {
+        "status": "gt_kept_after_peek",
+        "anchor": "MemorySSAUpdater",
+        "anchor_file_count": 40,
+        "n": 14,
+        "gt_included": true
+      },
+      "keyword_alone": { "n": 1301, "gt_included": false },
+      "code_analysis": {
+        "crash_assertion": "MemorySSA::removeFromLookups: MA->use_empty() && \"Trying to remove memory access that still has uses\"",
+        "crash_site": "llvm/lib/Analysis/MemorySSA.cpp:1842",
+        "immediate_stack": [
+          "MemorySSAUpdater::removeBlocks",
+          "SimpleLoopUnswitchPass::run"
+        ],
+        "running_pass": "loop-mssa(... simple-loop-unswitch<nontrivial;trivial>) on function main",
+        "first_bad_subject": "[SimpleLoopUnswitch] Generalize the notion of trivial unswitching (#193989)",
+        "same_first_bad_as": "pr204559",
+        "patch_contact": "Identical first-bad SHA and compact diff as pr204559. The new code calls MSSAU->applyUpdates. Unswitch later also goes through MemorySSAUpdater::removeBlocks, which then calls removeFromLookups. SimpleLoopUnswitch.cpp never contains the string removeFromLookups.",
+        "why_gt_out": "Honest T3 greps removeFromLookups. Heavy use is one file, MemorySSAUpdater.cpp; top20 therefore has 1 interval commit and no SimpleLoopUnswitch.cpp. The first-bad is still the unswitch CFG/latch rewrite. removeFromLookups is an internal MemorySSA helper that fires when a later block-removal sees a MemoryAccess that still has uses — a stale graph left by applyUpdates, not a change inside MemorySSAUpdater.cpp.",
+        "mechanism": "checker-vs-producer. Same enabling commit as pr204559; a different MemorySSA invariant is the detector because the reproducer runs at -O3 with nontrivial unswitch."
+      },
+      "note": "Honest T3 cannot contain GT. Same first-bad as pr204559; different assertion, same miss: the grep term is the detector helper, not the updater API the patch uses."
+    },
+    {
+      "issue": "pr201444",
+      "interval_size": 17742,
+      "validated_first_bad": "6bcdd843e302063c4f0d36204686155149a6bb0a",
+      "gt_files": [
+        "llvm/lib/Target/X86/X86ISelLowering.cpp",
+        "llvm/lib/Target/X86/X86InstrCompiler.td",
+        "llvm/lib/Target/X86/X86InstrFragments.td"
+      ],
+      "crash_file": "llvm/lib/Target/X86/X86ISelLowering.cpp",
+      "crash_file_is_gt": true,
+      "t1": { "n": 2231, "gt_included": true },
+      "t2": { "n": 642, "gt_included": true },
+      "honest_t3": {
+        "status": "gt_kept",
+        "anchor": "peekThroughBitPosExtTrunc",
+        "anchor_file_count": 1,
+        "top20_files": ["llvm/lib/Target/X86/X86ISelLowering.cpp"],
+        "n": 208,
+        "gt_included": true
+      },
+      "study_t3": {
+        "status": "gt_kept",
+        "anchor": "peekThroughBitPosExtTrunc",
+        "n": 208,
+        "gt_included": true
+      },
+      "note": "Crash file is the GT file, so the most-specific helper still sits inside the first-bad. T3 can contain GT here. heavy5/heavy10 of the same term are empty (3 uses < 5) and would drop GT if used as the cutoff."
+    },
+    {
+      "issue": "pr193164",
+      "interval_size": null,
+      "validated_first_bad": "cac7fe50e0fbedfb14028c170d83386efeb1265b",
+      "gt_files": [
+        "llvm/lib/Transforms/Vectorize/LoopVectorize.cpp",
+        "llvm/lib/Transforms/Vectorize/VPlan.cpp"
+      ],
+      "crash_file": null,
+      "crash_file_is_gt": null,
+      "t1": null,
+      "t2": null,
+      "honest_t3": { "status": "inapplicable", "n": null, "gt_included": null },
+      "study_t3": { "status": "inapplicable", "n": null, "gt_included": null },
+      "note": "No packaged crash-assertion.err, so deriveQueryTerms has no C++ assertion signature and dep-analysis skips the case. T3 cannot run, so it cannot contain GT."
+    },
+    {
+      "issue": "pr50304",
+      "interval_size": 14311,
+      "validated_first_bad": "c9c05a91c4843c243d508c39bdfbc5e26f311af2",
+      "gt_files": ["llvm/lib/Analysis/ConstantFolding.cpp"],
+      "crash_file": "llvm/lib/Support/APFloat.cpp",
+      "crash_file_is_gt": false,
+      "t1": { "n": 1589, "gt_included": true },
+      "t2": { "n": 96, "gt_included": true },
+      "honest_t3": {
+        "status": "gt_kept",
+        "anchor": "convertToDouble",
+        "anchor_file_count": 18,
+        "n": 28,
+        "gt_included": true
+      },
+      "study_t3": {
+        "status": "gt_kept",
+        "anchor": "convertToDouble",
+        "n": 28,
+        "gt_included": true
+      },
+      "code_analysis": {
+        "crash_assertion": "APFloat::convertToDouble: getSemantics().isRepresentableBy(semIEEEdouble)",
+        "crash_site": "llvm/lib/Support/APFloat.cpp:4888",
+        "patch_contact": "First-bad is ConstantFolding.cpp: ConstantFoldFP now takes APFloat and calls V.convertToDouble() before a native libm fold. Crash file APFloat.cpp is the detector of a caller that passed a non-IEEEdouble semantic.",
+        "why_default_t3_keeps_gt": "convertToDouble is used 7 times in ConstantFolding.cpp, rank 1 of 18, so top20 includes the GT file.",
+        "why_stricter_cutoff_drops_gt": "heavy10 requires ≥10 mentions. ConstantFolding has 7, so heavy10 is 0 files / 0 commits. That cutoff cannot contain GT even on the good anchor."
+      },
+      "note": "Default top20 T3 contains GT. A heavier usage cutoff on the same honest anchor already cannot."
+    },
+    {
+      "issue": "pr50585",
+      "interval_size": null,
+      "validated_first_bad": "e38b7e894808ec2a0c976ab01e44364f167508d3",
+      "gt_files": ["llvm/lib/Transforms/Scalar/DivRemPairs.cpp"],
+      "crash_file": null,
+      "crash_file_is_gt": null,
+      "t1": null,
+      "t2": null,
+      "honest_t3": { "status": "inapplicable", "n": null, "gt_included": null },
+      "study_t3": { "status": "inapplicable", "n": null, "gt_included": null },
+      "note": "Verifier fatal error (Instruction does not dominate all uses / Broken function found), not a C++ Assertion `...` failed signature. No grep anchor, T3 cannot run."
+    },
+    {
+      "issue": "pr48154",
+      "interval_size": null,
+      "validated_first_bad": "20e989e9de6abcf9a684978a2688acc4ea01036f",
+      "gt_files": ["llvm/lib/Transforms/Utils/BuildLibCalls.cpp"],
+      "crash_file": null,
+      "crash_file_is_gt": null,
+      "t1": null,
+      "t2": null,
+      "honest_t3": { "status": "inapplicable", "n": null, "gt_included": null },
+      "study_t3": { "status": "inapplicable", "n": null, "gt_included": null },
+      "note": "Verifier fatal error (Wrong types for attribute / Broken function found on memcpy). No C++ assertion signature, T3 cannot run. T1 relevant/risk also miss this first-bad."
+    },
+    {
+      "issue": "pr49535",
+      "interval_size": 9089,
+      "validated_first_bad": "be20eae25f50f5ef648aeefa1143e1c31e4410fc",
+      "gt_files": ["llvm/lib/Analysis/ValueTracking.cpp"],
+      "crash_file": "llvm/lib/Analysis/ValueTracking.cpp",
+      "crash_file_is_gt": true,
+      "t1": { "n": 1172, "gt_included": true },
+      "t2": { "n": 166, "gt_included": true },
+      "honest_t3": {
+        "status": "gt_kept",
+        "anchor": "getInvertibleOperand",
+        "anchor_file_count": 1,
+        "top20_files": ["llvm/lib/Analysis/ValueTracking.cpp"],
+        "n": 58,
+        "gt_included": true
+      },
+      "study_t3": {
+        "status": "gt_kept",
+        "anchor": "getInvertibleOperand",
+        "n": 58,
+        "gt_included": true
+      },
+      "note": "Crash file is the GT file. T3 can contain GT. heavy5/heavy10 of getInvertibleOperand are empty (3 uses) and would drop GT."
+    },
+    {
+      "issue": "pr52635",
+      "interval_size": 13008,
+      "validated_first_bad": "10bc12588dac532fad044b2851dde8e7b9121e88",
+      "gt_files": [
+        "compiler-rt/lib/xray/xray_interface.cpp",
+        "llvm/include/llvm/CodeGen/AsmPrinter.h",
+        "llvm/lib/CodeGen/AsmPrinter/AsmPrinter.cpp"
+      ],
+      "crash_file": "llvm/lib/MC/MCExpr.cpp",
+      "crash_file_is_gt": false,
+      "t1": { "n": 1864, "gt_included": true },
+      "t2": { "n": 152, "gt_included": true },
+      "honest_t3": {
+        "status": "gt_kept",
+        "anchor": "MCSymbolRefExpr",
+        "anchor_file_count": 160,
+        "n": 54,
+        "gt_included": true
+      },
+      "study_t3": {
+        "status": "gt_kept",
+        "anchor": "MCSymbolRefExpr",
+        "n": 54,
+        "gt_included": true
+      },
+      "note": "Crash file is the detector (MCExpr.cpp). GT still survives because AsmPrinter.cpp is a heavy MCSymbolRefExpr user (rank 14/160, inside top20). This is the opposite of pr204559: the producer happens to be a hot user of the crash type, not a caller of an internal checker helper."
+    },
+    {
+      "issue": "pr200987",
+      "interval_size": null,
+      "validated_first_bad": "329ef60f3e21fd6845e8e8b0da405cae7eb27267",
+      "gt_files": ["clang/lib/CodeGen/CGStmt.cpp"],
+      "crash_file": null,
+      "crash_file_is_gt": null,
+      "t1": null,
+      "t2": null,
+      "honest_t3": { "status": "inapplicable", "n": null, "gt_included": null },
+      "study_t3": { "status": "inapplicable", "n": null, "gt_included": null },
+      "note": "Wrapper-only history: no raw assertion trace was retained. T3 cannot run, so it cannot contain GT."
+    }
+  ],
+  "stricter_cutoffs_also_drop_gt": [
+    {
+      "issue": "pr50304",
+      "anchor": "convertToDouble",
+      "cutoff": "heavy10",
+      "files": 0,
+      "commits": 0,
+      "gt_included": false,
+      "reason": "ConstantFolding.cpp uses convertToDouble 7 times; heavy10 needs ≥10."
+    },
+    {
+      "issue": "pr201444",
+      "anchor": "peekThroughBitPosExtTrunc",
+      "cutoff": "heavy5",
+      "files": 0,
+      "commits": 0,
+      "gt_included": false,
+      "reason": "The helper appears 3 times in X86ISelLowering.cpp."
+    },
+    {
+      "issue": "pr49535",
+      "anchor": "getInvertibleOperand",
+      "cutoff": "heavy5",
+      "files": 0,
+      "commits": 0,
+      "gt_included": false,
+      "reason": "The helper appears 3 times in ValueTracking.cpp."
+    }
+  ]
+}

@@ -1,0 +1,420 @@
+{
+  "generated_at": "2026-08-21T12:22:41Z",
+  "scope": "master-50 from tools/lm_bisect_profiles.json, method cells from the master-status ledger",
+  "bcr_topk12": {
+    "label": "BCR top-k12 as recorded on the canonical master ledger",
+    "result_policy": "Only completed rows are comparison data. missing/non_clean/in_progress rows stay visible in preferred-comparison.json but are excluded from aggregates.",
+    "clean": [
+      {
+        "issue": "pr165039",
+        "steps": 5,
+        "skips": 0,
+        "first_bad": "078e99ef017cac3899e5dbc2ed917f173c9eedad",
+        "source": "BCR and both heuristics done on aws-server/edu-server"
+      },
+      {
+        "issue": "pr167514",
+        "steps": 9,
+        "skips": 0,
+        "first_bad": "fd4f94ddbf0c0f0c9d0185e6036fe51de5ab2ef3",
+        "source": "BCR and weak-general done on aws-server; tuned done on edu-server"
+      },
+      {
+        "issue": "pr168912",
+        "steps": 10,
+        "skips": 0,
+        "first_bad": "69b4190d5f1b483524f2f539f373960ef8de8d84",
+        "source": "BCR and weak-general done on aws-server; tuned done on edu-server"
+      },
+      {
+        "issue": "pr197797",
+        "steps": 8,
+        "skips": 0,
+        "first_bad": "fb024337497f4c158ea16bfb90e50138d9a2a0c6",
+        "source": "legacy LM, BCR, weak-general, and tuned heuristic done on aws-server/edu-server"
+      },
+      {
+        "issue": "pr198257",
+        "steps": 8,
+        "skips": 0,
+        "first_bad": "f612211116e1234a1ffc36c64aa662c0a462eac4",
+        "source": "legacy LM and BCR done on aws-server; both heuristics done on aws-server"
+      },
+      {
+        "issue": "pr198339",
+        "steps": 11,
+        "skips": 0,
+        "first_bad": "f478220dd06278c6ee725db710eb587ca80130d2",
+        "source": "legacy LM and tuned heuristic done on edu-server; BCR done on aws-server; weak-general done on aws-server"
+      },
+      {
+        "issue": "pr199526",
+        "steps": 9,
+        "skips": 0,
+        "first_bad": "291e4e97777d707079f5fe14326649cfc1eb8337",
+        "source": "legacy LM done on edu-server; BCR and both heuristics done on aws-server"
+      },
+      {
+        "issue": "pr200330",
+        "steps": 14,
+        "skips": 0,
+        "first_bad": "a63eacee2db2c6ea75c67aca729cc3d32426200b",
+        "source": "legacy LM done on edu-server; BCR, tuned, and weak-general done on aws-server"
+      },
+      {
+        "issue": "pr200648",
+        "steps": 9,
+        "skips": 0,
+        "first_bad": "525e68e9e9a44e88eb88ef2d6f058a482972c989",
+        "source": "BCR and weak-general done on aws-server; tuned done on edu-server"
+      },
+      {
+        "issue": "pr200742",
+        "steps": 10,
+        "skips": 0,
+        "first_bad": "f612211116e1234a1ffc36c64aa662c0a462eac4",
+        "source": "legacy LM, BCR, tuned, and weak-general done on aws-server/edu-server"
+      },
+      {
+        "issue": "pr201444",
+        "steps": 15,
+        "skips": 0,
+        "first_bad": "6bcdd843e302063c4f0d36204686155149a6bb0a",
+        "source": "legacy LM and BCR done on aws-server; tuned done on aws-server; weak-general done on edu-server"
+      },
+      {
+        "issue": "pr201855",
+        "steps": 10,
+        "skips": 0,
+        "first_bad": "c095488da4586f4d98c13f9793088b444e686a4a",
+        "source": "legacy LM, BCR, and tuned done on aws-server; weak-general done on edu-server"
+      },
+      {
+        "issue": "pr202003",
+        "steps": 10,
+        "skips": 0,
+        "first_bad": "be529fc55f2fd365855a3971f2b919bd0c4d18dc",
+        "source": "legacy LM, BCR, and both heuristics done on aws-server"
+      },
+      {
+        "issue": "pr203261",
+        "steps": 9,
+        "skips": 0,
+        "first_bad": "89ce8718be80ead58ef5942d2d5052a528e79fee",
+        "source": "legacy LM, tuned, and weak-general done on edu-server; BCR done on aws-server"
+      },
+      {
+        "issue": "pr204559",
+        "steps": 10,
+        "skips": 0,
+        "first_bad": "5a5d0fb1e471b3a1e842aee1f993e885c8d19713",
+        "source": "legacy LM done on edu-server; BCR and both heuristics done on aws-server"
+      },
+      {
+        "issue": "pr204561",
+        "steps": 10,
+        "skips": 0,
+        "first_bad": "f505ceabdd2339f078cd6886d3f52cc622abd5c9",
+        "source": "BCR and weak-general done on aws-server; tuned done on edu-server"
+      },
+      {
+        "issue": "pr205971",
+        "steps": 10,
+        "skips": 0,
+        "first_bad": "f505ceabdd2339f078cd6886d3f52cc622abd5c9",
+        "source": "V1 and weak-general done on aws-server; tuned done on edu-server"
+      },
+      {
+        "issue": "pr206007",
+        "steps": 8,
+        "skips": 0,
+        "first_bad": "ffffe9c1696ad3ca59d9783e7511b16f41e4c3ae",
+        "source": "V1 and weak-general done on aws-server; tuned done on edu-server"
+      }
+    ],
+    "partial": []
+  },
+  "weak_general_heuristic": {
+    "label": "Weak-general heuristic as recorded on the canonical master ledger",
+    "clean_completed": [
+      {
+        "issue": "pr120802",
+        "steps": 12,
+        "skips": 0,
+        "first_bad": "93d7002dc4644b0a6f15a998dff0d55c72012e87"
+      },
+      {
+        "issue": "pr121365",
+        "steps": 12,
+        "skips": 0,
+        "first_bad": "13a78fd1ac886b3119574bbffb327489f335e713"
+      },
+      {
+        "issue": "pr156249",
+        "steps": 13,
+        "skips": 0,
+        "first_bad": "43f2968a028fbc6b4fac5ba6d18ad9d27eb4ef76"
+      },
+      {
+        "issue": "pr165039",
+        "steps": 10,
+        "skips": 0,
+        "first_bad": "078e99ef017cac3899e5dbc2ed917f173c9eedad"
+      },
+      {
+        "issue": "pr165246",
+        "steps": 14,
+        "skips": 0,
+        "first_bad": "55f1b91d50a0f3706ad62d497d3c8a5ec572d59e"
+      },
+      {
+        "issue": "pr165445",
+        "steps": 13,
+        "skips": 0,
+        "first_bad": "fccc6ee7021811a27ab1303d19407f703853ab92"
+      },
+      {
+        "issue": "pr167514",
+        "steps": 14,
+        "skips": 0,
+        "first_bad": "fd4f94ddbf0c0f0c9d0185e6036fe51de5ab2ef3"
+      },
+      {
+        "issue": "pr168912",
+        "steps": 10,
+        "skips": 0,
+        "first_bad": "69b4190d5f1b483524f2f539f373960ef8de8d84"
+      },
+      {
+        "issue": "pr170421",
+        "steps": 15,
+        "skips": 0,
+        "first_bad": "97fdc237ddda7565c7c902cc4fc764f73e70686b"
+      },
+      {
+        "issue": "pr172195",
+        "steps": 12,
+        "skips": 0,
+        "first_bad": "e8219e5ce84db26fd521ce5091d18e75c7afbc6a"
+      },
+      {
+        "issue": "pr173943",
+        "steps": 12,
+        "skips": 0,
+        "first_bad": "d0223b9ffc40146fb4a948ebfa652dc95499b7ba"
+      },
+      {
+        "issue": "pr176682",
+        "steps": 14,
+        "skips": 0,
+        "first_bad": "782759b757f69c6be98bd8079bc57e8f49b7ec86"
+      },
+      {
+        "issue": "pr190445",
+        "steps": 13,
+        "skips": 0,
+        "first_bad": "6dc188d4eb15cbe9bdece3d940f03d93b926328c"
+      },
+      {
+        "issue": "pr191581",
+        "steps": 13,
+        "skips": 0,
+        "first_bad": "1ab0e7dd60e26ac7c7fc64a273485522f5c5ba02"
+      },
+      {
+        "issue": "pr192829",
+        "steps": 14,
+        "skips": 0,
+        "first_bad": "1f67b945ab2164f8f489eca636ccae5f0e58fc8b"
+      },
+      {
+        "issue": "pr193164",
+        "steps": 13,
+        "skips": 0,
+        "first_bad": "cac7fe50e0fbedfb14028c170d83386efeb1265b"
+      },
+      {
+        "issue": "pr194000",
+        "steps": 11,
+        "skips": 0,
+        "first_bad": "730a07f225ab29c41e7db2e9db99aa619874ff46"
+      },
+      {
+        "issue": "pr195788",
+        "steps": 14,
+        "skips": 0,
+        "first_bad": "62116c8f0b5b7aac3d53f1bd2445356ae6866048"
+      },
+      {
+        "issue": "pr196244",
+        "steps": 18,
+        "skips": 0,
+        "first_bad": "d0aa6c58beef0a6663aacba8904e286c1925c572"
+      },
+      {
+        "issue": "pr196450",
+        "steps": 15,
+        "skips": 0,
+        "first_bad": "6e78aef646c22b7087cbf7939c8016f4f59614a1"
+      },
+      {
+        "issue": "pr197067",
+        "steps": 14,
+        "skips": 0,
+        "first_bad": "a9d491b17f4f0a131f68a5dbdac8d34c7c8427db"
+      },
+      {
+        "issue": "pr197797",
+        "steps": 12,
+        "skips": 0,
+        "first_bad": "fb024337497f4c158ea16bfb90e50138d9a2a0c6"
+      },
+      {
+        "issue": "pr198257",
+        "steps": 10,
+        "skips": 0,
+        "first_bad": "f612211116e1234a1ffc36c64aa662c0a462eac4"
+      },
+      {
+        "issue": "pr198339",
+        "steps": 10,
+        "skips": 0,
+        "first_bad": "f478220dd06278c6ee725db710eb587ca80130d2"
+      },
+      {
+        "issue": "pr199526",
+        "steps": 12,
+        "skips": 0,
+        "first_bad": "291e4e97777d707079f5fe14326649cfc1eb8337"
+      },
+      {
+        "issue": "pr200330",
+        "steps": 13,
+        "skips": 0,
+        "first_bad": "a63eacee2db2c6ea75c67aca729cc3d32426200b"
+      },
+      {
+        "issue": "pr200648",
+        "steps": 14,
+        "skips": 0,
+        "first_bad": "525e68e9e9a44e88eb88ef2d6f058a482972c989"
+      },
+      {
+        "issue": "pr200742",
+        "steps": 12,
+        "skips": 0,
+        "first_bad": "f612211116e1234a1ffc36c64aa662c0a462eac4"
+      },
+      {
+        "issue": "pr200987",
+        "steps": 14,
+        "skips": 0,
+        "first_bad": "329ef60f3e21fd6845e8e8b0da405cae7eb27267"
+      },
+      {
+        "issue": "pr201444",
+        "steps": 12,
+        "skips": 0,
+        "first_bad": "6bcdd843e302063c4f0d36204686155149a6bb0a"
+      },
+      {
+        "issue": "pr201855",
+        "steps": 12,
+        "skips": 0,
+        "first_bad": "c095488da4586f4d98c13f9793088b444e686a4a"
+      },
+      {
+        "issue": "pr202003",
+        "steps": 12,
+        "skips": 0,
+        "first_bad": "be529fc55f2fd365855a3971f2b919bd0c4d18dc"
+      },
+      {
+        "issue": "pr202343",
+        "steps": 15,
+        "skips": 0,
+        "first_bad": "2071ea24a27c7009feac699e3e70ee50f185134f"
+      },
+      {
+        "issue": "pr203261",
+        "steps": 13,
+        "skips": 0,
+        "first_bad": "89ce8718be80ead58ef5942d2d5052a528e79fee"
+      },
+      {
+        "issue": "pr203278",
+        "steps": 14,
+        "skips": 0,
+        "first_bad": "43b88851cefe68645aa59b1fccc8390a8a31f469"
+      },
+      {
+        "issue": "pr204559",
+        "steps": 12,
+        "skips": 0,
+        "first_bad": "5a5d0fb1e471b3a1e842aee1f993e885c8d19713"
+      },
+      {
+        "issue": "pr204561",
+        "steps": 12,
+        "skips": 0,
+        "first_bad": "f505ceabdd2339f078cd6886d3f52cc622abd5c9"
+      },
+      {
+        "issue": "pr204589",
+        "steps": 12,
+        "skips": 0,
+        "first_bad": "5a5d0fb1e471b3a1e842aee1f993e885c8d19713"
+      },
+      {
+        "issue": "pr205971",
+        "steps": 11,
+        "skips": 0,
+        "first_bad": "f505ceabdd2339f078cd6886d3f52cc622abd5c9"
+      },
+      {
+        "issue": "pr206007",
+        "steps": 10,
+        "skips": 0,
+        "first_bad": "ffffe9c1696ad3ca59d9783e7511b16f41e4c3ae"
+      },
+      {
+        "issue": "pr48154",
+        "steps": 15,
+        "skips": 0,
+        "first_bad": "20e989e9de6abcf9a684978a2688acc4ea01036f"
+      },
+      {
+        "issue": "pr49535",
+        "steps": 11,
+        "skips": 0,
+        "first_bad": "6792e26c0d0f2260f1e12693382e184f5ea1966f;"
+      },
+      {
+        "issue": "pr50304",
+        "steps": 15,
+        "skips": 0,
+        "first_bad": "c9c05a91c4843c243d508c39bdfbc5e26f311af2"
+      },
+      {
+        "issue": "pr50585",
+        "steps": 11,
+        "skips": 0,
+        "first_bad": "e38b7e894808ec2a0c976ab01e44364f167508d3"
+      },
+      {
+        "issue": "pr50655",
+        "steps": 11,
+        "skips": 0,
+        "first_bad": "34c098b780a27a90b5614ea3b949b9269835f2a5"
+      },
+      {
+        "issue": "pr52635",
+        "steps": 11,
+        "skips": 0,
+        "first_bad": "10bc12588dac532fad044b2851dde8e7b9121e88"
+      }
+    ],
+    "note": "46 completed weak-general rows in this 50-issue cohort."
+  },
+  "active": []
+}
