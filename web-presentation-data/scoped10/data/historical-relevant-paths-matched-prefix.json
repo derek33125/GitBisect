@@ -1,0 +1,541 @@
+{
+  "scope": "web scoped-10 heuristic follow-up",
+  "study": "offline counterfactual matched-prefix analysis",
+  "factor": "relevant-paths",
+  "rows": [
+    {
+      "issue": "pr50304",
+      "factor": "relevant-paths",
+      "baseline_run_label": "edu-heuristic-topk3-compat-20260703a",
+      "variant_run_label": "edu-scoped10-heuristic-ablation-relevant-paths-compat-20260828-b",
+      "baseline_status": "completed",
+      "variant_status": "completed",
+      "baseline_steps": 13,
+      "variant_steps": 13,
+      "paired_steps": 5,
+      "first_divergence_step": 6,
+      "first_divergence_decision": {
+        "step": 6,
+        "same_unresolved_before": true,
+        "same_unresolved_after": false,
+        "baseline_selected_sha": "cb3bc9d81d05724e85434665a2384a8dd812d74c",
+        "variant_selected_sha": "340c1133a250c6a94e510d7aa2141c5a8df6afc8",
+        "baseline_selected_rank_in_variant": null,
+        "variant_selected_rank_in_baseline": 2
+      },
+      "post_divergence_steps_not_paired": 8,
+      "selection_changes": [
+        {
+          "step": 6,
+          "baseline_sha": "cb3bc9d81d05724e85434665a2384a8dd812d74c",
+          "variant_sha": "340c1133a250c6a94e510d7aa2141c5a8df6afc8",
+          "baseline_rank": 1,
+          "variant_rank": 1
+        },
+        {
+          "step": 8,
+          "baseline_sha": "3c4b79481d457b60a1c80fbdac5335be681a9dbe",
+          "variant_sha": "7a29a1230148385e93493891cc7eb7f7f3b4a6cb",
+          "baseline_rank": 1,
+          "variant_rank": 1
+        },
+        {
+          "step": 9,
+          "baseline_sha": "211ce51f27e3b00806a6b3df830e0799b9ee8207",
+          "variant_sha": "7a898477bbd4e06113f9aa67c9c53904889c7cbf",
+          "baseline_rank": 1,
+          "variant_rank": 1
+        },
+        {
+          "step": 10,
+          "baseline_sha": "f7788e1bff223a58292b8b1d0818dac63b713ead",
+          "variant_sha": "fd5cc418186ab0fc0650ec373fdf016101eba21d",
+          "baseline_rank": 1,
+          "variant_rank": 1
+        },
+        {
+          "step": 11,
+          "baseline_sha": "e4fa6c95aca1555167f867a0205cbc99caa2ce09",
+          "variant_sha": "f7788e1bff223a58292b8b1d0818dac63b713ead",
+          "baseline_rank": 1,
+          "variant_rank": 1
+        }
+      ],
+      "paired_rank_delta_mean": 0.0
+    },
+    {
+      "issue": "pr50585",
+      "factor": "relevant-paths",
+      "baseline_run_label": "edu-heuristic-topk3-compat-20260703a",
+      "variant_run_label": "edu-scoped10-heuristic-ablation-relevant-paths-compat-20260828-b",
+      "baseline_status": "completed",
+      "variant_status": "completed",
+      "baseline_steps": 14,
+      "variant_steps": 12,
+      "paired_steps": 0,
+      "first_divergence_step": 1,
+      "first_divergence_decision": {
+        "step": 1,
+        "same_unresolved_before": true,
+        "same_unresolved_after": false,
+        "baseline_selected_sha": "d16d820c2e6400aa2242efcedbfa824fbfa2fc09",
+        "variant_selected_sha": "e808289fe6432c044567a9b3b6999089eb8d1e2b",
+        "baseline_selected_rank_in_variant": null,
+        "variant_selected_rank_in_baseline": null
+      },
+      "post_divergence_steps_not_paired": 12,
+      "selection_changes": [
+        {
+          "step": 1,
+          "baseline_sha": "d16d820c2e6400aa2242efcedbfa824fbfa2fc09",
+          "variant_sha": "e808289fe6432c044567a9b3b6999089eb8d1e2b",
+          "baseline_rank": 1,
+          "variant_rank": 1
+        },
+        {
+          "step": 2,
+          "baseline_sha": "fad8d4230ff73432b73f8111f5d640c6bb014daa",
+          "variant_sha": "e0efebb8eb7cec4a90c73d693c9e1e7fbce8d637",
+          "baseline_rank": 1,
+          "variant_rank": 1
+        },
+        {
+          "step": 3,
+          "baseline_sha": "9c5e65691e129a816ea4bba10be103ca67172ca5",
+          "variant_sha": "d58c7a92380e030af6e6f82ce55bc14a919f39ea",
+          "baseline_rank": 1,
+          "variant_rank": 1
+        },
+        {
+          "step": 4,
+          "baseline_sha": "6ef37b640daf3d768435e58333caacc89e115bd0",
+          "variant_sha": "5b51bd187894820411ad3edcfd1775a78a4a1424",
+          "baseline_rank": 1,
+          "variant_rank": 1
+        },
+        {
+          "step": 5,
+          "baseline_sha": "205ed009a44c2b04a15aea039d8947e74856f158",
+          "variant_sha": "4df591b5c960affd1612e330d0c9cd3076c18053",
+          "baseline_rank": 1,
+          "variant_rank": 1
+        },
+        {
+          "step": 6,
+          "baseline_sha": "5b05a5f6cee2ed3bda299d317907f8c89f4d089d",
+          "variant_sha": "8f4e5474de74169c6c2f7dddbb84c93d3e3ccb07",
+          "baseline_rank": 1,
+          "variant_rank": 1
+        },
+        {
+          "step": 7,
+          "baseline_sha": "1d8030053d46b89e3677986d059065c6a2e7a2e1",
+          "variant_sha": "0d17b5d0af6f7f00f9efc7bb5f524bf9c9800d7c",
+          "baseline_rank": 1,
+          "variant_rank": 1
+        },
+        {
+          "step": 8,
+          "baseline_sha": "88024a724c3bac4aa902dc85d16d3285caac4377",
+          "variant_sha": "c1d53a316d6c7f7d80908ec8b5a65172f82e9721",
+          "baseline_rank": 1,
+          "variant_rank": 1
+        },
+        {
+          "step": 9,
+          "baseline_sha": "4f94121cce24af28b64a9b67e2f5355bcca43574",
+          "variant_sha": "e38b7e894808ec2a0c976ab01e44364f167508d3",
+          "baseline_rank": 1,
+          "variant_rank": 1
+        },
+        {
+          "step": 10,
+          "baseline_sha": "6144085c29b31e8e43122920a5bfba3d7b77e7ae",
+          "variant_sha": "09cdcf09b54d328fc0a247b3a0f351d2610e928f",
+          "baseline_rank": 1,
+          "variant_rank": 1
+        },
+        {
+          "step": 11,
+          "baseline_sha": "e38b7e894808ec2a0c976ab01e44364f167508d3",
+          "variant_sha": "98c2e4115d8d7d4962df52f595e8d2d0cfdfdc8f",
+          "baseline_rank": 1,
+          "variant_rank": 1
+        },
+        {
+          "step": 12,
+          "baseline_sha": "1a5f4cbe1bd62e6624cbb77dad0d363addd1b324",
+          "variant_sha": "10e28a748493270e31821acc0f7f0e1a9a9b0735",
+          "baseline_rank": 1,
+          "variant_rank": 1
+        }
+      ],
+      "paired_rank_delta_mean": null
+    },
+    {
+      "issue": "pr48154",
+      "factor": "relevant-paths",
+      "baseline_run_label": "edu-heuristic-topk3-compat-20260703a",
+      "variant_run_label": "edu-scoped10-heuristic-ablation-relevant-paths-compat-20260828-b",
+      "baseline_status": "completed",
+      "variant_status": "completed",
+      "baseline_steps": 16,
+      "variant_steps": 14,
+      "paired_steps": 0,
+      "first_divergence_step": 1,
+      "first_divergence_decision": {
+        "step": 1,
+        "same_unresolved_before": true,
+        "same_unresolved_after": false,
+        "baseline_selected_sha": "8a836daaa97bc979cd589f5efb060d2223225d8d",
+        "variant_selected_sha": "2322080bc3889145b7fb3c8798016467fe5e3b10",
+        "baseline_selected_rank_in_variant": null,
+        "variant_selected_rank_in_baseline": null
+      },
+      "post_divergence_steps_not_paired": 14,
+      "selection_changes": [
+        {
+          "step": 1,
+          "baseline_sha": "8a836daaa97bc979cd589f5efb060d2223225d8d",
+          "variant_sha": "2322080bc3889145b7fb3c8798016467fe5e3b10",
+          "baseline_rank": 1,
+          "variant_rank": 1
+        },
+        {
+          "step": 2,
+          "baseline_sha": "8bfe46dce22266e596370eac86b1aae799300e7e",
+          "variant_sha": "0c55889d809027136048a0d144209a2bc282e7fc",
+          "baseline_rank": 1,
+          "variant_rank": 1
+        },
+        {
+          "step": 4,
+          "baseline_sha": "8637acac5a3f4688114290b524eb5154a0bcdbdf",
+          "variant_sha": "6eef387ddd863db1afe044e208bbff4366d5dac2",
+          "baseline_rank": 1,
+          "variant_rank": 1
+        },
+        {
+          "step": 5,
+          "baseline_sha": "389fd309da843494204fc30a899c54b3de16dd99",
+          "variant_sha": "759482ddaa5eead883ed59a26af2f1dc66a6d4d1",
+          "baseline_rank": 1,
+          "variant_rank": 1
+        },
+        {
+          "step": 7,
+          "baseline_sha": "7a68f0f1e00b3542405ee596d7e54c4b243933e9",
+          "variant_sha": "035833ae42aa6c597f28b6e0e1118508e26f175c",
+          "baseline_rank": 1,
+          "variant_rank": 1
+        },
+        {
+          "step": 8,
+          "baseline_sha": "50ebd1afa9d7271edae3b2faa607f400fe56c9e6",
+          "variant_sha": "3c8be94f3d8a82f07f61aeddf834a8cc007175bb",
+          "baseline_rank": 1,
+          "variant_rank": 1
+        },
+        {
+          "step": 9,
+          "baseline_sha": "064981f0cee47b140e94ca7df6c24102514af6f0",
+          "variant_sha": "ba7c79cb3a69dd6ec2256afa9913214e63aea0d7",
+          "baseline_rank": 1,
+          "variant_rank": 1
+        },
+        {
+          "step": 10,
+          "baseline_sha": "3c8be94f3d8a82f07f61aeddf834a8cc007175bb",
+          "variant_sha": "43aa7227dfab8f847a346ce6da7318584182ddf1",
+          "baseline_rank": 1,
+          "variant_rank": 1
+        },
+        {
+          "step": 11,
+          "baseline_sha": "ba7c79cb3a69dd6ec2256afa9913214e63aea0d7",
+          "variant_sha": "85dacca29f8280fe72ee00adf3678ba06a9e2348",
+          "baseline_rank": 1,
+          "variant_rank": 1
+        },
+        {
+          "step": 12,
+          "baseline_sha": "43aa7227dfab8f847a346ce6da7318584182ddf1",
+          "variant_sha": "20e989e9de6abcf9a684978a2688acc4ea01036f",
+          "baseline_rank": 1,
+          "variant_rank": 1
+        },
+        {
+          "step": 13,
+          "baseline_sha": "85dacca29f8280fe72ee00adf3678ba06a9e2348",
+          "variant_sha": "4cd14256b23a19f4e7cf96628dda6cd6cec01be7",
+          "baseline_rank": 1,
+          "variant_rank": 1
+        },
+        {
+          "step": 14,
+          "baseline_sha": "20e989e9de6abcf9a684978a2688acc4ea01036f",
+          "variant_sha": "3fe01f0e215b7a41481806698efa087be6fe8897",
+          "baseline_rank": 1,
+          "variant_rank": 0
+        }
+      ],
+      "paired_rank_delta_mean": null
+    },
+    {
+      "issue": "pr49535",
+      "factor": "relevant-paths",
+      "baseline_run_label": "edu-heuristic-topk3-compat-20260703a",
+      "variant_run_label": "edu-scoped10-heuristic-ablation-relevant-paths-compat-20260828-b",
+      "baseline_status": "completed",
+      "variant_status": "completed",
+      "baseline_steps": 11,
+      "variant_steps": 12,
+      "paired_steps": 0,
+      "first_divergence_step": 1,
+      "first_divergence_decision": {
+        "step": 1,
+        "same_unresolved_before": true,
+        "same_unresolved_after": false,
+        "baseline_selected_sha": "fff1363ba0ae50da3f8f7b732c90e47e504f18a9",
+        "variant_selected_sha": "3b635253ddd0106c88051cff3540d8eb90bee22f",
+        "baseline_selected_rank_in_variant": null,
+        "variant_selected_rank_in_baseline": null
+      },
+      "post_divergence_steps_not_paired": 11,
+      "selection_changes": [
+        {
+          "step": 1,
+          "baseline_sha": "fff1363ba0ae50da3f8f7b732c90e47e504f18a9",
+          "variant_sha": "3b635253ddd0106c88051cff3540d8eb90bee22f",
+          "baseline_rank": 1,
+          "variant_rank": 1
+        },
+        {
+          "step": 5,
+          "baseline_sha": "806b47ade3f6be6ea1235536db0f7147ac6d6eec",
+          "variant_sha": "988926127b942ae94916cfb3ca57a15adce837ea",
+          "baseline_rank": 1,
+          "variant_rank": 1
+        },
+        {
+          "step": 6,
+          "baseline_sha": "a2099d6542b978ae7c604e7d3012f9f00054a859",
+          "variant_sha": "632eb20ab4fb06f3e3dbce29a30e615031b04b0d",
+          "baseline_rank": 1,
+          "variant_rank": 1
+        },
+        {
+          "step": 7,
+          "baseline_sha": "632eb20ab4fb06f3e3dbce29a30e615031b04b0d",
+          "variant_sha": "4897effb14158051bc07a88cb7e84f3b25d5980c",
+          "baseline_rank": 1,
+          "variant_rank": 1
+        },
+        {
+          "step": 11,
+          "baseline_sha": "4a292eda25bc999ec175f0d21b87cb0225b6da86",
+          "variant_sha": "b0322a4ed2b2d5a5b3b0ea2ef4da40606f6838d1",
+          "baseline_rank": 1,
+          "variant_rank": 1
+        }
+      ],
+      "paired_rank_delta_mean": null
+    },
+    {
+      "issue": "pr52635",
+      "factor": "relevant-paths",
+      "baseline_run_label": "edu-heuristic-topk3-compat-20260703a",
+      "variant_run_label": "edu-scoped10-heuristic-ablation-relevant-paths-compat-20260828-b",
+      "baseline_status": "completed",
+      "variant_status": "completed",
+      "baseline_steps": 10,
+      "variant_steps": 10,
+      "paired_steps": 0,
+      "first_divergence_step": 1,
+      "first_divergence_decision": {
+        "step": 1,
+        "same_unresolved_before": true,
+        "same_unresolved_after": false,
+        "baseline_selected_sha": "a059be72c4f72b5be8d789eece60d53f3f6b9041",
+        "variant_selected_sha": "33cbd5ee080ecbc1775751d7f5d930ae9b83c8ec",
+        "baseline_selected_rank_in_variant": 2,
+        "variant_selected_rank_in_baseline": 4
+      },
+      "post_divergence_steps_not_paired": 10,
+      "selection_changes": [
+        {
+          "step": 1,
+          "baseline_sha": "a059be72c4f72b5be8d789eece60d53f3f6b9041",
+          "variant_sha": "33cbd5ee080ecbc1775751d7f5d930ae9b83c8ec",
+          "baseline_rank": 1,
+          "variant_rank": 1
+        },
+        {
+          "step": 2,
+          "baseline_sha": "2451e4c597885aaa76a1a70f98056ecca7d23cf8",
+          "variant_sha": "8d85da5f5a2d2e6a03fd1dc215393e5e6d31255c",
+          "baseline_rank": 1,
+          "variant_rank": 1
+        },
+        {
+          "step": 3,
+          "baseline_sha": "96819011caa8e590b6455be485a0f5711c7513e7",
+          "variant_sha": "8340c844aee4e9604956d89d75bee0fa66496dfd",
+          "baseline_rank": 1,
+          "variant_rank": 1
+        },
+        {
+          "step": 5,
+          "baseline_sha": "c3730ad8fcf5ee2ccf3b409faa09ac482b5235de",
+          "variant_sha": "eecba950671629e656e90b5a948a58d3a86a375d",
+          "baseline_rank": 1,
+          "variant_rank": 1
+        },
+        {
+          "step": 8,
+          "baseline_sha": "65fe71be48d6b4a98a711a867d42e09c5868f1d6",
+          "variant_sha": "79702dd349f31c0c67bf35f36435fdc843fcd052",
+          "baseline_rank": 1,
+          "variant_rank": 1
+        }
+      ],
+      "paired_rank_delta_mean": null
+    },
+    {
+      "issue": "pr200987",
+      "factor": "relevant-paths",
+      "baseline_run_label": "edu-scoped10-heuristic-topk20-20260707a",
+      "variant_run_label": "edu-scoped10-heuristic-ablation-relevant-paths-compat-20260828-b",
+      "baseline_status": "completed",
+      "variant_status": "completed",
+      "baseline_steps": 15,
+      "variant_steps": 14,
+      "paired_steps": 0,
+      "first_divergence_step": 1,
+      "first_divergence_decision": {
+        "step": 1,
+        "same_unresolved_before": true,
+        "same_unresolved_after": false,
+        "baseline_selected_sha": "b0afa6bab9581abc91f23c854b3bb45095cbb057",
+        "variant_selected_sha": "f7ef0721d60f85e1f699f8d1b83d4402ae19b122",
+        "baseline_selected_rank_in_variant": null,
+        "variant_selected_rank_in_baseline": null
+      },
+      "post_divergence_steps_not_paired": 14,
+      "selection_changes": [
+        {
+          "step": 1,
+          "baseline_sha": "b0afa6bab9581abc91f23c854b3bb45095cbb057",
+          "variant_sha": "f7ef0721d60f85e1f699f8d1b83d4402ae19b122",
+          "baseline_rank": 1,
+          "variant_rank": 1
+        },
+        {
+          "step": 2,
+          "baseline_sha": "03dc806b128a94771ff9e9b56b28babdfb3c0931",
+          "variant_sha": "42fe3bc186b938197b3dfe3bd0445674c33fc5eb",
+          "baseline_rank": 1,
+          "variant_rank": 1
+        },
+        {
+          "step": 3,
+          "baseline_sha": "fa90f6b9d0fa2742df4548156c498c48dc796ec4",
+          "variant_sha": "95d833d7c35ed46b1883b30de027cbcf2a667bff",
+          "baseline_rank": 1,
+          "variant_rank": 1
+        },
+        {
+          "step": 4,
+          "baseline_sha": "8f3127cdea6e772954466554b3d51eeb6762270f",
+          "variant_sha": "5fc6425fb6c77052a26cf0cf7b886449fabe1af4",
+          "baseline_rank": 1,
+          "variant_rank": 1
+        },
+        {
+          "step": 5,
+          "baseline_sha": "17e0926d6ab2f5c6e16f1831dbc33ee058182b6a",
+          "variant_sha": "30705e977061e437a337070fd6a21c7df2c62670",
+          "baseline_rank": 1,
+          "variant_rank": 1
+        },
+        {
+          "step": 6,
+          "baseline_sha": "462227f1150fc4a12f95a7a101de477c06d35ba7",
+          "variant_sha": "c9fad20f6a6641249b303df9921771d0481bae7d",
+          "baseline_rank": 1,
+          "variant_rank": 1
+        },
+        {
+          "step": 7,
+          "baseline_sha": "aa6dc8ec4775874fc1e86fca9c971fd544e52639",
+          "variant_sha": "2f3c748c45ff7f9022ffa88d5a06a856a1b15ace",
+          "baseline_rank": 1,
+          "variant_rank": 1
+        },
+        {
+          "step": 8,
+          "baseline_sha": "b6eed9a82e0ce530d94a194c88615d6c272e1854",
+          "variant_sha": "d61a3d3a9b95961144e672c79570aa7b7ab8758b",
+          "baseline_rank": 1,
+          "variant_rank": 1
+        },
+        {
+          "step": 9,
+          "baseline_sha": "f842b7a6b8f40d817d6d43143e09521bd586a756",
+          "variant_sha": "7be55b007698f6b6398cbbea69c327b5a971938a",
+          "baseline_rank": 1,
+          "variant_rank": 1
+        },
+        {
+          "step": 10,
+          "baseline_sha": "f098fb69f16420cda0624a3ae5ad625a09ca7fe6",
+          "variant_sha": "93de5f13b9ddda64951d6674f92e00510ce4f8c0",
+          "baseline_rank": 1,
+          "variant_rank": 1
+        },
+        {
+          "step": 11,
+          "baseline_sha": "93de5f13b9ddda64951d6674f92e00510ce4f8c0",
+          "variant_sha": "f842b7a6b8f40d817d6d43143e09521bd586a756",
+          "baseline_rank": 1,
+          "variant_rank": 1
+        },
+        {
+          "step": 12,
+          "baseline_sha": "b1bc723dfe9734a8b3157dbf50328b5d62436bd6",
+          "variant_sha": "094190c2f52900d9d5d26dba9522e70030cc00a1",
+          "baseline_rank": 1,
+          "variant_rank": 1
+        },
+        {
+          "step": 13,
+          "baseline_sha": "8045ba89488c9f7cc1c291e6c939e02e04fbcd2e",
+          "variant_sha": "329ef60f3e21fd6845e8e8b0da405cae7eb27267",
+          "baseline_rank": 0,
+          "variant_rank": 1
+        },
+        {
+          "step": 14,
+          "baseline_sha": "af6656338db365fde6c0b0e53db8f98aa8ed59d4",
+          "variant_sha": "b1bc723dfe9734a8b3157dbf50328b5d62436bd6",
+          "baseline_rank": 0,
+          "variant_rank": 1
+        }
+      ],
+      "paired_rank_delta_mean": null
+    }
+  ],
+  "aggregate": {
+    "issues": 6,
+    "fully_paired_issues": 0,
+    "diverged_issues": 6,
+    "mean_baseline_steps": 13.166666666666666,
+    "mean_variant_steps": 12.5,
+    "mean_paired_steps": 0.8333333333333334,
+    "first_divergence_step_counts": {
+      "1": 5,
+      "6": 1
+    },
+    "warning": "Only the common prefix before the first changed selection/state is paired; later step counts are descriptive, not counterfactual effects."
+  }
+}

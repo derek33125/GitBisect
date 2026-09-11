@@ -1,0 +1,103 @@
+{
+  "scope": "web scoped-10 heuristic follow-up",
+  "status": "exploratory-only",
+  "caveat": "These six historical compatibility cases are not contemporaneous repeat pairs. The analysis reports their matched state prefix and must not be interpreted as a confirmatory causal effect. The gated full scoped-10 reruns in followup-ablation-plan.json are the confirmatory study.",
+  "pair_sets": {
+    "keywords": [
+      {
+        "issue": "pr50304",
+        "baseline_path": "../raw/edu/pr50304-heuristic-calibrated-posterior-edu-heuristic-topk3-compat-20260703a.json",
+        "variant_path": "../raw/edu/pr50304-heuristic-ablate-keywords-calibrated-posterior-edu-scoped10-heuristic-ablation-keywords-compat-20260828-a.json"
+      },
+      {
+        "issue": "pr50585",
+        "baseline_path": "../raw/edu/pr50585-heuristic-calibrated-posterior-edu-heuristic-topk3-compat-20260703a.json",
+        "variant_path": "../raw/edu/pr50585-heuristic-ablate-keywords-calibrated-posterior-edu-scoped10-heuristic-ablation-keywords-compat-20260828-a.json"
+      },
+      {
+        "issue": "pr48154",
+        "baseline_path": "../raw/edu/pr48154-heuristic-calibrated-posterior-edu-heuristic-topk3-compat-20260703a.json",
+        "variant_path": "../raw/edu/pr48154-heuristic-ablate-keywords-calibrated-posterior-edu-scoped10-heuristic-ablation-keywords-compat-20260828-a.json"
+      },
+      {
+        "issue": "pr49535",
+        "baseline_path": "../raw/edu/pr49535-heuristic-calibrated-posterior-edu-heuristic-topk3-compat-20260703a.json",
+        "variant_path": "../raw/edu/pr49535-heuristic-ablate-keywords-calibrated-posterior-edu-scoped10-heuristic-ablation-keywords-compat-20260828-a.json"
+      },
+      {
+        "issue": "pr52635",
+        "baseline_path": "../raw/edu/pr52635-heuristic-calibrated-posterior-edu-heuristic-topk3-compat-20260703a.json",
+        "variant_path": "../raw/edu/pr52635-heuristic-ablate-keywords-calibrated-posterior-edu-scoped10-heuristic-ablation-keywords-compat-20260828-a.json"
+      },
+      {
+        "issue": "pr200987",
+        "baseline_path": "../raw/edu/pr200987-heuristic-calibrated-posterior-edu-scoped10-heuristic-topk20-20260707a.json",
+        "variant_path": "../raw/edu/pr200987-heuristic-ablate-keywords-calibrated-posterior-edu-scoped10-heuristic-ablation-keywords-compat-20260828-a.json"
+      }
+    ],
+    "relevant-paths": [
+      {
+        "issue": "pr50304",
+        "baseline_path": "../raw/edu/pr50304-heuristic-calibrated-posterior-edu-heuristic-topk3-compat-20260703a.json",
+        "variant_path": "../raw/edu/pr50304-heuristic-ablate-relevant-paths-calibrated-posterior-edu-scoped10-heuristic-ablation-relevant-paths-compat-20260828-b.json"
+      },
+      {
+        "issue": "pr50585",
+        "baseline_path": "../raw/edu/pr50585-heuristic-calibrated-posterior-edu-heuristic-topk3-compat-20260703a.json",
+        "variant_path": "../raw/edu/pr50585-heuristic-ablate-relevant-paths-calibrated-posterior-edu-scoped10-heuristic-ablation-relevant-paths-compat-20260828-b.json"
+      },
+      {
+        "issue": "pr48154",
+        "baseline_path": "../raw/edu/pr48154-heuristic-calibrated-posterior-edu-heuristic-topk3-compat-20260703a.json",
+        "variant_path": "../raw/edu/pr48154-heuristic-ablate-relevant-paths-calibrated-posterior-edu-scoped10-heuristic-ablation-relevant-paths-compat-20260828-b.json"
+      },
+      {
+        "issue": "pr49535",
+        "baseline_path": "../raw/edu/pr49535-heuristic-calibrated-posterior-edu-heuristic-topk3-compat-20260703a.json",
+        "variant_path": "../raw/edu/pr49535-heuristic-ablate-relevant-paths-calibrated-posterior-edu-scoped10-heuristic-ablation-relevant-paths-compat-20260828-b.json"
+      },
+      {
+        "issue": "pr52635",
+        "baseline_path": "../raw/edu/pr52635-heuristic-calibrated-posterior-edu-heuristic-topk3-compat-20260703a.json",
+        "variant_path": "../raw/edu/pr52635-heuristic-ablate-relevant-paths-calibrated-posterior-edu-scoped10-heuristic-ablation-relevant-paths-compat-20260828-b.json"
+      },
+      {
+        "issue": "pr200987",
+        "baseline_path": "../raw/edu/pr200987-heuristic-calibrated-posterior-edu-scoped10-heuristic-topk20-20260707a.json",
+        "variant_path": "../raw/edu/pr200987-heuristic-ablate-relevant-paths-calibrated-posterior-edu-scoped10-heuristic-ablation-relevant-paths-compat-20260828-b.json"
+      }
+    ],
+    "high-risk-paths": [
+      {
+        "issue": "pr50304",
+        "baseline_path": "../raw/edu/pr50304-heuristic-calibrated-posterior-edu-heuristic-topk3-compat-20260703a.json",
+        "variant_path": "../raw/edu/pr50304-heuristic-ablate-high-risk-paths-calibrated-posterior-edu-scoped10-heuristic-ablation-high-risk-paths-compat-20260828-c.json"
+      },
+      {
+        "issue": "pr50585",
+        "baseline_path": "../raw/edu/pr50585-heuristic-calibrated-posterior-edu-heuristic-topk3-compat-20260703a.json",
+        "variant_path": "../raw/edu/pr50585-heuristic-ablate-high-risk-paths-calibrated-posterior-edu-scoped10-heuristic-ablation-high-risk-paths-compat-20260828-c.json"
+      },
+      {
+        "issue": "pr48154",
+        "baseline_path": "../raw/edu/pr48154-heuristic-calibrated-posterior-edu-heuristic-topk3-compat-20260703a.json",
+        "variant_path": "../raw/edu/pr48154-heuristic-ablate-high-risk-paths-calibrated-posterior-edu-scoped10-heuristic-ablation-high-risk-paths-compat-20260828-c.json"
+      },
+      {
+        "issue": "pr49535",
+        "baseline_path": "../raw/edu/pr49535-heuristic-calibrated-posterior-edu-heuristic-topk3-compat-20260703a.json",
+        "variant_path": "../raw/edu/pr49535-heuristic-ablate-high-risk-paths-calibrated-posterior-edu-scoped10-heuristic-ablation-high-risk-paths-compat-20260828-c.json"
+      },
+      {
+        "issue": "pr52635",
+        "baseline_path": "../raw/edu/pr52635-heuristic-calibrated-posterior-edu-heuristic-topk3-compat-20260703a.json",
+        "variant_path": "../raw/edu/pr52635-heuristic-ablate-high-risk-paths-calibrated-posterior-edu-scoped10-heuristic-ablation-high-risk-paths-compat-20260828-c.json"
+      },
+      {
+        "issue": "pr200987",
+        "baseline_path": "../raw/edu/pr200987-heuristic-calibrated-posterior-edu-scoped10-heuristic-topk20-20260707a.json",
+        "variant_path": "../raw/edu/pr200987-heuristic-ablate-high-risk-paths-calibrated-posterior-edu-scoped10-heuristic-ablation-high-risk-paths-compat-20260828-c.json"
+      }
+    ]
+  }
+}

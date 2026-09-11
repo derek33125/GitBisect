@@ -1,0 +1,62 @@
+{
+  "scope": "web scoped-10 heuristic follow-up",
+  "issues": [
+    "pr204559",
+    "pr204589",
+    "pr201444",
+    "pr193164",
+    "pr50304",
+    "pr50585",
+    "pr48154",
+    "pr49535",
+    "pr52635",
+    "pr200987"
+  ],
+  "purpose": "Determine whether the small one-factor deltas reflect a real heuristic contribution, run instability, or selection-path noise.",
+  "runtime_gate": {
+    "file": "results/issues/server-jobs/master50-runtime-generation-20260903.complete.json",
+    "required": {
+      "scope": "master50-runtime-generation",
+      "status": "complete",
+      "expected_cases": 29,
+      "terminal_cases": 29
+    },
+    "policy": "No follow-up controller may start until this record is complete."
+  },
+  "studies": [
+    {
+      "id": "repeatability",
+      "description": "Run the tuned heuristic twice with identical profiles and runner settings.",
+      "interpretation": "Compare paired unresolved-state prefixes first. After the first changed selection or state, step counts are descriptive rather than causal."
+    },
+    {
+      "id": "leave-one-in",
+      "description": "Run only one semantic signal family at a time: keywords, relevant paths, high-risk paths, or risky words. Buildability and feedback remain enabled.",
+      "interpretation": "A factor is useful only if it improves matched-prefix ranking or repeatable outcomes across cases; one unusually short run is insufficient."
+    },
+    {
+      "id": "shuffle-signals",
+      "description": "Replace each issue's signal family with a deterministic signal family from another scoped-10 issue, with no self-match.",
+      "interpretation": "This negative control preserves signal-count scale while breaking issue-specific alignment. A result similar to the tuned baseline indicates weak issue-specific signal value."
+    }
+  ],
+  "historical_evidence": {
+    "status": "exploratory",
+    "coverage": "6 of 10 issues have complete historical one-factor arms; these runs have non-matched dates and are not the confirmatory result.",
+    "analysis": "tools/scoped10_followup_analysis.py",
+    "pairing_rule": "Only the common prefix with identical unresolved state and selected SHA is paired; all later steps are excluded from causal delta claims."
+  },
+  "confirmatory_run_labels": {
+    "repeat_a": "<lane>-repeat-a-{standard|compat}",
+    "repeat_b": "<lane>-repeat-b-{standard|compat}",
+    "leave_one_in": "<lane>-{factor}-{standard|compat}",
+    "shuffle_signals": "<lane>-shuffle-signals-{standard|compat}"
+  },
+  "factors": [
+    "only-keywords",
+    "only-relevant-paths",
+    "only-high-risk-paths",
+    "only-risky-words",
+    "shuffle-signals"
+  ]
+}
