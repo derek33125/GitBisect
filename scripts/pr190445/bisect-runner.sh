@@ -131,6 +131,11 @@ COMPILE_STDERR=$("${CLANGXX_BIN}" -g -S -mllvm --x86-asm-syntax=intel -fno-verbo
 COMPILE_RC=$?
 set -e
 
+if [[ -n "${RUNNER_CAPTURE_ARTIFACT:-}" ]]; then
+  mkdir -p "$(dirname "${RUNNER_CAPTURE_ARTIFACT}")"
+  printf '%s\n' "${COMPILE_STDERR}" > "${RUNNER_CAPTURE_ARTIFACT}"
+fi
+
 echo "compile exit code: ${COMPILE_RC}"
 if [[ -n "${COMPILE_STDERR}" ]]; then
   printf '%s\n' "${COMPILE_STDERR}"

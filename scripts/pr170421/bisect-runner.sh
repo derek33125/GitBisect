@@ -201,6 +201,11 @@ MAIN_STDERR=$("${CLANG_BIN}" -ftime-trace -c "${TMP_DIR}/main.cpp" -include-pch 
 MAIN_RC=$?
 set -e
 
+if [[ -n "${RUNNER_CAPTURE_ARTIFACT:-}" ]]; then
+  mkdir -p "$(dirname "${RUNNER_CAPTURE_ARTIFACT}")"
+  printf '%s\n' "${MAIN_STDERR}" > "${RUNNER_CAPTURE_ARTIFACT}"
+fi
+
 echo "main compile exit code: ${MAIN_RC}"
 if [[ -n "${MAIN_STDERR}" ]]; then
   printf '%s\n' "${MAIN_STDERR}"

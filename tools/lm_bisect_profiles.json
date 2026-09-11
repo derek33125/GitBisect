@@ -413,6 +413,71 @@
       "clang/include/clang"
     ]
   },
+  "pr203519": {
+    "issue_id": "pr203519",
+    "issue_url": "https://github.com/llvm/llvm-project/issues/203519",
+    "title": "SROA APInt allocation-size assertion",
+    "good_commit": "94b15a1ece37963c9804fc7f0c498d140ea5fd9d",
+    "good_ref": "llvmorg-21.1.8 normalized merge base",
+    "bad_commit": "b2c0c48595ab840c5b949d871302b0d1186acf53",
+    "bisect_log": "results/issues/pr203519/pr203519-git-bisect-20260901-crash-replacement-pr203519.txt",
+    "runner": "scripts/pr203519/bisect-runner.sh",
+    "bug_report_summary": "LLVM opt crashes in SROA while reducing an oversized alloca allocation size, reaching APInt::getZExtValue with more than 64 active bits.",
+    "keywords": [
+      "crash",
+      "assertion",
+      "SROA",
+      "getAllocatedType",
+      "getAllocationSize",
+      "APInt",
+      "Too many bits for uint64_t",
+      "alloca",
+      "integer width"
+    ],
+    "relevant_paths": [
+      "llvm/lib/Transforms/Scalar/SROA.cpp",
+      "llvm/lib/IR",
+      "llvm/include/llvm/ADT"
+    ],
+    "high_risk_paths": [
+      "llvm/lib/Transforms/Scalar",
+      "llvm/lib/IR",
+      "llvm/include/llvm/ADT",
+      "llvm/lib/Analysis"
+    ]
+  },
+  "pr194590": {
+    "issue_id": "pr194590",
+    "issue_url": "https://github.com/llvm/llvm-project/issues/194590",
+    "title": "Reassociate OptimizeAdd assertion",
+    "good_commit": "e9f758a59b2f887acb07e26e2d480c7369a72009",
+    "good_ref": "llvmorg-22.1.0 normalized merge base",
+    "bad_commit": "b6a9206ace1eb7f1ccc712e5c0c8b17db443bbc9",
+    "bisect_log": "results/issues/pr194590/pr194590-git-bisect-20260901-crash-replacement-pr194590.txt",
+    "runner": "scripts/pr194590/bisect-runner.sh",
+    "bug_report_summary": "LLVM opt crashes in ReassociatePass::OptimizeAdd while reassociating a fixed-length floating-point splat expression because an occurrence contributes no value.",
+    "keywords": [
+      "crash",
+      "assertion",
+      "ReassociatePass",
+      "OptimizeAdd",
+      "Each occurrence should contribute a value",
+      "reassociate",
+      "fixed-length splat",
+      "floating point"
+    ],
+    "relevant_paths": [
+      "llvm/lib/Transforms/Scalar/Reassociate.cpp",
+      "llvm/lib/IR/Constants.cpp",
+      "llvm/lib/Transforms/Scalar"
+    ],
+    "high_risk_paths": [
+      "llvm/lib/Transforms/Scalar",
+      "llvm/lib/IR",
+      "llvm/include/llvm/IR",
+      "llvm/lib/Analysis"
+    ]
+  },
   "pr176682": {
     "issue_id": "pr176682",
     "issue_url": "https://github.com/llvm/llvm-project/issues/176682",

@@ -32,8 +32,18 @@ PROFILE_EXCLUSIONS = frozenset(
         "pr54556",
         "pr187875",
         "pr193932",
+        # Retired output-mismatch-only cases replaced by validated crashes.
+        "pr176682",
+        "pr191581",
     }
 )
+
+# These boundaries are verified by the 2026-09-01 clean Git-bisect reruns.
+# Keep them independent of the generated site snapshot used by older cases.
+MASTER50_VALIDATED_FIRST_BAD = {
+    "pr203519": "a460c8e8dafc28fef240fce44dcbed043fe56a71",
+    "pr194590": "d19e954b83cb497c03cccb0e9874cb9f1a51b18d",
+}
 
 
 def select_issues(profiles: dict[str, Any]) -> tuple[str, ...]:
@@ -48,8 +58,9 @@ def first_bad_map(profiles: dict[str, Any], site_path: Path) -> dict[str, str]:
     by_issue = {row["issue"]: row for row in rows}
     mapping: dict[str, str] = {}
     for issue, profile in profiles.items():
-        if issue in CANONICAL_FIRST_BAD:
-            mapping[issue] = CANONICAL_FIRST_BAD[issue]
+        known_boundary = MASTER50_VALIDATED_FIRST_BAD.get(issue) or CANONICAL_FIRST_BAD.get(issue)
+        if known_boundary:
+            mapping[issue] = known_boundary
             continue
         row = by_issue.get(issue) or {}
         match = SHA_RE.search(str(row.get("first_bad") or ""))

@@ -47,6 +47,22 @@ export CCACHE_MAXSIZE="${CCACHE_MAXSIZE:-20G}"
 export CMAKE_BUILD_PARALLEL_LEVEL="${JOBS}"
 export LM_BISECT_QUEUE_LIBRARY_ONLY=1
 
+# LLVM 14-era headers still rely on transitive stdint declarations that
+# current host libstdc++ versions no longer provide. Keep this host-only
+# compatibility explicit so pr50655 remains buildable without changing the
+# checked-out benchmark source.
+if [[ "${ISSUE}" == "pr50655" ]]; then
+  if [[ -z "${CC:-}" ]] && command -v gcc-13 >/dev/null 2>&1; then
+    export CC=gcc-13
+  fi
+  if [[ -z "${CXX:-}" ]] && command -v g++-13 >/dev/null 2>&1; then
+    export CXX=g++-13
+  fi
+  if [[ " ${EXTRA_CMAKE_CXX_FLAGS:-} " != *" -include cstdint "* ]]; then
+    export EXTRA_CMAKE_CXX_FLAGS="${EXTRA_CMAKE_CXX_FLAGS:+${EXTRA_CMAKE_CXX_FLAGS} }-include cstdint"
+  fi
+fi
+
 # shellcheck source=/dev/null
 source "${QUEUE_LIB}" crash
 
@@ -97,6 +113,40 @@ err="${TMP_DIR}/${safe}.err"
 out="${TMP_DIR}/${safe}.out"
 [[ -f "${out}" ]] && cat "${out}" >>"${LOG}" || true
 [[ -f "${err}" ]] && cat "${err}" >>"${LOG}" || true
+
+# Keep the original repro verdict authoritative. The optional diagnostic pass
+# retry is capture-only and is never allowed to turn a good/bad/skip result
+# into a different classification.
+if [[ "${CAPTURE_RUNNING_PASS:-0}" == "1" ]] && ! grep -Eiq \
+  "^[[:space:]]*([0-9]+\\.[[:space:]]*)?([*]+[[:space:]]*)?Running pass([[:space:]]*:|[[:space:]]+[\"'])" \
+  "${out}" "${err}" 2>/dev/null; then
+  diagnostic_rc=0
+  set +e
+  CAPTURE_PASS_DIAGNOSTICS=1 run_repro "$(git -C "${WT}" rev-parse --short HEAD)"
+  diagnostic_rc=$?
+  set -e
+  diagnostic_out="${TMP_DIR}/${safe}.passdiag.out"
+  diagnostic_err="${TMP_DIR}/${safe}.passdiag.err"
+  {
+    echo "=== capture-only pass diagnostics ==="
+    echo "diagnostic_exit_code: ${diagnostic_rc}"
+    [[ -f "${diagnostic_out}" ]] && cat "${diagnostic_out}"
+    [[ -f "${diagnostic_err}" ]] && cat "${diagnostic_err}"
+  }
+fi
+
+if [[ -n "${RUNNER_CAPTURE_ARTIFACT:-}" ]]; then
+  mkdir -p "$(dirname "${RUNNER_CAPTURE_ARTIFACT}")"
+  : > "${RUNNER_CAPTURE_ARTIFACT}"
+  for capture_path in \
+    "${out}" "${err}" \
+    "${diagnostic_out:-}" "${diagnostic_err:-}"; do
+    if [[ -n "${capture_path}" && -s "${capture_path}" ]]; then
+      cat "${capture_path}" >> "${RUNNER_CAPTURE_ARTIFACT}"
+      printf '\n' >> "${RUNNER_CAPTURE_ARTIFACT}"
+    fi
+  done
+fi
 
 verdict="$(classify_repro "${repro_rc}" "${err}")"
 echo "repro exit code: ${repro_rc}" | tee -a "${LOG}"

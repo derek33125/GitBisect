@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import re
+import subprocess
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -18,6 +20,104 @@ class ServerValidationIssueDefinitionTests(unittest.TestCase):
         self.assertMatches(text, r"EXTRA_CMAKE_ARGS")
         self.assertMatches(text, r"extra_cmake_args")
         self.assertIn('cfg+=("${extra_cmake_args[@]}")', text)
+
+    def test_capture_diagnostics_are_opt_in_and_use_pass_manager_debugging(self) -> None:
+        text = SCRIPT.read_text()
+
+        self.assertMatches(text, r'CAPTURE_PASS_DIAGNOSTICS')
+        self.assertMatches(text, r'pass_diagnostic_flags')
+        self.assertMatches(text, r'-O1')
+        self.assertMatches(text, r'-x')
+        self.assertMatches(text, r'-c')
+        self.assertMatches(text, r'diagnostic_flags')
+        self.assertMatches(text, r"'-mllvm'.*'-debug-pass-manager'")
+        self.assertMatches(text, r"'-mllvm'.*'-debug-pass=Executions'")
+        self.assertMatches(text, r'-debug-pass-manager')
+        self.assertMatches(text, r'-debug-pass=Executions')
+
+    def test_pass_diagnostic_helper_selects_supported_legacy_flag(self) -> None:
+        script = f"""
+        set -eu
+        ROOT={str(SCRIPT.parents[2])!r}
+        LM_BISECT_QUEUE_LIBRARY_ONLY=1
+        source {str(SCRIPT)!r} crash
+        TOOL=clang
+        LANG=c
+        pass_diagnostic_flags "$1"
+        """
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            tool = Path(tmp_dir) / "clang"
+            tool.write_text(
+                "#!/bin/sh\n"
+                'case " $* " in *" -mllvm -debug-pass=Executions "*) exit 0;; esac\n'
+                "exit 1\n"
+            )
+            tool.chmod(0o755)
+            result = subprocess.run(
+                ["bash", "-c", script, "test", str(tool)],
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(result.stdout.splitlines(), ["-mllvm", "-debug-pass=Executions"])
+
+    def test_pass_diagnostic_helper_probes_an_optimized_translation(self) -> None:
+        script = f"""
+        set -eu
+        ROOT={str(SCRIPT.parents[2])!r}
+        LM_BISECT_QUEUE_LIBRARY_ONLY=1
+        source {str(SCRIPT)!r} crash
+        TOOL=clang
+        LANG=c
+        pass_diagnostic_flags "$1"
+        """
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            tool = Path(tmp_dir) / "clang"
+            tool.write_text(
+                "#!/bin/sh\n"
+                'case " $* " in *" -O1 -x c -c "*" - -mllvm -debug-pass-manager "*) exit 0;; esac\n'
+                "exit 1\n"
+            )
+            tool.chmod(0o755)
+            result = subprocess.run(
+                ["bash", "-c", script, "test", str(tool)],
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(result.stdout.splitlines(), ["-mllvm", "-debug-pass-manager"])
+
+    def test_pass_diagnostic_helper_selects_supported_modern_flag(self) -> None:
+        script = f"""
+        set -eu
+        ROOT={str(SCRIPT.parents[2])!r}
+        LM_BISECT_QUEUE_LIBRARY_ONLY=1
+        source {str(SCRIPT)!r} crash
+        TOOL=opt
+        LANG=ll
+        pass_diagnostic_flags "$1"
+        """
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            tool = Path(tmp_dir) / "opt"
+            tool.write_text(
+                "#!/bin/sh\n"
+                'if [ "$1" = "--help-hidden" ]; then printf "%s\\n" "  --debug-pass-manager"; exit 0; fi\n'
+                "exit 1\n"
+            )
+            tool.chmod(0o755)
+            result = subprocess.run(
+                ["bash", "-c", script, "test", str(tool)],
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(result.stdout.splitlines(), ["-debug-pass-manager"])
 
     def test_pr199640_is_wired_for_riscv_bad_endpoint_validation(self) -> None:
         text = SCRIPT.read_text()

@@ -170,6 +170,11 @@ COMPILE_STDERR=$("${CLANG_BIN}" -std=c++20 "${SRC}" -fsyntax-only 2>&1)
 COMPILE_RC=$?
 set -e
 
+if [[ -n "${RUNNER_CAPTURE_ARTIFACT:-}" ]]; then
+  mkdir -p "$(dirname "${RUNNER_CAPTURE_ARTIFACT}")"
+  printf '%s\n' "${COMPILE_STDERR}" > "${RUNNER_CAPTURE_ARTIFACT}"
+fi
+
 echo "compile exit code: ${COMPILE_RC}"
 if [[ -n "${COMPILE_STDERR}" ]]; then
   printf '%s\n' "${COMPILE_STDERR}"

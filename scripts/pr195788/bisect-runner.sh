@@ -149,6 +149,8 @@ fi
 
 WORK="$(mktemp -d -p "${TMP_DIR}" test_195788.XXXXXX)"
 trap 'rm -rf "${WORK}"' EXIT
+CAPTURE_REPRODUCER_DIR="${CAPTURE_REPRODUCER_DIR:-${TMP_DIR}/capture-inputs}"
+mkdir -p "${CAPTURE_REPRODUCER_DIR}"
 
 cat > "${WORK}/repro.py" <<'PYEOF'
 #!/usr/bin/env python3
@@ -174,6 +176,9 @@ def main():
     workdir = Path(tempfile.mkdtemp(prefix="id59_embedded_"))
     source_path = workdir / "main.hpp"
     source_path.write_text(SOURCE)
+    capture_dir = Path(os.environ.get("CAPTURE_REPRODUCER_DIR", "."))
+    capture_dir.mkdir(parents=True, exist_ok=True)
+    (capture_dir / "reproducer.cpp").write_text(SOURCE)
     uri = source_path.as_uri()
 
     line_count = len(SOURCE.splitlines())
@@ -229,6 +234,11 @@ set +e
 python3 "${WORK}/repro.py" "${CLANGD_BIN}" 2>&1 | tee "${WORK}/stderr.log"
 RC=${PIPESTATUS[0]}
 set -e
+
+if [[ -n "${RUNNER_CAPTURE_ARTIFACT:-}" ]]; then
+  mkdir -p "$(dirname "${RUNNER_CAPTURE_ARTIFACT}")"
+  cp "${WORK}/stderr.log" "${RUNNER_CAPTURE_ARTIFACT}"
+fi
 
 echo "repro exit code: ${RC}"
 if [[ ${RC} -eq 7 ]]; then

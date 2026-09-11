@@ -120,6 +120,8 @@ configure_args=(
   -G "${GENERATOR}"
   -S "${LLVM_DIR}/llvm"
   -B "${BUILD_DIR}"
+  -DCMAKE_POLICY_VERSION_MINIMUM="${LM_BISECT_CMAKE_POLICY_VERSION_MINIMUM:-3.5}"
+  -DCLANGD_ENABLE_REMOTE=OFF
   -DLLVM_ENABLE_PROJECTS="clang;clang-tools-extra"
   -DLLVM_TARGETS_TO_BUILD=X86
   -DCMAKE_BUILD_TYPE="${BUILD_TYPE}"
@@ -165,10 +167,12 @@ cleanup_work() {
   rm -rf "${WORK}" 2>/dev/null || true
 }
 trap cleanup_work EXIT
+CAPTURE_REPRODUCER_DIR="${CAPTURE_REPRODUCER_DIR:-${TMP_DIR}/capture-inputs}"
+mkdir -p "${CAPTURE_REPRODUCER_DIR}"
 
 cat > "${WORK}/reproducer.py" <<'PYEOF'
 #!/usr/bin/env python3
-import json, subprocess, sys, tempfile
+import json, os, subprocess, sys, tempfile
 from pathlib import Path
 
 SOURCE = r"""int f(int,...) {
@@ -200,6 +204,9 @@ def main() -> int:
     workdir = tempfile.mkdtemp(prefix="repro-id208-")
     source_path = Path(workdir) / "main.cxx"
     source_path.write_text(SOURCE, encoding="utf-8")
+    capture_dir = Path(os.environ.get("CAPTURE_REPRODUCER_DIR", "."))
+    capture_dir.mkdir(parents=True, exist_ok=True)
+    (capture_dir / "reproducer.cpp").write_text(SOURCE, encoding="utf-8")
     uri = source_path.resolve().as_uri()
     messages = [
         {"jsonrpc":"2.0","id":0,"method":"initialize",
@@ -241,6 +248,11 @@ set +e
 python3 "${WORK}/reproducer.py" "${CLANGD_BIN}" 2>&1 | tee "${WORK}/stderr.log"
 RC=${PIPESTATUS[0]}
 set -e
+
+if [[ -n "${RUNNER_CAPTURE_ARTIFACT:-}" ]]; then
+  mkdir -p "$(dirname "${RUNNER_CAPTURE_ARTIFACT}")"
+  cp "${WORK}/stderr.log" "${RUNNER_CAPTURE_ARTIFACT}"
+fi
 
 echo "repro exit code: ${RC}"
 if [[ ${RC} -eq 7 ]]; then

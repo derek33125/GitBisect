@@ -155,6 +155,11 @@ TIDY_STDERR=$("${TIDY_BIN}" --checks=readability-container-size-empty "${SRC}" -
 TIDY_RC=$?
 set -e
 
+if [[ -n "${RUNNER_CAPTURE_ARTIFACT:-}" ]]; then
+  mkdir -p "$(dirname "${RUNNER_CAPTURE_ARTIFACT}")"
+  printf '%s\n' "${TIDY_STDERR}" > "${RUNNER_CAPTURE_ARTIFACT}"
+fi
+
 echo "clang-tidy exit code: ${TIDY_RC}"
 if [[ -n "${TIDY_STDERR}" ]]; then
   printf '%s\n' "${TIDY_STDERR}"

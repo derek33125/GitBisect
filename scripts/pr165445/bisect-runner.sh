@@ -182,6 +182,11 @@ MODULE_STDERR=$("${CLANG_BIN}" -std=gnu++23 -fmodule-file="${PCM_FILE}" --precom
 MODULE_RC=$?
 set -e
 
+if [[ -n "${RUNNER_CAPTURE_ARTIFACT:-}" ]]; then
+  mkdir -p "$(dirname "${RUNNER_CAPTURE_ARTIFACT}")"
+  printf '%s\n' "${MODULE_STDERR}" > "${RUNNER_CAPTURE_ARTIFACT}"
+fi
+
 echo "module compile exit code: ${MODULE_RC}"
 if [[ -n "${MODULE_STDERR}" ]]; then
   printf '%s\n' "${MODULE_STDERR}"
