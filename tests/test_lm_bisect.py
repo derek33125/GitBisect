@@ -731,6 +731,43 @@ class ScoringTests(unittest.TestCase):
 
         self.assertEqual(args.causal_context_parent_count, 5)
 
+    def test_parser_accepts_expanded_evidence_parent_context(self) -> None:
+        args = lm_bisect.build_parser().parse_args(
+            [
+                "run-online",
+                "--issue",
+                "demo",
+                "--scorer",
+                "model",
+                "--model-diff-extraction",
+                "causal-llm-expanded-evidence",
+                "--causal-context-parent-count",
+                "3",
+            ]
+        )
+
+        self.assertEqual(args.model_diff_extraction, "causal-llm-expanded-evidence")
+        self.assertEqual(args.causal_context_parent_count, 3)
+
+    def test_first_parent_context_size_counts_transition_diffs(self) -> None:
+        candidate = "5" * 40
+        predecessor_1 = "4" * 40
+
+        with mock.patch.object(
+            lm_bisect,
+            "git",
+            return_value=f"{candidate}\n{predecessor_1}\n",
+        ) as run_git:
+            commits = lm_bisect.first_parent_commit_range(
+                Path("/tmp/fake-llvm-project"), candidate, parent_count=2
+            )
+
+        self.assertEqual(commits, [candidate, predecessor_1])
+        self.assertEqual(
+            run_git.call_args.args[1:],
+            ("rev-list", "--first-parent", "--max-count=2", candidate),
+        )
+
     def test_parser_accepts_combined_oracle_major_tuned_heuristic(self) -> None:
         args = lm_bisect.build_parser().parse_args(
             [
@@ -3077,7 +3114,7 @@ index 3..4 100644
         self.assertIn("llvm/lib/Transforms/Vectorize/VPlan.cpp", git_output.call_args_list[0].args[1])
         self.assertNotIn("llvm/lib/Support/Noise.cpp", git_output.call_args_list[0].args[1])
 
-    def test_causal_retrieval_range_retains_candidate_and_predecessor_provenance(self) -> None:
+    def test_causal_retrieval_range_retains_two_transition_provenance(self) -> None:
         profile = demo_profile(
             keywords=["vectorizer"],
             relevant_paths=["llvm/lib/Transforms/Vectorize"],
@@ -3125,15 +3162,152 @@ index 3..4 100644
                 Path("/tmp/fake-llvm-project"),
                 profile,
                 item,
-                context_parent_count=1,
+                context_parent_count=2,
             )
 
-        self.assertEqual(retrieval["context_parent_count_requested"], 1)
-        self.assertEqual(retrieval["context_parent_count_observed"], 1)
+        self.assertEqual(retrieval["context_parent_count_requested"], 2)
+        self.assertEqual(retrieval["context_parent_count_observed"], 2)
         self.assertEqual([commit["sha"] for commit in retrieval["context_commits"]], [candidate, predecessor])
         self.assertEqual(retrieval["selected_hunks"][0]["source_sha"], candidate)
         self.assertEqual(retrieval["selected_hunks"][0]["source_distance"], 0)
         self.assertIn(predecessor, {hunk["source_sha"] for hunk in retrieval["selected_hunks"]})
+
+    def test_expanded_causal_retrieval_reserves_candidate_and_context_hunk_slots(self) -> None:
+        profile = demo_profile(
+            keywords=["vectorizer"],
+            relevant_paths=["llvm/lib/Transforms/Vectorize"],
+        )
+        candidate = "a" * 40
+        predecessor = "b" * 40
+
+        def hunk(path: str, name: str) -> dict[str, str]:
+            return {
+                "path": path,
+                "header": f"@@ {name}",
+                "patch": "+" + name + " vectorizer\n",
+            }
+
+        candidate_hunks = [
+            hunk("llvm/lib/Transforms/Vectorize/VPlan.cpp", f"candidate_{index}")
+            for index in range(10)
+        ]
+        context_hunks = [
+            hunk("llvm/lib/Transforms/Vectorize/LoopVectorize.cpp", f"context_{index}")
+            for index in range(10)
+        ]
+        item = {
+            "sha": candidate,
+            "subject": "candidate vectorizer change",
+            "files": ["llvm/lib/Transforms/Vectorize/VPlan.cpp"],
+            "diff": "candidate diff",
+        }
+
+        with mock.patch.object(
+            lm_bisect,
+            "first_parent_commit_range",
+            return_value=[candidate, predecessor],
+        ), mock.patch.object(
+            lm_bisect,
+            "commit_subject_and_files",
+            return_value=("context vectorizer change", ["llvm/lib/Transforms/Vectorize/LoopVectorize.cpp"]),
+        ), mock.patch.object(
+            lm_bisect,
+            "commit_parent_diff_for_files",
+            return_value="context diff",
+        ), mock.patch.object(
+            lm_bisect,
+            "parse_unified_diff_hunks",
+            side_effect=[candidate_hunks, context_hunks],
+        ), mock.patch.object(
+            lm_bisect,
+            "function_context_at_commit",
+            return_value="",
+        ):
+            retrieval = lm_bisect.retrieve_causal_diff_evidence(
+                Path("/tmp/fake-llvm-project"),
+                profile,
+                item,
+                context_parent_count=2,
+                evidence_profile="expanded-window",
+            )
+
+        selected = retrieval["selected_hunks"]
+        self.assertEqual(len(selected), 16)
+        self.assertEqual(sum(hunk["source_distance"] == 0 for hunk in selected), 8)
+        self.assertEqual(sum(hunk["source_distance"] == 1 for hunk in selected), 8)
+        self.assertTrue(all(len(hunk["patch"]) <= 8000 for hunk in selected))
+        self.assertEqual(retrieval["evidence_profile"], "expanded-window")
+
+    def test_expanded_causal_prompt_labels_context_as_not_attributable_to_candidate(self) -> None:
+        prompt = lm_bisect.build_causal_diff_extraction_prompt(
+            demo_profile(),
+            {
+                "sha": "a" * 40,
+                "subject": "candidate",
+                "causal_retrieval": {
+                    "evidence_profile": "expanded-window",
+                    "context_parent_count_observed": 3,
+                    "selected_hunks": [
+                        {
+                            "path": "llvm/lib/A.cpp",
+                            "source_sha": "a" * 40,
+                            "source_distance": 0,
+                            "source_subject": "candidate",
+                            "patch": "+candidate change",
+                        },
+                        {
+                            "path": "llvm/lib/B.cpp",
+                            "source_sha": "b" * 40,
+                            "source_distance": 2,
+                            "source_subject": "older context",
+                            "patch": "+older change",
+                        },
+                    ],
+                },
+            },
+        )
+
+        self.assertIn("Candidate transition (immediate parent -> selected candidate)", prompt)
+        self.assertIn("Context only (2 parent transitions before selected candidate)", prompt)
+        self.assertIn("never attribute an older context hunk as a change made by the candidate", prompt)
+
+    def test_expanded_causal_extraction_batches_at_two_candidates(self) -> None:
+        profile = demo_profile()
+        items = [
+            {"sha": character * 40, "subject": "candidate", "causal_retrieval": {}}
+            for character in ("a", "b", "c")
+        ]
+
+        batches = lm_bisect.plan_causal_diff_extraction_batches(
+            profile,
+            items,
+            batch_size=lm_bisect.causal_extraction_batch_size("causal-llm-expanded-evidence"),
+        )
+
+        self.assertEqual([len(batch) for batch in batches], [2, 1])
+
+    def test_expanded_causal_raw_hunks_do_not_reach_shared_scoring_prompt(self) -> None:
+        item = {
+            "sha": "a" * 40,
+            "subject": "candidate",
+            "body": "",
+            "files": ["llvm/lib/A.cpp"],
+            "diff_extraction": "causal-llm-expanded-evidence",
+            "diff_summary": "Summary: normalized candidate evidence.",
+            "causal_retrieval": {
+                "selected_hunks": [
+                    {
+                        "patch": "RAW_CONTEXT_ONLY_HUNK_MUST_NOT_REACH_SCORER",
+                        "source_distance": 2,
+                    }
+                ]
+            },
+        }
+
+        prompt = lm_bisect.build_model_scoring_prompt(demo_profile(), [item])
+
+        self.assertIn("Summary: normalized candidate evidence.", prompt)
+        self.assertNotIn("RAW_CONTEXT_ONLY_HUNK_MUST_NOT_REACH_SCORER", prompt)
 
     def test_implementation_first_causal_retrieval_prefers_source_but_keeps_test_fallback(self) -> None:
         profile = demo_profile(
@@ -5769,6 +5943,80 @@ class SimulationHelpersTests(unittest.TestCase):
         self.assertEqual(selected.sha, "b" * 40)
         self.assertIsNone(cached)
 
+    def test_select_non_noop_candidate_allows_first_unknown_after_good_boundary(
+        self,
+    ) -> None:
+        records = [
+            lm_bisect.CommitRecord(
+                index=1,
+                sha="a" * 40,
+                subject="first unknown and likely first bad",
+                body="",
+                changed_files=[],
+                diff_text="",
+                semantic_score=3.0,
+                build_success_prob=0.9,
+                suspicion_weight=0.0,
+                selection_score=1.0,
+            ),
+            lm_bisect.CommitRecord(
+                index=2,
+                sha="b" * 40,
+                subject="middle candidate",
+                body="",
+                changed_files=[],
+                diff_text="",
+                semantic_score=1.0,
+                build_success_prob=0.9,
+                suspicion_weight=0.0,
+                selection_score=0.5,
+            ),
+            lm_bisect.CommitRecord(
+                index=3,
+                sha="c" * 40,
+                subject="known bad endpoint",
+                body="",
+                changed_files=[],
+                diff_text="",
+                semantic_score=2.0,
+                build_success_prob=0.9,
+                suspicion_weight=0.0,
+                selection_score=0.8,
+            ),
+        ]
+
+        selected, cached = lm_bisect.select_non_noop_candidate(
+            records,
+            [],
+            ["a" * 40, "b" * 40, "c" * 40],
+        )
+
+        self.assertEqual(selected.sha, "a" * 40)
+        self.assertIsNone(cached)
+
+    def test_proof_reuses_only_observations_from_current_run_history(self) -> None:
+        current = lm_bisect.find_current_run_observation_by_sha(
+            [
+                {
+                    "sha": "b" * 40,
+                    "verdict": "bad",
+                    "summary": "already reproduced in this run",
+                    "source": "runner",
+                }
+            ],
+            "b" * 40,
+        )
+        external = lm_bisect.find_current_run_observation_by_sha(
+            [],
+            "b" * 40,
+        )
+
+        self.assertIsNotNone(current)
+        assert current is not None
+        self.assertEqual(current.verdict, "bad")
+        self.assertEqual(current.summary, "already reproduced in this run")
+        self.assertIsNone(external)
+
     def test_apply_cached_interval_prepass_trims_good_bad_and_skip(self) -> None:
         commits = ["a", "b", "c", "d", "e"]
         observations = [
@@ -6598,6 +6846,70 @@ class RunHistoryTests(unittest.TestCase):
         self.assertIn("uintptr_t", payload["trace_excerpt"])
         self.assertIn("Building CXX object", payload["log_excerpt"])
         self.assertEqual(payload["build_failure"]["failed_target"], "LLVMSupport")
+
+    def test_runner_event_is_authoritative_before_step_persistence(self) -> None:
+        history = {"steps": []}
+        observation = lm_bisect.CommitObservation(
+            sha="a" * 40,
+            verdict="bad",
+            summary="crash reproduced",
+            features=["path:llvm/lib/IR"],
+            source="runner",
+        )
+
+        event_id = lm_bisect.append_runner_event(
+            history,
+            step=1,
+            observation=observation,
+            runner_duration_sec=12.5,
+        )
+        recovered = lm_bisect.current_run_observations(
+            [],
+            history["runner_events"],
+        )
+
+        self.assertEqual(event_id, f"1:{'a' * 40}")
+        self.assertEqual(history["runner_build_count"], 1)
+        self.assertEqual(recovered[0].verdict, "bad")
+        self.assertEqual(recovered[0].features, ["path:llvm/lib/IR"])
+
+    def test_ceg_history_rejects_changed_run_identity(self) -> None:
+        existing = lm_bisect.start_run_history_payload(
+            issue_id="demo",
+            scorer="model",
+            model_name="test-model",
+            model_frontier="topk",
+            search_policy="causal-evidence-guided",
+            hybrid_switch_window=32,
+            lambda_weight=2.0,
+            max_steps=20,
+            observation_path="/tmp/obs.json",
+            run_history_path="/tmp/run.json",
+            good_commit="g" * 40,
+            bad_commit="b" * 40,
+            initial_unresolved=100,
+            run_identity={"version": "v1", "code": "old"},
+        )
+
+        with self.assertRaisesRegex(ValueError, "identity mismatch"):
+            lm_bisect.prepare_run_history(
+                existing_history=existing,
+                issue_id="demo",
+                scorer="model",
+                model_name="test-model",
+                model_frontier="topk",
+                search_policy="causal-evidence-guided",
+                hybrid_switch_window=32,
+                lambda_weight=2.0,
+                max_steps=20,
+                observation_path="/tmp/obs.json",
+                run_history_path="/tmp/run.json",
+                good_commit="g" * 40,
+                bad_commit="b" * 40,
+                initial_unresolved=100,
+                candidate_file=None,
+                run_identity={"version": "v1", "code": "new"},
+            )
 
     def test_run_label_makes_distinct_online_artifact_paths(self) -> None:
         path = lm_bisect.run_history_path_for_issue(
@@ -7816,6 +8128,18 @@ class MetadataLoadingTests(unittest.TestCase):
                 },
             },
         )
+
+    def test_model_usage_summary_records_prompt_characters_when_provided(self) -> None:
+        summary: dict[str, object] = {}
+        lm_bisect.record_model_usage(
+            summary,
+            "scoring",
+            {"prompt_tokens": 20, "completion_tokens": 5, "total_tokens": 25},
+            prompt_chars=80,
+        )
+
+        self.assertEqual(summary["prompt_chars"], 80)
+        self.assertEqual(summary["by_kind"]["scoring"]["prompt_chars"], 80)
 
     def test_make_records_last_tested_mode_uses_candidate_files_for_transition_diff(self) -> None:
         profile = demo_profile()

@@ -1,0 +1,47 @@
+{
+  "description": "Frozen group-max and volume-corrected surprise parity fixture",
+  "candidates": [
+    {"sha": "a", "index": 1, "changed_file_count": 1},
+    {"sha": "b", "index": 2, "changed_file_count": 4},
+    {"sha": "c", "index": 3, "changed_file_count": 2},
+    {"sha": "d", "index": 4, "changed_file_count": 1}
+  ],
+  "signals": [
+    {"name": "stack-wide", "group": "stack", "channel": "crash", "members": ["a", "b"]},
+    {"name": "stack-narrow", "group": "stack", "channel": "crash", "members": ["a"]},
+    {"name": "dep-mention", "group": "dep:x", "channel": "dependency", "members": ["c", "d"]},
+    {"name": "dep-heavy", "group": "dep:x", "channel": "dependency", "members": ["c"]},
+    {"name": "dir-wide", "group": "dir:x", "channel": "directory", "members": ["b", "c", "d"]}
+  ],
+  "expected": [
+    {
+      "sha": "a",
+      "score_without_floor": 2.0101050774847615,
+      "rank": 1,
+      "hits": ["stack-wide", "stack-narrow"]
+    },
+    {
+      "sha": "b",
+      "score_without_floor": 0.3522205935893521,
+      "rank": 4,
+      "hits": ["stack-wide", "dir-wide"]
+    },
+    {
+      "sha": "c",
+      "score_without_floor": 1.6739764335716716,
+      "rank": 3,
+      "hits": ["dep-mention", "dep-heavy", "dir-wide"]
+    },
+    {
+      "sha": "d",
+      "score_without_floor": 1.9210943578594613,
+      "rank": 2,
+      "hits": ["dep-mention", "dir-wide"]
+    }
+  ],
+  "expected_channel_coverage": {
+    "crash": 2,
+    "dependency": 2,
+    "directory": 3
+  }
+}

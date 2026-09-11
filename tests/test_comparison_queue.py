@@ -33,10 +33,30 @@ class ComparisonQueueTests(unittest.TestCase):
     def test_supports_single_factor_tuned_heuristic_ablation_mode(self) -> None:
         text = SCRIPT.read_text()
 
-        self.assertIn('heuristic-ablation)', text)
+        self.assertIn('heuristic-ablation|heuristic-ablation-compat)', text)
         self.assertIn('HEURISTIC_ABLATION_FACTOR is required for heuristic-ablation mode', text)
         self.assertIn('--heuristic-version tuned', text)
         self.assertIn('--heuristic-ablation "${HEURISTIC_ABLATION_FACTOR}"', text)
+
+    def test_accepts_scoped10_followup_heuristic_controls(self) -> None:
+        text = SCRIPT.read_text()
+
+        for factor in (
+            "only-keywords",
+            "only-relevant-paths",
+            "only-high-risk-paths",
+            "only-risky-words",
+            "shuffle-signals",
+        ):
+            self.assertIn(factor, text)
+
+    def test_supports_cxx_only_compatibility_heuristic_ablation_mode(self) -> None:
+        text = SCRIPT.read_text()
+
+        self.assertIn('heuristic-ablation-compat', text)
+        self.assertIn('heuristic-ablation|heuristic-ablation-compat)', text)
+        self.assertIn('if [[ "${MODE}" == "heuristic-ablation-compat" ]]; then', text)
+        self.assertIn('export EXTRA_CMAKE_CXX_FLAGS="${EXTRA_CMAKE_CXX_FLAGS:--include cstdint}"', text)
 
     def test_supports_terra_causal_parent_range_mode(self) -> None:
         text = SCRIPT.read_text()
@@ -48,6 +68,30 @@ class ComparisonQueueTests(unittest.TestCase):
         self.assertIn('--model-diff-extraction causal-llm', text)
         self.assertIn('--causal-context-parent-count 5', text)
         self.assertIn('terra-bcr-parent-range5-k12', text)
+
+    def test_supports_terra_causal_parent_range_two_mode(self) -> None:
+        text = SCRIPT.read_text()
+
+        self.assertIn('terra-causal-parent-range2-k12|terra-causal-parent-range2-k12-compat)', text)
+        self.assertIn('terra-bcr-parent-range2-k12', text)
+        self.assertIn('CAUSAL_PARENT_COUNT=2', text)
+
+    def test_supports_terra_causal_parent_range_four_mode(self) -> None:
+        text = SCRIPT.read_text()
+
+        self.assertIn('terra-causal-parent-range4-k12|terra-causal-parent-range4-k12-compat)', text)
+        self.assertIn('terra-bcr-parent-range4-k12', text)
+
+    def test_supports_expanded_evidence_parent_window_three_mode(self) -> None:
+        text = SCRIPT.read_text()
+
+        self.assertIn('terra-causal-parent-expanded-window3-k12|terra-causal-parent-expanded-window3-k12-compat)', text)
+        self.assertIn('terra-bcr-expanded-evidence-window3-k12', text)
+        self.assertIn('--model-diff-extraction causal-llm-expanded-evidence', text)
+        self.assertIn('--causal-context-parent-count 3', text)
+        self.assertIn('--model-name gpt-5.6-terra', text)
+        self.assertIn('--model-reasoning-effort high', text)
+        self.assertIn('CAUSAL_PARENT_COUNT=4', text)
 
     def test_supports_human_guided_causal_parent_mode(self) -> None:
         text = SCRIPT.read_text()
@@ -211,7 +255,12 @@ class ComparisonQueueTests(unittest.TestCase):
         self.assertIn('terra-causal-parent-range-k12-compat)', text)
         self.assertIn('terra-causal-parent-range-k12|terra-causal-parent-range-k12-compat)', text)
         self.assertIn('export EXTRA_CMAKE_CXX_FLAGS="${EXTRA_CMAKE_CXX_FLAGS:--include cstdint}"', text)
-        self.assertIn('export MODEL_CACHE_NAMESPACE="${MODEL_CACHE_NAMESPACE:-terra-bcr-parent-range5-k12-compat}"', text)
+        default_start = text.index('default_model_cache_namespace() {')
+        default_end = text.index('\n}\n', default_start)
+        default_function = text[default_start:default_end]
+        self.assertIn('terra-causal-parent-range-k12-compat)', default_function)
+        self.assertIn('terra-bcr-parent-range5-k12-compat', default_function)
+        self.assertIn('MODEL_CACHE_NAMESPACE="${MODEL_CACHE_NAMESPACE:-$(default_model_cache_namespace)}"', text)
 
     def test_supports_oracle_first_bad_keyword_mode(self) -> None:
         text = SCRIPT.read_text()
@@ -255,6 +304,13 @@ class ComparisonQueueTests(unittest.TestCase):
         self.assertLess(preflight, worktree_add)
         self.assertIn('runner bundle missing issue runner for ${issue}', text)
         self.assertIn('runner bundle missing shared queue library', text)
+
+    def test_releases_completed_issue_worktrees_before_the_next_queue_item(self) -> None:
+        text = SCRIPT.read_text()
+
+        self.assertIn('cleanup_issue_worktree()', text)
+        self.assertIn('git -C "${BASE_REPO}" worktree remove --force "${wt}"', text)
+        self.assertIn('cleanup_issue_worktree "${wt}"', text)
 
     def test_supports_direct_combined_oracle_anchor_mode(self) -> None:
         text = SCRIPT.read_text()

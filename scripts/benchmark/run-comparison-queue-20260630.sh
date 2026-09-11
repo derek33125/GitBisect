@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-MODE="${1:?mode required: heuristic|heuristic-ablation|general-heuristic|no-keyword-heuristic|neutral-heuristic|oracle-first-bad-heuristic|oracle-major-keyword-heuristic|oracle-major-tuned-keyword-heuristic|oracle-major-tuned-semantic-heuristic|oracle-major-tuned-patch-heuristic|oracle-anchor-major-tuned-keyword-heuristic|parent-extract|causal-parent-extract|causal-parent-impl-k12|causal-parent-human-k12|causal-parent-human-pool-k3|causal-parent-human-pool-k3-compat|causal-parent-human-prior-k3|causal-parent-human-prior-k3-compat|causal-parent-human-frontier|causal-parent-human-frontier-compat|causal-parent-human-dynamic-k12|causal-parent-human-dynamic-k12-compat|causal-parent-crash-aware-k12|causal-parent-crash-aware-k12-compat|causal-parent-deterministic-facts-k12|causal-parent-deterministic-facts-artifact-k12|causal-parent-deterministic-facts-artifact-k12-compat|causal-parent-deterministic-facts-artifact-range-k12|causal-parent-deterministic-facts-artifact-range-k12-compat|evidence-diverse-k12|causal-parent-k12|terra-causal-parent-range-k12|terra-causal-parent-range-k12-compat|adaptive-parent-extract|confidence-parent-extract|confidence-parent-k12|observation-posterior-parent-extract|observation-posterior-parent-k12|lastdiff-extract}"
+MODE="${1:?mode required: heuristic|heuristic-ablation|heuristic-ablation-compat|general-heuristic|no-keyword-heuristic|neutral-heuristic|oracle-first-bad-heuristic|oracle-major-keyword-heuristic|oracle-major-tuned-keyword-heuristic|oracle-major-tuned-semantic-heuristic|oracle-major-tuned-patch-heuristic|oracle-anchor-major-tuned-keyword-heuristic|parent-extract|causal-parent-extract|causal-parent-impl-k12|causal-parent-human-k12|causal-parent-human-pool-k3|causal-parent-human-pool-k3-compat|causal-parent-human-prior-k3|causal-parent-human-prior-k3-compat|causal-parent-human-frontier|causal-parent-human-frontier-compat|causal-parent-human-dynamic-k12|causal-parent-human-dynamic-k12-compat|causal-parent-crash-aware-k12|causal-parent-crash-aware-k12-compat|causal-parent-deterministic-facts-k12|causal-parent-deterministic-facts-artifact-k12|causal-parent-deterministic-facts-artifact-k12-compat|causal-parent-deterministic-facts-artifact-range-k12|causal-parent-deterministic-facts-artifact-range-k12-compat|causal-evidence-guided-k12|causal-evidence-guided-k12-compat|evidence-diverse-k12|causal-parent-k12|terra-causal-parent-range2-k12|terra-causal-parent-range2-k12-compat|terra-causal-parent-range4-k12|terra-causal-parent-range4-k12-compat|terra-causal-parent-range-k12|terra-causal-parent-range-k12-compat|terra-causal-parent-expanded-window3-k12|terra-causal-parent-expanded-window3-k12-compat|adaptive-parent-extract|confidence-parent-extract|confidence-parent-k12|observation-posterior-parent-extract|observation-posterior-parent-k12|lastdiff-extract}"
 LANE="${2:?lane label required}"
 shift 2
 ISSUES=("$@")
@@ -40,8 +40,14 @@ default_model_cache_namespace() {
   # Keep cache entries isolated by experiment semantics.  Callers can still
   # provide MODEL_CACHE_NAMESPACE explicitly to reproduce an intentional run.
   case "${MODE}" in
+    terra-causal-parent-range2-k12) echo "terra-bcr-parent-range2-k12" ;;
+    terra-causal-parent-range2-k12-compat) echo "terra-bcr-parent-range2-k12-compat" ;;
+    terra-causal-parent-range4-k12) echo "terra-bcr-parent-range4-k12" ;;
+    terra-causal-parent-range4-k12-compat) echo "terra-bcr-parent-range4-k12-compat" ;;
     terra-causal-parent-range-k12) echo "terra-bcr-parent-range5-k12" ;;
     terra-causal-parent-range-k12-compat) echo "terra-bcr-parent-range5-k12-compat" ;;
+    terra-causal-parent-expanded-window3-k12) echo "terra-bcr-expanded-evidence-window3-k12" ;;
+    terra-causal-parent-expanded-window3-k12-compat) echo "terra-bcr-expanded-evidence-window3-k12-compat" ;;
     causal-parent-human-k12) echo "terra-bcr-human-crash-v1-k12" ;;
     causal-parent-human-pool-k3) echo "terra-human-signal-pool-v1-k3" ;;
     causal-parent-human-pool-k3-compat) echo "terra-human-signal-pool-v1-k3-compat" ;;
@@ -58,6 +64,8 @@ default_model_cache_namespace() {
     causal-parent-deterministic-facts-artifact-k12-compat) echo "terra-bcr-deterministic-facts-v16-artifacts-k12-compat" ;;
     causal-parent-deterministic-facts-artifact-range-k12) echo "terra-bcr-deterministic-facts-v16-artifacts-range5-k12" ;;
     causal-parent-deterministic-facts-artifact-range-k12-compat) echo "terra-bcr-deterministic-facts-v16-artifacts-range5-k12-compat" ;;
+    causal-evidence-guided-k12) echo "terra-ceg-bisect-v6-bad-endpoint-merged-selector-range5-k12" ;;
+    causal-evidence-guided-k12-compat) echo "terra-ceg-bisect-v6-bad-endpoint-merged-selector-range5-k12-compat" ;;
     *) echo "adaptive-${ADAPTIVE_TOP_K_THRESHOLD}-${ADAPTIVE_TOP_K_LARGE}-${ADAPTIVE_TOP_K_SMALL}" ;;
   esac
 }
@@ -74,13 +82,13 @@ if [[ ! "${RUN_ONLINE_MAX_LANES}" =~ ^[1-9][0-9]*$ ]]; then
   exit 2
 fi
 
-if [[ "${MODE}" == "heuristic-ablation" ]]; then
+if [[ "${MODE}" == "heuristic-ablation" || "${MODE}" == "heuristic-ablation-compat" ]]; then
   if [[ -z "${HEURISTIC_ABLATION_FACTOR}" ]]; then
     echo "error: HEURISTIC_ABLATION_FACTOR is required for heuristic-ablation mode" >&2
     exit 2
   fi
   case "${HEURISTIC_ABLATION_FACTOR}" in
-    keywords|relevant-paths|high-risk-paths|risky-words|buildability|feedback) ;;
+    keywords|relevant-paths|high-risk-paths|risky-words|buildability|feedback|only-keywords|only-relevant-paths|only-high-risk-paths|only-risky-words|shuffle-signals) ;;
     *)
       echo "error: unsupported heuristic ablation factor: ${HEURISTIC_ABLATION_FACTOR}" >&2
       exit 2
@@ -102,6 +110,7 @@ RESERVATION_DIR="${WORK_ROOT}/.run-online-reservations"
 LOCK_FILE="${WORK_ROOT}/.run-online-lane.lock"
 RESERVATION_PATH=""
 RUN_ISSUE_EXIT_CODE=0
+CURRENT_WORKTREE=""
 mkdir -p "${RESERVATION_DIR}"
 
 active_run_online_pids() {
@@ -134,6 +143,21 @@ release_lane_reservation() {
   if [[ -n "${RESERVATION_PATH}" ]]; then
     rm -f "${RESERVATION_PATH}"
     RESERVATION_PATH=""
+  fi
+}
+
+cleanup_issue_worktree() {
+  local wt="${1:-}"
+  if [[ -z "${wt}" || ! -e "${wt}" ]]; then
+    return
+  fi
+
+  # Results and observations are written under ROOT before this runs. The
+  # detached source/build tree is disposable and must not accumulate across a
+  # long server queue.
+  git -C "${BASE_REPO}" worktree remove --force "${wt}" >/dev/null 2>&1 || rm -rf "${wt}"
+  if [[ "${CURRENT_WORKTREE}" == "${wt}" ]]; then
+    CURRENT_WORKTREE=""
   fi
 }
 
@@ -276,6 +300,7 @@ run_issue() {
   bad="$(profile_bad_commit "${issue}")"
   local wt="${WORK_ROOT}/${issue}-${LANE}"
   local obs="results/lm_bisect_observations/${issue}-${LANE}.json"
+  CURRENT_WORKTREE="${wt}"
 
   echo "[${LANE}] $(date -Iseconds) prepare ${issue} bad=${bad}" | tee -a "${LOG}"
   git -C "${BASE_REPO}" worktree remove --force "${wt}" >/dev/null 2>&1 || true
@@ -293,7 +318,12 @@ run_issue() {
         --run-label "${LANE}" \
         --max-steps 30
       ;;
-    heuristic-ablation)
+    heuristic-ablation|heuristic-ablation-compat)
+      if [[ "${MODE}" == "heuristic-ablation-compat" ]]; then
+        # Historical LLVM revisions need this C++-only include. Do not export
+        # it for ordinary lanes because CMake's C compiler probe must stay C.
+        export EXTRA_CMAKE_CXX_FLAGS="${EXTRA_CMAKE_CXX_FLAGS:--include cstdint}"
+      fi
       run_bisect_cmd "${PY}" tools/lm_bisect.py run-online \
         --issue "${issue}" \
         --llvm-dir "${wt}" \
@@ -483,12 +513,22 @@ run_issue() {
         --run-label "${LANE}" \
         --max-steps 30
       ;;
-    terra-causal-parent-range-k12|terra-causal-parent-range-k12-compat)
-      if [[ "${MODE}" == "terra-causal-parent-range-k12-compat" ]]; then
+    terra-causal-parent-range2-k12|terra-causal-parent-range2-k12-compat|terra-causal-parent-range4-k12|terra-causal-parent-range4-k12-compat|terra-causal-parent-range-k12|terra-causal-parent-range-k12-compat)
+      case "${MODE}" in
+        terra-causal-parent-range2-k12|terra-causal-parent-range2-k12-compat)
+          CAUSAL_PARENT_COUNT=2
+          ;;
+        terra-causal-parent-range4-k12|terra-causal-parent-range4-k12-compat)
+          CAUSAL_PARENT_COUNT=4
+          ;;
+        *)
+          CAUSAL_PARENT_COUNT=5
+          ;;
+      esac
+      if [[ "${MODE}" == *-compat ]]; then
         # Old LLVM revisions need <cstdint> for Signals.h. Keep this C++-only
         # flag isolated so it does not break CMake's C compiler probe.
         export EXTRA_CMAKE_CXX_FLAGS="${EXTRA_CMAKE_CXX_FLAGS:--include cstdint}"
-        export MODEL_CACHE_NAMESPACE="${MODEL_CACHE_NAMESPACE:-terra-bcr-parent-range5-k12-compat}"
       fi
       run_bisect_cmd "${PY}" tools/lm_bisect.py run-online \
         --issue "${issue}" \
@@ -499,10 +539,34 @@ run_issue() {
         --search-policy calibrated-posterior \
         --model-top-k 12 \
         --model-frontier topk \
-        --model-cache-namespace "${MODEL_CACHE_NAMESPACE:-terra-bcr-parent-range5-k12}" \
+        --model-cache-namespace "${MODEL_CACHE_NAMESPACE}" \
         --model-diff-mode parent \
         --model-diff-extraction causal-llm \
-        --causal-context-parent-count 5 \
+        --causal-context-parent-count "${CAUSAL_PARENT_COUNT}" \
+        --observation-prompt-mode trace-only \
+        --observations "${obs}" \
+        --run-label "${LANE}" \
+        --max-steps 30
+      ;;
+    terra-causal-parent-expanded-window3-k12|terra-causal-parent-expanded-window3-k12-compat)
+      if [[ "${MODE}" == *-compat ]]; then
+        # Old LLVM revisions need <cstdint> for Signals.h. Keep this C++-only
+        # flag isolated so it does not break CMake's C compiler probe.
+        export EXTRA_CMAKE_CXX_FLAGS="${EXTRA_CMAKE_CXX_FLAGS:--include cstdint}"
+      fi
+      run_bisect_cmd "${PY}" tools/lm_bisect.py run-online \
+        --issue "${issue}" \
+        --llvm-dir "${wt}" \
+        --scorer model \
+        --model-name gpt-5.6-terra \
+        --model-reasoning-effort high \
+        --search-policy calibrated-posterior \
+        --model-top-k 12 \
+        --model-frontier topk \
+        --model-cache-namespace "${MODEL_CACHE_NAMESPACE}" \
+        --model-diff-mode parent \
+        --model-diff-extraction causal-llm-expanded-evidence \
+        --causal-context-parent-count 3 \
         --observation-prompt-mode trace-only \
         --observations "${obs}" \
         --run-label "${LANE}" \
@@ -737,6 +801,36 @@ run_issue() {
         --run-label "${LANE}" \
         --max-steps 30
       ;;
+    causal-evidence-guided-k12|causal-evidence-guided-k12-compat)
+      # CEG-Bisect v6 uses a manifest-verified bad-endpoint artifact, removes
+      # authored issue prose, and reuses the shared calibrated BCR selector.
+      CEG_INPUT_ROOT="${CEG_INPUT_ROOT:-${ROOT}/human_analysis/raw/ceg-bad-endpoint-evidence-20260906-r1}"
+      if [[ ! -f "${CEG_INPUT_ROOT}/manifest.json" ]]; then
+        echo "error: CEG bad-endpoint input manifest is missing: ${CEG_INPUT_ROOT}/manifest.json" >&2
+        exit 2
+      fi
+      if [[ "${MODE}" == "causal-evidence-guided-k12-compat" ]]; then
+        export EXTRA_CMAKE_CXX_FLAGS="${EXTRA_CMAKE_CXX_FLAGS:--include cstdint}"
+      fi
+      run_bisect_cmd "${PY}" tools/lm_bisect.py run-online \
+        --issue "${issue}" \
+        --llvm-dir "${wt}" \
+        --scorer model \
+        --model-name gpt-5.6-terra \
+        --model-reasoning-effort high \
+        --search-policy causal-evidence-guided \
+        --model-top-k 12 \
+        --model-frontier topk \
+        --model-cache-namespace "${MODEL_CACHE_NAMESPACE}" \
+        --model-diff-mode parent \
+        --model-diff-extraction causal-llm-ceg-bisect \
+        --ceg-input-root "${CEG_INPUT_ROOT}" \
+        --causal-context-parent-count 5 \
+        --observation-prompt-mode trace-only \
+        --observations "${obs}" \
+        --run-label "${LANE}" \
+        --max-steps 30
+      ;;
     adaptive-parent-extract)
       run_bisect_cmd "${PY}" tools/lm_bisect.py run-online \
         --issue "${issue}" \
@@ -850,6 +944,7 @@ run_issue() {
       exit 2
       ;;
   esac
+  cleanup_issue_worktree "${wt}"
   if (( RUN_ISSUE_EXIT_CODE == 0 )); then
     echo "[${LANE}] $(date -Iseconds) done ${issue}" | tee -a "${LOG}"
   else
@@ -857,7 +952,7 @@ run_issue() {
   fi
 }
 
-trap release_lane_reservation EXIT
+trap 'release_lane_reservation; cleanup_issue_worktree "${CURRENT_WORKTREE:-}"' EXIT
 
 for issue in "${ISSUES[@]}"; do
   wait_for_lane
