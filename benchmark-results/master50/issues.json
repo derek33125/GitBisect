@@ -187,23 +187,6 @@
     "first_bad": "d0223b9ffc40146fb4a948ebfa652dc95499b7ba"
   },
   {
-    "issue": "pr176682",
-    "interval_commits": 20302,
-    "interval_source": "run-history",
-    "git_steps": 17,
-    "git_skips": 0,
-    "git_status": "completed",
-    "old_model_steps": 12,
-    "old_model_status": "completed",
-    "tuned_heuristic_steps": 10,
-    "tuned_heuristic_status": "completed",
-    "weak_general_steps": 14,
-    "weak_general_status": "completed",
-    "bcr_steps": null,
-    "bcr_status": "not_run",
-    "first_bad": "782759b757f69c6be98bd8079bc57e8f49b7ec86"
-  },
-  {
     "issue": "pr190445",
     "interval_commits": 20547,
     "interval_source": "run-history",
@@ -219,23 +202,6 @@
     "bcr_steps": null,
     "bcr_status": "not_run",
     "first_bad": "6dc188d4eb15cbe9bdece3d940f03d93b926328c"
-  },
-  {
-    "issue": "pr191581",
-    "interval_commits": 50116,
-    "interval_source": "run-history",
-    "git_steps": 19,
-    "git_skips": 0,
-    "git_status": "completed",
-    "old_model_steps": 13,
-    "old_model_status": "completed",
-    "tuned_heuristic_steps": 13,
-    "tuned_heuristic_status": "completed",
-    "weak_general_steps": 13,
-    "weak_general_status": "completed",
-    "bcr_steps": null,
-    "bcr_status": "not_run",
-    "first_bad": "1ab0e7dd60e26ac7c7fc64a273485522f5c5ba02"
   },
   {
     "issue": "pr192829",
@@ -287,6 +253,23 @@
     "bcr_steps": null,
     "bcr_status": "not_run",
     "first_bad": "730a07f225ab29c41e7db2e9db99aa619874ff46"
+  },
+  {
+    "issue": "pr194590",
+    "interval_commits": 14310,
+    "interval_source": "ledger-note",
+    "git_steps": 17,
+    "git_skips": 0,
+    "git_status": "completed",
+    "old_model_steps": null,
+    "old_model_status": "not_run",
+    "tuned_heuristic_steps": null,
+    "tuned_heuristic_status": "not_run",
+    "weak_general_steps": null,
+    "weak_general_status": "not_run",
+    "bcr_steps": null,
+    "bcr_status": "not_run",
+    "first_bad": "d19e954b83cb497c03cccb0e9874cb9f1a51b18d"
   },
   {
     "issue": "pr195788",
@@ -627,6 +610,23 @@
     "bcr_steps": null,
     "bcr_status": "not_run",
     "first_bad": "43b88851cefe68645aa59b1fccc8390a8a31f469"
+  },
+  {
+    "issue": "pr203519",
+    "interval_commits": 40316,
+    "interval_source": "ledger-note",
+    "git_steps": 19,
+    "git_skips": 0,
+    "git_status": "completed",
+    "old_model_steps": null,
+    "old_model_status": "not_run",
+    "tuned_heuristic_steps": null,
+    "tuned_heuristic_status": "not_run",
+    "weak_general_steps": null,
+    "weak_general_status": "not_run",
+    "bcr_steps": null,
+    "bcr_status": "not_run",
+    "first_bad": "a460c8e8dafc28fef240fce44dcbed043fe56a71"
   },
   {
     "issue": "pr204178",

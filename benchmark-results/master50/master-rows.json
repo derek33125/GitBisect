@@ -446,45 +446,6 @@
       "notes": "Local legacy LM completed in 11 steps at the Git boundary. Fresh AWS tuned aws-expansion-tuned-20260815-b completed in 11 runner builds and EDU weak-general edu-expansion-general-20260815-e in 12; both are zero-skip exact matches."
     },
     {
-      "issue": "pr176682",
-      "state": "completed git + legacy LM + tuned and weak-general heuristics",
-      "interval_commits": 20302,
-      "interval_source": "run-history",
-      "good_anchor": "3623fe661ae35c6c80ac221f14d85be76aa870f1",
-      "bad_anchor": "af98aadc63637ac674d403c77ccba42b05a3d11c",
-      "first_bad": "782759b757f69c6be98bd8079bc57e8f49b7ec86",
-      "local_git": "done",
-      "local_lm": "legacy LM done",
-      "remote_git": "n/a",
-      "remote_lm": "tuned done on edu-server; weak-general done on aws-server",
-      "git": {
-        "state": "completed",
-        "steps": 17,
-        "skips": 0
-      },
-      "legacy_lm": {
-        "state": "completed",
-        "steps": 12,
-        "skips": 0
-      },
-      "tuned_heuristic": {
-        "state": "completed",
-        "steps": 10,
-        "skips": 0
-      },
-      "weak_general_heuristic": {
-        "state": "completed",
-        "steps": 14,
-        "skips": 0
-      },
-      "bcr": {
-        "state": "not_run",
-        "steps": null,
-        "skips": null
-      },
-      "notes": "Existing legacy-LM result used 12 steps. Independent EDU tuned-heuristic control edu-master-specific-direct-20260728 completed in 10 runner builds, 0 skips, and exactly matched the Git boundary. Fresh AWS weak-general aws-master-weak-general-20260809-b completed in 14 builds, 0 skips, and exactly matched Git. Keep the two nonidentical methods separate."
-    },
-    {
       "issue": "pr190445",
       "state": "completed git + legacy LM + tuned and weak-general heuristics",
       "interval_commits": 20547,
@@ -522,45 +483,6 @@
         "skips": null
       },
       "notes": "The historical legacy LM resume recorded one dirty-worktree checkout skip, then completed at the Git boundary in 13 total steps. Fresh AWS tuned aws-expansion-tuned-20260815-a completed in 11 runner builds and weak-general aws-master-weak-general-20260812-c in 13, both zero-skip exact matches."
-    },
-    {
-      "issue": "pr191581",
-      "state": "completed git + legacy LM + tuned and weak-general heuristics",
-      "interval_commits": 50116,
-      "interval_source": "run-history",
-      "good_anchor": "87f0227cb60147a26a1eeb4fb06e3b505e9c7261",
-      "bad_anchor": "45494d9c165965a8f5aaccd00c7301c166bcd575",
-      "first_bad": "1ab0e7dd60e26ac7c7fc64a273485522f5c5ba02",
-      "local_git": "done",
-      "local_lm": "legacy LM done",
-      "remote_git": "n/a",
-      "remote_lm": "tuned done on edu-server; weak-general done on aws-server",
-      "git": {
-        "state": "completed",
-        "steps": 19,
-        "skips": 0
-      },
-      "legacy_lm": {
-        "state": "completed",
-        "steps": 13,
-        "skips": 0
-      },
-      "tuned_heuristic": {
-        "state": "completed",
-        "steps": 13,
-        "skips": 0
-      },
-      "weak_general_heuristic": {
-        "state": "completed",
-        "steps": 13,
-        "skips": 0
-      },
-      "bcr": {
-        "state": "not_run",
-        "steps": null,
-        "skips": null
-      },
-      "notes": "EDU tuned edu-master-specific-direct-20260728 completed in 13 builds, 0 skips, and exactly matched the clean Git/legacy-LM boundary. Fresh AWS weak-general aws-master-weak-general-20260809-b completed in 13 runner builds with zero skips and exactly matched Git."
     },
     {
       "issue": "pr192829",
@@ -678,6 +600,45 @@
         "skips": null
       },
       "notes": "AArch64 SVE vectorizer crash: createPartialReductionExpression / Unsupported expression. AWS validation found a usable 13,464-commit interval and Git found [LV] Only create partial reductions when profitable. (#181706). Valid edu legacy LM completed in 11 steps. Fresh AWS controls aws-master-specific-20260809-a and aws-master-weak-general-20260809-a completed in 13 and 11 runner builds respectively, both with zero skips and the same first-bad boundary. Initial edu model attempts remain invalid shared-checkout/contaminated-observation artifacts."
+    },
+    {
+      "issue": "pr194590",
+      "state": "completed Git baseline; crash replacement",
+      "interval_commits": 14310,
+      "interval_source": "ledger-note",
+      "good_anchor": "e9f758a59b2f887acb07e26e2d480c7369a72009",
+      "bad_anchor": "b6a9206ace1eb7f1ccc712e5c0c8b17db443bbc9",
+      "first_bad": "d19e954b83cb497c03cccb0e9874cb9f1a51b18d",
+      "local_git": "done",
+      "local_lm": "n/a",
+      "remote_git": "done on edu-server",
+      "remote_lm": "n/a",
+      "git": {
+        "state": "completed",
+        "steps": 17,
+        "skips": 0
+      },
+      "legacy_lm": {
+        "state": "not_run",
+        "steps": null,
+        "skips": null
+      },
+      "tuned_heuristic": {
+        "state": "not_run",
+        "steps": null,
+        "skips": null
+      },
+      "weak_general_heuristic": {
+        "state": "not_run",
+        "steps": null,
+        "skips": null
+      },
+      "bcr": {
+        "state": "not_run",
+        "steps": null,
+        "skips": null
+      },
+      "notes": "Validated crash replacement. EDU Git-bisect 20260901-crash-replacement-pr194590 completed on a 14,310-commit interval in 17 commands, zero skips, and found [LLVM] Make -use-constant-fp-for-fixed-length-splat the default. (#193264). AWS endpoint validation reproduced the ReassociatePass::OptimizeAdd assertion Each occurrence should contribute a value at the bad endpoint and was good at llvmorg-22.1.0."
     },
     {
       "issue": "pr195788",
@@ -1458,6 +1419,45 @@
         "skips": null
       },
       "notes": "EDU tuned edu-expanded-tuned-20260814-a completed in 13 runner builds with zero skips and exactly matched the boundary; the independent weak-general control completed in 14 builds, also zero-skip and exact."
+    },
+    {
+      "issue": "pr203519",
+      "state": "completed Git baseline; crash replacement",
+      "interval_commits": 40316,
+      "interval_source": "ledger-note",
+      "good_anchor": "94b15a1ece37963c9804fc7f0c498d140ea5fd9d",
+      "bad_anchor": "b2c0c48595ab840c5b949d871302b0d1186acf53",
+      "first_bad": "a460c8e8dafc28fef240fce44dcbed043fe56a71",
+      "local_git": "done",
+      "local_lm": "n/a",
+      "remote_git": "done on edu-server",
+      "remote_lm": "n/a",
+      "git": {
+        "state": "completed",
+        "steps": 19,
+        "skips": 0
+      },
+      "legacy_lm": {
+        "state": "not_run",
+        "steps": null,
+        "skips": null
+      },
+      "tuned_heuristic": {
+        "state": "not_run",
+        "steps": null,
+        "skips": null
+      },
+      "weak_general_heuristic": {
+        "state": "not_run",
+        "steps": null,
+        "skips": null
+      },
+      "bcr": {
+        "state": "not_run",
+        "steps": null,
+        "skips": null
+      },
+      "notes": "Validated crash replacement. EDU Git-bisect 20260901-crash-replacement-pr203519 completed on a 40,316-commit interval in 19 commands, zero skips, and found [NFCI][SROA] reduce calls to getAllocatedType() (#177437). AWS endpoint validation reproduced the APInt getZExtValue assertion Too many bits for uint64_t at the bad endpoint and was good at llvmorg-21.1.8."
     },
     {
       "issue": "pr204178",

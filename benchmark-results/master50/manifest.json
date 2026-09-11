@@ -13,12 +13,11 @@
     "pr170421",
     "pr172195",
     "pr173943",
-    "pr176682",
     "pr190445",
-    "pr191581",
     "pr192829",
     "pr193164",
     "pr194000",
+    "pr194590",
     "pr195788",
     "pr196244",
     "pr196450",
@@ -39,6 +38,7 @@
     "pr202343",
     "pr203261",
     "pr203278",
+    "pr203519",
     "pr204178",
     "pr204559",
     "pr204561",
@@ -54,11 +54,11 @@
     "pr65982"
   ],
   "source": "tools/lm_bisect_profiles.json plus web-presentation-data/data/site-data.json master_status",
-  "site_generated_at": "2026-08-21T02:32:16.264Z",
-  "bundle_generated_at": "2026-08-21T12:22:41Z",
+  "site_generated_at": "2026-09-02T04:43:01.666Z",
+  "bundle_generated_at": "2026-09-02T04:43:02Z",
   "selection": {
     "ledger_rows": 104,
-    "profile_rows": 54,
+    "profile_rows": 56,
     "policy": "Take every issue in tools/lm_bisect_profiles.json except skip-* controls, the non-reproducing pr54556 endpoint, and pr187875/pr193932 (no completed method). This matches the human_analysis/raw 50-issue first-bad evidence pack.",
     "git_completed_in_cohort": 47,
     "fill_issues_without_completed_git": [
@@ -67,7 +67,9 @@
       "pr65982"
     ],
     "excluded": [
+      "pr176682",
       "pr187875",
+      "pr191581",
       "pr193932",
       "pr54556",
       "skip-pr199918-riscv"

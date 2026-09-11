@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-08-21T12:22:41Z",
+  "generated_at": "2026-09-02T04:43:02Z",
   "scope": "master-50 from tools/lm_bisect_profiles.json, method cells from the master-status ledger",
   "bcr_topk12": {
     "label": "BCR top-k12 as recorded on the canonical master ledger",
@@ -204,22 +204,10 @@
         "first_bad": "d0223b9ffc40146fb4a948ebfa652dc95499b7ba"
       },
       {
-        "issue": "pr176682",
-        "steps": 14,
-        "skips": 0,
-        "first_bad": "782759b757f69c6be98bd8079bc57e8f49b7ec86"
-      },
-      {
         "issue": "pr190445",
         "steps": 13,
         "skips": 0,
         "first_bad": "6dc188d4eb15cbe9bdece3d940f03d93b926328c"
-      },
-      {
-        "issue": "pr191581",
-        "steps": 13,
-        "skips": 0,
-        "first_bad": "1ab0e7dd60e26ac7c7fc64a273485522f5c5ba02"
       },
       {
         "issue": "pr192829",
@@ -414,7 +402,7 @@
         "first_bad": "10bc12588dac532fad044b2851dde8e7b9121e88"
       }
     ],
-    "note": "46 completed weak-general rows in this 50-issue cohort."
+    "note": "44 completed weak-general rows in this 50-issue cohort."
   },
   "active": []
 }
