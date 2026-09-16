@@ -76,6 +76,15 @@ export CCACHE_MAXSIZE="${CCACHE_MAXSIZE:-20G}"
 export CMAKE_BUILD_PARALLEL_LEVEL="${JOBS}"
 RUN_ONLINE_MAX_LANES="${RUN_ONLINE_MAX_LANES:-3}"
 HEURISTIC_ABLATION_FACTOR="${HEURISTIC_ABLATION_FACTOR:-}"
+CEG_FUSION_POLICY="${CEG_FUSION_POLICY:-legacy}"
+
+case "${CEG_FUSION_POLICY}" in
+  legacy|coverage-mixture-v1) ;;
+  *)
+    echo "error: unsupported CEG_FUSION_POLICY: ${CEG_FUSION_POLICY}" >&2
+    exit 2
+    ;;
+esac
 
 if [[ ! "${RUN_ONLINE_MAX_LANES}" =~ ^[1-9][0-9]*$ ]]; then
   echo "error: RUN_ONLINE_MAX_LANES must be a positive integer" >&2
@@ -825,6 +834,7 @@ run_issue() {
         --model-diff-mode parent \
         --model-diff-extraction causal-llm-ceg-bisect \
         --ceg-input-root "${CEG_INPUT_ROOT}" \
+        --ceg-fusion-policy "${CEG_FUSION_POLICY}" \
         --causal-context-parent-count 5 \
         --observation-prompt-mode trace-only \
         --observations "${obs}" \
