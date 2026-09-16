@@ -15,9 +15,10 @@ from pathlib import Path
 from typing import Iterable
 
 try:
-    from tools import crash_signals, program_pass_graph, program_prior
+    from tools import ceg_fusion, crash_signals, program_pass_graph, program_prior
 except ModuleNotFoundError:
     # Queue controllers execute this file directly from tools/.
+    import ceg_fusion
     import crash_signals
     import program_pass_graph
     import program_prior
@@ -3402,10 +3403,14 @@ def causal_evidence_guided_selection(
     observations: list[CommitObservation] | None = None,
     observation_posterior_config: ObservationConditionedPosteriorConfig | None = None,
     allow_direct_probe: bool = True,
+    fusion_policy: str = "legacy",
+    frontier_shas: set[str] | None = None,
 ) -> SelectionDecision:
     """Fuse ordinal judgments, then reuse BCR's calibrated operational selector."""
     if not records:
         raise ValueError("Causal Evidence-Guided Bisect requires records")
+    if fusion_policy not in {"legacy", ceg_fusion.POLICY}:
+        raise ValueError(f"unsupported CEG fusion policy: {fusion_policy}")
     candidate_by_sha = {
         str(sha): item
         for sha, item in dict(evidence.get("candidate_by_sha", {})).items()
@@ -3415,6 +3420,30 @@ def causal_evidence_guided_selection(
         str(sha): float(mass)
         for sha, mass in dict(evidence.get("prior_mass_by_sha", {})).items()
     }
+    experimental_judgments_valid = True
+    if fusion_policy == ceg_fusion.POLICY:
+        fusion_frontier = (
+            frontier_shas
+            if frontier_shas is not None
+            else {
+                record.sha
+                for record in records
+                if isinstance((record.causal_evidence or {}).get("ordinal_judgment"), dict)
+            }
+        )
+        fused_mass, fusion = ceg_fusion.coverage_weighted_fusion(
+            prior_mass,
+            {
+                record.sha: (
+                    record.causal_evidence or {}
+                ).get("ordinal_judgment", {})
+                for record in records
+                if record.sha in fusion_frontier
+            },
+        )
+        experimental_judgments_valid = fusion["reason"] in {
+            "bounded-supported-ordinal-mixture", "no-supported-causal-judgment"
+        }
     all_ordinal_ranks: dict[str, int] = {}
     ordinal_ranks: dict[str, int] = {}
     ordinal_confidence_by_sha: dict[str, float] = {}
@@ -3440,7 +3469,7 @@ def causal_evidence_guided_selection(
             *[f"program-signal:{hit}" for hit in record.program_signal_hits],
             *model_evidence,
         ]
-        if isinstance(judgment, dict) and judgment.get("rank") is not None:
+        if experimental_judgments_valid and isinstance(judgment, dict) and judgment.get("rank") is not None:
             record.llm_ordinal_rank = max(1, int(judgment["rank"]))
             all_ordinal_ranks[record.sha] = record.llm_ordinal_rank
             confidence = min(
@@ -3458,10 +3487,11 @@ def causal_evidence_guided_selection(
                 ordinal_ranks[record.sha] = record.llm_ordinal_rank
                 ordinal_confidence_by_sha[record.sha] = confidence
 
-    fused_mass, fusion = program_prior.mass_preserving_ordinal_fusion(
-        prior_mass,
-        ordinal_ranks,
-    )
+    if fusion_policy == "legacy":
+        fused_mass, fusion = program_prior.mass_preserving_ordinal_fusion(
+            prior_mass,
+            ordinal_ranks,
+        )
     ordinal_count = len(all_ordinal_ranks)
     ordinal_denom = max(1, ordinal_count - 1)
     ordinal_rank_fraction_by_sha = {
@@ -3514,7 +3544,13 @@ def causal_evidence_guided_selection(
             continue
         if (
             allow_direct_probe
+            and experimental_judgments_valid
             and len(records) > 2
+            and (
+                fusion_policy == "legacy"
+                or frontier_shas is None
+                or record.sha in frontier_shas
+            )
             and current_verdict_by_sha.get(record.sha) not in {"good", "skip"}
             and rank == 1
             and bool(judgment.get("ordinal_permutation_valid", True))
@@ -10900,6 +10936,11 @@ def command_run_online(args: argparse.Namespace) -> int:
     causal_evidence_guided_enabled = (
         args.scorer == "model" and args.model_diff_extraction == "causal-llm-ceg-bisect"
     )
+    ceg_fusion_policy = getattr(args, "ceg_fusion_policy", "legacy")
+    if not isinstance(ceg_fusion_policy, str):
+        ceg_fusion_policy = "legacy"
+    if ceg_fusion_policy != "legacy" and not causal_evidence_guided_enabled:
+        raise ValueError("--ceg-fusion-policy requires causal-llm-ceg-bisect")
     causal_evidence_guided_observation_posterior = (
         ObservationConditionedPosteriorConfig()
         if causal_evidence_guided_enabled
@@ -11018,6 +11059,11 @@ def command_run_online(args: argparse.Namespace) -> int:
             preloaded_causal_evidence_guided_crash_signals,
             unresolved,
         )
+        if ceg_fusion_policy != "legacy":
+            causal_evidence_guided_identity["fusion_policy"] = ceg_fusion_policy
+            causal_evidence_guided_identity["implementation_sha256"]["tools/ceg_fusion.py"] = (
+                sha256_file(ROOT_DIR / "tools" / "ceg_fusion.py")
+            )
     adaptive_top_k = adaptive_top_k_config_from_args(args) if args.scorer == "model" else None
     confidence_adaptive_frontier = (
         confidence_adaptive_frontier_config_from_args(args) if args.scorer == "model" else None
@@ -11066,6 +11112,9 @@ def command_run_online(args: argparse.Namespace) -> int:
         adaptive_top_k,
         confidence_adaptive_frontier,
         observation_conditioned_posterior,
+    )
+    model_cache_namespace = ceg_fusion.isolated_namespace(
+        model_cache_namespace, ceg_fusion_policy
     )
     if adaptive_top_k is not None:
         log_progress(
@@ -11177,6 +11226,7 @@ def command_run_online(args: argparse.Namespace) -> int:
         run_identity=causal_evidence_guided_identity,
     )
     run_history["heuristic_keywords"] = list(selection_profile.keywords)
+    run_history["ceg_fusion_policy"] = ceg_fusion_policy
     if args.heuristic_version in {"general", "none", "neutral"}:
         run_history["heuristic_keywords"] = effective_heuristic_keywords(profile, args.heuristic_version)
     if oracle_derivation is not None:
@@ -12291,6 +12341,8 @@ def command_run_online(args: argparse.Namespace) -> int:
                         causal_evidence_guided_observation_posterior
                     ),
                     allow_direct_probe=step < args.max_steps,
+                    fusion_policy=ceg_fusion_policy,
+                    frontier_shas=set(frontier_decision.selected_shas),
                 )
             elif dynamic_human_evidence_enabled:
                 assert step_dynamic_human_evidence is not None
@@ -13108,6 +13160,12 @@ def build_parser() -> argparse.ArgumentParser:
             "required for CEG: frozen evidence bundle whose manifest proves "
             "the crash artifact was captured at the configured bad endpoint"
         ),
+    )
+    run_online.add_argument(
+        "--ceg-fusion-policy",
+        choices=("legacy", ceg_fusion.POLICY),
+        default="legacy",
+        help="experimental bounded ordinal fusion; isolates cache and resume identity",
     )
     run_online.add_argument("--observation-prompt-mode", choices=("legacy", "trace-only"), default="legacy", help="how runner-backed crash observations are formatted when scorer=model")
     run_online.add_argument("--search-policy", choices=("ranked", "hybrid", "posterior", "calibrated-posterior", "causal-evidence-guided"), default="ranked", help="commit selection policy")
