@@ -1,0 +1,1920 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Crash → GT Commit · 定位工作台</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap"
+    rel="stylesheet" />
+  <link rel="stylesheet" href="viewer.css" />
+</head>
+
+<body>
+  <div class="app">
+    <aside class="sidebar">
+      <header class="sidebar-head">
+        <p class="eyebrow">BitSection · Human Analysis</p>
+        <h1>Crash → GT Commit</h1>
+        <p class="sub" id="bundle-meta">加载中…</p>
+        <button type="button" class="nav-dash" id="nav-dashboard">总览：50 例定位难度</button>
+        <button type="button" class="nav-dash" id="nav-strategy">搜索策略：信号 → 探针</button>
+        <label class="search-wrap">
+          <span class="sr-only">搜索</span>
+          <input id="search" type="search" placeholder="搜索 issue / 症状 / 文件 / SHA…" autocomplete="off" />
+        </label>
+        <div class="filters" id="filters">
+          <button type="button" class="chip active" data-filter="all">全部</button>
+          <button type="button" class="chip" data-filter="reachable">文本可达</button>
+          <button type="button" class="chip" data-filter="unreachable">需推理</button>
+          <button type="button" class="chip" data-filter="todo">未审</button>
+          <button type="button" class="chip" data-filter="signal-only">无断言文本</button>
+        </div>
+      </header>
+      <nav class="case-list" id="case-list" aria-label="案例列表"></nav>
+      <footer class="sidebar-foot">
+        <p><kbd>j</kbd>/<kbd>k</kbd> 切换 · <kbd>1</kbd>–<kbd>6</kbd> 步骤 · <kbd>d</kbd> 总览 · <kbd>s</kbd> 策略</p>
+      </footer>
+    </aside>
+
+    <main class="main">
+      <!-- ============ 总览 ============ -->
+      <section id="view-dashboard" class="view">
+        <header class="view-head">
+          <h2>从 crash report 出发，能走到 gt commit 吗？</h2>
+          <p class="lede">
+            每个案例都以一份 crash report 为唯一起点。下面统计的是：把 crash 里能直接读到的东西
+            （断言文件、栈上符号、正在运行的 pass）拿去和 ground-truth commit 的改动文件做匹配，
+            <strong>最强的那条线索落在哪一层</strong>。层级越靠后，说明纯文本检索越无能为力、越必须靠因果推理或实际编译验证。
+          </p>
+        </header>
+        <div id="dash-levels" class="level-cards"></div>
+        <div class="block" style="margin-top:18px" id="dash-compare-block">
+          <h3>样本从 10 例扩到 50 例后，结论变了什么<span class="sub-count" id="dash-compare-sub"></span></h3>
+          <div class="table-scroll">
+            <table class="matrix" id="dash-compare"></table>
+          </div>
+          <div id="dash-compare-note" style="margin-top:12px"></div>
+        </div>
+        <div class="block" style="margin-top:18px">
+          <h3>逐例对照</h3>
+          <div class="table-scroll">
+            <table class="matrix" id="dash-table"></table>
+          </div>
+        </div>
+        <div class="block" style="margin-top:14px">
+          <h3>方法说明</h3>
+          <ul class="method-list">
+            <li><strong>文件级</strong>：crash 里出现的源文件路径，本身就在 commit 改动列表里 —— 直接 grep 文件名即可锁定。</li>
+            <li><strong>符号级</strong>：断言所在文件没被改，但调用栈上某个类/函数名对应到改动文件（如 <code>AsmPrinter::emitXRayTable</code> →
+              <code>AsmPrinter.cpp</code>）。</li>
+            <li><strong>Pass 名级</strong>：崩溃点与改动完全无关，只有 <code>Running pass</code> 里的 pass 名能对上文件名（如
+              <code>simple-loop-unswitch</code> → <code>SimpleLoopUnswitch.cpp</code>）。</li>
+            <li><strong>模块级</strong>：只共享目录层级，需要再读 diff 才能判断语义关联。</li>
+            <li><strong>仅先验目录</strong>：只有现有系统那份 high-risk 目录先验能覆盖到它，crash 文本本身捞不到。</li>
+            <li><strong>文本不可达</strong>：crash 与 commit 无任何词面重叠，只能靠 bisect 编译验证。</li>
+          </ul>
+        </div>
+      </section>
+
+      <!-- ============ 搜索策略 ============ -->
+      <section id="view-strategy" class="view hidden">
+        <div class="view-switch">
+          <button type="button" class="vs-btn active" data-vs="brief">汇报</button>
+          <button type="button" class="vs-btn" data-vs="results">结果</button>
+          <button type="button" class="vs-btn" data-vs="detail">技术细节</button>
+          <button type="button" class="vs-btn" data-vs="llm">LLM 环节</button>
+          <button type="button" class="vs-btn" data-vs="paper">论文大纲</button>
+        </div>
+        <p class="vs-intro" id="vs-intro"></p>
+
+        <!-- ---------- 汇报视图 ---------- -->
+        <div id="strategy-brief">
+          <p class="brief-kicker">一句话</p>
+          <h2 class="brief-headline">崩溃的地方，<br>通常不是出错的地方。</h2>
+          <p class="brief-sub">
+            崩溃报告点名的那个文件，往往只是<strong>最先察觉异常的地方</strong>，而不是<strong>把状态弄坏的地方</strong>。
+            定位之所以难，很大程度上就难在这一步错位上；我们要做的，是绕过它。
+          </p>
+
+          <div class="brief-stats" id="brief-stats"></div>
+
+          <h3 class="brief-h">错位是怎么来的</h3>
+          <div id="brief-why"></div>
+
+          <h3 class="brief-h">于是换一个问法</h3>
+          <p class="brief-lead">
+            既然崩溃现场问不出肇事者，就不再问「崩溃现场长什么样」，而是问
+            <strong>「谁有可能影响到这个被违反的约定」</strong>。
+            这个问题不需要猜，它是一个依赖关系问题：能破坏某个组件约定的代码，必然与该组件存在依赖关系，
+            而依赖关系在 bad 版本的源码树里查得到。于是定位就从「比对文字」变成了「查引用」。
+          </p>
+
+          <h3 class="brief-h">具体做四件事</h3>
+          <p class="brief-note">
+            前三件构成三条互不重叠的证据通路，各自回答一个不同的问题，最后合成一个排序；
+            第四件与排序无关，省的是每验证一次所花的时间。
+          </p>
+          <div class="brief-cards" id="brief-cards"></div>
+          <div class="callout" style="margin-top:14px">
+            <strong>这三层不是三份人工 profile。</strong>
+            ① 崩溃直接信号取自 bad-endpoint artifact；② 推导目录由这些信号在 bad tree
+            中机械映射得到；③ 锚点、消息、流水线与阶段仍只由 artifact、reproducer、
+            仓库注册表、源码引用和 commit 元数据自动导出。旧分析曾讨论的「issue 正文
+            LLM fallback」不进入最终 CEG 的召回或排序。
+          </div>
+
+          <h3 class="brief-h">效果</h3>
+          <div id="brief-effect"></div>
+
+          <h3 class="brief-h">哪些部分还不成立</h3>
+          <div id="brief-limits"></div>
+        </div>
+
+
+        <!-- ---------- 结果视图 ---------- -->
+        <div id="strategy-results" class="hidden">
+          <p class="brief-kicker">结果 · Master-50 对照 Git Bisect</p>
+          <h2 class="brief-headline">崩溃的地方，<br>通常不是出错的地方。</h2>
+          <p class="brief-sub">
+            崩溃报告点名的那个文件，往往只是<strong>最先察觉异常的检查者</strong>，而不是<strong>把状态弄坏的生产者</strong>。
+            CEG-Bisect 用 bad-endpoint 上的程序证据给整个 <code>good..bad</code> 区间打软先验，
+            模型只在很小的 frontier 里判断因果，最后仍由 runner 做编译验证。
+            先验能早期碰到真凶时，验证可以压到 2–4 步；先验只圈出很宽的检查者、或因果要跨组件时，
+            搜索就退化成普通二分，步数回到约 1× <code>log₂(N)</code>。
+          </p>
+          <p class="brief-note">
+            快照 2026-09-21。主表每行给出区间大小、当前 CEG 终态，以及同区间
+            <code>evidence-diverse-k12</code> LM-Bisect（有有效 history 才填）。
+            <code>pr199162</code>、<code>pr199526</code>、<code>pr204589</code> 的 CEG 仍在收集，本快照先留空，<strong>稍后回填</strong>。
+            旧 runner 故障<strong>不计入「搜索策略更差」</strong>。
+          </p>
+
+          <nav class="result-toc" aria-label="结果页目录">
+            <button type="button" data-result-jump="effect">效果</button>
+            <button type="button" data-result-jump="table">50 例全表</button>
+            <button type="button" data-result-jump="rank">GT 名次</button>
+            <button type="button" data-result-jump="exclude">先排除的故障</button>
+            <button type="button" data-result-jump="four">四件事</button>
+            <button type="button" data-result-jump="fast">2–4 步</button>
+            <button type="button" data-result-jump="boundary">相邻 SHA</button>
+            <button type="button" data-result-jump="onex">近 1×</button>
+            <button type="button" data-result-jump="limits">还不成立</button>
+          </nav>
+
+          
+          
+          <div class="brief-stats" id="result-effect">
+            <div class="bstat">
+              <div class="bstat-num">47 / 50</div>
+              <div class="bstat-label">CEG 有效终态<br>每行公开区间大小与 first-bad</div>
+            </div>
+            <div class="bstat">
+              <div class="bstat-num">31 / 50</div>
+              <div class="bstat-label">证据 LM-Bisect 有效终态<br>只显示 endpoint-matched history</div>
+            </div>
+            <div class="bstat">
+              <div class="bstat-num">43 / 47</div>
+              <div class="bstat-label">CEG first-bad 与 Git 台账一致<br>不同边界继续显式标记</div>
+            </div>
+          </div>
+
+
+          <h3 class="brief-h">效果：50 例 CEG 与证据 LM-Bisect</h3>
+          <p class="brief-lead">
+            本快照覆盖全部 50 个配置区间。CEG 有效终态 <strong>47 / 50</strong>；
+            endpoint-matched <code>evidence-diverse-k12</code> 有效终态
+            <strong>31 / 50</strong>。下表只把真实存在的同区间 history
+            显示为基线；缺失、runner 故障和进行中结果继续保留为显式状态。
+          </p>
+          <div class="table-scroll"><table class="matrix"><thead><tr><th>状态</th><th>数量</th><th>说明</th></tr></thead><tbody>
+            <tr><td>Master-50 全集合</td><td>50</td><td>每例均显示区间大小</td></tr>
+            <tr><td>CEG 有效结果</td><td>47</td><td>严格终态：remaining_unresolved = 1</td></tr>
+            <tr><td>证据 LM 有效结果</td><td>31</td><td>同一 good/bad 区间的 evidence-diverse history</td></tr>
+            <tr><td>方法配对</td><td>30</td><td>仅这些行计算 CEG − 证据 LM</td></tr>
+          </tbody></table></div>
+
+
+          <h3 class="brief-h">同区间 CEG 对照证据 LM-Bisect（30 例）</h3>
+          <p class="brief-lead">
+            预指定 LM-Bisect 基线是 <code>evidence-diverse-k12</code>。这里不拿旧 LM、
+            BCR 或历史 scoped-10 聚合替代缺失行。
+          </p>
+          <div class="table-scroll"><table class="matrix"><thead><tr><th></th><th>CEG-Bisect</th><th>证据 LM-Bisect</th></tr></thead><tbody>
+            <tr><td>例数</td><td>30</td><td>30</td></tr>
+            <tr><td>总构建</td><td>300</td><td>314</td></tr>
+            <tr><td>均值</td><td>10.00</td><td>10.47</td></tr>
+            <tr><td>中位</td><td>9.50</td><td>10.00</td></tr>
+            <tr><td>CEG 胜 / 平 / 负</td><td><strong>12 / 4 / 14</strong></td><td>—</td></tr>
+          </tbody></table></div>
+
+
+          <h3 class="brief-h" id="result-table">全表（50 例）</h3>
+          <p class="brief-note">
+            区间大小统一取配置的 <code>good..bad</code> 候选提交数。
+            “证据 LM”是同一区间的 <code>evidence-diverse-k12</code> LM-Bisect 基线；
+            没有有效终态 history 的格子明确显示为不可用，不做跨区间或历史 9 例替代。
+            <code>Δ = CEG − 证据 LM</code>。完整原始 history 与 SHA-256 清单见随页发布的 ZIP。
+          </p>
+          <div class="table-scroll">
+            <table class="matrix result-full-table">
+              <thead>
+                <tr>
+                  <th>Issue</th>
+                  <th>区间大小</th>
+                  <th>GT 最坏名次</th>
+                  <th>CEG 步数</th>
+                  <th>CEG first-bad</th>
+                  <th>证据 LM 步数</th>
+                  <th>证据 LM first-bad</th>
+                  <th>Δ</th>
+                  <th>Git 步数</th>
+                  <th>状态</th>
+                </tr>
+              </thead>
+              <tbody>
+<tr class="muted-row"><td class="mono"><button type="button" class="result-issue" data-issue="pr120802">pr120802</button></td><td class="mono">19,595</td><td class="mono">157</td><td class="mono">9</td><td><span class="mono" title="93d7002dc4644b0a6f15a998dff0d55c72012e87">93d7002dc464</span></td><td class="mono">in_progress</td><td>—</td><td class="mono ">—</td><td class="mono">16</td><td>CEG 边界一致；证据 LM 无有效结果</td></tr>
+<tr class="win-row"><td class="mono"><button type="button" class="result-issue" data-issue="pr121365">pr121365</button></td><td class="mono">35,139</td><td class="mono">20</td><td class="mono">4</td><td><span class="mono" title="a344db793aca6881379c7c83f5112d2870dbf958">a344db793aca</span></td><td class="mono">10</td><td><span class="mono" title="13a78fd1ac886b3119574bbffb327489f335e713">13a78fd1ac88</span></td><td class="mono delta-win">-6</td><td class="mono">17</td><td>CEG 边界不同</td></tr>
+<tr class="loss-row"><td class="mono"><button type="button" class="result-issue" data-issue="pr156249">pr156249</button></td><td class="mono">53,279</td><td class="mono">2,006</td><td class="mono">16</td><td><span class="mono" title="43f2968a028fbc6b4fac5ba6d18ad9d27eb4ef76">43f2968a028f</span></td><td class="mono">10</td><td><span class="mono" title="43f2968a028fbc6b4fac5ba6d18ad9d27eb4ef76">43f2968a028f</span></td><td class="mono delta-loss">+6</td><td class="mono">19</td><td>CEG 边界一致</td></tr>
+<tr class="muted-row"><td class="mono"><button type="button" class="result-issue" data-issue="pr165039">pr165039</button></td><td class="mono">9,324</td><td class="mono">9,324</td><td class="mono">7</td><td><span class="mono" title="078e99ef017cac3899e5dbc2ed917f173c9eedad">078e99ef017c</span></td><td class="mono">in_progress</td><td>—</td><td class="mono ">—</td><td class="mono">16</td><td>CEG 边界一致；证据 LM 无有效结果</td></tr>
+<tr class="win-row"><td class="mono"><button type="button" class="result-issue" data-issue="pr165246">pr165246</button></td><td class="mono">40,343</td><td class="mono">4</td><td class="mono">7</td><td><span class="mono" title="55f1b91d50a0f3706ad62d497d3c8a5ec572d59e">55f1b91d50a0</span></td><td class="mono">8</td><td><span class="mono" title="55f1b91d50a0f3706ad62d497d3c8a5ec572d59e">55f1b91d50a0</span></td><td class="mono delta-win">-1</td><td class="mono">18</td><td>CEG 边界一致</td></tr>
+<tr class="muted-row empty-prior-row"><td class="mono"><button type="button" class="result-issue" data-issue="pr165445">pr165445</button></td><td class="mono">3,324</td><td class="mono">无先验</td><td class="mono">7</td><td><span class="mono" title="fccc6ee7021811a27ab1303d19407f703853ab92">fccc6ee70218</span></td><td class="mono">in_progress</td><td>—</td><td class="mono ">—</td><td class="mono">14</td><td>CEG 边界一致；证据 LM 无有效结果</td></tr>
+<tr class="win-row"><td class="mono"><button type="button" class="result-issue" data-issue="pr167514">pr167514</button></td><td class="mono">39,025</td><td class="mono">682</td><td class="mono">8</td><td><span class="mono" title="032ad590d6bac76965fac17b9f2ce41e076a5a0a">032ad590d6ba</span></td><td class="mono">11</td><td><span class="mono" title="fd4f94ddbf0c0f0c9d0185e6036fe51de5ab2ef3">fd4f94ddbf0c</span></td><td class="mono delta-win">-3</td><td class="mono">18</td><td>CEG 边界不同</td></tr>
+<tr class="loss-row"><td class="mono"><button type="button" class="result-issue" data-issue="pr168912">pr168912</button></td><td class="mono">16,108</td><td class="mono">403</td><td class="mono">8</td><td><span class="mono" title="69b4190d5f1b483524f2f539f373960ef8de8d84">69b4190d5f1b</span></td><td class="mono">7</td><td><span class="mono" title="69b4190d5f1b483524f2f539f373960ef8de8d84">69b4190d5f1b</span></td><td class="mono delta-loss">+1</td><td class="mono">17</td><td>CEG 边界一致</td></tr>
+<tr class="muted-row"><td class="mono"><button type="button" class="result-issue" data-issue="pr170421">pr170421</button></td><td class="mono">20,901</td><td class="mono">82</td><td class="mono">11</td><td><span class="mono" title="97fdc237ddda7565c7c902cc4fc764f73e70686b">97fdc237ddda</span></td><td class="mono">in_progress</td><td>—</td><td class="mono ">—</td><td class="mono">16</td><td>CEG 边界一致；证据 LM 无有效结果</td></tr>
+<tr class="muted-row"><td class="mono"><button type="button" class="result-issue" data-issue="pr172195">pr172195</button></td><td class="mono">17,154</td><td class="mono">299</td><td class="mono">11</td><td><span class="mono" title="e8219e5ce84db26fd521ce5091d18e75c7afbc6a">e8219e5ce84d</span></td><td class="mono">in_progress</td><td>—</td><td class="mono ">—</td><td class="mono">16</td><td>CEG 边界一致；证据 LM 无有效结果</td></tr>
+<tr class="win-row"><td class="mono"><button type="button" class="result-issue" data-issue="pr173943">pr173943</button></td><td class="mono">18,926</td><td class="mono">22</td><td class="mono">6</td><td><span class="mono" title="d0223b9ffc40146fb4a948ebfa652dc95499b7ba">d0223b9ffc40</span></td><td class="mono">10</td><td><span class="mono" title="d0223b9ffc40146fb4a948ebfa652dc95499b7ba">d0223b9ffc40</span></td><td class="mono delta-win">-4</td><td class="mono">17</td><td>CEG 边界一致</td></tr>
+<tr class="muted-row"><td class="mono"><button type="button" class="result-issue" data-issue="pr190445">pr190445</button></td><td class="mono">20,547</td><td class="mono">1,133</td><td class="mono">11</td><td><span class="mono" title="6dc188d4eb15cbe9bdece3d940f03d93b926328c">6dc188d4eb15</span></td><td class="mono">in_progress</td><td>—</td><td class="mono ">—</td><td class="mono">16</td><td>CEG 边界一致；证据 LM 无有效结果</td></tr>
+<tr class="muted-row"><td class="mono"><button type="button" class="result-issue" data-issue="pr192829">pr192829</button></td><td class="mono">20,611</td><td class="mono">161</td><td class="mono">8</td><td><span class="mono" title="1f67b945ab2164f8f489eca636ccae5f0e58fc8b">1f67b945ab21</span></td><td class="mono">in_progress</td><td>—</td><td class="mono ">—</td><td class="mono">12</td><td>CEG 边界一致；证据 LM 无有效结果</td></tr>
+<tr class="loss-row"><td class="mono"><button type="button" class="result-issue" data-issue="pr193164">pr193164</button></td><td class="mono">12,559</td><td class="mono">809</td><td class="mono">10</td><td><span class="mono" title="cac7fe50e0fbedfb14028c170d83386efeb1265b">cac7fe50e0fb</span></td><td class="mono">9</td><td><span class="mono" title="cac7fe50e0fbedfb14028c170d83386efeb1265b">cac7fe50e0fb</span></td><td class="mono delta-loss">+1</td><td class="mono">17</td><td>CEG 边界一致</td></tr>
+<tr class="muted-row"><td class="mono"><button type="button" class="result-issue" data-issue="pr194000">pr194000</button></td><td class="mono">13,464</td><td class="mono">222</td><td class="mono">9</td><td><span class="mono" title="730a07f225ab29c41e7db2e9db99aa619874ff46">730a07f225ab</span></td><td class="mono">in_progress</td><td>—</td><td class="mono ">—</td><td class="mono">16</td><td>CEG 边界一致；证据 LM 无有效结果</td></tr>
+<tr class="warn-row"><td class="mono"><button type="button" class="result-issue" data-issue="pr194590">pr194590</button></td><td class="mono">14,310</td><td class="mono">1,103</td><td class="mono">9</td><td><span class="mono" title="d19e954b83cb497c03cccb0e9874cb9f1a51b18d">d19e954b83cb</span></td><td class="mono">9 (1 skip)</td><td><span class="mono" title="d19e954b83cb497c03cccb0e9874cb9f1a51b18d">d19e954b83cb</span></td><td class="mono ">+0</td><td class="mono">17</td><td>CEG 边界一致</td></tr>
+<tr class="loss-row empty-prior-row"><td class="mono"><button type="button" class="result-issue" data-issue="pr195788">pr195788</button></td><td class="mono">149,009</td><td class="mono">无先验</td><td class="mono">16</td><td><span class="mono" title="62116c8f0b5b7aac3d53f1bd2445356ae6866048">62116c8f0b5b</span></td><td class="mono">14</td><td><span class="mono" title="62116c8f0b5b7aac3d53f1bd2445356ae6866048">62116c8f0b5b</span></td><td class="mono delta-loss">+2</td><td class="mono">22</td><td>CEG 边界一致</td></tr>
+<tr class="loss-row"><td class="mono"><button type="button" class="result-issue" data-issue="pr196244">pr196244</button></td><td class="mono">257,823</td><td class="mono">1,280</td><td class="mono">14</td><td><span class="mono" title="d0aa6c58beef0a6663aacba8904e286c1925c572">d0aa6c58beef</span></td><td class="mono">11</td><td><span class="mono" title="d0aa6c58beef0a6663aacba8904e286c1925c572">d0aa6c58beef</span></td><td class="mono delta-loss">+3</td><td class="mono">21</td><td>CEG 边界一致</td></tr>
+<tr class="loss-row"><td class="mono"><button type="button" class="result-issue" data-issue="pr196450">pr196450</button></td><td class="mono">59,337</td><td class="mono">235</td><td class="mono">10</td><td><span class="mono" title="6e78aef646c22b7087cbf7939c8016f4f59614a1">6e78aef646c2</span></td><td class="mono">9</td><td><span class="mono" title="6e78aef646c22b7087cbf7939c8016f4f59614a1">6e78aef646c2</span></td><td class="mono delta-loss">+1</td><td class="mono">19</td><td>CEG 边界一致</td></tr>
+<tr class="loss-row"><td class="mono"><button type="button" class="result-issue" data-issue="pr197067">pr197067</button></td><td class="mono">54,777</td><td class="mono">3,107</td><td class="mono">15</td><td><span class="mono" title="a9d491b17f4f0a131f68a5dbdac8d34c7c8427db">a9d491b17f4f</span></td><td class="mono">11</td><td><span class="mono" title="e04e140adb600add79b414f137a13af9d89c8c0d">e04e140adb60</span></td><td class="mono delta-loss">+4</td><td class="mono">19</td><td>CEG 边界一致</td></tr>
+<tr class="warn-row"><td class="mono"><button type="button" class="result-issue" data-issue="pr197797">pr197797</button></td><td class="mono">15,071</td><td class="mono">3</td><td class="mono">9</td><td><span class="mono" title="fb024337497f4c158ea16bfb90e50138d9a2a0c6">fb024337497f</span></td><td class="mono">9</td><td><span class="mono" title="fb024337497f4c158ea16bfb90e50138d9a2a0c6">fb024337497f</span></td><td class="mono ">+0</td><td class="mono">17</td><td>CEG 边界一致</td></tr>
+<tr class="loss-row"><td class="mono"><button type="button" class="result-issue" data-issue="pr198257">pr198257</button></td><td class="mono">15,737</td><td class="mono">215</td><td class="mono">10</td><td><span class="mono" title="f612211116e1234a1ffc36c64aa662c0a462eac4">f612211116e1</span></td><td class="mono">8</td><td><span class="mono" title="f612211116e1234a1ffc36c64aa662c0a462eac4">f612211116e1</span></td><td class="mono delta-loss">+2</td><td class="mono">17</td><td>CEG 边界一致</td></tr>
+<tr class="win-row"><td class="mono"><button type="button" class="result-issue" data-issue="pr198339">pr198339</button></td><td class="mono">17,909</td><td class="mono">26</td><td class="mono">6</td><td><span class="mono" title="f478220dd06278c6ee725db710eb587ca80130d2">f478220dd062</span></td><td class="mono">8</td><td><span class="mono" title="f478220dd06278c6ee725db710eb587ca80130d2">f478220dd062</span></td><td class="mono delta-win">-2</td><td class="mono">17</td><td>CEG 边界一致</td></tr>
+<tr class="bug-row"><td class="mono"><button type="button" class="result-issue" data-issue="pr199162">pr199162</button></td><td class="mono">94,428</td><td class="mono">373</td><td class="mono">in_progress</td><td>—</td><td class="mono">24 (13 skip)</td><td><span class="mono" title="5e924fa7640041f7081deed9787dc10d8007e7f9">5e924fa76400</span></td><td class="mono ">—</td><td class="mono">—</td><td>CEG 无有效结果</td></tr>
+<tr class="bug-row"><td class="mono"><button type="button" class="result-issue" data-issue="pr199526">pr199526</button></td><td class="mono">16,925</td><td class="mono">98</td><td class="mono">in_progress</td><td>—</td><td class="mono">in_progress</td><td>—</td><td class="mono ">—</td><td class="mono">17</td><td>CEG 无有效结果；证据 LM 无有效结果</td></tr>
+<tr class="win-row"><td class="mono"><button type="button" class="result-issue" data-issue="pr200330">pr200330</button></td><td class="mono">17,282</td><td class="mono">319</td><td class="mono">8</td><td><span class="mono" title="a63eacee2db2c6ea75c67aca729cc3d32426200b">a63eacee2db2</span></td><td class="mono">16</td><td><span class="mono" title="a63eacee2db2c6ea75c67aca729cc3d32426200b">a63eacee2db2</span></td><td class="mono delta-win">-8</td><td class="mono">17</td><td>CEG 边界一致</td></tr>
+<tr class="loss-row"><td class="mono"><button type="button" class="result-issue" data-issue="pr200648">pr200648</button></td><td class="mono">20,547</td><td class="mono">748</td><td class="mono">14</td><td><span class="mono" title="525e68e9e9a44e88eb88ef2d6f058a482972c989">525e68e9e9a4</span></td><td class="mono">9</td><td><span class="mono" title="525e68e9e9a44e88eb88ef2d6f058a482972c989">525e68e9e9a4</span></td><td class="mono delta-loss">+5</td><td class="mono">18</td><td>CEG 边界一致</td></tr>
+<tr class="loss-row"><td class="mono"><button type="button" class="result-issue" data-issue="pr200742">pr200742</button></td><td class="mono">17,299</td><td class="mono">110</td><td class="mono">11</td><td><span class="mono" title="f612211116e1234a1ffc36c64aa662c0a462eac4">f612211116e1</span></td><td class="mono">10</td><td><span class="mono" title="f612211116e1234a1ffc36c64aa662c0a462eac4">f612211116e1</span></td><td class="mono delta-loss">+1</td><td class="mono">17</td><td>CEG 边界一致</td></tr>
+<tr class="loss-row"><td class="mono"><button type="button" class="result-issue" data-issue="pr200987">pr200987</button></td><td class="mono">133,662</td><td class="mono">14,344</td><td class="mono">14</td><td><span class="mono" title="329ef60f3e21fd6845e8e8b0da405cae7eb27267">329ef60f3e21</span></td><td class="mono">12</td><td><span class="mono" title="329ef60f3e21fd6845e8e8b0da405cae7eb27267">329ef60f3e21</span></td><td class="mono delta-loss">+2</td><td class="mono">20</td><td>CEG 边界一致</td></tr>
+<tr class="win-row"><td class="mono"><button type="button" class="result-issue" data-issue="pr201444">pr201444</button></td><td class="mono">17,742</td><td class="mono">185</td><td class="mono">7</td><td><span class="mono" title="6bcdd843e302063c4f0d36204686155149a6bb0a">6bcdd843e302</span></td><td class="mono">9</td><td><span class="mono" title="6bcdd843e302063c4f0d36204686155149a6bb0a">6bcdd843e302</span></td><td class="mono delta-win">-2</td><td class="mono">17</td><td>CEG 边界一致</td></tr>
+<tr class="warn-row"><td class="mono"><button type="button" class="result-issue" data-issue="pr201855">pr201855</button></td><td class="mono">17,911</td><td class="mono">191</td><td class="mono">9</td><td><span class="mono" title="c095488da4586f4d98c13f9793088b444e686a4a">c095488da458</span></td><td class="mono">9</td><td><span class="mono" title="c095488da4586f4d98c13f9793088b444e686a4a">c095488da458</span></td><td class="mono ">+0</td><td class="mono">17</td><td>CEG 边界一致</td></tr>
+<tr class="win-row"><td class="mono"><button type="button" class="result-issue" data-issue="pr202003">pr202003</button></td><td class="mono">18,188</td><td class="mono">143</td><td class="mono">10</td><td><span class="mono" title="be529fc55f2fd365855a3971f2b919bd0c4d18dc">be529fc55f2f</span></td><td class="mono">11</td><td><span class="mono" title="be529fc55f2fd365855a3971f2b919bd0c4d18dc">be529fc55f2f</span></td><td class="mono delta-win">-1</td><td class="mono">18</td><td>CEG 边界一致</td></tr>
+<tr class="win-row"><td class="mono"><button type="button" class="result-issue" data-issue="pr202043">pr202043</button></td><td class="mono">18,515</td><td class="mono">1,401</td><td class="mono">9</td><td><span class="mono" title="b74e1bca6d77b3de5c05822d1631006ce2a30cc6">b74e1bca6d77</span></td><td class="mono">10</td><td><span class="mono" title="b74e1bca6d77b3de5c05822d1631006ce2a30cc6">b74e1bca6d77</span></td><td class="mono delta-win">-1</td><td class="mono">18</td><td>CEG 边界不同</td></tr>
+<tr class="muted-row"><td class="mono"><button type="button" class="result-issue" data-issue="pr202343">pr202343</button></td><td class="mono">19,519</td><td class="mono">3,901</td><td class="mono">12</td><td><span class="mono" title="2071ea24a27c7009feac699e3e70ee50f185134f">2071ea24a27c</span></td><td class="mono">in_progress</td><td>—</td><td class="mono ">—</td><td class="mono">13</td><td>CEG 边界一致；证据 LM 无有效结果</td></tr>
+<tr class="warn-row"><td class="mono"><button type="button" class="result-issue" data-issue="pr203261">pr203261</button></td><td class="mono">20,547</td><td class="mono">388</td><td class="mono">11</td><td><span class="mono" title="89ce8718be80ead58ef5942d2d5052a528e79fee">89ce8718be80</span></td><td class="mono">11</td><td><span class="mono" title="89ce8718be80ead58ef5942d2d5052a528e79fee">89ce8718be80</span></td><td class="mono ">+0</td><td class="mono">18</td><td>CEG 边界一致</td></tr>
+<tr class="loss-row"><td class="mono"><button type="button" class="result-issue" data-issue="pr203278">pr203278</button></td><td class="mono">59,337</td><td class="mono">212</td><td class="mono">10</td><td><span class="mono" title="43b88851cefe68645aa59b1fccc8390a8a31f469">43b88851cefe</span></td><td class="mono">9</td><td><span class="mono" title="e0d173d44161bf9b68243845666d58999e74f759">e0d173d44161</span></td><td class="mono delta-loss">+1</td><td class="mono">19</td><td>CEG 边界一致</td></tr>
+<tr class="win-row"><td class="mono"><button type="button" class="result-issue" data-issue="pr203519">pr203519</button></td><td class="mono">40,316</td><td class="mono">185</td><td class="mono">8</td><td><span class="mono" title="a460c8e8dafc28fef240fce44dcbed043fe56a71">a460c8e8dafc</span></td><td class="mono">13</td><td><span class="mono" title="a460c8e8dafc28fef240fce44dcbed043fe56a71">a460c8e8dafc</span></td><td class="mono delta-win">-5</td><td class="mono">19</td><td>CEG 边界一致</td></tr>
+<tr class="loss-row"><td class="mono"><button type="button" class="result-issue" data-issue="pr204178">pr204178</button></td><td class="mono">18,751</td><td class="mono">4,477</td><td class="mono">19 (3 skip)</td><td><span class="mono" title="1aadd4766e97b80ba8e907e26603150c1238cf35">1aadd4766e97</span></td><td class="mono">16 (1 skip)</td><td><span class="mono" title="1aadd4766e97b80ba8e907e26603150c1238cf35">1aadd4766e97</span></td><td class="mono delta-loss">+3</td><td class="mono">18</td><td>CEG 边界一致</td></tr>
+<tr class="muted-row"><td class="mono"><button type="button" class="result-issue" data-issue="pr204559">pr204559</button></td><td class="mono">19,791</td><td class="mono">86</td><td class="mono">9</td><td><span class="mono" title="5a5d0fb1e471b3a1e842aee1f993e885c8d19713">5a5d0fb1e471</span></td><td class="mono">in_progress</td><td>—</td><td class="mono ">—</td><td class="mono">17</td><td>CEG 边界一致；证据 LM 无有效结果</td></tr>
+<tr class="win-row"><td class="mono"><button type="button" class="result-issue" data-issue="pr204561">pr204561</button></td><td class="mono">20,034</td><td class="mono">34</td><td class="mono">5</td><td><span class="mono" title="f505ceabdd2339f078cd6886d3f52cc622abd5c9">f505ceabdd23</span></td><td class="mono">12</td><td><span class="mono" title="f505ceabdd2339f078cd6886d3f52cc622abd5c9">f505ceabdd23</span></td><td class="mono delta-win">-7</td><td class="mono">18</td><td>CEG 边界一致</td></tr>
+<tr class="bug-row"><td class="mono"><button type="button" class="result-issue" data-issue="pr204589">pr204589</button></td><td class="mono">19,791</td><td class="mono">30</td><td class="mono">in_progress</td><td>—</td><td class="mono">in_progress</td><td>—</td><td class="mono ">—</td><td class="mono">17</td><td>CEG 无有效结果；证据 LM 无有效结果</td></tr>
+<tr class="muted-row"><td class="mono"><button type="button" class="result-issue" data-issue="pr205971">pr205971</button></td><td class="mono">17,954</td><td class="mono">9</td><td class="mono">6 (1 skip)</td><td><span class="mono" title="f505ceabdd2339f078cd6886d3f52cc622abd5c9">f505ceabdd23</span></td><td class="mono">in_progress</td><td>—</td><td class="mono ">—</td><td class="mono">17</td><td>CEG 边界一致；证据 LM 无有效结果</td></tr>
+<tr class="muted-row"><td class="mono"><button type="button" class="result-issue" data-issue="pr206007">pr206007</button></td><td class="mono">17,954</td><td class="mono">1,274</td><td class="mono">13</td><td><span class="mono" title="ffffe9c1696ad3ca59d9783e7511b16f41e4c3ae">ffffe9c1696a</span></td><td class="mono">in_progress</td><td>—</td><td class="mono ">—</td><td class="mono">17</td><td>CEG 边界一致；证据 LM 无有效结果</td></tr>
+<tr class="muted-row"><td class="mono"><button type="button" class="result-issue" data-issue="pr48154">pr48154</button></td><td class="mono">17,273</td><td class="mono">849</td><td class="mono">14</td><td><span class="mono" title="20e989e9de6abcf9a684978a2688acc4ea01036f">20e989e9de6a</span></td><td class="mono">in_progress</td><td>—</td><td class="mono ">—</td><td class="mono">17</td><td>CEG 边界一致；证据 LM 无有效结果</td></tr>
+<tr class="muted-row"><td class="mono"><button type="button" class="result-issue" data-issue="pr49535">pr49535</button></td><td class="mono">9,089</td><td class="mono">9</td><td class="mono">6</td><td><span class="mono" title="6792e26c0d0f2260f1e12693382e184f5ea1966f">6792e26c0d0f</span></td><td class="mono">in_progress</td><td>—</td><td class="mono ">—</td><td class="mono">16</td><td>CEG 边界不同；证据 LM 无有效结果</td></tr>
+<tr class="muted-row"><td class="mono"><button type="button" class="result-issue" data-issue="pr50304">pr50304</button></td><td class="mono">14,311</td><td class="mono">7</td><td class="mono">2</td><td><span class="mono" title="c9c05a91c4843c243d508c39bdfbc5e26f311af2">c9c05a91c484</span></td><td class="mono">in_progress</td><td>—</td><td class="mono ">—</td><td class="mono">17</td><td>CEG 边界一致；证据 LM 无有效结果</td></tr>
+<tr class="loss-row"><td class="mono"><button type="button" class="result-issue" data-issue="pr50585">pr50585</button></td><td class="mono">16,855</td><td class="mono">2,574</td><td class="mono">14</td><td><span class="mono" title="e38b7e894808ec2a0c976ab01e44364f167508d3">e38b7e894808</span></td><td class="mono">11</td><td><span class="mono" title="e38b7e894808ec2a0c976ab01e44364f167508d3">e38b7e894808</span></td><td class="mono delta-loss">+3</td><td class="mono">18</td><td>CEG 边界一致</td></tr>
+<tr class="muted-row"><td class="mono"><button type="button" class="result-issue" data-issue="pr50655">pr50655</button></td><td class="mono">17,514</td><td class="mono">1</td><td class="mono">10</td><td><span class="mono" title="34c098b780a27a90b5614ea3b949b9269835f2a5">34c098b780a2</span></td><td class="mono">in_progress</td><td>—</td><td class="mono ">—</td><td class="mono">17</td><td>CEG 边界一致；证据 LM 无有效结果</td></tr>
+<tr class="win-row"><td class="mono"><button type="button" class="result-issue" data-issue="pr52635">pr52635</button></td><td class="mono">13,008</td><td class="mono">155</td><td class="mono">3</td><td><span class="mono" title="10bc12588dac532fad044b2851dde8e7b9121e88">10bc12588dac</span></td><td class="mono">12</td><td><span class="mono" title="10bc12588dac532fad044b2851dde8e7b9121e88">10bc12588dac</span></td><td class="mono delta-win">-9</td><td class="mono">25</td><td>CEG 边界一致</td></tr>
+<tr class="muted-row"><td class="mono"><button type="button" class="result-issue" data-issue="pr65982">pr65982</button></td><td class="mono">4,001</td><td class="mono">4,001</td><td class="mono">14</td><td><span class="mono" title="ab720289ca8f9b04674b915f6a74d81847c9c341">ab720289ca8f</span></td><td class="mono">in_progress</td><td>—</td><td class="mono ">—</td><td class="mono">16</td><td>CEG 边界一致；证据 LM 无有效结果</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+<h3 class="brief-h" id="result-rank">代码分析：first-bad 的先验名次也在驱动步数</h3>
+          <p class="brief-lead">
+            程序先验<strong>不应为空</strong>。20260905 代码分析把崩溃产物收成全区间软排序；
+            first-bad 的<strong>最坏名次</strong>是所有同分取最不利时，还要检查多少个 commit 才会碰到真凶。
+            CEG 的 12 人 frontier 里有 10 个座位给先验头部，所以这个名次不是旁注：名次越靠后，真凶进 frontier 越晚，步数就越接近 <code>log₂(N)</code>。
+          </p>
+          <div class="callout warn" style="margin-top:12px">
+            <strong>无先验是 benchmark 缺口，不是合法格点。</strong>
+            现行方案矩阵覆盖 48/50 例。剩下的
+            <code>pr165445</code> 与 <code>pr195788</code>
+            是工具层崩溃：没有断言文本、也没有标准栈转储，代码分析导不出任何程序信号，最坏名次等于整个区间。
+            在线 CEG 只把 <code>pr195788</code> 记成 <code>active_signal_count = 0</code>（17 步，对照二分上界 18）；
+            <code>pr165445</code> 区间只有 3,324，7 步可以在没有可用先验时靠收缩碰运气，不能证明「空先验也没关系」。
+            下面的名次–步数对照<strong>不把这两例算进相关</strong>。
+          </div>
+          <div class="table-scroll" style="margin-top:12px">
+            <table class="matrix">
+              <thead>
+                <tr>
+                  <th>GT 最坏名次（现行代码分析）</th>
+                  <th>已定位且有名次</th>
+                  <th>CEG 均值</th>
+                  <th>最少 / 最多</th>
+                  <th>代表</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr><td class="mono">1–20</td><td>5</td><td>7.2</td><td>4 / 10</td><td><code>pr197797</code> 名次 3 → 9 步；尖并不自动变成 2–4 步</td></tr>
+                <tr><td class="mono">21–200</td><td>13</td><td>7.8</td><td>3 / 11</td><td><code>pr52635</code> 名次 155 → <strong>3</strong> 步，符号通路把生产者送进 frontier</td></tr>
+                <tr><td class="mono">201–2,000</td><td>15</td><td>10.3</td><td>8 / 14</td><td>先验只圈出宽检查者，步数回到中位附近</td></tr>
+                <tr><td class="mono">&gt; 2,000</td><td>6</td><td>13.0</td><td>7 / 16</td><td><code>pr156249</code> 2,006 → 16 步；<code>pr200987</code> 14,344 → 14 步</td></tr>
+                <tr class="empty-prior-row"><td class="mono">无先验</td><td>2</td><td>—</td><td>7 / 17</td><td><code>pr165445</code>、<code>pr195788</code>；不应出现在「先验有效」的样本里</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="brief-lead" style="margin-top:12px">
+            39 例同时有数值 CEG 步数和代码分析名次时，最坏名次与 CEG 步数的 Spearman 是 <strong>0.58</strong>。
+            方向对：名次越差，步数越高。它弱于 scoped-10 的 0.93，是因为关闭方式还会叠加——
+            <code>pr197067</code> 名次 3,107，第 11 步已经 rank-1 但仍被 0.95 门多走 4 步；
+            <code>pr165039</code> 名次 9,324 却只用 7 步。
+            名次解释的是<strong>召回是否及时</strong>，不是每一步的关闭成本。
+          </p>
+          <p class="brief-lead" style="margin-top:14px">
+            有效搜索里，CEG <strong>没有对干净 Git 基线输掉步数</strong>。相对 Git「更差」只出现在两类地方：
+          </p>
+          <div class="bwhy">
+            <div class="bwhy-row">
+              <div class="bwhy-n">1</div>
+              <div>
+                <div class="bwhy-name">近 1× 二分</div>
+                <div class="bwhy-why">步数仍少于 Git，但几乎没有加速（<code>CEG / log₂(N)</code> 约 0.85–1.0，或 <code>CEG / Git</code> 约 0.75–0.92）。</div>
+              </div>
+            </div>
+            <div class="bwhy-row">
+              <div class="bwhy-n">2</div>
+              <div>
+                <div class="bwhy-name"><code>pr204178</code></div>
+                <div class="bwhy-why">相对一份带 1 次 skip 的非干净 Git（18）多记了 1 次探针；有效 good/bad 其实是 16 对 17，多出来的是 3 次历史构建 skip。</div>
+              </div>
+            </div>
+          </div>
+
+          <h3 class="brief-h" id="result-exclude">错位是怎么来的：为什么有的案例几乎不加速</h3>
+          <h4 class="result-subh">先排除的不是搜索失败</h4>
+          <div class="table-scroll"><table class="matrix"><thead><tr><th>案例</th><th>记录</th><th>为什么不算「CEG 更差」</th></tr></thead><tbody><tr><td><code>pr199526</code></td><td>30 skip，0 次 good/bad，history 误标 completed</td><td>冻结快照里没有 <code>scripts/pr199526/bootstrap-tools.sh</code>，每个探针立刻失败。Git 17、旧模型 12、BCR 9 都能定位。</td></tr><tr><td><code>pr199162</code></td><td>21 次完全相同的 OpenACC skip，被中止</td><td>复现器诊断与候选无关，区间几乎不收缩。Git 自己也是 24 skip 的 <code>non_clean</code>。</td></tr></tbody></table></div>
+          <p class="brief-lead">
+            下面只讨论 <strong>已定位、runner 给出了方向</strong> 的案例。主导机制仍然是「检查者抓住生产者」。
+            离线 50 例分析里，崩溃点文件经常不在 first-bad 的改动列表中。在线 CEG 把崩溃文件、栈符号、<code>Running pass</code>、推导目录和依赖锚点合成软先验，<strong>永不硬裁剪</strong>。
+          </p>
+          <div class="bwhy">
+            <div class="bwhy-row">
+              <div class="bwhy-n">稀</div>
+              <div>
+                <div class="bwhy-name">检查者稀有且稳定</div>
+                <div class="bwhy-why"><code>MCExpr.cpp</code>、<code>ItaniumMangle.cpp</code>、<code>LiveIntervals.cpp</code> 这类文件信号会指向检查者，必须靠符号 / pass / 目录 / 依赖才能碰到生产者。</div>
+              </div>
+            </div>
+            <div class="bwhy-row">
+              <div class="bwhy-n">宽</div>
+              <div>
+                <div class="bwhy-name">生产者集合仍然很大</div>
+                <div class="bwhy-why">先验只是「这一带更可疑」，不是定位器。剩下的模糊项只能靠构建收敛，步数就回到 ≈ <code>log₂(N)</code>。</div>
+              </div>
+            </div>
+          </div>
+
+          <h4 class="result-subh">有效的「更差 / 近 1×」有三条路</h4>
+          <div class="brief-cards">
+            <div class="bcard">
+              <div class="bcard-head"><span class="bcard-no">A</span>先验太宽</div>
+              <p class="bcard-ask">真凶进 frontier 太晚</p>
+              <p class="bcard-what">
+                Frontier 12 个槽里 10 个留给程序先验头部。模型只能重排已经进来的人。
+                <code>pr156249</code> 的 <code>shufflevector</code> / <code>insertelement</code> 能覆盖几千个 commit；
+                真凶 RISCV lowering 到第 10 步才进先验头部、第 13 步才进 frontier。结果 16 步，刚好等于二分上界。
+              </p>
+            </div>
+            <div class="bcard">
+              <div class="bcard-head"><span class="bcard-no">B</span>跨组件边</div>
+              <p class="bcard-ask">程序图里没有这条边</p>
+              <p class="bcard-what">
+                <code>pr200648</code> 崩在 AST <code>VarDecl::evaluateValueImpl</code>，真凶在 Sema <code>TreeTransform.h</code> 的 lambda 依赖分类。
+                仓库事实报「无调用路径」，模型即便把正确 commit 排到 rank-1 也给了 confidence 0.0。
+                <code>pr204178</code> 更极端：真凶只删了 <code>ItaniumDemangle.h</code> 的一行 include，模型判 <code>unrelated</code>。
+              </p>
+            </div>
+            <div class="bcard">
+              <div class="bcard-head"><span class="bcard-no">C</span>直探门</div>
+              <p class="bcard-ask">已经碰到真凶，0.95 没关上</p>
+              <p class="bcard-what">
+                <code>pr197067</code> 第 11 步就把 exact culprit 排到 rank-1，机制判断为 <code>precondition-violation</code>，confidence 0.86。
+                阈值是 0.95，于是又走了 4 步普通校准后验。这不是召回失败，是边界关闭偏保守。
+              </p>
+            </div>
+          </div>
+          <div class="callout" style="margin-top:14px">
+            另有一条 <strong>看起来像 2–4 步大胜、其实不能当成功</strong>：adjacent-parent 验证只证明「这个候选 bad 且它的 Git parent good」。
+            谓词不是单一的 <code>good … bad</code> 时，这条局部跃迁不必等于台账 first-bad。
+            已核对：<code>pr121365</code> 是同一 patch 的 land → revert → re-commit；
+            <code>pr167514</code> 是 Git 更早的第一次 onset 之后又出现一段 good，CEG 锁在第二次 onset。
+            详写在下面「相邻 SHA 为什么不同」。
+          </div>
+          <p class="brief-note">
+            在线策略事实（用来解释上面三条，不是新实验）：程序先验是主召回器；人工 keywords / relevant_paths / high_risk_paths 不参与排序。
+            直探：frontier rank-1 + <code>invariant-break</code> / <code>precondition-violation</code> + confidence ≥ 0.95，再验证真实 parent。
+            低分 commit 保留概率地板，不会因为没撞上崩溃文件就被删掉。
+          </p>
+
+          <h3 class="brief-h" id="result-four">于是具体做四件事（现行 CEG）</h3>
+          <p class="brief-note">前三件构成互不重叠的证据通路，第四件只管验证成本。</p>
+          <div class="brief-cards" id="result-four-cards">
+            <div class="bcard">
+              <div class="bcard-head"><span class="bcard-no">1</span>崩溃直接信号</div>
+              <p class="bcard-what">bad-endpoint artifact 里的断言文件、栈符号、<code>Running pass</code>。</p>
+            </div>
+            <div class="bcard">
+              <div class="bcard-head"><span class="bcard-no">2</span>推导目录</div>
+              <p class="bcard-what">这些信号在 bad tree 上映射出的组件目录与后端。</p>
+            </div>
+            <div class="bcard">
+              <div class="bcard-head"><span class="bcard-no">3</span>锚点 · 消息 · 流水线 · 阶段</div>
+              <p class="bcard-what">源码引用、commit message（只用 crash/reproducer 词）、pass 前驱、编译阶段。合成全区间程序先验。</p>
+            </div>
+            <div class="bcard">
+              <div class="bcard-head"><span class="bcard-no">4</span>frontier 因果 + runner</div>
+              <p class="bcard-what">模型只比较可见 patch 是否连得上崩溃契约；边界必须「候选 bad + 真实 parent good」。</p>
+            </div>
+          </div>
+          <div class="callout" style="margin-top:14px">
+            合并顺序：全区间程序证据评分 → 有支撑位的 12 人 frontier → LLM 批内 ordinal → 保持总质量的局部重排 → 信息增益与可构建性 → 真实构建。
+          </div>
+
+          <h3 class="brief-h" id="result-fast">好案例：只用 2–4 步</h3>
+          <p class="brief-lead">
+            当前指定队列里，严格 2–4 步的已定位例子只有两例。下一档是 <code>pr204561</code> 的 5 步（Git 18，边界正确），列在表里但不展开。
+          </p>
+
+          <article class="result-case" id="result-case-pr52635">
+            <p class="brief-kicker">好案例 · 边界正确</p>
+            <h3><button type="button" class="result-issue" data-issue="pr52635">pr52635</button> · 3 步 vs Git 25</h3>
+            <p class="result-verdict win">检查者 / 生产者错位被符号通路解开，并且在线先验足够尖。这是目前能站得住的 2–4 步样本。</p>
+            <h4>崩溃</h4>
+            <p class="brief-note"><code>llc</code> 编 AArch64 + XRay <code>patchable-function-entry</code> IR。</p>
+            <pre class="struct-block">Assertion `Symbol' failed.
+  llvm/lib/MC/MCExpr.cpp:200  MCSymbolRefExpr::MCSymbolRefExpr
+Running pass 'AArch64 Assembly Printer' on function '@OUTLINED_FUNCTION_0'
+栈上可见：MCSymbolRefExpr::create → AsmPrinter::emitXRayTable</pre>
+            <p class="brief-lead">崩溃文件 <code>MCExpr.cpp</code> 在区间里只被改 5 次，<strong>不是</strong> first-bad。这是稀有检查者。</p>
+            <h4>代码分析</h4>
+            <div class="table-scroll"><table class="matrix"><thead><tr><th>层</th><th>圈定 commit</th><th>是否含 gt</th></tr></thead><tbody><tr><td>崩溃文件 <code>MCExpr.cpp</code></td><td>5</td><td>否</td></tr><tr><td>符号（<code>AsmPrinter</code> 等）</td><td>137</td><td><strong>是</strong> · 首次可达层</td></tr><tr><td>pass <code>AArch64 Assembly Printer</code></td><td>111</td><td>否</td></tr><tr><td>推导目录 CodeGen/AsmPrinter</td><td>含 gt</td><td>是</td></tr><tr><td>静态最坏名次（t3）</td><td>155</td><td>保留</td></tr></tbody></table></div>
+            <p class="brief-lead">
+              依赖链：XRay sled-v2 把 <code>Sled.Function</code> 改成 PC-relative → <code>AsmPrinter</code> / <code>InstrumentationMap</code> 构造符号 →
+              <code>MCSymbolRefExpr</code> 校验 → <code>Symbol</code> 断言。静态重叠是 <strong>direct</strong>：patch 改了
+              <code>AsmPrinter.cpp</code> 与 <code>InstrumentationMap.cpp</code>，crash 文本里就有 <code>emitXRayTable</code> / <code>MCSymbolRefExpr</code>。
+            </p>
+            <h4>Bisect</h4>
+            <div class="table-scroll"><table class="matrix"><thead><tr><th></th><th>CEG</th><th>Git Bisect</th></tr></thead><tbody><tr><td>步数</td><td><strong>3</strong>（0 skip）</td><td>25（其中 8 skip）</td></tr><tr><td>first-bad</td><td><code>10bc12588dac</code></td><td><code>10bc12588dac</code></td></tr><tr><td>主题</td><td>[XRay] Change Sled.Function to PC-relative for sled version 2 …</td><td>同</td></tr><tr><td>相对二分上界 14</td><td>−11</td><td>Git 的 8 次 skip 把账做大</td></tr></tbody></table></div>
+            <p class="brief-lead">
+              3 步能关掉区间，是因为符号 <code>AsmPrinter</code> 把生产者提前送进 frontier，高置信直探再加上 parent 验证。
+              Git 在同一条 XRay/MC 历史上反复 skip，所以 25 不能当成「纯二分 14 步」；即便只比有效构建，CEG 仍然少一个数量级。
+            </p>
+          </article>
+
+          <article class="result-case caution" id="result-case-pr121365">
+            <p class="brief-kicker">看起来像好案例 · 不能当成功</p>
+            <h3><button type="button" class="result-issue" data-issue="pr121365">pr121365</button> · 4 步 vs Git 17</h3>
+            <p class="result-verdict warn">步数好看，锁的是第一次 land，不是台账上仍然活着的 re-commit。汇报里必须和 <code>pr52635</code> 分开。</p>
+            <h4>崩溃</h4>
+            <p class="brief-note">AArch64 GlobalISel，<code>shufflevector</code> of i1。</p>
+            <pre class="struct-block">Assertion `DstTy.isScalar() && SrcTy.isScalar() && "invalid extend/trunc"' failed.
+  llvm/lib/CodeGen/GlobalISel/MachineIRBuilder.cpp  validateTruncExt
+Running pass 'Legalizer'</pre>
+            <p class="brief-lead">
+              崩溃文件 <code>MachineIRBuilder.cpp</code> <strong>不是</strong> gt。gt 在 Legalizer / AArch64 GISel：
+              <code>LegalizerHelper.cpp</code>、<code>AArch64LegalizerInfo.cpp</code>、<code>AArch64PostLegalizerLowering.cpp</code>。
+            </p>
+            <h4>代码分析</h4>
+            <p class="brief-lead">
+              首次可达是 <strong>符号 / pass</strong>：<code>Legalizer</code>、<code>LegalizerHelper</code>（pass 圈 389，符号圈 322，都含 gt）。
+              t1 最坏名次 79–85，t3 18–20。崩溃点与改动点同属 GlobalISel 合法化，信号很尖，这解释了为什么在线可以 4 步就碰到一条 good→bad 跃迁。
+            </p>
+            <h4>Bisect</h4>
+            <div class="table-scroll"><table class="matrix"><thead><tr><th></th><th>CEG</th><th>Git Bisect</th></tr></thead><tbody><tr><td>步数</td><td>4</td><td>17</td></tr><tr><td>first-bad</td><td><code>a344db793aca</code></td><td><code>13a78fd1ac88</code></td></tr><tr><td>主题</td><td>第一次 land #83038</td><td>同一 patch 的 Re-commit #83038</td></tr><tr><td>关闭方式</td><td>adjacent-parent validation</td><td>标准二分</td></tr></tbody></table></div>
+            <p class="brief-lead">
+              不是 CEG 找错了 commit。区间本身不是单调的 <code>good … bad</code>。
+              同一份 <code>validated-bisect-runner</code> 上，CEG 最后两步是 <code>a344db793aca</code> bad（repro 134）+ 真实 parent <code>5a0bd2a36591</code> good。
+              Git / 旧模型 / tuned / weak-general 全部停在后来的 re-commit。
+              时间线见下一节。4 步节省不能计入「对 Git 的加速」。
+            </p>
+          </article>
+
+          <h3 class="brief-h" id="result-boundary">相邻 SHA 为什么不同：不是找错，是区间不单调</h3>
+          <p class="brief-lead">
+            相邻不一致的三例都走了 adjacent-parent 关闭：runner 证明「这个候选 bad，它的真实 Git parent good」。
+            这只保证存在一条<strong>局部</strong> good→bad，不保证它是 bad endpoint 上仍然活着的那一次引入。
+            下面两例已经对过 LLVM 祖先关系；<code>pr202043</code>（9 vs 18）同属相邻关闭，还没有做同样的 commit 级拆解。
+          </p>
+
+          <article class="result-case caution" id="result-case-pr121365-timeline">
+            <p class="brief-kicker">pr121365 · land → revert → re-commit</p>
+            <h3>同一 patch 出现了两次 onset</h3>
+            <p class="result-verdict warn">
+              CEG 锁的是第一次 land；Git 锁的是 revert 之后的 re-commit。两者都是 runner 看到的真实跃迁。
+            </p>
+            <div class="table-scroll"><table class="matrix"><thead><tr><th>日期</th><th>SHA</th><th>主题</th><th>谓词</th></tr></thead><tbody>
+              <tr><td>2024-02-29</td><td class="mono">5a0bd2a36591</td><td>CEG 验证的 parent（lldb pexpect，无关）</td><td>good（repro 0）</td></tr>
+              <tr><td>2024-02-29</td><td class="mono"><strong>a344db793aca</strong></td><td><code>[AArch64][GlobalISel] Legalize G_SHUFFLE_VECTOR … (#83038)</code> · CEG first-bad</td><td>bad（repro 134）</td></tr>
+              <tr><td>2024-03-01</td><td class="mono">4a5ec3cec831</td><td><code>Revert "…G_SHUFFLE_VECTOR…"</code> (#83544)，Fuchsia 构建失败</td><td>中间变回 good</td></tr>
+              <tr><td>2024-03-04</td><td class="mono"><strong>13a78fd1ac88</strong></td><td><code>Re-commit Legalize G_SHUFFLE_VECTOR … (#83038)</code> · Git / 旧方法 first-bad</td><td>再次 bad</td></tr>
+            </tbody></table></div>
+            <p class="brief-lead">
+              <code>a344db793aca</code> 是 <code>13a78fd1ac88</code> 的祖先。形状是
+              <code>good … [第一次 land bad] … [revert good] … [re-commit bad] … bad_endpoint</code>。
+              CEG 的 4 步从未测到 re-commit：parent 验证一成立就把未决窗口收到 1 个 commit。
+              Git 二分假定单调，所以落到仍然活着的那一次引入。
+            </p>
+          </article>
+
+          <article class="result-case caution" id="result-case-pr167514">
+            <p class="brief-kicker">pr167514 · Git 更早，CEG 锁第二次 onset</p>
+            <h3><button type="button" class="result-issue" data-issue="pr167514">pr167514</button> · 8 步 vs Git 18</h3>
+            <p class="result-verdict warn">
+              方向与 <code>pr121365</code> 相反：台账 first-bad 更早；CEG 锁在大约 7574 个 first-parent commit 之后的第二次 good→bad。
+              同样不是「排序找了个无关 SHA」。
+            </p>
+            <h4>崩溃</h4>
+            <p class="brief-note">Clang C++20 concepts + CTAD alias guide。目标信号是 <code>getTemplateArgumentPackPatternForRewrite</code> / unexpected pack arguments。</p>
+            <h4>两条 first-bad</h4>
+            <div class="table-scroll"><table class="matrix"><thead><tr><th></th><th>SHA</th><th>主题</th><th>日期</th></tr></thead><tbody>
+              <tr><td>Git / BCR / tuned / weak-general</td><td class="mono">fd4f94ddbf0c</td><td><code>[Clang] Correct the order of substituted arguments in CTAD alias guides (#123022)</code></td><td>2025-01-16</td></tr>
+              <tr><td>CEG</td><td class="mono">032ad590d6ba</td><td><code>[Clang] Fix various bugs in alias CTAD transform (#132061)</code></td><td>2025-03-22</td></tr>
+            </tbody></table></div>
+            <p class="brief-lead">
+              <code>fd4f94ddbf0c</code> 是 <code>032ad590d6ba</code> 的祖先（merge-base 就是 Git 那颗）。
+              同一 runner 上，CEG 却把 Git first-bad 的后代 <code>6003c3055a46</code>
+              （2025-03-19，NFC CheckMemberPointerConversion，距 Git SHA 约 7294 步）判成 <strong>good</strong>（repro 0）。
+              随后 parent <code>2186199d085b</code> 也是 good，<code>032ad590d6ba</code> 才是 bad（repro 1）。
+              也就是：Git 的第一次 onset 之后出现过一段 good，然后 <code>#132061</code> 再次变成 bad。
+            </p>
+            <h4>Bisect</h4>
+            <p class="brief-lead">
+              CEG 轨迹：先把 Git SHA 的祖先 <code>50e5411e4247</code> 判 good（这与 Git 不矛盾），
+              再把后代 <code>6003c3055a46</code> 判 good——这一步把 Git SHA 踢出未决窗口——
+              然后几次 bad 收缩，最后 parent-validation 关上 <code>032ad590d6ba</code>。
+              Git / BCR / tuned / weak-general 四条独立搜索都停在更早的 <code>fd4f94ddbf0c</code>；
+              后面那段 good 大约只有几百个 commit，二分很容易一次都打不中。
+              形状是
+              <code>good … [Git first-bad] … [后来的 good 岛] … [CEG first-bad] … bad_endpoint</code>。
+            </p>
+          </article>
+
+          <h3 class="brief-h" id="result-onex">近 1× 步数案例：crash、分析、bisect</h3>
+          <p class="brief-lead">
+            这里的「1×」指 <strong>相对二分上界或相对 Git 几乎没有加速</strong>
+            （<code>CEG / log₂(N) ≳ 0.85</code>，或 <code>CEG / Git ≳ 0.75</code>），不是 30 步 bug。
+            这些例子 first-bad 都与 Git 一致（<code>pr204178</code> 的 Git 是非干净基线）。
+          </p>
+          <div class="table-scroll"><table class="matrix"><thead><tr><th>Issue</th><th>CEG</th><th>Git</th><th>二分上界</th><th>CEG/二分</th><th>为何不加速</th></tr></thead><tbody><tr><td><button type='button' class='result-issue' data-result-jump='case-pr202343'>pr202343</button></td><td>12</td><td>13</td><td>15</td><td>0.80</td><td>崩在 SCEV，真凶在 LVI；目录信号极宽</td></tr><tr><td><button type='button' class='result-issue' data-result-jump='case-pr156249'>pr156249</button></td><td>16</td><td>19</td><td>16</td><td><strong>1.00</strong></td><td>shuffle 信号太宽，真凶第 13 步才进 frontier</td></tr><tr><td><button type='button' class='result-issue' data-result-jump='case-pr197067'>pr197067</button></td><td>15</td><td>19</td><td>16</td><td>0.94</td><td>第 11 步已命中，0.86 &lt; 0.95，多走 4 步</td></tr><tr><td><button type='button' class='result-issue' data-result-jump='case-pr200648'>pr200648</button></td><td>14</td><td>18</td><td>15</td><td>0.93</td><td>Sema→AST 跨组件，先验看不见边</td></tr><tr><td><button type='button' class='result-issue' data-result-jump='case-pr50585'>pr50585</button></td><td>14</td><td>18</td><td>15</td><td>0.93</td><td>无崩溃文件，只有 Verifier「Broken function」</td></tr><tr><td><button type='button' class='result-issue' data-result-jump='case-pr206007'>pr206007</button></td><td>13</td><td>17</td><td>15</td><td>0.87</td><td>崩在 loop verifier，真凶是 SCEV 删除 ControlsOnlyExit</td></tr><tr><td><button type='button' class='result-issue' data-result-jump='case-pr204178'>pr204178</button></td><td>19</td><td>18†</td><td>15</td><td>1.27</td><td>include 删除 vs mangler；外加 3 skip</td></tr><tr><td><button type='button' class='result-issue' data-result-jump='case-pr195788'>pr195788</button></td><td>17</td><td>22</td><td>18</td><td>0.94</td><td><strong>无先验</strong>（0 信号）；不应计入排序评价</td></tr></tbody></table></div>
+
+          <article class="result-case" id="result-case-pr202343">
+            <p class="brief-kicker">近 1× Git</p>
+            <h3><button type="button" class="result-issue" data-issue="pr202343">pr202343</button> · 最接近 1× Git（12 vs 13）</h3>
+            <h4>崩溃</h4>
+            <p class="brief-note"><code>-O3</code>，SCEV <code>ExitLimit</code>：</p>
+            <pre class="struct-block">Assertion `(isa&lt;SCEVCouldNotCompute&gt;(ConstantMaxNotTaken) || isa&lt;SCEVConstant&gt;(ConstantMaxNotTaken))
+  && "No point in having a non-constant max backedge taken count!"'
+  llvm/lib/Analysis/ScalarEvolution.cpp:8778
+Running pass 'loop(loop-rotate...,loop-deletion)' on function 'main'</pre>
+            <h4>代码分析</h4>
+            <p class="brief-lead">
+              崩溃文件 <code>ScalarEvolution.cpp</code> <strong>不是</strong> gt。gt 只改 <code>llvm/lib/Analysis/LazyValueInfo.cpp</code>：
+              <code>[LVI] Skip self loops in solveBlockValueNonLocal</code>。静态重叠是 <strong>partial</strong>（路径无交集）。
+              离线首次含 gt 的层是 <strong>目录</strong> <code>llvm/lib/Analysis</code>（2494 个 commit）。
+              t3 最坏名次掉到 3898——把依赖锚点叠上去以后，检查者 SCEV 的词把生产者 LVI 挤出头部。
+              这是「崩溃点高频组件抢分」的反面教材。
+            </p>
+            <h4>Bisect</h4>
+            <p class="brief-lead">
+              CEG 12、Git 13（1 skip），SHA <code>2071ea24a27c</code> 一致。相对 Git 只少 1 步（0.92×）；相对二分上界 15 仍少 3 步。
+              搜索几乎在 Analysis 大目录里做加权二分，先验没有把 LVI 从 SCEV 噪声里拔出来。
+            </p>
+          </article>
+
+          <article class="result-case" id="result-case-pr156249">
+            <p class="brief-kicker">刚好 1× 二分</p>
+            <h3><button type="button" class="result-issue" data-issue="pr156249">pr156249</button> · 16 = 16</h3>
+            <h4>崩溃</h4>
+            <p class="brief-note">RISC-V <code>llc -O2</code>，vector + <code>callbr</code>：</p>
+            <pre class="struct-block">Assertion `OldVNI == VNI && "Wrong value out of predecessor"' failed.
+  llvm/lib/CodeGen/LiveIntervals.cpp  LiveIntervals::extendSegmentsToUses
+Running pass 'Register Coalescer' on function '@d'</pre>
+            <h4>代码分析</h4>
+            <p class="brief-lead">
+              崩溃文件 <code>LiveIntervals.cpp</code> 不是 gt。gt 只改 <code>RISCVISelLowering.cpp</code>：
+              <code>[RISCV] Recognize VLA shift pairs from shuffle masks (#127710)</code>。
+              首次含 gt 的层是 <strong>目录</strong> <code>llvm/lib/Target/RISCV</code>，但 <code>shufflevector</code> / <code>insertelement</code>
+              依赖锚点覆盖几千 commit。t1 最坏 859，t3 2006。
+              因果上完全合理：lowering 产出坏的机器值，Register Coalescer / LiveIntervals 后才断言。先验因此又宽又晚。
+            </p>
+            <h4>Bisect</h4>
+            <p class="brief-lead">
+              CEG 16、Git 19，SHA <code>43f2968a028f</code> 一致。区间 53,279，二分上界 16。
+              在线记录：先验头部第 10 步才见到真凶（rank 18），frontier 第 13 步（rank 2），第 15 步才选中。
+              CEG 没有比二分更差，也几乎没有更好。
+            </p>
+          </article>
+
+          <article class="result-case" id="result-case-pr197067">
+            <p class="brief-kicker">命中后被 0.95 门卡住</p>
+            <h3><button type="button" class="result-issue" data-issue="pr197067">pr197067</button> · 15 vs 16</h3>
+            <h4>崩溃</h4>
+            <p class="brief-note">C++20 concepts，给 deduction guide 做 Itanium mangling。前端崩溃，没有 <code>Running pass</code>。</p>
+            <pre class="struct-block">UNREACHABLE executed at ../clang/lib/AST/ItaniumMangle.cpp:1752!
+Can't mangle a deduction guide name</pre>
+            <h4>代码分析</h4>
+            <p class="brief-lead">
+              崩溃文件 <code>ItaniumMangle.cpp</code> 不是 gt。gt 改 <code>SemaConcept.cpp</code> + <code>SemaTemplate.cpp</code>：
+              <code>[Clang] Don't allow implicit this access when checking function constraints</code>。
+              首次可达是 <strong>符号</strong> <code>Sema</code>（圈 7122，极大）。检查者是 mangler，生产者是 constraint checking 允许了 implicit this。
+              t1 829，t3 2943。召回层对，桶太大。
+            </p>
+            <h4>Bisect</h4>
+            <p class="brief-lead">
+              CEG 15、Git 19，SHA <code>a9d491b17f4f</code> 一致。二分上界 16。
+              关键不在「找不到」：第 11 步模型已把 exact culprit 排 rank-1，判 <code>precondition-violation</code>，confidence <strong>0.86</strong>。
+              直探要 ≥ 0.95，所以又做了 4 次校准后验构建。若当时直探成功，仍需一次 parent 构建，但可以少掉最多 3 次中间探针。
+              这是阈值问题，不是 30 步那种 bug。
+            </p>
+          </article>
+
+          <article class="result-case" id="result-case-pr200648">
+            <p class="brief-kicker">跨组件边不在图里</p>
+            <h3><button type="button" class="result-issue" data-issue="pr200648">pr200648</button> · 14 vs 15</h3>
+            <h4>崩溃</h4>
+            <p class="brief-note">嵌套 generic lambda，trailing <code>decltype</code>。无 <code>Running pass</code>（Sema/AST/CodeGen 阶段本来就不会打这条）。</p>
+            <pre class="struct-block">Assertion `!Init->isValueDependent()' failed.
+  clang/lib/AST/Decl.cpp:2588  VarDecl::evaluateValueImpl</pre>
+            <h4>代码分析</h4>
+            <p class="brief-lead">
+              崩溃文件 <code>Decl.cpp</code> 不是 gt。gt：<code>clang/lib/Sema/TreeTransform.h</code> ——
+              <code>Don't mark lambda non-dependent if nested in a generic lambda</code>。
+              t1/t2/t3 的集合 <strong>都不含 gt</strong>（t3 最坏 748，命中的是 <code>isValueDependent</code> / <code>VarDecl</code> / <code>ConstantEmitter</code> 这类检查者词）。
+              程序图报无调用路径：Sema 改的是依赖分类，AST 后来在常量求值时才炸。静态重叠只有 <code>TreeTransform.h</code> 这一处路径，crash 文本对不上。
+            </p>
+            <h4>Bisect</h4>
+            <p class="brief-lead">
+              CEG 14、Git 18，SHA <code>525e68e9e9a4</code> 一致。二分上界 15。
+              在线：先验第 11 步 rank 6，frontier 直到第 14 步才进来并被选中；模型给 rank-1 的 confidence 仍是 0.0。
+              结果正确，加速约 1 步。
+            </p>
+          </article>
+
+          <article class="result-case" id="result-case-pr50585">
+            <p class="brief-kicker">只有 Verifier，没有崩溃文件</p>
+            <h3><button type="button" class="result-issue" data-issue="pr50585">pr50585</button> · 14 vs 15</h3>
+            <h4>崩溃</h4>
+            <p class="brief-note"><code>-O1</code> 产生非法 IR。证据包里 <strong>没有</strong> 崩溃源文件（<code>crashFile = null</code>）。这是 IR verifier 当检查者。</p>
+            <pre class="struct-block">fatal error: error in backend: Broken function found, compilation aborted!
+Instruction does not dominate all uses!
+Running pass 'Module Verifier' on function '@main'</pre>
+            <h4>代码分析</h4>
+            <p class="brief-lead">
+              gt 只改 <code>DivRemPairs.cpp</code>：<code>[DivRemPairs] Add an initial case for hoisting to a common predecessor.</code>
+              人工因果：<strong>indirect-enabling</strong>。链：DivRemPairs 把 div/rem 提升到共同前驱 → SSA 位置破坏支配 → Verifier 报 Broken function。
+              t1/t2 都不含 gt；t3 靠 <code>dominate</code> / <code>Instruction</code> 这类泛词，最坏名次 2563–2574。纯文本几乎不可达。
+            </p>
+            <h4>Bisect</h4>
+            <p class="brief-lead">
+              CEG 14、Git 18，SHA <code>e38b7e894808</code> 一致。二分上界 15。
+              早期 scoped-10 冻结 CEG 是 11 步；当前 remaining-30 重跑回到近二分，说明这类「无文件、只有 verifier 句子」的先验不稳定，
+              不能指望每次都提前召回 <code>DivRemPairs</code>。
+            </p>
+          </article>
+
+          <article class="result-case" id="result-case-pr206007">
+            <p class="brief-kicker">loop verifier 抓住 SCEV 生产者</p>
+            <h3><button type="button" class="result-issue" data-issue="pr206007">pr206007</button> · 13 vs 15</h3>
+            <h4>崩溃</h4>
+            <p class="brief-note"><code>opt</code> 做完 loop-vectorize 后校验 loop：</p>
+            <pre class="struct-block">Assertion `... "Loop block has no in-loop successors!"' failed.
+  llvm/include/llvm/Support/GenericLoopInfoImpl.h  verifyLoop
+Running pass 'verify&lt;loops&gt;' on function 'wombat'</pre>
+            <h4>代码分析</h4>
+            <p class="brief-lead">
+              崩溃文件 <code>GenericLoopInfoImpl.h</code> 不是 gt。gt：<code>ScalarEvolution.{h,cpp}</code> ——
+              <code>[SCEV] Remove ControlsOnlyExit only used for unsimplified IR</code>。
+              直接符号 / 文件都不含 gt；首次含 gt 的是 <strong>流水线</strong> <code>pipe:dep:scalar-evolution</code>（圈 1705）。t3 最坏 1274。
+              检查者是 loop verifier，生产者是 SCEV 删除了一个只对未简化 IR 有意义的出口分类，LoopVectorize 随后吐出畸形 loop。
+            </p>
+            <h4>Bisect</h4>
+            <p class="brief-lead">
+              CEG 13、Git 17，SHA <code>ffffe9c1696a</code> 一致。相对 Git 少 4 步（0.76×），相对二分仍接近 1×。
+              人工 keywords 其实能把 gt 排到名次 3；现行 CEG 关掉了人工词表，所以吃不到这一刀。
+            </p>
+          </article>
+
+          <article class="result-case caution" id="result-case-pr204178">
+            <p class="brief-kicker">非干净 Git · 唯一记录步数高于台账</p>
+            <h3><button type="button" class="result-issue" data-issue="pr204178">pr204178</button> · 19 vs Git 18†</h3>
+            <p class="result-verdict warn">
+              这是有效搜索里 <strong>唯一 CEG 记录步数高于 Git 台账</strong> 的例子；Git 本身是 <code>non_clean</code>（18 步、1 skip），配对主表没有收它。
+            </p>
+            <h4>崩溃</h4>
+            <p class="brief-note">C++20 <code>abi_tag</code> + constrained auto：</p>
+            <pre class="struct-block">Assertion `parmDepth &lt; FunctionTypeDepth.getDepth()' failed.
+  clang/lib/AST/ItaniumMangle.cpp  CXXNameMangler::mangleFunctionParam</pre>
+            <h4>代码分析</h4>
+            <p class="brief-lead">
+              崩溃文件 <code>ItaniumMangle.cpp</code> 不是 gt。gt <strong>只改</strong> <code>llvm/include/llvm/Demangle/ItaniumDemangle.h</code>，
+              主题是 <code>Remove #include that the cp-to-llvm script added.</code>
+              静态分类 <strong>unrelated</strong>：路径、关键词都无重叠。t1/t2/t3 基本都不含 gt（t3 最坏 4204–4477，只碰到泛词 <code>anonymous</code>）。
+              这是头文件 / 包含边界，不是调用图能解释的「谁弄坏了 mangler 不变量」。
+            </p>
+            <h4>Bisect</h4>
+            <p class="brief-lead">
+              CEG 19 探针 = 16 次 good/bad + <strong>3 skip</strong>，SHA <code>1aadd4766e97</code> 与 Git 一致。二分上界 15。
+              在线：先验第 14 步 rank 11，frontier 第 17 步 rank 4，第 18 步才选中；模型判 <code>unrelated</code> 且高置信。
+              3 次 skip 分别是无关的历史构建失败（<code>Swift.def</code>、缺 <code>__cxxabi_config.h</code>、CoverageMapping API）。
+              超过二分的 4 步里，大约 3 步是 skip，1 步是晚召回。有效构建 16 其实仍略少于这份非干净 Git 的 17 次有效构建。
+            </p>
+          </article>
+
+          <article class="result-case" id="result-case-pr195788">
+            <p class="brief-kicker">无先验 · benchmark 缺口</p>
+            <h3><button type="button" class="result-issue" data-issue="pr195788">pr195788</button> · 17 vs 18</h3>
+            <p class="result-verdict warn">程序先验不应为空。这是 50 例里在线 CEG <code>active_signal_count = 0</code> 的唯一一例；17 步只说明空先验会退化成二分，不能用来评价排序策略。</p>
+            <h4>崩溃</h4>
+            <p class="brief-note">clangd LSP <code>codeAction</code> / 伪析构选择，<strong>kind = crash，不是 assertion</strong>。无崩溃文件、无栈、无 <code>Running pass</code>。和 <code>pr165445</code> 一样，代码分析导不出锚点。</p>
+            <pre class="struct-block">Signalled during AST worker action: EnumerateTweaks</pre>
+            <h4>代码分析</h4>
+            <p class="brief-lead">
+              gt：<code>clang-tools-extra/clangd/Selection.cpp</code> ——
+              <code>[clangd] consider ~^foo() to target the destructor, not the type</code>。
+              离线现行方案没有名次：0 条程序信号，最坏名次 = 区间 149,009。
+              同缺口还有 <code>pr165445</code>（区间 3,324，CEG 7 步）。
+              这两例应从「先验是否把真凶排进头部」的样本里拿掉，去补崩溃捕获，而不是把空地板当成方法的一部分。
+            </p>
+            <h4>Bisect</h4>
+            <p class="brief-lead">
+              CEG 17、Git 22，SHA <code>62116c8f0b5b</code> 一致。区间 149,009，二分上界 18。
+              全区间分数都是 0.05 地板，搜索就是加权二分；GT 到第 13 步才进 frontier。
+              比二分少 1 步、比 Git 少 5 步，只说明空先验时 CEG 不会比 <code>log₂(N)</code> 更差，<strong>不说明方法在没有程序证据时仍然有效</strong>。
+            </p>
+          </article>
+
+          <h3 class="brief-h" id="result-limits">哪些部分还不成立</h3>
+          <div class="blim">
+            <div class="blim-row">
+              <div class="blim-t">先验不应为空</div>
+              <div class="blim-w"><code>pr195788</code> 与 <code>pr165445</code> 的崩溃产物导不出程序信号。这是捕获缺口。空先验下的步数只是二分，不能拿来解释「为什么 CEG 不稳」。</div>
+            </div>
+            <div class="blim-row">
+              <div class="blim-t">Master-50 还没跑完</div>
+              <div class="blim-w">缺 <code>pr204589</code>、<code>pr65982</code>；<code>pr205971</code> 快照时仍在跑；<code>pr193164</code> / <code>pr50304</code> / <code>pr48154</code> 只有 scoped-10 残留。不能把 41 对均值写成「50 例已完成」。</div>
+            </div>
+            <div class="blim-row">
+              <div class="blim-t">对干净 Git 没有输步数；「更差」指不加速</div>
+              <div class="blim-w">有效已定位案例里没有 CEG &gt; Git。近 1× 二分的那一组说明先验召回仍有结构性盲区：宽检查者、跨组件边、verifier-only、头文件边界。</div>
+            </div>
+            <div class="blim-row">
+              <div class="blim-t">2–4 步样本极少，且一半不能当成功</div>
+              <div class="blim-w">当前队列只有 <code>pr52635</code>（真 3 步）和 <code>pr121365</code>（4 步，锁在第一次 land）。adjacent-parent 只证明局部 good→bad，不能当唯一 onset。</div>
+            </div>
+            <div class="blim-row">
+              <div class="blim-t">3 例相邻 SHA 不是「找了无关 commit」</div>
+              <div class="blim-w"><code>pr121365</code> 是同一 patch 的 land → revert → re-commit；<code>pr167514</code> 是 Git 第一次 onset 之后又出现 good 岛，CEG 锁第二次。<code>pr202043</code> 还没有同样的 commit 级拆解。</div>
+            </div>
+            <div class="blim-row">
+              <div class="blim-t">0.95 直探阈值只在 pr197067 上看到明确的额外 4 步</div>
+              <div class="blim-w">需要全队列回放不同阈值，同时报告误直探，不能只根据这一例下调。</div>
+            </div>
+            <div class="blim-row">
+              <div class="blim-t">离线名次不是在线构建数</div>
+              <div class="blim-w"><code>pr52635</code> 静态最坏名次 155，在线 3 步；<code>pr50585</code> 静态 2574，在线 14 步。两者相关，但不是同一证据。上一页「汇报」给的是离线名次。</div>
+            </div>
+            <div class="blim-row">
+              <div class="blim-t">Git 的 25 步含 skip，18 步是非干净基线</div>
+              <div class="blim-w"><code>pr52635</code> 的 25 含 8 skip；<code>pr204178</code> 的 18 是非干净基线。比步数时要分开 skip 与 good/bad。</div>
+            </div>
+          </div>
+
+          <h3 class="brief-h">可直接带走的结论</h3>
+          <div class="bwhy">
+            <div class="bwhy-row">
+              <div class="bwhy-n">41:0</div>
+              <div>
+                <div class="bwhy-name">已完成、可配对的 41 例</div>
+                <div class="bwhy-why">CEG 对 Git Bisect 均值 9.63 vs 17.46，少 44.8% 构建。</div>
+              </div>
+            </div>
+            <div class="bwhy-row">
+              <div class="bwhy-n">名次</div>
+              <div>
+                <div class="bwhy-name">first-bad 先验名次在拉步数</div>
+                <div class="bwhy-why">代码分析最坏名次与 CEG 步数 Spearman 0.58。名次 &gt; 2,000 的已定位例均值 13 步；1–200 均值约 7–8 步。无先验的 <code>pr195788</code> / <code>pr165445</code> 是捕获缺口，先验不应为空。</div>
+              </div>
+            </div>
+            <div class="bwhy-row">
+              <div class="bwhy-n">排除</div>
+              <div>
+                <div class="bwhy-name">不要用 runner bug 讲搜索更差</div>
+                <div class="bwhy-why"><code>pr199526</code> 的 30 步和 <code>pr199162</code> 的 21 skip 回答的是部署，不是先验。</div>
+              </div>
+            </div>
+            <div class="bwhy-row">
+              <div class="bwhy-n">短板</div>
+              <div>
+                <div class="bwhy-name">宽检查者或跨组件生产者</div>
+                <div class="bwhy-why">CEG 退回约 1× 二分。<code>pr156249</code> / <code>pr200648</code> / <code>pr50585</code> / <code>pr204178</code> 是这一类的代表。</div>
+              </div>
+            </div>
+            <div class="bwhy-row">
+              <div class="bwhy-n">3 步</div>
+              <div>
+                <div class="bwhy-name">真正站得住的 2–4 步</div>
+                <div class="bwhy-why">目前只有 <code>pr52635</code>（3 vs 25，SHA 正确）。<code>pr121365</code> 的 4 步必须标成相邻边界，不能写进胜场。</div>
+              </div>
+            </div>
+            <div class="bwhy-row">
+              <div class="bwhy-n">相邻</div>
+              <div>
+                <div class="bwhy-name">SHA 不一致 = 区间不单调</div>
+                <div class="bwhy-why"><code>pr121365</code> / <code>pr167514</code> 都是 runner 看到的真实局部跃迁，不是排序幻觉。adjacent-parent 回答「这是不是一次 onset」，不回答「revert / 再引入之后是否唯一」。</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ---------- LLM 环节视图 ---------- -->
+        <div id="strategy-llm" class="hidden">
+          <header class="view-head">
+            <h2>接到在线搜索里：LLM 环节怎么改</h2>
+            <p class="lede">
+              「技术细节」页讲的是离线怎么把候选排出次序，这一页讲的是这套先验怎么接进真实的模型引导二分。
+              当前实现遵循一条职责边界：<strong>能确定计算的事实由程序完成，模型只判断真实 patch
+              是否存在通向崩溃契约的因果桥</strong>。程序先验覆盖整个未决区间，
+              有界 frontier 控制模型预算，ordinal 结果只在 frontier 内保持总质量地重排，
+              最终边界仍由 runner 的 bad-candidate / good-parent 组合确认。
+              下面依次给出完整数据流、安全契约、初步在线结果，以及从旧 prompt 收敛到当前职责划分的过程。
+            </p>
+          </header>
+
+          <div class="block">
+            <h3>最终方法：Causal Evidence-Guided Bisect（CEG-Bisect）</h3>
+            <p class="hint">
+              现有的<strong>确定性事实因果排序管线</strong>已经会为一小批候选检索真实 hunk、
+              仓库事实与断言契约，再让模型比较哪个 patch 更可能破坏该契约；它的短板是，
+              这批候选仍由人工编写的关键词与路径权重选出。
+              CEG-Bisect 补上前半段：<strong>在任何构建之前，对未决区间内每个提交打一个程序证据分</strong>。
+              分数只来自当时可见的崩溃原文、reproducer、bad 版本源码树和提交元数据，
+              不读取正确答案，也不删除低分提交。这个全区间分布叫<strong>程序证据先验</strong>；
+              它决定模型先看谁，原有因果排序负责判断这些候选的 patch 是否真的连得上崩溃机制。
+            </p>
+            <div class="table-scroll" style="margin-top:12px">
+              <table class="matrix">
+                <thead>
+                  <tr><th>层</th><th>确定性事实因果排序</th><th>全区间程序分析</th><th>CEG-Bisect</th></tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>全区间初排</td>
+                    <td>人工 keywords / relevant paths / high-risk paths 的固定权重</td>
+                    <td>从 artifact、reproducer、bad tree 推导信号，按区间覆盖率的自信息排序全部 commit</td>
+                    <td>程序证据先验作主召回器；人工 profile 的关键词与路径不参与召回或排序</td>
+                  </tr>
+                  <tr>
+                    <td>模型看到谁</td>
+                    <td>人工启发式的 top-12</td>
+                    <td>不需要模型即可给出全区间名次</td>
+                    <td>先验高分项 + 概率中点 / 时间中点；可构建性不占候选名额</td>
+                  </tr>
+                  <tr>
+                    <td>模型做什么</td>
+                    <td>读真实 hunk 与仓库事实，作批内 ordinal causal judgment</td>
+                    <td>程序负责事实提取，不应让模型重做 grep 与覆盖率统计</td>
+                    <td>只比较可见 patch，判断谁能沿调用或依赖关系破坏崩溃契约</td>
+                  </tr>
+                  <tr>
+                    <td>进入在线搜索</td>
+                    <td>模型分与未进模型的启发式分处在不同尺度</td>
+                    <td>静态排序本身不决定下一个构建点</td>
+                    <td>模型只在候选小批次内重分配原有概率，再按信息增益与可构建性选探针</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="callout" style="margin-top:12px">
+              <strong>“人工 profile 不参与”的准确范围。</strong>
+              CEG 仍需从 issue 配置读取 <code>good_commit</code>、<code>bad_commit</code>
+              和 runner 来定义评测区间与执行命令；这些是运行配置，不是定位证据。
+              最终排序不读取人工撰写的 title / summary / keywords /
+              relevant_paths / high_risk_paths。它的三级程序证据全部自动产生：
+              <strong>① 崩溃直接信号</strong>（栈符号、pass 名、崩溃文件）；
+              <strong>② + 推导目录</strong>（断言/符号目录与 target triple 对应后端）；
+              <strong>③ + 锚点 · 消息 · 流水线 · 阶段</strong>（bad tree 源码用量、
+              只用 crash/reproducer 词匹配的 commit message、pass 注册表与前驱、
+              编译阶段字符串和 tool/module/target 路径）。多层代码分析与“无人工定位先验”
+              并不矛盾：区别在于证据是否由当前 bad endpoint 和仓库确定性导出。
+            </div>
+            <div class="callout" style="margin-top:12px">
+              合并顺序：
+              <strong>全区间程序证据评分 → 有支撑位的候选小批次 → LLM 批内因果排序 →
+              保持总概率的局部重排 → 可构建性 + 信息增益 → 真实构建反馈</strong>。
+              对 frontier <em>F</em>，令其原总质量
+              <code>M_F = Σ p_i</code>，重排后
+              <code>p'_i = M_F · p_i·w(rank_i) / Σ_F p_j·w(rank_j)</code>；
+              frontier 外 <code>p'_i = p_i</code>。这样不会把两套不可比的绝对分混在一起。
+            </div>
+          </div>
+
+          <div class="block" style="margin-top:14px">
+            <h3>修正后的 CEG 在线管线<span class="sub-count"> · 从证据冻结到 runner 边界</span></h3>
+            <p class="hint">
+              下表区分“搜索方法本身”和为防止结果污染而补齐的执行约束。
+              每一步都在 history 中留下独立字段，使程序先验、模型判断与真实构建可以分开审计。
+            </p>
+            <div class="table-scroll">
+              <table class="matrix">
+                <thead><tr><th>阶段</th><th>输入与动作</th><th>修正后的护栏</th><th>history 证据</th></tr></thead>
+                <tbody>
+                  <tr>
+                    <td>1 · 证据冻结</td>
+                    <td>只装载 bad-endpoint crash、reproducer、bad tree 与 good..bad 区间</td>
+                    <td>manifest/hash 校验；禁止 first-bad、GT diff、人工 issue 总结与路径表</td>
+                    <td class="mono">artifact_manifest_sha256<br />run_identity</td>
+                  </tr>
+                  <tr>
+                    <td>2 · 程序信号</td>
+                    <td>抽取 assertion、stack/pass/phase、目录、依赖用量、message 与 reproducer 构造</td>
+                    <td>C/C++ reproducer 会识别 <code>asm goto</code> 等源码构造；同源噪声分组只计最具体信号</td>
+                    <td class="mono">causal_evidence_guided_prior.signals</td>
+                  </tr>
+                  <tr>
+                    <td>3 · 全区间先验</td>
+                    <td>按覆盖率自信息和改动体量给 surviving commits 分配概率质量</td>
+                    <td>只排序、不删除；零信号 commit 保留概率地板；每次区间变化后重算</td>
+                    <td class="mono">top_candidates<br />program_prior_mass</td>
+                  </tr>
+                  <tr>
+                    <td>4 · Frontier</td>
+                    <td>组合先验 top、概率质量中点与时间中点，形成最多 12 个候选</td>
+                    <td>buildability 不占候选槽；去重后再回填；frontier 与当前区间 digest 绑定</td>
+                    <td class="mono">model_frontier_decision</td>
+                  </tr>
+                  <tr>
+                    <td>5 · 因果排序</td>
+                    <td>检索候选自己的 parent diff、相关 hunk 与最多五条历史 transition，模型只作批内 ordinal 判断</td>
+                    <td>提示中盲化 issue/commit 身份；名次必须是严格 1..k permutation；无关或低置信度判断不触发直探</td>
+                    <td class="mono">ordinal_judgment<br />retrieval</td>
+                  </tr>
+                  <tr>
+                    <td>6 · 融合与选点</td>
+                    <td>在 frontier 内保持总质量地重排，再交给共享 calibrated-posterior selector</td>
+                    <td>frontier 外质量不变；程序分、ordinal rank、信息增益与 buildability 分字段保存</td>
+                    <td class="mono">fusion<br />selection</td>
+                  </tr>
+                  <tr>
+                    <td>7 · Runner 反馈</td>
+                    <td>真实构建产生 good / bad / skip，随后收缩未决区间</td>
+                    <td>只接受当前 run 的 observation；runner verdict 与 build 计数原子写入 journal，不能由旧 observation 代替</td>
+                    <td class="mono">runner_event<br />runner_build_count</td>
+                  </tr>
+                  <tr>
+                    <td>8 · 边界关闭</td>
+                    <td>高置信度候选 bad 后，验证它的真实 Git first parent</td>
+                    <td>不再用列表相邻 commit 冒充 parent；必须 candidate bad + actual parent good 才能 resolved</td>
+                    <td class="mono">validated_boundary</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="callout" style="margin-top:12px">
+              在线闭环：
+              <strong>freeze → derive signals → score survivors → compose frontier → retrieve real hunks →
+              strict ordinal → mass-preserving fusion → runner journal → actual-parent validation</strong>。
+              修正后的 <code>pr200987</code> 15-build history 已验证这条完整路径；其余九例仍保留原冻结结果。
+            </div>
+          </div>
+
+          <div class="block" style="margin-top:14px">
+            <h3>完整 scoped-10 在线结果与静态排序对照<span class="sub-count"> · runner-backed builds，2026-09-08 快照</span></h3>
+            <p class="hint">
+              十例都定位到评测接受的边界，CEG-Bisect 全部步骤来自真实 runner，0 cache、0 skip。
+              “静态最坏名次”来自 <code>ablation-matrix.json</code> 的现行纯程序信号方案：
+              它是在全部同分项都先于答案时，读到 culprit 之前最多要检查的 commit 数，不是 build 数。
+              在线 CEG 会在每次反馈后重算 surviving interval，再经 frontier、因果排序和 selector 选点。
+            </p>
+            <div class="table-scroll">
+              <table class="matrix">
+                <thead>
+                  <tr>
+                    <th>案例</th>
+                    <th>静态最坏名次</th>
+                    <th>CEG-Bisect</th>
+                    <th>确定性事实</th>
+                    <th>BCR（5-parent）</th>
+                    <th>原始 BCR（1-parent）</th>
+                    <th>Git bisect</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr><td class="mono">pr204559</td><td class="mono">86</td><td class="mono"><strong>7</strong></td><td class="mono">8</td><td class="mono">10</td><td class="mono">10</td><td class="mono">17</td></tr>
+                  <tr><td class="mono">pr204589</td><td class="mono">30</td><td class="mono"><strong>5</strong></td><td class="mono">9</td><td class="mono">8</td><td class="mono">10</td><td class="mono">17</td></tr>
+                  <tr><td class="mono">pr201444</td><td class="mono">185</td><td class="mono"><strong>9</strong></td><td class="mono">11</td><td class="mono">10</td><td class="mono">10</td><td class="mono">17</td></tr>
+                  <tr><td class="mono">pr193164</td><td class="mono">809</td><td class="mono">10</td><td class="mono">10</td><td class="mono"><strong>8</strong></td><td class="mono">10</td><td class="mono">17</td></tr>
+                  <tr><td class="mono">pr50304</td><td class="mono"><strong>7</strong></td><td class="mono"><strong>2</strong></td><td class="mono">10</td><td class="mono">9</td><td class="mono">10</td><td class="mono">17</td></tr>
+                  <tr><td class="mono">pr50585</td><td class="mono">2,574</td><td class="mono">11</td><td class="mono">11</td><td class="mono"><strong>10</strong></td><td class="mono">11</td><td class="mono">18</td></tr>
+                  <tr><td class="mono">pr48154</td><td class="mono">849</td><td class="mono"><strong>11</strong></td><td class="mono">12</td><td class="mono">16</td><td class="mono">17</td><td class="mono">17</td></tr>
+                  <tr><td class="mono">pr49535</td><td class="mono"><strong>9</strong></td><td class="mono"><strong>6</strong></td><td class="mono">9</td><td class="mono">9</td><td class="mono">10</td><td class="mono">16</td></tr>
+                  <tr><td class="mono">pr52635</td><td class="mono">155</td><td class="mono"><strong>5</strong></td><td class="mono">12</td><td class="mono">9</td><td class="mono">10</td><td class="mono">25（8 skip）</td></tr>
+                  <tr><td class="mono">pr200987</td><td class="mono">14,344</td><td class="mono">15</td><td class="mono"><strong>10</strong></td><td class="mono"><strong>10</strong></td><td class="mono"><strong>10</strong></td><td class="mono">20</td></tr>
+                </tbody>
+                <tfoot>
+                  <tr><th>总 build</th><td>—</td><td class="mono"><strong>81</strong></td><td class="mono">102</td><td class="mono">99</td><td class="mono">108</td><td class="mono">181</td></tr>
+                  <tr><th>均值</th><td>—</td><td class="mono"><strong>8.1</strong></td><td class="mono">10.2</td><td class="mono">9.9</td><td class="mono">10.8</td><td class="mono">18.1</td></tr>
+                </tfoot>
+              </table>
+            </div>
+            <p class="hint" style="margin-top:10px">
+              CEG 对确定性事实为 7 胜 / 2 平 / 1 负，少 21 次 build（20.6%）；
+              对 5-parent BCR 为 7 胜 / 0 平 / 3 负，少 18 次（18.2%）；
+              对原始 1-parent BCR 为 7 胜 / 2 平 / 1 负，少 27 次（25.0%）；
+              对普通 Git bisect 十例全胜，少 100 次（55.2%）。
+              <code>pr49535</code> 沿用该 benchmark 接受的 original-apply 边界；
+              Git 基线记录的是后续 reapply 表示。
+              逐例数值、run label、first-bad 与计算口径保存在
+              <code>ceg-scoped10-comparison.json</code>。
+            </p>
+            <div class="callout" style="margin-top:12px">
+              <strong>静态排序与在线 build 数确实相连，但不是两份独立证据。</strong>
+              十例上，静态最坏名次与 CEG build 数的 Spearman
+              <em>ρ</em> = 0.927；<code>log2(静态名次)</code> 与 build 数的 Pearson
+              <em>r</em> = 0.930。两者共享 crash / 程序结构信号，而且样本只有 10 例，
+              所以这只能说明“召回质量会传导到在线成本”，不能当作独立复现或因果效应。
+            </div>
+            <div class="table-scroll" style="margin-top:12px">
+              <table class="matrix">
+                <thead><tr><th>极端案例</th><th>静态与在线轨迹</th><th>解释</th></tr></thead>
+                <tbody>
+                  <tr>
+                    <td class="mono">pr50304 · 2 builds</td>
+                    <td>静态最坏名次 7；在线初始先验 rank 3，首轮进入 frontier 并被模型排 rank 1（0.98）</td>
+                    <td>
+                      culprit patch 把 <code>ConstantFoldCall</code> 接到
+                      <code>APFloat::convertToDouble()</code>，与断言契约直接相连。
+                      runner 先判 culprit bad，再判真实 parent good；这是合法的两次构建下界，不是跳过验证。
+                    </td>
+                  </tr>
+                  <tr>
+                    <td class="mono">pr200987 · 15 builds</td>
+                    <td>静态最坏名次 14,344；到未决区间只剩 271 时 culprit 仍是 rank 13，145 个 commit 时才进入 frontier 并命中 bad</td>
+                    <td>
+                      crash 落在 <code>SCEVExpander</code>，culprit 却在 Clang CodeGen 实现
+                      <code>asm goto</code> outputs。修复后的源码构造提取只恢复了
+                      <code>asm goto</code> 与宽目录信号，仍不足以在 133,662 个提交中早期精确召回。
+                      命中时模型置信度 0.94，低于安全直探阈值，因此还需 4 次 good build 收紧 parent 边界。
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="trajectory-case" style="margin-top:16px">
+              <h4><span class="mono">pr50304</span> · 三种模型方法的选择轨迹</h4>
+              <p class="hint">每个节点显示 step、短 SHA、runner verdict 与本次构建前后的未决 commit 数。</p>
+              <div class="trajectory-method">
+                <div class="trajectory-method-head"><strong>CEG-Bisect</strong><span>2 builds</span></div>
+                <div class="trajectory-seq">
+                  <span class="trajectory-step bad"><b>1</b> c9c05a91c484 · bad<small>14,311 → 10,938 · high-confidence</small></span>
+                  <span class="trajectory-step good"><b>2</b> 86008477a4eb · good<small>10,938 → 1 · actual-parent validation</small></span>
+                </div>
+              </div>
+              <div class="trajectory-method">
+                <div class="trajectory-method-head"><strong>确定性事实 v16</strong><span>10 builds</span></div>
+                <div class="trajectory-seq">
+                  <span class="trajectory-step good"><b>1</b> effacc15999d · good<small>14,311 → 6,569</small></span>
+                  <span class="trajectory-step good"><b>2</b> f21f1eea05d6 · good<small>6,569 → 3,514</small></span>
+                  <span class="trajectory-step bad"><b>3</b> 8ff36aab69ec · bad<small>3,514 → 1,674</small></span>
+                  <span class="trajectory-step bad"><b>4</b> 8086f9d87ee8 · bad<small>1,674 → 671</small></span>
+                  <span class="trajectory-step bad"><b>5</b> a0e71f1832d1 · bad<small>671 → 240</small></span>
+                  <span class="trajectory-step bad"><b>6</b> c9c05a91c484 · bad<small>240 → 141</small></span>
+                  <span class="trajectory-step good"><b>7</b> 3c4b79481d45 · good<small>141 → 26</small></span>
+                  <span class="trajectory-step good"><b>8</b> f7788e1bff22 · good<small>26 → 9</small></span>
+                  <span class="trajectory-step good"><b>9</b> fda4300da829 · good<small>9 → 4</small></span>
+                  <span class="trajectory-step good"><b>10</b> 86008477a4eb · good<small>4 → 1</small></span>
+                </div>
+              </div>
+              <div class="trajectory-method">
+                <div class="trajectory-method-head"><strong>原始 BCR · single parent</strong><span>10 builds</span></div>
+                <div class="trajectory-seq">
+                  <span class="trajectory-step good"><b>1</b> 9f864d202558 · good<small>14,311 → 9,229</small></span>
+                  <span class="trajectory-step good"><b>2</b> f21f1eea05d6 · good<small>9,229 → 3,514</small></span>
+                  <span class="trajectory-step bad"><b>3</b> 8ff36aab69ec · bad<small>3,514 → 1,674</small></span>
+                  <span class="trajectory-step bad"><b>4</b> 8086f9d87ee8 · bad<small>1,674 → 671</small></span>
+                  <span class="trajectory-step bad"><b>5</b> a0e71f1832d1 · bad<small>671 → 240</small></span>
+                  <span class="trajectory-step bad"><b>6</b> c9c05a91c484 · bad<small>240 → 141</small></span>
+                  <span class="trajectory-step good"><b>7</b> c162f086ba63 · good<small>141 → 103</small></span>
+                  <span class="trajectory-step good"><b>8</b> f7788e1bff22 · good<small>103 → 9</small></span>
+                  <span class="trajectory-step good"><b>9</b> 4272fca2db9c · good<small>9 → 2</small></span>
+                  <span class="trajectory-step good"><b>10</b> 86008477a4eb · good<small>2 → 1</small></span>
+                </div>
+              </div>
+            </div>
+
+            <div class="trajectory-case" style="margin-top:18px">
+              <h4><span class="mono">pr200987</span> · 三种模型方法的选择轨迹</h4>
+              <p class="hint">
+                CEG 在 step 11 才选中 culprit；确定性事实和原始 BCR 都在 step 8 命中，
+                并用相同的最后两次 good probe 收口。
+              </p>
+              <div class="trajectory-method">
+                <div class="trajectory-method-head"><strong>CEG-Bisect（修正管线）</strong><span>15 builds</span></div>
+                <div class="trajectory-seq">
+                  <span class="trajectory-step bad"><b>1</b> 761bf333e378 · bad<small>133,662 → 61,419</small></span>
+                  <span class="trajectory-step bad"><b>2</b> be3cef0b2a42 · bad<small>61,419 → 30,156</small></span>
+                  <span class="trajectory-step bad"><b>3</b> 405f91475b37 · bad<small>30,156 → 14,847</small></span>
+                  <span class="trajectory-step bad"><b>4</b> 9b5ff4436e44 · bad<small>14,847 → 6,853</small></span>
+                  <span class="trajectory-step bad"><b>5</b> 1bf8ae17f5e2 · bad<small>6,853 → 3,552</small></span>
+                  <span class="trajectory-step good"><b>6</b> 67223522355b · good<small>3,552 → 1,430</small></span>
+                  <span class="trajectory-step bad"><b>7</b> 529ee9750baf · bad<small>1,430 → 757</small></span>
+                  <span class="trajectory-step bad"><b>8</b> da3623de2411 · bad<small>757 → 416</small></span>
+                  <span class="trajectory-step good"><b>9</b> 462227f1150f · good<small>416 → 271</small></span>
+                  <span class="trajectory-step good"><b>10</b> f62b084e92e0 · good<small>271 → 145</small></span>
+                  <span class="trajectory-step bad"><b>11</b> 329ef60f3e21 · bad<small>145 → 109 · culprit, confidence 0.94</small></span>
+                  <span class="trajectory-step good"><b>12</b> f6ddf7781471 · good<small>109 → 66</small></span>
+                  <span class="trajectory-step good"><b>13</b> 0af5f84a13be · good<small>66 → 20</small></span>
+                  <span class="trajectory-step good"><b>14</b> 094190c2f529 · good<small>20 → 5</small></span>
+                  <span class="trajectory-step good"><b>15</b> b1bc723dfe97 · good<small>5 → 1</small></span>
+                </div>
+              </div>
+              <div class="trajectory-method">
+                <div class="trajectory-method-head"><strong>确定性事实 v16</strong><span>10 builds</span></div>
+                <div class="trajectory-seq">
+                  <span class="trajectory-step bad"><b>1</b> ea9204505cf1 · bad<small>133,662 → 61,354</small></span>
+                  <span class="trajectory-step bad"><b>2</b> eb61bde829bc · bad<small>61,354 → 16,879</small></span>
+                  <span class="trajectory-step bad"><b>3</b> 5362a0d859d8 · bad<small>16,879 → 9,918</small></span>
+                  <span class="trajectory-step bad"><b>4</b> bcad161db3e6 · bad<small>9,918 → 4,713</small></span>
+                  <span class="trajectory-step good"><b>5</b> 57865bc5ad27 · good<small>4,713 → 2,381</small></span>
+                  <span class="trajectory-step bad"><b>6</b> 0bbe6040befa · bad<small>2,381 → 1,315</small></span>
+                  <span class="trajectory-step bad"><b>7</b> 0cbb8ec030e2 · bad<small>1,315 → 400</small></span>
+                  <span class="trajectory-step bad"><b>8</b> 329ef60f3e21 · bad<small>400 → 170 · culprit</small></span>
+                  <span class="trajectory-step good"><b>9</b> eb3dfa0a2487 · good<small>170 → 59</small></span>
+                  <span class="trajectory-step good"><b>10</b> b1bc723dfe97 · good<small>59 → 1</small></span>
+                </div>
+              </div>
+              <div class="trajectory-method">
+                <div class="trajectory-method-head"><strong>原始 BCR · single parent</strong><span>10 builds</span></div>
+                <div class="trajectory-seq">
+                  <span class="trajectory-step bad"><b>1</b> ea9204505cf1 · bad<small>133,662 → 61,354</small></span>
+                  <span class="trajectory-step bad"><b>2</b> c6cf32950283 · bad<small>61,354 → 30,463</small></span>
+                  <span class="trajectory-step bad"><b>3</b> 143ed21b26b2 · bad<small>30,463 → 13,549</small></span>
+                  <span class="trajectory-step bad"><b>4</b> 7b014a073224 · bad<small>13,549 → 8,257</small></span>
+                  <span class="trajectory-step bad"><b>5</b> 674099113533 · bad<small>8,257 → 3,487</small></span>
+                  <span class="trajectory-step good"><b>6</b> 57865bc5ad27 · good<small>3,487 → 1,155</small></span>
+                  <span class="trajectory-step bad"><b>7</b> 0cbb8ec030e2 · bad<small>1,155 → 400</small></span>
+                  <span class="trajectory-step bad"><b>8</b> 329ef60f3e21 · bad<small>400 → 170 · culprit</small></span>
+                  <span class="trajectory-step good"><b>9</b> eb3dfa0a2487 · good<small>170 → 59</small></span>
+                  <span class="trajectory-step good"><b>10</b> b1bc723dfe97 · good<small>59 → 1</small></span>
+                </div>
+              </div>
+            </div>
+            <div class="callout warn" style="margin-top:12px">
+              <strong>这是完整结果快照，不是同一修正版的 confirmatory cohort。</strong>
+              表中九例保留原冻结运行；按既定修复计划只把 <code>pr200987</code> 替换为修复管线的 15-build 重跑。
+              因而 81-build 汇总可作配对描述，但发表级结论仍应在全十例上重跑同一已提交代码、输入 manifest、
+              空 observation ledger 与独立 model-cache namespace。
+            </div>
+            <div class="table-scroll" style="margin-top:12px">
+              <table class="matrix">
+                <thead>
+                  <tr><th>剩余 40 例的初始先验审计</th><th>全区间活动信号</th><th>culprit 支撑</th><th>初始位置</th><th>解释</th></tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td class="mono">pr195788</td><td class="mono">0</td><td>0 hits</td>
+                    <td class="mono">tie index 8,133 / worst-tie 149,009</td>
+                    <td>唯一真正没有可用初始程序信号的案例；已完成 17 builds。</td>
+                  </tr>
+                  <tr>
+                    <td class="mono">pr200648</td><td class="mono">58 · 19 groups</td><td>0 hits · floor 0.05</td>
+                    <td class="mono">16,310 / 20,547</td><td>全局有信号，但没有一条落在 ground-truth commit。</td>
+                  </tr>
+                  <tr>
+                    <td class="mono">pr204178</td><td class="mono">75 · 20 groups</td><td>0 hits · floor 0.05</td>
+                    <td class="mono">7,958 / 18,751</td><td>全局有信号，但 culprit 仍处在先验地板。</td>
+                  </tr>
+                  <tr>
+                    <td class="mono">pr65982</td><td class="mono">46 · 23 groups</td><td>0 hits · floor 0.05</td>
+                    <td class="mono">1,359 / 4,001</td><td>新版程序分析产生信号，但没有提升 culprit。</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="callout" style="margin-top:12px">
+              <strong>两个失败口径必须分开。</strong>
+              在原 scoped-10 之外的 40 例中，只有 <code>pr195788</code> 的
+              <code>active_signal_count = 0</code>。另外三例不是“代码分析完全没有工作”，
+              而是代码分析在区间其他提交上产生了信号，却没有给真实 culprit 任何 hit。
+              这四例应作为弱召回案例单独报告。上述 culprit 对照是运行后审计，
+              ground truth 不进入 CEG 的在线召回、排序或探针选择。
+            </div>
+          </div>
+
+          <div class="block" style="margin-top:14px">
+            <h3>合并时必须守住的边界</h3>
+            <div class="table-scroll">
+              <table class="matrix">
+                <thead><tr><th>要防止</th><th>约束</th></tr></thead>
+                <tbody>
+                  <tr><td>答案泄漏</td><td>主先验不读 first-bad SHA、GT diff、修复补丁、人工复核结论或 issue 中的事后因果解释；每条信号带来源与 SHA。</td></tr>
+                  <tr><td>checker / producer 错位</td><td>崩溃文件命中不无条件加分；rare checker 只作可被独立 producer/API/pass 证据推翻的软负证据。</td></tr>
+                  <tr><td>硬裁剪答案</td><td>只排序不过滤；无信号 commit 保留概率地板；frontier 失败时可退回全区间。</td></tr>
+                  <tr><td>尺度污染和重复计权</td><td>程序证据分、LLM 名次、可构建性分字段保存；已进先验的覆盖率事实不再被模型当第二份独立证据相加。</td></tr>
+                  <tr><td>源码时点错配</td><td>crash contract 可读 bad tree；候选接触点必须读候选自身 parent diff / source，不能静默拿 HEAD 代替。</td></tr>
+                  <tr><td>基线与结论漂移</td><td>历史命令与缓存不改，CEG-Bisect 使用独立 lane；离线 worst-rank 与在线 builds / skips / wall-time 分开报告。</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="callout warn" style="margin-top:12px">
+              <strong>当前状态：</strong>冻结配置已经改用 manifest 校验的
+              bad-endpoint-only artifact，移除 ordinal prompt 中的人工 title / summary，
+              并让程序先验和 ordinal fusion 进入与 BCR 共用的 calibrated-posterior selector。
+              buildability 只作全局探针成本，不再占 frontier slot；高置信度判断只触发 probe
+              与 parent validation，不能称为 proof。<strong>十例结果完整仍不等于同一修正版已完成确认性验证</strong>：
+              当前表是九例原冻结结果加一例修复后重跑；历史原型、旧 observation 与当前结果不能合并。
+            </div>
+          </div>
+
+          <div class="block diagram-block">
+            <div class="diagram-heading">
+              <div>
+                <h3>CEG-Bisect 端到端架构</h3>
+                <p class="hint">总览始终留在这里；点击任一阶段可查看它的输入、内部步骤、输出、护栏与代码挂点。</p>
+              </div>
+              <span class="diagram-click-hint">点击阶段展开 ↗</span>
+            </div>
+            <svg id="llm-diagram" class="arch-diagram llm-pipeline" viewBox="0 0 1120 440" role="img"
+              aria-label="CEG-Bisect 从崩溃证据到在线验证的九阶段架构">
+              <defs>
+                <marker id="ah2" markerWidth="9" markerHeight="9" refX="8" refY="4.5" orient="auto">
+                  <path d="M0,0 L9,4.5 L0,9 z" fill="var(--line-strong)" />
+                </marker>
+                <marker id="ah2a" markerWidth="9" markerHeight="9" refX="8" refY="4.5" orient="auto">
+                  <path d="M0,0 L9,4.5 L0,9 z" fill="var(--accent)" />
+                </marker>
+              </defs>
+              <text class="stage" x="20" y="24">离线证据与候选召回 · 不调用模型</text>
+              <text class="stage existing" x="20" y="236">小批次因果判断与在线闭环</text>
+
+              <g class="llm-stage-card" data-llm-stage="evidence" tabindex="0" role="button" aria-label="展开：输入证据">
+                <rect class="box" x="20" y="44" width="170" height="126" rx="10" />
+                <text class="stage-no" x="36" y="68">01</text>
+                <text class="box-title" x="36" y="94">输入证据</text>
+                <text class="box-line" x="36" y="119">crash · reproducer</text>
+                <text class="box-line" x="36" y="141">bad tree · commit 区间</text>
+                <text class="stage-more" x="36" y="160">查看 provenance</text>
+              </g>
+              <g class="llm-stage-card" data-llm-stage="signals" tabindex="0" role="button" aria-label="展开：程序信号提取">
+                <rect class="box" x="238" y="44" width="170" height="126" rx="10" />
+                <text class="stage-no" x="254" y="68">02</text>
+                <text class="box-title" x="254" y="94">程序信号提取</text>
+                <text class="box-line" x="254" y="119">栈 · pass · 目录</text>
+                <text class="box-line" x="254" y="141">依赖用量 · message</text>
+                <text class="stage-more" x="254" y="160">查看信号通道</text>
+              </g>
+              <g class="llm-stage-card" data-llm-stage="prior" tabindex="0" role="button" aria-label="展开：全区间程序证据评分">
+                <rect class="box accent" x="456" y="44" width="180" height="126" rx="10" />
+                <text class="stage-no" x="472" y="68">03</text>
+                <text class="box-title" x="472" y="94">全区间证据评分</text>
+                <text class="box-line" x="472" y="119">覆盖率自信息 + 体量修正</text>
+                <text class="box-line" x="472" y="141">同源信号组内取最大</text>
+                <text class="stage-more" x="472" y="160">查看评分公式</text>
+              </g>
+              <g class="llm-stage-card" data-llm-stage="frontier" tabindex="0" role="button" aria-label="展开：有支撑位的候选小批次">
+                <rect class="box" x="684" y="44" width="180" height="126" rx="10" />
+                <text class="stage-no" x="700" y="68">04</text>
+                <text class="box-title" x="700" y="94">候选小批次</text>
+                <text class="box-line" x="700" y="119">先验 top + 概率中点</text>
+                <text class="box-line" x="700" y="141">时间中点 + 先验回填</text>
+                <text class="stage-more" x="700" y="160">查看 slot policy</text>
+              </g>
+              <g class="llm-stage-card" data-llm-stage="retrieval" tabindex="0" role="button" aria-label="展开：候选因果证据检索">
+                <rect class="box accent" x="912" y="44" width="188" height="126" rx="10" />
+                <text class="stage-no" x="928" y="68">05</text>
+                <text class="box-title" x="928" y="94">因果证据检索</text>
+                <text class="box-line" x="928" y="119">parent diff → hunk 排序</text>
+                <text class="box-line" x="928" y="141">契约 · API · 接触路径</text>
+                <text class="stage-more" x="928" y="160">展开完整检索链</text>
+              </g>
+
+              <path class="edge" d="M190,107 L230,107" marker-end="url(#ah2)" />
+              <path class="edge" d="M408,107 L448,107" marker-end="url(#ah2)" />
+              <path class="edge" d="M636,107 L676,107" marker-end="url(#ah2)" />
+              <path class="edge" d="M864,107 L904,107" marker-end="url(#ah2)" />
+              <path class="edge accent-edge" d="M1006,170 L1006,260" marker-end="url(#ah2a)" />
+
+              <g class="llm-stage-card" data-llm-stage="llm" tabindex="0" role="button" aria-label="展开：LLM 批内因果排序">
+                <rect class="box accent" x="912" y="272" width="188" height="126" rx="10" />
+                <text class="stage-no" x="928" y="296">06</text>
+                <text class="box-title" x="928" y="322">LLM 因果排序</text>
+                <text class="box-line" x="928" y="347">一次 ordinal judgment</text>
+                <text class="box-line" x="928" y="369">不输出跨批绝对分</text>
+                <text class="stage-more" x="928" y="388">查看 prompt contract</text>
+              </g>
+              <g class="llm-stage-card" data-llm-stage="fusion" tabindex="0" role="button" aria-label="展开：保质量的名次融合">
+                <rect class="box" x="684" y="272" width="180" height="126" rx="10" />
+                <text class="stage-no" x="700" y="296">07</text>
+                <text class="box-title" x="700" y="322">保质量局部融合</text>
+                <text class="box-line" x="700" y="347">只重分配 frontier mass</text>
+                <text class="box-line" x="700" y="369">frontier 外保持不变</text>
+                <text class="stage-more" x="700" y="388">查看不变量</text>
+              </g>
+              <g class="llm-stage-card" data-llm-stage="selector" tabindex="0" role="button" aria-label="展开：探针选择">
+                <rect class="box" x="456" y="272" width="180" height="126" rx="10" />
+                <text class="stage-no" x="472" y="296">08</text>
+                <text class="box-title" x="472" y="322">探针选择</text>
+                <text class="box-line" x="472" y="347">共享 calibrated posterior</text>
+                <text class="box-line" x="472" y="369">IG × prior/rank/buildability</text>
+                <text class="stage-more" x="472" y="388">查看选择目标</text>
+              </g>
+              <g class="llm-stage-card" data-llm-stage="runner" tabindex="0" role="button" aria-label="展开：真实构建与区间更新">
+                <rect class="box" x="238" y="272" width="170" height="126" rx="10" />
+                <text class="stage-no" x="254" y="296">09</text>
+                <text class="box-title" x="254" y="322">真实构建与反馈</text>
+                <text class="box-line" x="254" y="347">good / bad / skip</text>
+                <text class="box-line" x="254" y="369">收缩未决区间</text>
+                <text class="stage-more" x="254" y="388">查看闭环状态</text>
+              </g>
+              <g class="llm-stage-card" data-llm-stage="refresh" tabindex="0" role="button" aria-label="展开：重新计算当前区间">
+                <rect class="box" x="20" y="272" width="170" height="126" rx="10" />
+                <text class="stage-no" x="36" y="296">↻</text>
+                <text class="box-title" x="36" y="322">按新区间刷新</text>
+                <text class="box-line" x="36" y="347">重算覆盖率与概率质量</text>
+                <text class="box-line" x="36" y="369">直到唯一 first-bad</text>
+                <text class="stage-more" x="36" y="388">查看缓存边界</text>
+              </g>
+              <path class="edge" d="M912,335 L872,335" marker-end="url(#ah2)" />
+              <path class="edge" d="M684,335 L644,335" marker-end="url(#ah2)" />
+              <path class="edge" d="M456,335 L416,335" marker-end="url(#ah2)" />
+              <path class="edge" d="M238,335 L198,335" marker-end="url(#ah2)" />
+              <path class="edge dashed loop-edge" d="M105,272 C105,210 546,220 546,178" marker-end="url(#ah2a)" />
+            </svg>
+            <p class="diagram-footnote">
+              旧的「LLM 先压缩整段 diff，再给绝对分」不在最终路径中；第 05 阶段用确定性检索压缩证据，
+              第 06 阶段才调用一次 LLM。
+            </p>
+          </div>
+
+          <dialog id="llm-stage-dialog" class="stage-dialog" aria-labelledby="llm-stage-title">
+            <div class="stage-dialog-shell">
+              <header class="stage-dialog-head">
+                <div>
+                  <div class="stage-dialog-kicker" id="llm-stage-kicker"></div>
+                  <h3 id="llm-stage-title"></h3>
+                  <p id="llm-stage-summary"></p>
+                </div>
+                <button type="button" class="stage-dialog-close" data-stage-close aria-label="关闭阶段详情">×</button>
+              </header>
+              <div class="stage-dialog-body">
+                <section>
+                  <h4>内部 pipeline</h4>
+                  <ol class="stage-subpipeline" id="llm-stage-pipeline"></ol>
+                </section>
+                <div class="stage-detail-grid">
+                  <section><h4>输入</h4><ul id="llm-stage-inputs"></ul></section>
+                  <section><h4>输出</h4><ul id="llm-stage-outputs"></ul></section>
+                  <section><h4>护栏</h4><ul id="llm-stage-guards"></ul></section>
+                  <section><h4>代码挂点</h4><ul class="stage-code-list" id="llm-stage-code"></ul></section>
+                </div>
+              </div>
+            </div>
+          </dialog>
+
+          <div class="block" style="margin-top:14px">
+            <h3>为什么最终方法不再让 LLM 先压缩整段 diff<span class="sub-count"> · 从历史两次调用收敛到一次有界因果排序</span></h3>
+            <p class="hint">
+              以下保留 prompt 演化过程，说明哪些工作被移出模型。最终实现对应上图第 05–06 阶段：
+              文件与 hunk 选择、覆盖率、调用接触点和仓库事实由程序计算；模型只接收有界证据包并作批内因果排序。
+            </p>
+            <div id="prompt-diff"></div>
+          </div>
+
+          <div class="block" style="margin-top:14px">
+            <h3>要补给模型的因果上下文，其实都能从代码库直接查<span class="sub-count"> · 展开上面 prompt 里「Crash evidence」那一块</span></h3>
+            <p class="hint">
+              模型看得到<strong>这次改动改了什么</strong>，却看不到<strong>被改坏的到底是什么</strong>，
+              也看不到两者<strong>是怎么连上的</strong>。缺的正是这三样，而它们都能查出来，不需要模型去推。
+            </p>
+            <div class="table-scroll">
+              <table class="matrix" id="causal-table"></table>
+            </div>
+            <div class="callout" style="margin-top:12px">
+              三样都<strong>不需要构建，也不需要 AST</strong>——断言现场靠 <code>file:line</code>，
+              破坏面靠头文件，接触点靠 <strong>git hunk 头自带的函数名</strong>（四例抽查全部带）。<br>
+              找不到接触点时输出「未找到调用路径」，<strong>作为负证据降权</strong>。
+            </div>
+          </div>
+
+          <div class="block" style="margin-top:14px">
+            <h3>送进模型的 diff 该怎么裁：上限保留，前缀截断去掉<span class="sub-count"> · 同一行代码里混着一个安全阀和一个 bug</span></h3>
+            <p class="hint">
+              <code>text[:max_chars]</code> 这一行同时做了两件性质完全不同的事。
+              <strong>上限</strong>是防止某个超大提交撑爆上下文的安全阀，该留；
+              <strong>按前缀截断</strong>则是在决定「上限之内装哪些内容」，而它的排序依据只是文件名——
+              这是 bug，不是取舍。正确的顺序是<strong>先按与锚点的相关性排，再截到上限</strong>：
+              预算一分不多花，装进去的却换成了真正相关的代码。
+            </p>
+            <div class="table-scroll">
+              <table class="matrix" id="trunc-table"></table>
+            </div>
+            <div id="trunc-note" style="margin-top:12px"></div>
+          </div>
+          <p class="hint" style="margin-top:12px">
+            落地细节（挂点行号、缓存版本、计算频次、保底策略）见 <code>INTEGRATION_DESIGN.md</code> §6。
+          </p>
+        </div>
+
+        <!-- ---------- 技术细节视图 ---------- -->
+        <div id="strategy-detail" class="hidden">
+          <header class="view-head">
+            <h2>技术方法设计</h2>
+            <p class="lede">
+              整套方法建立在一个判断上：<strong>崩溃现场是检查者，不是责任者</strong>。
+              崩溃报告说的是「谁先发现了问题」，要找的是「谁造成了问题」，两者在编译器里经常隔着好几个组件。
+              于是问题从「哪些提交提到了崩溃现场里的词」，换成<strong>「哪些提交有能力破坏被违反的那个约定」</strong>。
+              下面依次是：方法全貌、这些规则归结为哪几个模块、50 例上的实测、逐条设计点；
+              更细的证据与对照收在末尾的折叠里。
+            </p>
+          </header>
+
+          <div class="block diagram-block">
+            <svg id="method-diagram" class="arch-diagram" viewBox="0 0 1120 536" role="img"
+              aria-label="技术方法总览：一份崩溃报告如何变成一份候选名次">
+              <text class="box-line" x="16" y="30">方法图加载中…</text>
+            </svg>
+          </div>
+
+          <div class="block" style="margin-top:14px">
+            <h3>这些规则在程序分析上归结为什么<span class="sub-count" id="mod-sub"> · 从程序分析的角度看，上面那些规则只是几个模块的实例</span></h3>
+            <p class="hint">
+              上图那些规则看着零散，其实各自只是几个模块的实例。每个模块给出它在程序分析里对应什么、
+              具体做了哪几件事，以及哪些规则归它管。
+            </p>
+            <div id="method-modules"></div>
+          </div>
+
+          <div class="block" style="margin-top:14px">
+            <h3>实验主表：信号逐层叠加之后，答案排到第几<span class="sub-count" id="dep-count"></span></h3>
+            <p class="hint">
+              方法讲完了，这里是它在 50 例上的实测：同一件事逐层加码之后名次怎么变——
+              先只用崩溃现场的直接信号，再加推导出的目录，再加锚点的引用者。<br>
+              口径三点：信号全部由程序从崩溃文本、reproducer 与源码树推出，
+              现有系统那套由模型读 issue 文本得来的 <code>keywords</code> 与路径表不参与；
+              权重取 <code>log(区间大小 ÷ 信号覆盖数)</code>，无手工常数；
+              合成只排序、不过滤，所以名次差只意味着要多验证几个候选。
+            </p>
+            <div class="table-scroll">
+              <table class="matrix" id="dep-table"></table>
+            </div>
+            <button type="button" class="tl-toggle" id="dep-timeline-toggle" aria-expanded="false"
+              aria-controls="dep-timeline">
+              <span class="tl-caret">▸</span>
+              <span class="tl-toggle-text">按时间线展开：收窄后要看的 commit，落在原始区间的哪一段</span>
+              <span class="tl-toggle-sub" id="dep-timeline-sub"></span>
+            </button>
+            <div id="dep-timeline" class="hidden"></div>
+            <div id="dep-note" style="margin-top:12px"></div>
+          </div>
+
+          <div class="block" style="margin-top:14px">
+            <h3>逐条设计点<span class="sub-count" id="dp-sub"> · 命题 → 理论依据 → 实现 → 实测 → 排除的替代</span></h3>
+            <p class="hint">
+              上表是整体效果，这里把它拆回一条条主张。默认只显示命题和最关键的那一行实测，
+              理论依据、具体实现、排除的替代与适用边界收在「展开论证」里；完整版见
+              <code>DESIGN_PRINCIPLES.md</code>。
+            </p>
+            <div id="design-points"></div>
+          </div>
+
+          <details class="fold">
+            <summary>单通道实测与证据边界<span class="fold-sub"> · 各通道召回、产物来源</span></summary>
+            <div class="fold-body">
+          <div class="signal-strip" id="signal-strip"></div>
+
+          <div id="evidence-union-note"></div>
+            </div>
+          </details>
+
+          <details class="fold">
+            <summary>取证：崩溃文本怎么变成检索词<span class="fold-sub"> · 分路 · 提取规则 · 证据来源</span></summary>
+            <div class="fold-body">
+          <div class="block" style="margin-top:14px">
+            <h3>崩溃类型决定走哪条路<span class="sub-count" id="route-sub"> · 按当前数据集实时统计</span></h3>
+            <div class="table-scroll">
+              <table class="matrix" id="route-table"></table>
+            </div>
+          </div>
+
+          <div class="block" style="margin-top:14px">
+            <h3>崩溃文本 → 检索词：全部提取规则<span class="sub-count"> · 总览图 ① 的展开，除最后一条外都不用模型</span></h3>
+            <div class="table-scroll">
+              <table class="matrix" id="extract-table"></table>
+            </div>
+            <p class="hint" style="margin-top:10px">
+              grep 的范围同样只由崩溃现场决定：断言里的路径、栈帧里出现的仓库路径、以及崩溃工具名。
+              「工具名属于哪个项目」「一个项目该搜哪几个目录」都<strong>从仓库自己的布局探出来</strong>，
+              不写映射表——<code>&lt;项目&gt;/tools/&lt;工具名&gt;</code> 或
+              <code>&lt;项目&gt;/&lt;工具名&gt;</code> 存不存在，探一下就知道。
+              这一条是必要的：<code>clang-tidy</code> 的实现在 <code>clang-tools-extra/</code> 下，
+              早先那张手写表把范围设成 <code>clang/</code>，pr192829 的答案根本不在搜索范围里。<br>
+              它不看 gt 改了哪些文件，也不看现有先验里的 <code>relevant_paths</code>。
+            </p>
+        <div id="provenance-body" style="margin-top:14px"></div>
+      </div>
+            </div>
+          </details>
+
+          <details class="fold">
+            <summary>执行结构通路<span class="fold-sub"> · pass 次序、分析依赖、编译阶段（D12 / D15）</span></summary>
+            <div class="fold-body">
+          <div class="block" style="margin-top:14px">
+            <h3>执行结构：pass 次序、分析依赖与编译阶段<span class="sub-count" id="pipe-count"></span></h3>
+            <p class="hint">
+              前面所有通道问的都是「哪些文件提到了这个名字」。这一条问的是
+              <strong>崩溃发生时哪些 pass 已经跑过、崩溃那一趟索取了哪些分析</strong>——
+              流水线是有序的，分析依赖由 pass manager 强制显式声明。<br>
+              pass 名到实现文件走仓库自己的三张注册表（<code>PassRegistry.def</code>、
+              <code>getPassName()</code> 返回值、<code>INITIALIZE_PASS</code> 显示名），
+              不靠「pass 名与文件同名」——那种猜法对
+              <code>instcombine → InstructionCombining.cpp</code> 直接失效。<br>
+              前端崩溃没有 pass，但 clang 把 Parse → Sema → CodeGen → Mangle 这个
+              <strong>编译阶段次序</strong>压在 <code>PrettyStackTrace</code> 里打了出来，
+              阶段名同样是源码里的字符串字面量，定位方式完全一致。
+              唯一要额外处理的是<strong>最外层那一帧</strong>——它说的是「我们在编译一个文件」，
+              按构造对每次崩溃都成立，必须排除。
+            </p>
+            <div class="table-scroll">
+              <table class="matrix" id="pipe-table"></table>
+            </div>
+            <div id="pipe-note" style="margin-top:12px"></div>
+          </div>
+            </div>
+          </details>
+
+          <details class="fold">
+            <summary>与现有做法对比<span class="fold-sub"> · 模型抽取的关键词先验，同口径</span></summary>
+            <div class="fold-body">
+          <div class="block" style="margin-top:14px">
+            <h3>对比现有做法：模型抽取的关键词先验<span class="sub-count" id="kw-count"></span></h3>
+            <p class="hint">
+              这条基线不是人手写的词表：现有系统把 issue 描述与崩溃报告<strong>整体当纯文本</strong>交给大模型，
+              由它一次性产出摘要、关键词与风险目录（<code>issue_summary</code> / <code>keywords</code> /
+              <code>relevant_paths</code> / <code>high_risk_paths</code>）。<br>
+              命中口径与 <code>GitBisect/tools/lm_bisect.py</code> 的
+              <code>human_frontier_lexical_reasons</code> 完全一致：
+              关键词（长度 &gt; 3）出现在 commit 的 subject + body 里即算命中。<br>
+              两者产出形态不同，按「要看多少个 commit 才能拿到 gt」这个共同口径比——
+              keyword 圈出一个集合，候选数就是集合大小，集合不含 gt 则该例作废；
+              排序法给出名次，候选数是 gt 的最坏名次，且不会丢答案。
+            </p>
+            <div class="table-scroll">
+              <table class="matrix" id="kw-summary"></table>
+            </div>
+            <div id="kw-note" style="margin-top:12px"></div>
+            <div class="table-scroll" style="margin-top:12px">
+              <table class="matrix" id="kw-table"></table>
+            </div>
+          </div>
+            </div>
+          </details>
+
+          <details class="fold">
+            <summary>消融矩阵<span class="fold-sub"> · 同一份信号快照，一次只改一个因子</span></summary>
+            <div class="fold-body">
+          <div class="block" style="margin-top:14px">
+            <h3>消融矩阵<span class="sub-count" id="ablation-sub"> · 同一份信号快照，一次只改一个因子</span></h3>
+            <p class="hint">
+              取证与 grep 那一段不随打分方案变化，变的只有「怎么把这些集合合成一个次序」。
+              所以先整跑一次，把每例的全部信号集合落成快照（<code>signal-dump.json</code>），
+              之后所有变体都在这一份上离线重算——两个配置之间只差一个开关，这才是消融。
+              除了中位数，表里还给出与现行方案的<strong>成对比较</strong>，因为中位数会掩盖分布。
+            </p>
+            <div class="table-scroll">
+              <table class="matrix" id="ablation-table"></table>
+            </div>
+            <div id="ablation-note" style="margin-top:12px"></div>
+          </div>
+            </div>
+          </details>
+
+          <details class="fold">
+            <summary>常数审查<span class="fold-sub"> · 每个写死的数：理由是否还成立、有多敏感</span></summary>
+            <div class="fold-body">
+          <div class="block" style="margin-top:14px">
+            <h3>常数审查<span class="sub-count" id="const-sub"> · 每个写死的数：理由是否还成立、能否消融、有多敏感</span></h3>
+            <p class="hint">
+              「留出集没退化」只说明整体没过拟合，不代表每个常数都站得住。
+              这一节逐个过：它当初的理由是什么、那个理由<strong>现在还成不成立</strong>、
+              能不能在同一份快照上消融、以及有多敏感。
+            </p>
+            <div class="table-scroll">
+              <table class="matrix" id="const-table"></table>
+            </div>
+            <div id="const-note" style="margin-top:12px"></div>
+            <div class="table-scroll" style="margin-top:12px">
+              <table class="matrix" id="cap-table"></table>
+            </div>
+            <div id="cap-note" style="margin-top:12px"></div>
+          </div>
+            </div>
+          </details>
+
+          <details class="fold">
+            <summary>接入现有管线<span class="fold-sub"> · 实线为现有管线，虚线为三处新增</span></summary>
+            <div class="fold-body">
+          <header class="view-head">
+            <h3 style="margin:0 0 8px;font-size:20px;letter-spacing:-0.02em;text-transform:none;color:var(--ink)">
+              接入现有管线
+            </h3>
+            <p class="lede">
+              实线为 <code>lm_bisect.py</code> 现有管线，虚线为三处新增。
+            </p>
+          </header>
+
+          <div class="block diagram-block">
+            <svg id="strategy-diagram" class="arch-diagram" viewBox="0 0 1100 480" role="img" aria-label="融入现有管线的设计图">
+              <defs>
+                <marker id="ah" markerWidth="9" markerHeight="9" refX="8" refY="4.5" orient="auto">
+                  <path d="M0,0 L9,4.5 L0,9 z" fill="var(--line-strong)" />
+                </marker>
+              </defs>
+
+              <text class="stage" x="20" y="28">新增（本设计）</text>
+              <text class="stage existing" x="20" y="192">现有管线 · tools/lm_bisect.py</text>
+
+              <g class="lane lane-new">
+                <rect x="215" y="46" width="230" height="92" rx="8" stroke-dasharray="5 4" />
+                <text class="badge-no" x="233" y="76">A</text>
+                <text class="lane-title" x="256" y="76">Pass 级 bisect 探测</text>
+                <text class="lane-note" x="233" y="100">-opt-bisect-limit · 秒级</text>
+                <text class="lane-note" x="233" y="122">不必重新编译 · 收益最高</text>
+              </g>
+
+              <g class="lane lane-new">
+                <rect x="470" y="46" width="230" height="92" rx="8" stroke-dasharray="5 4" />
+                <text class="badge-no" x="488" y="76">B</text>
+                <text class="lane-title" x="511" y="76">crash_signals.py</text>
+                <text class="lane-note" x="488" y="100">断言签名三级导出检索词</text>
+                <text class="lane-note" x="488" y="122">替代模型抽取的 keywords</text>
+              </g>
+
+              <path class="edge dashed" d="M330,138 C 330,170 380,180 400,208" marker-end="url(#ah)" />
+              <path class="edge dashed" d="M585,138 C 585,170 480,180 440,208" marker-end="url(#ah)" />
+
+              <rect class="box" x="20" y="215" width="170" height="120" rx="9" />
+              <text class="box-title" x="36" y="243">IssueProfile</text>
+              <text class="box-line" x="36" y="268">keywords</text>
+              <text class="box-line" x="36" y="290">relevant_paths</text>
+              <text class="box-line" x="36" y="312">high_risk_paths</text>
+
+              <rect class="box accent" x="240" y="215" width="220" height="120" rx="9" />
+              <text class="badge-no accent-no" x="256" y="243">C</text>
+              <text class="box-title" x="279" y="243">score_semantics</text>
+              <text class="box-line" x="256" y="268">信号加权排序，不做过滤</text>
+              <text class="box-line" x="256" y="290">权重 log(N ÷ 信号覆盖数)</text>
+              <text class="box-note" x="256" y="316">无手工常数 · 30 例实测</text>
+
+              <rect class="box" x="510" y="215" width="230" height="120" rx="9" />
+              <text class="box-title" x="526" y="243">select_next_commit</text>
+              <text class="box-line" x="526" y="268">calibrated-posterior</text>
+              <text class="box-line" x="526" y="290">按先验质量中位数</text>
+              <text class="box-line" x="526" y="312">选下一个探针</text>
+
+              <rect class="box" x="790" y="215" width="150" height="120" rx="9" />
+              <text class="box-title" x="806" y="243">runner</text>
+              <text class="box-line" x="806" y="268">构建该 commit</text>
+              <text class="box-line" x="806" y="290">good / bad / skip</text>
+
+              <rect class="box" x="970" y="215" width="110" height="120" rx="9" />
+              <text class="box-title" x="986" y="243">收窄</text>
+              <text class="box-line" x="986" y="268">partition</text>
+              <text class="box-line" x="986" y="290">_interval</text>
+
+              <path class="edge" d="M190,275 L 232,275" marker-end="url(#ah)" />
+              <path class="edge" d="M460,275 L 502,275" marker-end="url(#ah)" />
+              <path class="edge" d="M740,275 L 782,275" marker-end="url(#ah)" />
+              <path class="edge" d="M940,275 L 962,275" marker-end="url(#ah)" />
+              <path class="edge" d="M1025,335 C 1025,400 560,400 105,400 L 105,343" marker-end="url(#ah)" />
+              <text class="loop-label" x="520" y="392">未决区间收窄后回到下一轮</text>
+            </svg>
+          </div>
+
+
+            </div>
+          </details>
+
+
+          <p class="hint" style="margin-top:14px">
+            完整写作口径（形式化、消融协议、有效性威胁、还缺的实验）见 <code>DESIGN_PRINCIPLES.md</code>。
+          </p>
+        </div>
+
+        <!-- ---------- 论文大纲视图 ---------- -->
+        <div id="strategy-paper" class="hidden">
+          <header class="view-head">
+            <h2>论文大纲</h2>
+            <p class="lede">
+              把已有结果排成一篇可投稿的论文。数字全部从实验产物现算，
+              状态区分<em>代码中已实现</em>、<em>仅有离线实验</em>与<em>尚未开始</em>。
+            </p>
+          </header>
+
+          <div class="block">
+            <h3>核心论点</h3>
+            <div id="paper-thesis"></div>
+          </div>
+
+          <div class="block" style="margin-top:14px">
+            <h3>贡献清单<span class="sub-count" id="paper-contrib-sub"></span></h3>
+            <div id="paper-contrib"></div>
+          </div>
+
+          <div class="block" style="margin-top:14px">
+            <h3>Introduction 正文<span class="sub-count"> · 全文同步维护在 <code>../introduction.md</code></span></h3>
+            <div id="paper-intro"></div>
+          </div>
+
+          <div class="block" style="margin-top:14px">
+            <h3>新增方法节草稿：Causal Evidence-Guided Bisect（CEG-Bisect）</h3>
+            <p class="in-text">
+              <span class="in-lead">动机与缺口</span>
+              确定性事实因果排序器已将结构化崩溃证据、仓库事实和锚点相关 hunk 交给模型，
+              并把模型任务限制为批内因果排序；
+              然而，进入该批次的候选仍由人工设计的关键词/路径启发式选出。
+              因而它改善了「如何判断一个已召回候选」，却没有解决「全区间哪些候选能够被召回」。
+            </p>
+            <p class="in-text">
+              <span class="in-lead">程序先验</span>
+              我们只使用失效时可获得的 crash artifact、reproducer、二分区间与 bad 版本源码树，
+              从断言、栈符号、pass / phase、程序目录和依赖使用关系构造信号集合。
+              每条信号按其在当前区间内的覆盖率赋予自信息权重；细粒度信号在同一观测组内取最大值、跨组求和。
+              所有 commit 保留非零质量，因此该先验改变验证顺序而不排除候选。
+            </p>
+            <p class="in-text">
+              <span class="in-lead">有界 ordinal 重排</span>
+              在线阶段由程序证据先验负责全区间召回，确定性事实因果排序器只在有界候选小批次内判断候选 patch
+              是否存在到崩溃契约的可见因果桥。模型输出被解释为局部乘法因子，而不是新的绝对分；
+              frontier 的总先验质量在重排前后保持不变，非 frontier 质量不变。
+              buildability 与真实 good / bad / skip 观测随后只参与探针效用和区间更新。
+            </p>
+            <p class="in-text">
+              <span class="in-lead">可审计性</span>
+              这种分工把确定性程序事实、模型的代码语义判断和真实执行反馈拆成三个可独立消融的层，
+              同时避免 heuristic 分数与 LLM 分数混用、checker/producer 错位以及候选硬裁剪。
+            </p>
+            <div class="callout warn" style="margin-top:12px">
+              <strong>论文口径：</strong>可以报告两例冻结配置的初步在线结果：
+              <code>pr204559</code> 为 7 次 runner build（确定性事实 8、BCR 10），
+              <code>pr201444</code> 为 9 次（确定性事实 11、BCR 10），两例边界都正确且无 cache / skip。
+              但在完成全部 paired scoped-10 lane 之前，不能声称总体构建次数已经下降。
+              Master-50 参与了方法形成，只能作回顾性泛化。
+            </div>
+          </div>
+
+          <div class="block" style="margin-top:14px">
+            <h3>章节骨架<span class="sub-count" id="paper-skeleton-sub"></span></h3>
+            <div id="paper-skeleton"></div>
+          </div>
+
+          <details class="fold">
+            <summary>方法环节<span class="fold-sub" id="paper-method-sub"></span></summary>
+            <div class="fold-body">
+              <div id="paper-method"></div>
+              <div id="paper-method-note" style="margin-top:12px"></div>
+            </div>
+          </details>
+
+          <details class="fold">
+            <summary>实验设计<span class="fold-sub"> · 研究问题 · 当前进展</span></summary>
+            <div class="fold-body">
+              <div class="table-scroll">
+                <table class="matrix" id="paper-rq"></table>
+              </div>
+              <div id="paper-rq-note" style="margin-top:12px"></div>
+            </div>
+          </details>
+
+          <details class="fold">
+            <summary>待办实验<span class="fold-sub" id="paper-opt-sub"></span></summary>
+            <div class="fold-body">
+              <div id="paper-opt"></div>
+            </div>
+          </details>
+
+          <details class="fold">
+            <summary>审稿质疑<span class="fold-sub"> · 回应写进正文，不留到 rebuttal</span></summary>
+            <div class="fold-body">
+              <div id="paper-rebuttal"></div>
+            </div>
+          </details>
+
+          <details class="fold">
+            <summary>图表清单<span class="fold-sub"> · 正文限 8 个版面</span></summary>
+            <div class="fold-body">
+              <div class="table-scroll">
+                <table class="matrix" id="paper-figs"></table>
+              </div>
+            </div>
+          </details>
+
+          <details class="fold">
+            <summary>写作顺序</summary>
+            <div class="fold-body">
+              <div id="paper-plan"></div>
+            </div>
+          </details>
+        </div>
+      </section>
+
+      <!-- ============ 单例 ============ -->
+      <section id="view-case" class="view hidden">
+        <header class="case-head">
+          <div class="case-head-row">
+            <div>
+              <p class="issue-id" id="cv-issue"></p>
+              <h2 id="cv-title"></h2>
+            </div>
+            <div class="case-actions">
+              <a id="cv-issue-link" class="btn" target="_blank" rel="noopener">Issue</a>
+              <select id="cv-status" aria-label="审查状态">
+                <option value="open">未审</option>
+                <option value="in-progress">进行中</option>
+                <option value="reviewed">已审</option>
+                <option value="follow-up">需跟进</option>
+              </select>
+            </div>
+          </div>
+          <div class="badge-row" id="cv-badges"></div>
+        </header>
+
+        <nav class="steprail" id="steprail">
+          <a class="steplink" href="#s1" data-step="1"><span>1</span>崩溃现场</a>
+          <a class="steplink" href="#s2" data-step="2"><span>2</span>可检索线索</a>
+          <a class="steplink" href="#s3" data-step="3"><span>3</span>搜索空间</a>
+          <a class="steplink" href="#s4" data-step="4"><span>4</span>你的判断</a>
+          <a class="steplink" href="#s5" data-step="5"><span>5</span>揭晓 GT</a>
+          <a class="steplink" href="#s6" data-step="6"><span>6</span>复盘</a>
+        </nav>
+
+        <section class="step" id="s1">
+          <h3 class="step-title"><span class="step-no">1</span>崩溃现场：你手上只有这些</h3>
+          <div id="step1-body"></div>
+        </section>
+
+        <section class="step" id="s2">
+          <h3 class="step-title"><span class="step-no">2</span>可检索线索：从 crash 文本里能抠出什么</h3>
+          <div id="step2-body"></div>
+        </section>
+
+        <section class="step" id="s3">
+          <h3 class="step-title"><span class="step-no">3</span>搜索空间：要在多大范围里找</h3>
+          <div id="step3-body"></div>
+        </section>
+
+        <section class="step" id="s4">
+          <h3 class="step-title"><span class="step-no">4</span>你的判断：先写下来，再揭晓</h3>
+          <div class="block">
+            <p class="hint">在看答案之前记录你的猜测：怀疑哪个子系统 / 哪些文件 / 你打算按什么顺序验证。内容存在浏览器本地。</p>
+            <textarea id="hypothesis" spellcheck="false"
+              placeholder="例：断言在 MemorySSA，但改的多半不是 MemorySSA 本身，而是某个改了 CFG 的 loop pass…"></textarea>
+            <p class="saved-hint" id="hyp-saved"></p>
+          </div>
+        </section>
+
+        <section class="step" id="s5">
+          <h3 class="step-title"><span class="step-no">5</span>揭晓：ground-truth commit</h3>
+          <div id="step5-gate" class="gate">
+            <p>这一节包含答案。建议先完成第 4 步。</p>
+            <button type="button" class="btn primary" id="reveal-btn">揭晓 GT commit</button>
+          </div>
+          <div id="step5-body" class="hidden"></div>
+        </section>
+
+        <section class="step" id="s6">
+          <h3 class="step-title"><span class="step-no">6</span>复盘：哪条线索真的通向了它</h3>
+          <div id="step6-gate" class="gate">
+            <p>揭晓答案后可查看对照分析。</p>
+          </div>
+          <div id="step6-body" class="hidden"></div>
+        </section>
+
+        <section class="step" id="s7">
+          <h3 class="step-title"><span class="step-no">✎</span>笔记</h3>
+          <div class="block">
+            <textarea id="notes" spellcheck="false" placeholder="复盘结论、可推广的定位启发、存疑处…"></textarea>
+            <p class="saved-hint" id="notes-saved"></p>
+          </div>
+        </section>
+      </section>
+    </main>
+  </div>
+
+  <div id="toast" class="toast hidden" role="status"></div>
+  <script src="dataset.js"></script>
+  <script src="analysis.js"></script>
+  <script src="viewer.js"></script>
+</body>
+
+</html>

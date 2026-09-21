@@ -1,0 +1,1700 @@
+{
+  "schema": "master50-ceg-evidence-results-v1",
+  "generated_at": "2026-09-21T15:32:24.211164+00:00",
+  "snapshot_date": "20260921",
+  "scope": "Master-50 designated CEG and endpoint-matched evidence-diverse LM-Bisect histories",
+  "issue_count": 50,
+  "units": {
+    "interval_commits": "Commits in the configured good..bad candidate interval.",
+    "runner_builds": "Fresh issue-runner invocations in the selected history."
+  },
+  "selection": {
+    "ceg": "Newest valid completed causal-evidence-guided history per issue.",
+    "evidence_lm_bisect": "Newest valid completed evidence-diverse history per issue, when one exists.",
+    "valid": "status=completed, remaining_unresolved=1, and a 40-hex first_bad_commit."
+  },
+  "coverage": {
+    "ceg_available": 47,
+    "evidence_lm_bisect_available": 31
+  },
+  "rows": [
+    {
+      "issue": "pr120802",
+      "interval_commits": 19595,
+      "interval_source": "run-history",
+      "binary_search_upper_bound": 15,
+      "git_bisect": {
+        "status": "completed",
+        "runner_builds": 16,
+        "skips": 0,
+        "first_bad_commit": "93d7002dc4644b0a6f15a998dff0d55c72012e87"
+      },
+      "ceg": {
+        "availability": "available",
+        "status": "completed",
+        "runner_builds": 9,
+        "skips": 0,
+        "first_bad_commit": "93d7002dc4644b0a6f15a998dff0d55c72012e87",
+        "run_label": "edu-ceg-m50x10-r3-lane-c",
+        "history_path": "ceg/pr120802.json",
+        "history_sha256": "b13b5dc616fa30cb5315957e521255d8c8f4d9544dbd384440a10d2008343714",
+        "history_bytes": 3623519
+      },
+      "evidence_lm_bisect": {
+        "availability": "no_valid_result",
+        "status": "in_progress",
+        "runner_builds": 0,
+        "skips": 0,
+        "first_bad_commit": null,
+        "run_label": "edu-evidence-diverse-master50-20260917-r3-lane-a",
+        "history_path": null,
+        "latest_invalid_history": "pr120802-model-gpt-5.6-terra-evidence-diverse-calibrated-posterior-obs-trace-only-reasoning-high-edu-evidence-diverse-master50-20260917-r3-lane-a.json"
+      }
+    },
+    {
+      "issue": "pr121365",
+      "interval_commits": 35139,
+      "interval_source": "run-history",
+      "binary_search_upper_bound": 16,
+      "git_bisect": {
+        "status": "completed",
+        "runner_builds": 17,
+        "skips": 0,
+        "first_bad_commit": "13a78fd1ac886b3119574bbffb327489f335e713"
+      },
+      "ceg": {
+        "availability": "available",
+        "status": "completed",
+        "runner_builds": 4,
+        "skips": 0,
+        "first_bad_commit": "a344db793aca6881379c7c83f5112d2870dbf958",
+        "run_label": "edu-ceg-master50-remaining30-latest-r1-lane-a",
+        "history_path": "ceg/pr121365.json",
+        "history_sha256": "e6a4dcb4cd176dbf6aa49ded65afc0b1d4b69d868b3416e8014e6833d6f97a7a",
+        "history_bytes": 3105246
+      },
+      "evidence_lm_bisect": {
+        "availability": "available",
+        "status": "completed",
+        "runner_builds": 10,
+        "skips": 0,
+        "first_bad_commit": "13a78fd1ac886b3119574bbffb327489f335e713",
+        "run_label": "edu-evidence-diverse-master50-20260917-r3-lane-a",
+        "history_path": "evidence-diverse/pr121365.json",
+        "history_sha256": "eec5624e5cf485e755faadb9f3d009976248e1ff40c2f64dba31ca940e6068f0",
+        "history_bytes": 1585623
+      }
+    },
+    {
+      "issue": "pr156249",
+      "interval_commits": 53279,
+      "interval_source": "run-history",
+      "binary_search_upper_bound": 16,
+      "git_bisect": {
+        "status": "completed",
+        "runner_builds": 19,
+        "skips": 0,
+        "first_bad_commit": "43f2968a028fbc6b4fac5ba6d18ad9d27eb4ef76"
+      },
+      "ceg": {
+        "availability": "available",
+        "status": "completed",
+        "runner_builds": 16,
+        "skips": 0,
+        "first_bad_commit": "43f2968a028fbc6b4fac5ba6d18ad9d27eb4ef76",
+        "run_label": "edu-ceg-mixture-highstep-20260917-r2-lane-a",
+        "history_path": "ceg/pr156249.json",
+        "history_sha256": "7ddc88a6ad1f842f439a00f1926581317f5932322da38dcbcddcac852bc28b67",
+        "history_bytes": 12828342
+      },
+      "evidence_lm_bisect": {
+        "availability": "available",
+        "status": "completed",
+        "runner_builds": 10,
+        "skips": 0,
+        "first_bad_commit": "43f2968a028fbc6b4fac5ba6d18ad9d27eb4ef76",
+        "run_label": "edu-evidence-diverse-master50-20260917-r3-lane-a",
+        "history_path": "evidence-diverse/pr156249.json",
+        "history_sha256": "9cef8de1f376846a9c127687831999a6f08ebd2ce6ba108053fc25c73afccafa",
+        "history_bytes": 1495448
+      }
+    },
+    {
+      "issue": "pr165039",
+      "interval_commits": 9324,
+      "interval_source": "run-history",
+      "binary_search_upper_bound": 14,
+      "git_bisect": {
+        "status": "completed",
+        "runner_builds": 16,
+        "skips": 0,
+        "first_bad_commit": "078e99ef017cac3899e5dbc2ed917f173c9eedad"
+      },
+      "ceg": {
+        "availability": "available",
+        "status": "completed",
+        "runner_builds": 7,
+        "skips": 0,
+        "first_bad_commit": "078e99ef017cac3899e5dbc2ed917f173c9eedad",
+        "run_label": "edu-ceg-m50x10-r3-lane-a",
+        "history_path": "ceg/pr165039.json",
+        "history_sha256": "d13a8a0d68e526bff508d7220e5229e03afc4a4aadcff6a5bc115cf0d7de6306",
+        "history_bytes": 5481373
+      },
+      "evidence_lm_bisect": {
+        "availability": "no_valid_result",
+        "status": "in_progress",
+        "runner_builds": 0,
+        "skips": 0,
+        "first_bad_commit": null,
+        "run_label": "edu-evidence-diverse-master50-20260917-r3-lane-b",
+        "history_path": null,
+        "latest_invalid_history": "pr165039-model-gpt-5.6-terra-evidence-diverse-calibrated-posterior-obs-trace-only-reasoning-high-edu-evidence-diverse-master50-20260917-r3-lane-b.json"
+      }
+    },
+    {
+      "issue": "pr165246",
+      "interval_commits": 40343,
+      "interval_source": "run-history",
+      "binary_search_upper_bound": 16,
+      "git_bisect": {
+        "status": "completed",
+        "runner_builds": 18,
+        "skips": 0,
+        "first_bad_commit": "55f1b91d50a0f3706ad62d497d3c8a5ec572d59e"
+      },
+      "ceg": {
+        "availability": "available",
+        "status": "completed",
+        "runner_builds": 7,
+        "skips": 0,
+        "first_bad_commit": "55f1b91d50a0f3706ad62d497d3c8a5ec572d59e",
+        "run_label": "edu-ceg-master50-remaining30-latest-r1-lane-c",
+        "history_path": "ceg/pr165246.json",
+        "history_sha256": "42d2a59a108e8dc5f3cdaba433f7b7393d752f856c71218b9c658f5375a87d95",
+        "history_bytes": 3333326
+      },
+      "evidence_lm_bisect": {
+        "availability": "available",
+        "status": "completed",
+        "runner_builds": 8,
+        "skips": 0,
+        "first_bad_commit": "55f1b91d50a0f3706ad62d497d3c8a5ec572d59e",
+        "run_label": "edu-evidence-diverse-master50-20260917-r3-lane-b",
+        "history_path": "evidence-diverse/pr165246.json",
+        "history_sha256": "7dec23118ea7cbda2e6fcb891fa5dab2677745d14f324e8fa8222f6719714fad",
+        "history_bytes": 1243873
+      }
+    },
+    {
+      "issue": "pr165445",
+      "interval_commits": 3324,
+      "interval_source": "run-history",
+      "binary_search_upper_bound": 12,
+      "git_bisect": {
+        "status": "completed",
+        "runner_builds": 14,
+        "skips": 0,
+        "first_bad_commit": "fccc6ee7021811a27ab1303d19407f703853ab92"
+      },
+      "ceg": {
+        "availability": "available",
+        "status": "completed",
+        "runner_builds": 7,
+        "skips": 0,
+        "first_bad_commit": "fccc6ee7021811a27ab1303d19407f703853ab92",
+        "run_label": "edu-ceg-master50-remaining30-latest-r1-lane-a",
+        "history_path": "ceg/pr165445.json",
+        "history_sha256": "f0d461e54a64589a550d425fc5828f436019c61b84573eff86c8af9817ab69fd",
+        "history_bytes": 1430767
+      },
+      "evidence_lm_bisect": {
+        "availability": "no_valid_result",
+        "status": "in_progress",
+        "runner_builds": 0,
+        "skips": 0,
+        "first_bad_commit": null,
+        "run_label": "edu-evidence-diverse-master50-20260917-r3-lane-a",
+        "history_path": null,
+        "latest_invalid_history": "pr165445-model-gpt-5.6-terra-evidence-diverse-calibrated-posterior-obs-trace-only-reasoning-high-edu-evidence-diverse-master50-20260917-r3-lane-a.json"
+      }
+    },
+    {
+      "issue": "pr167514",
+      "interval_commits": 39025,
+      "interval_source": "run-history",
+      "binary_search_upper_bound": 16,
+      "git_bisect": {
+        "status": "completed",
+        "runner_builds": 18,
+        "skips": 0,
+        "first_bad_commit": "fd4f94ddbf0c0f0c9d0185e6036fe51de5ab2ef3"
+      },
+      "ceg": {
+        "availability": "available",
+        "status": "completed",
+        "runner_builds": 8,
+        "skips": 0,
+        "first_bad_commit": "032ad590d6bac76965fac17b9f2ce41e076a5a0a",
+        "run_label": "edu-ceg-master50-remaining30-latest-r1-lane-b",
+        "history_path": "ceg/pr167514.json",
+        "history_sha256": "2cf473326598af603092d804bc40a69d17a19d34e3e53f81c83e1f93a13da559",
+        "history_bytes": 5054091
+      },
+      "evidence_lm_bisect": {
+        "availability": "available",
+        "status": "completed",
+        "runner_builds": 11,
+        "skips": 0,
+        "first_bad_commit": "fd4f94ddbf0c0f0c9d0185e6036fe51de5ab2ef3",
+        "run_label": "edu-evidence-diverse-master50-20260917-r3-lane-a",
+        "history_path": "evidence-diverse/pr167514.json",
+        "history_sha256": "cf301367fc6f0a72fe1a8180a45eaffbaff8687a46cee27b115cc16b6ae11684",
+        "history_bytes": 1684844
+      }
+    },
+    {
+      "issue": "pr168912",
+      "interval_commits": 16108,
+      "interval_source": "run-history",
+      "binary_search_upper_bound": 14,
+      "git_bisect": {
+        "status": "completed",
+        "runner_builds": 17,
+        "skips": 0,
+        "first_bad_commit": "69b4190d5f1b483524f2f539f373960ef8de8d84"
+      },
+      "ceg": {
+        "availability": "available",
+        "status": "completed",
+        "runner_builds": 8,
+        "skips": 0,
+        "first_bad_commit": "69b4190d5f1b483524f2f539f373960ef8de8d84",
+        "run_label": "edu-ceg-master50-remaining30-latest-r1-lane-c",
+        "history_path": "ceg/pr168912.json",
+        "history_sha256": "fdf7d0fa8fcc9cf0874fefe72cb7eb37c0f47fbdd89a012e8d931d7d014cb95b",
+        "history_bytes": 6859369
+      },
+      "evidence_lm_bisect": {
+        "availability": "available",
+        "status": "completed",
+        "runner_builds": 7,
+        "skips": 0,
+        "first_bad_commit": "69b4190d5f1b483524f2f539f373960ef8de8d84",
+        "run_label": "edu-evidence-diverse-master50-20260917-r3-lane-b",
+        "history_path": "evidence-diverse/pr168912.json",
+        "history_sha256": "a2ce5d646eab1de220a9cd4681364b39f634c894d64d0f37532039176d4ccb5b",
+        "history_bytes": 1175015
+      }
+    },
+    {
+      "issue": "pr170421",
+      "interval_commits": 20901,
+      "interval_source": "run-history",
+      "binary_search_upper_bound": 15,
+      "git_bisect": {
+        "status": "completed",
+        "runner_builds": 16,
+        "skips": 0,
+        "first_bad_commit": "97fdc237ddda7565c7c902cc4fc764f73e70686b"
+      },
+      "ceg": {
+        "availability": "available",
+        "status": "completed",
+        "runner_builds": 11,
+        "skips": 0,
+        "first_bad_commit": "97fdc237ddda7565c7c902cc4fc764f73e70686b",
+        "run_label": "edu-ceg-master50-remaining30-latest-r1-lane-a",
+        "history_path": "ceg/pr170421.json",
+        "history_sha256": "fbeb9ca837747ad82a5ca41d834c8784cbc44acc54d04164e5dfbc3cb613354a",
+        "history_bytes": 6386898
+      },
+      "evidence_lm_bisect": {
+        "availability": "no_valid_result",
+        "status": "in_progress",
+        "runner_builds": 0,
+        "skips": 0,
+        "first_bad_commit": null,
+        "run_label": "edu-evidence-diverse-master50-20260917-r3-lane-a",
+        "history_path": null,
+        "latest_invalid_history": "pr170421-model-gpt-5.6-terra-evidence-diverse-calibrated-posterior-obs-trace-only-reasoning-high-edu-evidence-diverse-master50-20260917-r3-lane-a.json"
+      }
+    },
+    {
+      "issue": "pr172195",
+      "interval_commits": 17154,
+      "interval_source": "run-history",
+      "binary_search_upper_bound": 15,
+      "git_bisect": {
+        "status": "completed",
+        "runner_builds": 16,
+        "skips": 1,
+        "first_bad_commit": "e8219e5ce84db26fd521ce5091d18e75c7afbc6a"
+      },
+      "ceg": {
+        "availability": "available",
+        "status": "completed",
+        "runner_builds": 11,
+        "skips": 0,
+        "first_bad_commit": "e8219e5ce84db26fd521ce5091d18e75c7afbc6a",
+        "run_label": "edu-ceg-m50x10-r3-lane-c",
+        "history_path": "ceg/pr172195.json",
+        "history_sha256": "e184180a56a2fa8c19671d54018c0eab8774d32ffcd11452613ebe40c4ad1800",
+        "history_bytes": 3721701
+      },
+      "evidence_lm_bisect": {
+        "availability": "no_valid_result",
+        "status": "in_progress",
+        "runner_builds": 0,
+        "skips": 0,
+        "first_bad_commit": null,
+        "run_label": "edu-evidence-diverse-master50-20260917-r3-lane-b",
+        "history_path": null,
+        "latest_invalid_history": "pr172195-model-gpt-5.6-terra-evidence-diverse-calibrated-posterior-obs-trace-only-reasoning-high-edu-evidence-diverse-master50-20260917-r3-lane-b.json"
+      }
+    },
+    {
+      "issue": "pr173943",
+      "interval_commits": 18926,
+      "interval_source": "run-history",
+      "binary_search_upper_bound": 15,
+      "git_bisect": {
+        "status": "completed",
+        "runner_builds": 17,
+        "skips": 0,
+        "first_bad_commit": "d0223b9ffc40146fb4a948ebfa652dc95499b7ba"
+      },
+      "ceg": {
+        "availability": "available",
+        "status": "completed",
+        "runner_builds": 6,
+        "skips": 0,
+        "first_bad_commit": "d0223b9ffc40146fb4a948ebfa652dc95499b7ba",
+        "run_label": "edu-ceg-master50-remaining30-latest-r1-lane-b",
+        "history_path": "ceg/pr173943.json",
+        "history_sha256": "6f06df108264a4121e87cb3959687b0568247a9d7930a5927258d44e9148e9e2",
+        "history_bytes": 2737661
+      },
+      "evidence_lm_bisect": {
+        "availability": "available",
+        "status": "completed",
+        "runner_builds": 10,
+        "skips": 0,
+        "first_bad_commit": "d0223b9ffc40146fb4a948ebfa652dc95499b7ba",
+        "run_label": "edu-evidence-diverse-master50-20260917-r3-lane-a",
+        "history_path": "evidence-diverse/pr173943.json",
+        "history_sha256": "4185fcf6116eb4dacbf79e4960a175cc134ec9a308f014fc43c149e9c955edd0",
+        "history_bytes": 1409726
+      }
+    },
+    {
+      "issue": "pr190445",
+      "interval_commits": 20547,
+      "interval_source": "run-history",
+      "binary_search_upper_bound": 15,
+      "git_bisect": {
+        "status": "completed",
+        "runner_builds": 16,
+        "skips": 0,
+        "first_bad_commit": "6dc188d4eb15cbe9bdece3d940f03d93b926328c"
+      },
+      "ceg": {
+        "availability": "available",
+        "status": "completed",
+        "runner_builds": 11,
+        "skips": 0,
+        "first_bad_commit": "6dc188d4eb15cbe9bdece3d940f03d93b926328c",
+        "run_label": "edu-ceg-master50-remaining30-latest-r1-lane-c",
+        "history_path": "ceg/pr190445.json",
+        "history_sha256": "6e4647c416ab9dd3f8f5a358a6dd399838597703eeea0b8a28f2f143debeabea",
+        "history_bytes": 4207570
+      },
+      "evidence_lm_bisect": {
+        "availability": "no_valid_result",
+        "status": "in_progress",
+        "runner_builds": 0,
+        "skips": 0,
+        "first_bad_commit": null,
+        "run_label": "edu-evidence-diverse-master50-20260917-r3-lane-a",
+        "history_path": null,
+        "latest_invalid_history": "pr190445-model-gpt-5.6-terra-evidence-diverse-calibrated-posterior-obs-trace-only-reasoning-high-edu-evidence-diverse-master50-20260917-r3-lane-a.json"
+      }
+    },
+    {
+      "issue": "pr192829",
+      "interval_commits": 20611,
+      "interval_source": "run-history",
+      "binary_search_upper_bound": 15,
+      "git_bisect": {
+        "status": "completed",
+        "runner_builds": 12,
+        "skips": 0,
+        "first_bad_commit": "1f67b945ab2164f8f489eca636ccae5f0e58fc8b"
+      },
+      "ceg": {
+        "availability": "available",
+        "status": "completed",
+        "runner_builds": 8,
+        "skips": 0,
+        "first_bad_commit": "1f67b945ab2164f8f489eca636ccae5f0e58fc8b",
+        "run_label": "edu-ceg-m50x10-r3-lane-c",
+        "history_path": "ceg/pr192829.json",
+        "history_sha256": "1bd80063480ae7be4f3c6b74e96ed51ee23c366a21081486ec0d3badb812b922",
+        "history_bytes": 4009048
+      },
+      "evidence_lm_bisect": {
+        "availability": "no_valid_result",
+        "status": "in_progress",
+        "runner_builds": 0,
+        "skips": 0,
+        "first_bad_commit": null,
+        "run_label": "edu-evidence-diverse-master50-20260917-r3-lane-b",
+        "history_path": null,
+        "latest_invalid_history": "pr192829-model-gpt-5.6-terra-evidence-diverse-calibrated-posterior-obs-trace-only-reasoning-high-edu-evidence-diverse-master50-20260917-r3-lane-b.json"
+      }
+    },
+    {
+      "issue": "pr193164",
+      "interval_commits": 12559,
+      "interval_source": "run-history",
+      "binary_search_upper_bound": 14,
+      "git_bisect": {
+        "status": "completed",
+        "runner_builds": 17,
+        "skips": 0,
+        "first_bad_commit": "cac7fe50e0fbedfb14028c170d83386efeb1265b"
+      },
+      "ceg": {
+        "availability": "available",
+        "status": "completed",
+        "runner_builds": 10,
+        "skips": 0,
+        "first_bad_commit": "cac7fe50e0fbedfb14028c170d83386efeb1265b",
+        "run_label": "edu-ceg-master50-leftover-20260918-r1-lane-a",
+        "history_path": "ceg/pr193164.json",
+        "history_sha256": "405a1a281d8439445373964571bf201664ad770c350f4a611e735a15f03edb2a",
+        "history_bytes": 156056078
+      },
+      "evidence_lm_bisect": {
+        "availability": "available",
+        "status": "completed",
+        "runner_builds": 9,
+        "skips": 0,
+        "first_bad_commit": "cac7fe50e0fbedfb14028c170d83386efeb1265b",
+        "run_label": "edu-evidence-diverse-master50-20260917-r3-lane-b",
+        "history_path": "evidence-diverse/pr193164.json",
+        "history_sha256": "bccb8e494ab525d5a7e4c53b8dddeaf7cdc9033cffbfe32ee78d4b1ca3ec8541",
+        "history_bytes": 1310867
+      }
+    },
+    {
+      "issue": "pr194000",
+      "interval_commits": 13464,
+      "interval_source": "run-history",
+      "binary_search_upper_bound": 14,
+      "git_bisect": {
+        "status": "completed",
+        "runner_builds": 16,
+        "skips": 0,
+        "first_bad_commit": "730a07f225ab29c41e7db2e9db99aa619874ff46"
+      },
+      "ceg": {
+        "availability": "available",
+        "status": "completed",
+        "runner_builds": 9,
+        "skips": 0,
+        "first_bad_commit": "730a07f225ab29c41e7db2e9db99aa619874ff46",
+        "run_label": "edu-ceg-master50-remaining30-latest-r1-lane-a",
+        "history_path": "ceg/pr194000.json",
+        "history_sha256": "41df546edaf01901641a5445d91355cbd7f3c2037433017a84fbe7093bd550e3",
+        "history_bytes": 3301921
+      },
+      "evidence_lm_bisect": {
+        "availability": "no_valid_result",
+        "status": "in_progress",
+        "runner_builds": 0,
+        "skips": 0,
+        "first_bad_commit": null,
+        "run_label": "edu-evidence-diverse-master50-20260917-r3-lane-b",
+        "history_path": null,
+        "latest_invalid_history": "pr194000-model-gpt-5.6-terra-evidence-diverse-calibrated-posterior-obs-trace-only-reasoning-high-edu-evidence-diverse-master50-20260917-r3-lane-b.json"
+      }
+    },
+    {
+      "issue": "pr194590",
+      "interval_commits": 14310,
+      "interval_source": "ledger-note",
+      "binary_search_upper_bound": 14,
+      "git_bisect": {
+        "status": "completed",
+        "runner_builds": 17,
+        "skips": 0,
+        "first_bad_commit": "d19e954b83cb497c03cccb0e9874cb9f1a51b18d"
+      },
+      "ceg": {
+        "availability": "available",
+        "status": "completed",
+        "runner_builds": 9,
+        "skips": 0,
+        "first_bad_commit": "d19e954b83cb497c03cccb0e9874cb9f1a51b18d",
+        "run_label": "edu-ceg-master50-remaining30-latest-r1-lane-b",
+        "history_path": "ceg/pr194590.json",
+        "history_sha256": "367f2939b8d53132d0853ce2861dba44d8feb3a1fc9e12ac12640f000c1ee832",
+        "history_bytes": 2408412
+      },
+      "evidence_lm_bisect": {
+        "availability": "available",
+        "status": "completed",
+        "runner_builds": 9,
+        "skips": 1,
+        "first_bad_commit": "d19e954b83cb497c03cccb0e9874cb9f1a51b18d",
+        "run_label": "edu-evidence-diverse-master50-20260917-r3-lane-a",
+        "history_path": "evidence-diverse/pr194590.json",
+        "history_sha256": "028376538580b3d3aa674364070de6d868568b7960766df9fb4482b8961bdcd9",
+        "history_bytes": 1130482
+      }
+    },
+    {
+      "issue": "pr195788",
+      "interval_commits": 149009,
+      "interval_source": "run-history",
+      "binary_search_upper_bound": 18,
+      "git_bisect": {
+        "status": "completed",
+        "runner_builds": 22,
+        "skips": 0,
+        "first_bad_commit": "62116c8f0b5b7aac3d53f1bd2445356ae6866048"
+      },
+      "ceg": {
+        "availability": "available",
+        "status": "completed",
+        "runner_builds": 16,
+        "skips": 0,
+        "first_bad_commit": "62116c8f0b5b7aac3d53f1bd2445356ae6866048",
+        "run_label": "edu-ceg-mixture-highstep-20260917-r2-lane-a",
+        "history_path": "ceg/pr195788.json",
+        "history_sha256": "06618a7d9dd0f9283c8b60842ea5580408248350dff25eed66c0285a7e29666e",
+        "history_bytes": 9756052
+      },
+      "evidence_lm_bisect": {
+        "availability": "available",
+        "status": "completed",
+        "runner_builds": 14,
+        "skips": 0,
+        "first_bad_commit": "62116c8f0b5b7aac3d53f1bd2445356ae6866048",
+        "run_label": "edu-evidence-diverse-master50-20260915-r1-lane-c",
+        "history_path": "evidence-diverse/pr195788.json",
+        "history_sha256": "2fda0c58715f0ac8970cc235f1c9092b6f174ef345d106cc737c6711c7350d42",
+        "history_bytes": 1849162
+      }
+    },
+    {
+      "issue": "pr196244",
+      "interval_commits": 257823,
+      "interval_source": "run-history",
+      "binary_search_upper_bound": 18,
+      "git_bisect": {
+        "status": "completed",
+        "runner_builds": 21,
+        "skips": 0,
+        "first_bad_commit": "d0aa6c58beef0a6663aacba8904e286c1925c572"
+      },
+      "ceg": {
+        "availability": "available",
+        "status": "completed",
+        "runner_builds": 14,
+        "skips": 0,
+        "first_bad_commit": "d0aa6c58beef0a6663aacba8904e286c1925c572",
+        "run_label": "edu-ceg-m50x10-r3-lane-b",
+        "history_path": "ceg/pr196244.json",
+        "history_sha256": "86503bba0be664479a0b8a25dd418bba8792def446f8beb6c10cf83744179b26",
+        "history_bytes": 23971635
+      },
+      "evidence_lm_bisect": {
+        "availability": "available",
+        "status": "completed",
+        "runner_builds": 11,
+        "skips": 0,
+        "first_bad_commit": "d0aa6c58beef0a6663aacba8904e286c1925c572",
+        "run_label": "edu-evidence-diverse-master50-20260915-r1-lane-c",
+        "history_path": "evidence-diverse/pr196244.json",
+        "history_sha256": "b8732725ab6346441fe80e0234f4c029be57a9530567f8b5fd5097d9b8d8f8be",
+        "history_bytes": 1618999
+      }
+    },
+    {
+      "issue": "pr196450",
+      "interval_commits": 59337,
+      "interval_source": "run-history",
+      "binary_search_upper_bound": 16,
+      "git_bisect": {
+        "status": "completed",
+        "runner_builds": 19,
+        "skips": 0,
+        "first_bad_commit": "6e78aef646c22b7087cbf7939c8016f4f59614a1"
+      },
+      "ceg": {
+        "availability": "available",
+        "status": "completed",
+        "runner_builds": 10,
+        "skips": 0,
+        "first_bad_commit": "6e78aef646c22b7087cbf7939c8016f4f59614a1",
+        "run_label": "edu-ceg-master50-remaining30-latest-r1-lane-c",
+        "history_path": "ceg/pr196450.json",
+        "history_sha256": "f5591c9756421a4e92776de50815c2510c8dc36998f51e0ac184ec1721a23d2b",
+        "history_bytes": 6561734
+      },
+      "evidence_lm_bisect": {
+        "availability": "available",
+        "status": "completed",
+        "runner_builds": 9,
+        "skips": 0,
+        "first_bad_commit": "6e78aef646c22b7087cbf7939c8016f4f59614a1",
+        "run_label": "edu-evidence-diverse-master50-20260917-r3-lane-b",
+        "history_path": "evidence-diverse/pr196450.json",
+        "history_sha256": "f4851ec0d7e788612a4eea01d49b8766ff54cb470a31b78f3a870f0700e5fe56",
+        "history_bytes": 1373730
+      }
+    },
+    {
+      "issue": "pr197067",
+      "interval_commits": 54777,
+      "interval_source": "run-history",
+      "binary_search_upper_bound": 16,
+      "git_bisect": {
+        "status": "completed",
+        "runner_builds": 19,
+        "skips": 0,
+        "first_bad_commit": "a9d491b17f4f0a131f68a5dbdac8d34c7c8427db"
+      },
+      "ceg": {
+        "availability": "available",
+        "status": "completed",
+        "runner_builds": 15,
+        "skips": 0,
+        "first_bad_commit": "a9d491b17f4f0a131f68a5dbdac8d34c7c8427db",
+        "run_label": "edu-ceg-master50-remaining30-latest-r1-lane-a",
+        "history_path": "ceg/pr197067.json",
+        "history_sha256": "71828530fa3e71c7049b9df07f1016b623cdd01c1e880cca889e56760a93a383",
+        "history_bytes": 9062024
+      },
+      "evidence_lm_bisect": {
+        "availability": "available",
+        "status": "completed",
+        "runner_builds": 11,
+        "skips": 0,
+        "first_bad_commit": "e04e140adb600add79b414f137a13af9d89c8c0d",
+        "run_label": "edu-evidence-diverse-master50-20260917-r3-lane-a",
+        "history_path": "evidence-diverse/pr197067.json",
+        "history_sha256": "f4cc4b40e2758647ada3c4e275a9a668bf92ef1ef20dc8b845983a2cdbdfdf06",
+        "history_bytes": 1654626
+      }
+    },
+    {
+      "issue": "pr197797",
+      "interval_commits": 15071,
+      "interval_source": "run-history",
+      "binary_search_upper_bound": 14,
+      "git_bisect": {
+        "status": "completed",
+        "runner_builds": 17,
+        "skips": 0,
+        "first_bad_commit": "fb024337497f4c158ea16bfb90e50138d9a2a0c6"
+      },
+      "ceg": {
+        "availability": "available",
+        "status": "completed",
+        "runner_builds": 9,
+        "skips": 0,
+        "first_bad_commit": "fb024337497f4c158ea16bfb90e50138d9a2a0c6",
+        "run_label": "edu-ceg-m50x10-r3-lane-b",
+        "history_path": "ceg/pr197797.json",
+        "history_sha256": "d9d4e83c1b2cccf453e35691c99fa75e07640035fabeb5d4a49aefea4bc4bae5",
+        "history_bytes": 4924368
+      },
+      "evidence_lm_bisect": {
+        "availability": "available",
+        "status": "completed",
+        "runner_builds": 9,
+        "skips": 0,
+        "first_bad_commit": "fb024337497f4c158ea16bfb90e50138d9a2a0c6",
+        "run_label": "edu-evidence-diverse-master50-20260917-r3-lane-b",
+        "history_path": "evidence-diverse/pr197797.json",
+        "history_sha256": "3f5ee85807caa3f7faad1a147b7c568731bffbe5d1571e8d1716a39b2727bba6",
+        "history_bytes": 1198316
+      }
+    },
+    {
+      "issue": "pr198257",
+      "interval_commits": 15737,
+      "interval_source": "run-history",
+      "binary_search_upper_bound": 14,
+      "git_bisect": {
+        "status": "completed",
+        "runner_builds": 17,
+        "skips": 0,
+        "first_bad_commit": "f612211116e1234a1ffc36c64aa662c0a462eac4"
+      },
+      "ceg": {
+        "availability": "available",
+        "status": "completed",
+        "runner_builds": 10,
+        "skips": 0,
+        "first_bad_commit": "f612211116e1234a1ffc36c64aa662c0a462eac4",
+        "run_label": "edu-ceg-m50x10-r3-lane-a",
+        "history_path": "ceg/pr198257.json",
+        "history_sha256": "8667eb24750b967aaa5a971cccec183d72ec726b850305a7f4f1d59b11710d77",
+        "history_bytes": 3485329
+      },
+      "evidence_lm_bisect": {
+        "availability": "available",
+        "status": "completed",
+        "runner_builds": 8,
+        "skips": 0,
+        "first_bad_commit": "f612211116e1234a1ffc36c64aa662c0a462eac4",
+        "run_label": "edu-evidence-diverse-master50-20260917-r3-lane-a",
+        "history_path": "evidence-diverse/pr198257.json",
+        "history_sha256": "a0b7e273225e11843d32beca6ef8843717f323c40fefb95bc972fc73afbd4e40",
+        "history_bytes": 1267099
+      }
+    },
+    {
+      "issue": "pr198339",
+      "interval_commits": 17909,
+      "interval_source": "run-history",
+      "binary_search_upper_bound": 15,
+      "git_bisect": {
+        "status": "completed",
+        "runner_builds": 17,
+        "skips": 0,
+        "first_bad_commit": "f478220dd06278c6ee725db710eb587ca80130d2"
+      },
+      "ceg": {
+        "availability": "available",
+        "status": "completed",
+        "runner_builds": 6,
+        "skips": 0,
+        "first_bad_commit": "f478220dd06278c6ee725db710eb587ca80130d2",
+        "run_label": "edu-ceg-master50-remaining30-latest-r1-lane-b",
+        "history_path": "ceg/pr198339.json",
+        "history_sha256": "948ba6a420be32b51cec192557e15ee1402d7bac356d551cc71ced0ca61f5019",
+        "history_bytes": 3921327
+      },
+      "evidence_lm_bisect": {
+        "availability": "available",
+        "status": "completed",
+        "runner_builds": 8,
+        "skips": 0,
+        "first_bad_commit": "f478220dd06278c6ee725db710eb587ca80130d2",
+        "run_label": "edu-evidence-diverse-master50-20260917-r3-lane-b",
+        "history_path": "evidence-diverse/pr198339.json",
+        "history_sha256": "f2089a9a3d1a8ef2bbc3fb01c804ead34efbd3e73b52898f4152a9707c248660",
+        "history_bytes": 1160190
+      }
+    },
+    {
+      "issue": "pr199162",
+      "interval_commits": 94428,
+      "interval_source": "run-history",
+      "binary_search_upper_bound": 17,
+      "git_bisect": {
+        "status": "non_clean",
+        "runner_builds": null,
+        "skips": 24,
+        "first_bad_commit": "5e924fa7640041f7081deed9787dc10d8007e7f9"
+      },
+      "ceg": {
+        "availability": "no_valid_result",
+        "status": "in_progress",
+        "runner_builds": 0,
+        "skips": 0,
+        "first_bad_commit": null,
+        "run_label": "edu-ceg-master50-remaining2-20260921-r1-lane-b",
+        "history_path": null,
+        "latest_invalid_history": "pr199162-model-gpt-5.6-terra-causal-evidence-guided-obs-trace-only-reasoning-high-edu-ceg-master50-remaining2-20260921-r1-lane-b.json"
+      },
+      "evidence_lm_bisect": {
+        "availability": "available",
+        "status": "completed",
+        "runner_builds": 24,
+        "skips": 13,
+        "first_bad_commit": "5e924fa7640041f7081deed9787dc10d8007e7f9",
+        "run_label": "edu-evidence-diverse-master50-20260915-r1-lane-a",
+        "history_path": "evidence-diverse/pr199162.json",
+        "history_sha256": "d045406c54090156c2f3b6258364185fe0e98fe0763536511dce370c13fb0ea1",
+        "history_bytes": 3511898
+      }
+    },
+    {
+      "issue": "pr199526",
+      "interval_commits": 16925,
+      "interval_source": "run-history",
+      "binary_search_upper_bound": 15,
+      "git_bisect": {
+        "status": "completed",
+        "runner_builds": 17,
+        "skips": 0,
+        "first_bad_commit": "291e4e97777d707079f5fe14326649cfc1eb8337"
+      },
+      "ceg": {
+        "availability": "no_valid_result",
+        "status": "in_progress",
+        "runner_builds": 7,
+        "skips": 0,
+        "first_bad_commit": null,
+        "run_label": "edu-ceg-master50-repair-20260921-r2-lane-a",
+        "history_path": null,
+        "latest_invalid_history": "pr199526-model-gpt-5.6-terra-causal-evidence-guided-obs-trace-only-reasoning-high-edu-ceg-master50-repair-20260921-r2-lane-a.json"
+      },
+      "evidence_lm_bisect": {
+        "availability": "no_valid_result",
+        "status": "in_progress",
+        "runner_builds": 0,
+        "skips": 0,
+        "first_bad_commit": null,
+        "run_label": "edu-evidence-diverse-master50-20260917-r3-lane-a",
+        "history_path": null,
+        "latest_invalid_history": "pr199526-model-gpt-5.6-terra-evidence-diverse-calibrated-posterior-obs-trace-only-reasoning-high-edu-evidence-diverse-master50-20260917-r3-lane-a.json"
+      }
+    },
+    {
+      "issue": "pr200330",
+      "interval_commits": 17282,
+      "interval_source": "run-history",
+      "binary_search_upper_bound": 15,
+      "git_bisect": {
+        "status": "completed",
+        "runner_builds": 17,
+        "skips": 0,
+        "first_bad_commit": "a63eacee2db2c6ea75c67aca729cc3d32426200b"
+      },
+      "ceg": {
+        "availability": "available",
+        "status": "completed",
+        "runner_builds": 8,
+        "skips": 0,
+        "first_bad_commit": "a63eacee2db2c6ea75c67aca729cc3d32426200b",
+        "run_label": "edu-ceg-master50-remaining30-latest-r1-lane-b",
+        "history_path": "ceg/pr200330.json",
+        "history_sha256": "388a5a6fd8d0f2f6075a9afada85479848a19bab3b084ac109d66313ad669aa7",
+        "history_bytes": 3671832
+      },
+      "evidence_lm_bisect": {
+        "availability": "available",
+        "status": "completed",
+        "runner_builds": 16,
+        "skips": 0,
+        "first_bad_commit": "a63eacee2db2c6ea75c67aca729cc3d32426200b",
+        "run_label": "edu-evidence-diverse-master50-20260917-r3-lane-b",
+        "history_path": "evidence-diverse/pr200330.json",
+        "history_sha256": "3850dc568aee66b586a79747212891576f09b22d8ac54bfaad41b22eb967cadc",
+        "history_bytes": 2223977
+      }
+    },
+    {
+      "issue": "pr200648",
+      "interval_commits": 20547,
+      "interval_source": "run-history",
+      "binary_search_upper_bound": 15,
+      "git_bisect": {
+        "status": "completed",
+        "runner_builds": 18,
+        "skips": 0,
+        "first_bad_commit": "525e68e9e9a44e88eb88ef2d6f058a482972c989"
+      },
+      "ceg": {
+        "availability": "available",
+        "status": "completed",
+        "runner_builds": 14,
+        "skips": 0,
+        "first_bad_commit": "525e68e9e9a44e88eb88ef2d6f058a482972c989",
+        "run_label": "edu-ceg-master50-remaining30-latest-r1-lane-c",
+        "history_path": "ceg/pr200648.json",
+        "history_sha256": "66bc4b5cb48c34772b7661fac865cd543ac5406412de968767074ae3d011c086",
+        "history_bytes": 4765968
+      },
+      "evidence_lm_bisect": {
+        "availability": "available",
+        "status": "completed",
+        "runner_builds": 9,
+        "skips": 0,
+        "first_bad_commit": "525e68e9e9a44e88eb88ef2d6f058a482972c989",
+        "run_label": "edu-evidence-diverse-master50-20260917-r3-lane-b",
+        "history_path": "evidence-diverse/pr200648.json",
+        "history_sha256": "5662e2b9c651d94f3ab4ed5f6e0a0e3df7f32b506ee0ffcab6272dc5a5abda58",
+        "history_bytes": 1309371
+      }
+    },
+    {
+      "issue": "pr200742",
+      "interval_commits": 17299,
+      "interval_source": "run-history",
+      "binary_search_upper_bound": 15,
+      "git_bisect": {
+        "status": "completed",
+        "runner_builds": 17,
+        "skips": 0,
+        "first_bad_commit": "f612211116e1234a1ffc36c64aa662c0a462eac4"
+      },
+      "ceg": {
+        "availability": "available",
+        "status": "completed",
+        "runner_builds": 11,
+        "skips": 0,
+        "first_bad_commit": "f612211116e1234a1ffc36c64aa662c0a462eac4",
+        "run_label": "edu-ceg-m50x10-r3-lane-b",
+        "history_path": "ceg/pr200742.json",
+        "history_sha256": "56cab8dba8acf0d82053c3692d36ce116c551bdb0186ad871643871fb1e37d3d",
+        "history_bytes": 9539836
+      },
+      "evidence_lm_bisect": {
+        "availability": "available",
+        "status": "completed",
+        "runner_builds": 10,
+        "skips": 0,
+        "first_bad_commit": "f612211116e1234a1ffc36c64aa662c0a462eac4",
+        "run_label": "edu-evidence-diverse-master50-20260917-r3-lane-a",
+        "history_path": "evidence-diverse/pr200742.json",
+        "history_sha256": "b04593f09b1e33c2b819e3519a0b0d90fd9a224cfbd93a0d58ca83fbab7dd6b9",
+        "history_bytes": 1608278
+      }
+    },
+    {
+      "issue": "pr200987",
+      "interval_commits": 133662,
+      "interval_source": "run-history",
+      "binary_search_upper_bound": 18,
+      "git_bisect": {
+        "status": "completed",
+        "runner_builds": 20,
+        "skips": 0,
+        "first_bad_commit": "329ef60f3e21fd6845e8e8b0da405cae7eb27267"
+      },
+      "ceg": {
+        "availability": "available",
+        "status": "completed",
+        "runner_builds": 14,
+        "skips": 0,
+        "first_bad_commit": "329ef60f3e21fd6845e8e8b0da405cae7eb27267",
+        "run_label": "edu-ceg-master50-scoped10-latest-r1-lane-c",
+        "history_path": "ceg/pr200987.json",
+        "history_sha256": "f60715bb9d1c4dd88c7ca9e9df052340815abbfb95f11e0f43e61c627f3c9438",
+        "history_bytes": 12569196
+      },
+      "evidence_lm_bisect": {
+        "availability": "available",
+        "status": "completed",
+        "runner_builds": 12,
+        "skips": 0,
+        "first_bad_commit": "329ef60f3e21fd6845e8e8b0da405cae7eb27267",
+        "run_label": "edu-evidence-diverse-master50-20260915-r1-lane-b",
+        "history_path": "evidence-diverse/pr200987.json",
+        "history_sha256": "7e7c9dbf47f7b8c1411cefe7e8340531b16101d9f22d4d18b28fb5549a29fbf0",
+        "history_bytes": 1596180
+      }
+    },
+    {
+      "issue": "pr201444",
+      "interval_commits": 17742,
+      "interval_source": "run-history",
+      "binary_search_upper_bound": 15,
+      "git_bisect": {
+        "status": "completed",
+        "runner_builds": 17,
+        "skips": 0,
+        "first_bad_commit": "6bcdd843e302063c4f0d36204686155149a6bb0a"
+      },
+      "ceg": {
+        "availability": "available",
+        "status": "completed",
+        "runner_builds": 7,
+        "skips": 0,
+        "first_bad_commit": "6bcdd843e302063c4f0d36204686155149a6bb0a",
+        "run_label": "edu-ceg-master50-scoped10-latest-r1-lane-b",
+        "history_path": "ceg/pr201444.json",
+        "history_sha256": "d500dba1a9c1794d099b4c1f4ddd83dafa6f2901c89a161f9dcb2632414e74b2",
+        "history_bytes": 4580424
+      },
+      "evidence_lm_bisect": {
+        "availability": "available",
+        "status": "completed",
+        "runner_builds": 9,
+        "skips": 0,
+        "first_bad_commit": "6bcdd843e302063c4f0d36204686155149a6bb0a",
+        "run_label": "edu-evidence-diverse-master50-20260917-r3-lane-b",
+        "history_path": "evidence-diverse/pr201444.json",
+        "history_sha256": "74e105e248a436aef2c1610aec5be80d6ec61abbb6327a3ccbcc43ec6d2a832a",
+        "history_bytes": 1556168
+      }
+    },
+    {
+      "issue": "pr201855",
+      "interval_commits": 17911,
+      "interval_source": "run-history",
+      "binary_search_upper_bound": 15,
+      "git_bisect": {
+        "status": "completed",
+        "runner_builds": 17,
+        "skips": 0,
+        "first_bad_commit": "c095488da4586f4d98c13f9793088b444e686a4a"
+      },
+      "ceg": {
+        "availability": "available",
+        "status": "completed",
+        "runner_builds": 9,
+        "skips": 0,
+        "first_bad_commit": "c095488da4586f4d98c13f9793088b444e686a4a",
+        "run_label": "edu-ceg-master50-remaining30-latest-r1-lane-a",
+        "history_path": "ceg/pr201855.json",
+        "history_sha256": "05fe51e4c5f0e9680348872161ff5431f1576b8ced912577f4e7aa027ea12625",
+        "history_bytes": 4537465
+      },
+      "evidence_lm_bisect": {
+        "availability": "available",
+        "status": "completed",
+        "runner_builds": 9,
+        "skips": 0,
+        "first_bad_commit": "c095488da4586f4d98c13f9793088b444e686a4a",
+        "run_label": "edu-evidence-diverse-master50-20260917-r3-lane-a",
+        "history_path": "evidence-diverse/pr201855.json",
+        "history_sha256": "46336ebb34e184f252290da563f986e7d0ac344575f0f5debe8756b303aed226",
+        "history_bytes": 1312006
+      }
+    },
+    {
+      "issue": "pr202003",
+      "interval_commits": 18188,
+      "interval_source": "run-history",
+      "binary_search_upper_bound": 15,
+      "git_bisect": {
+        "status": "completed",
+        "runner_builds": 18,
+        "skips": 0,
+        "first_bad_commit": "be529fc55f2fd365855a3971f2b919bd0c4d18dc"
+      },
+      "ceg": {
+        "availability": "available",
+        "status": "completed",
+        "runner_builds": 10,
+        "skips": 0,
+        "first_bad_commit": "be529fc55f2fd365855a3971f2b919bd0c4d18dc",
+        "run_label": "edu-ceg-master50-remaining30-latest-r1-lane-b",
+        "history_path": "ceg/pr202003.json",
+        "history_sha256": "a59182f2ee9aecd621611776452892c03ffb66a49afd94503f7c5bf5842075f2",
+        "history_bytes": 6217418
+      },
+      "evidence_lm_bisect": {
+        "availability": "available",
+        "status": "completed",
+        "runner_builds": 11,
+        "skips": 0,
+        "first_bad_commit": "be529fc55f2fd365855a3971f2b919bd0c4d18dc",
+        "run_label": "edu-evidence-diverse-master50-20260917-r3-lane-a",
+        "history_path": "evidence-diverse/pr202003.json",
+        "history_sha256": "cb016b53782ca0969d28e8f207d6c69ecb033879c99f980aa712c644f5d4f640",
+        "history_bytes": 1407610
+      }
+    },
+    {
+      "issue": "pr202043",
+      "interval_commits": 18515,
+      "interval_source": "run-history",
+      "binary_search_upper_bound": 15,
+      "git_bisect": {
+        "status": "completed",
+        "runner_builds": 18,
+        "skips": 0,
+        "first_bad_commit": "3064291c9f54dff3416145b06bd31cc38211da1d"
+      },
+      "ceg": {
+        "availability": "available",
+        "status": "completed",
+        "runner_builds": 9,
+        "skips": 0,
+        "first_bad_commit": "b74e1bca6d77b3de5c05822d1631006ce2a30cc6",
+        "run_label": "edu-ceg-master50-remaining30-latest-r1-lane-c",
+        "history_path": "ceg/pr202043.json",
+        "history_sha256": "a8e4b6207a200c4eb45ba84ff4d3b82245e17086d133468057512e8461d99023",
+        "history_bytes": 4327055
+      },
+      "evidence_lm_bisect": {
+        "availability": "available",
+        "status": "completed",
+        "runner_builds": 10,
+        "skips": 0,
+        "first_bad_commit": "b74e1bca6d77b3de5c05822d1631006ce2a30cc6",
+        "run_label": "edu-evidence-diverse-master50-20260917-r3-lane-b",
+        "history_path": "evidence-diverse/pr202043.json",
+        "history_sha256": "f540fdd26c3211b209a5b74ec9e322eb823a71f847398bf5c30885ebc378a485",
+        "history_bytes": 1550493
+      }
+    },
+    {
+      "issue": "pr202343",
+      "interval_commits": 19519,
+      "interval_source": "run-history",
+      "binary_search_upper_bound": 15,
+      "git_bisect": {
+        "status": "completed",
+        "runner_builds": 13,
+        "skips": 1,
+        "first_bad_commit": "2071ea24a27c7009feac699e3e70ee50f185134f"
+      },
+      "ceg": {
+        "availability": "available",
+        "status": "completed",
+        "runner_builds": 12,
+        "skips": 0,
+        "first_bad_commit": "2071ea24a27c7009feac699e3e70ee50f185134f",
+        "run_label": "edu-ceg-m50x10-r3-lane-c",
+        "history_path": "ceg/pr202343.json",
+        "history_sha256": "d59099024ab33b964f1f58a0b769afc373d18d8c268c10979ca3b1c9d6195555",
+        "history_bytes": 4896702
+      },
+      "evidence_lm_bisect": {
+        "availability": "no_valid_result",
+        "status": "in_progress",
+        "runner_builds": 0,
+        "skips": 0,
+        "first_bad_commit": null,
+        "run_label": "edu-evidence-diverse-master50-20260917-r3-lane-a",
+        "history_path": null,
+        "latest_invalid_history": "pr202343-model-gpt-5.6-terra-evidence-diverse-calibrated-posterior-obs-trace-only-reasoning-high-edu-evidence-diverse-master50-20260917-r3-lane-a.json"
+      }
+    },
+    {
+      "issue": "pr203261",
+      "interval_commits": 20547,
+      "interval_source": "run-history",
+      "binary_search_upper_bound": 15,
+      "git_bisect": {
+        "status": "completed",
+        "runner_builds": 18,
+        "skips": 0,
+        "first_bad_commit": "89ce8718be80ead58ef5942d2d5052a528e79fee"
+      },
+      "ceg": {
+        "availability": "available",
+        "status": "completed",
+        "runner_builds": 11,
+        "skips": 0,
+        "first_bad_commit": "89ce8718be80ead58ef5942d2d5052a528e79fee",
+        "run_label": "edu-ceg-master50-remaining30-latest-r1-lane-a",
+        "history_path": "ceg/pr203261.json",
+        "history_sha256": "182187e28761160bd0019dc8b693fa08e6365a036d8a98c24e6c5de3680a3314",
+        "history_bytes": 3725687
+      },
+      "evidence_lm_bisect": {
+        "availability": "available",
+        "status": "completed",
+        "runner_builds": 11,
+        "skips": 0,
+        "first_bad_commit": "89ce8718be80ead58ef5942d2d5052a528e79fee",
+        "run_label": "edu-evidence-diverse-master50-20260917-r3-lane-a",
+        "history_path": "evidence-diverse/pr203261.json",
+        "history_sha256": "658902ac938797479227bdd008423fb19109778c5795a185c7d270a9546371c0",
+        "history_bytes": 1723267
+      }
+    },
+    {
+      "issue": "pr203278",
+      "interval_commits": 59337,
+      "interval_source": "run-history",
+      "binary_search_upper_bound": 16,
+      "git_bisect": {
+        "status": "completed",
+        "runner_builds": 19,
+        "skips": 0,
+        "first_bad_commit": "43b88851cefe68645aa59b1fccc8390a8a31f469"
+      },
+      "ceg": {
+        "availability": "available",
+        "status": "completed",
+        "runner_builds": 10,
+        "skips": 0,
+        "first_bad_commit": "43b88851cefe68645aa59b1fccc8390a8a31f469",
+        "run_label": "edu-ceg-master50-remaining30-latest-r1-lane-b",
+        "history_path": "ceg/pr203278.json",
+        "history_sha256": "c2d85de51acce3439ef1373eac3e2dec7404e1b62d1e555ed00cb15e5255bd98",
+        "history_bytes": 7330690
+      },
+      "evidence_lm_bisect": {
+        "availability": "available",
+        "status": "completed",
+        "runner_builds": 9,
+        "skips": 0,
+        "first_bad_commit": "e0d173d44161bf9b68243845666d58999e74f759",
+        "run_label": "edu-evidence-diverse-master50-20260917-r3-lane-b",
+        "history_path": "evidence-diverse/pr203278.json",
+        "history_sha256": "70115d9e743016c410dbd7a2630d73e30d1f62406857c106c0ff7ea63c95304d",
+        "history_bytes": 1317963
+      }
+    },
+    {
+      "issue": "pr203519",
+      "interval_commits": 40316,
+      "interval_source": "ledger-note",
+      "binary_search_upper_bound": 16,
+      "git_bisect": {
+        "status": "completed",
+        "runner_builds": 19,
+        "skips": 0,
+        "first_bad_commit": "a460c8e8dafc28fef240fce44dcbed043fe56a71"
+      },
+      "ceg": {
+        "availability": "available",
+        "status": "completed",
+        "runner_builds": 8,
+        "skips": 0,
+        "first_bad_commit": "a460c8e8dafc28fef240fce44dcbed043fe56a71",
+        "run_label": "edu-ceg-master50-remaining30-latest-r1-lane-c",
+        "history_path": "ceg/pr203519.json",
+        "history_sha256": "df89f383b0cf2fc1d9b64ca8c4283d7549c8dbea76e6139f8d625e847aade060",
+        "history_bytes": 5742434
+      },
+      "evidence_lm_bisect": {
+        "availability": "available",
+        "status": "completed",
+        "runner_builds": 13,
+        "skips": 0,
+        "first_bad_commit": "a460c8e8dafc28fef240fce44dcbed043fe56a71",
+        "run_label": "edu-evidence-diverse-master50-20260917-r3-lane-a",
+        "history_path": "evidence-diverse/pr203519.json",
+        "history_sha256": "284993d06fc4adca72402f41d5e764bf16030ffd22a35482c0dff3a470140926",
+        "history_bytes": 1722481
+      }
+    },
+    {
+      "issue": "pr204178",
+      "interval_commits": 18751,
+      "interval_source": "run-history",
+      "binary_search_upper_bound": 15,
+      "git_bisect": {
+        "status": "non_clean",
+        "runner_builds": 18,
+        "skips": 1,
+        "first_bad_commit": "1aadd4766e97b80ba8e907e26603150c1238cf35"
+      },
+      "ceg": {
+        "availability": "available",
+        "status": "completed",
+        "runner_builds": 19,
+        "skips": 3,
+        "first_bad_commit": "1aadd4766e97b80ba8e907e26603150c1238cf35",
+        "run_label": "edu-ceg-master50-remaining30-latest-r1-lane-a",
+        "history_path": "ceg/pr204178.json",
+        "history_sha256": "6f1f6c6dd1616593a029eac95dadbc7bac279d7e145f83a2c7a5e56f557f5006",
+        "history_bytes": 5233355
+      },
+      "evidence_lm_bisect": {
+        "availability": "available",
+        "status": "completed",
+        "runner_builds": 16,
+        "skips": 1,
+        "first_bad_commit": "1aadd4766e97b80ba8e907e26603150c1238cf35",
+        "run_label": "edu-evidence-diverse-master50-20260917-r3-lane-b",
+        "history_path": "evidence-diverse/pr204178.json",
+        "history_sha256": "cca5d551aaff93ff286b5ea2ddb386537933e143cd3d5ec73b4ab40b0306706b",
+        "history_bytes": 1798957
+      }
+    },
+    {
+      "issue": "pr204559",
+      "interval_commits": 19791,
+      "interval_source": "run-history",
+      "binary_search_upper_bound": 15,
+      "git_bisect": {
+        "status": "completed",
+        "runner_builds": 17,
+        "skips": 0,
+        "first_bad_commit": "5a5d0fb1e471b3a1e842aee1f993e885c8d19713"
+      },
+      "ceg": {
+        "availability": "available",
+        "status": "completed",
+        "runner_builds": 9,
+        "skips": 0,
+        "first_bad_commit": "5a5d0fb1e471b3a1e842aee1f993e885c8d19713",
+        "run_label": "edu-ceg-master50-scoped10-latest-r1-lane-a",
+        "history_path": "ceg/pr204559.json",
+        "history_sha256": "400716e9113c75fc43fa973b23e11b61a431bfbc1a8e167c130aa0adb0b0e096",
+        "history_bytes": 22197485
+      },
+      "evidence_lm_bisect": {
+        "availability": "no_valid_result",
+        "status": "in_progress",
+        "runner_builds": 2,
+        "skips": 0,
+        "first_bad_commit": null,
+        "run_label": "edu-evidence-diverse-master50-20260917-r3-lane-b",
+        "history_path": null,
+        "latest_invalid_history": "pr204559-model-gpt-5.6-terra-evidence-diverse-calibrated-posterior-obs-trace-only-reasoning-high-edu-evidence-diverse-master50-20260917-r3-lane-b.json"
+      }
+    },
+    {
+      "issue": "pr204561",
+      "interval_commits": 20034,
+      "interval_source": "run-history",
+      "binary_search_upper_bound": 15,
+      "git_bisect": {
+        "status": "completed",
+        "runner_builds": 18,
+        "skips": 0,
+        "first_bad_commit": "f505ceabdd2339f078cd6886d3f52cc622abd5c9"
+      },
+      "ceg": {
+        "availability": "available",
+        "status": "completed",
+        "runner_builds": 5,
+        "skips": 0,
+        "first_bad_commit": "f505ceabdd2339f078cd6886d3f52cc622abd5c9",
+        "run_label": "edu-ceg-master50-remaining30-latest-r1-lane-b",
+        "history_path": "ceg/pr204561.json",
+        "history_sha256": "da1363039906d6ab9340f941ebeb8ee8f34e359cc663b542acf0909e0ad9abdd",
+        "history_bytes": 2414244
+      },
+      "evidence_lm_bisect": {
+        "availability": "available",
+        "status": "completed",
+        "runner_builds": 12,
+        "skips": 0,
+        "first_bad_commit": "f505ceabdd2339f078cd6886d3f52cc622abd5c9",
+        "run_label": "edu-evidence-diverse-master50-20260917-r3-lane-a",
+        "history_path": "evidence-diverse/pr204561.json",
+        "history_sha256": "029bbea2cb8f0d38537504bf623468a969fb46b0ea28bc0ce19040bf05118214",
+        "history_bytes": 1945492
+      }
+    },
+    {
+      "issue": "pr204589",
+      "interval_commits": 19791,
+      "interval_source": "run-history",
+      "binary_search_upper_bound": 15,
+      "git_bisect": {
+        "status": "completed",
+        "runner_builds": 17,
+        "skips": 0,
+        "first_bad_commit": "5a5d0fb1e471b3a1e842aee1f993e885c8d19713"
+      },
+      "ceg": {
+        "availability": "no_valid_result",
+        "status": "in_progress",
+        "runner_builds": 0,
+        "skips": 0,
+        "first_bad_commit": null,
+        "run_label": "edu-ceg-master50-remaining2-20260921-r1-lane-a",
+        "history_path": null,
+        "latest_invalid_history": "pr204589-model-gpt-5.6-terra-causal-evidence-guided-obs-trace-only-reasoning-high-edu-ceg-master50-remaining2-20260921-r1-lane-a.json"
+      },
+      "evidence_lm_bisect": {
+        "availability": "no_valid_result",
+        "status": "in_progress",
+        "runner_builds": 4,
+        "skips": 0,
+        "first_bad_commit": null,
+        "run_label": "edu-evidence-diverse-master50-20260917-r3-lane-a",
+        "history_path": null,
+        "latest_invalid_history": "pr204589-model-gpt-5.6-terra-evidence-diverse-calibrated-posterior-obs-trace-only-reasoning-high-edu-evidence-diverse-master50-20260917-r3-lane-a.json"
+      }
+    },
+    {
+      "issue": "pr205971",
+      "interval_commits": 17954,
+      "interval_source": "run-history",
+      "binary_search_upper_bound": 15,
+      "git_bisect": {
+        "status": "completed",
+        "runner_builds": 17,
+        "skips": 0,
+        "first_bad_commit": "f505ceabdd2339f078cd6886d3f52cc622abd5c9"
+      },
+      "ceg": {
+        "availability": "available",
+        "status": "completed",
+        "runner_builds": 6,
+        "skips": 1,
+        "first_bad_commit": "f505ceabdd2339f078cd6886d3f52cc622abd5c9",
+        "run_label": "edu-ceg-master50-remaining30-latest-r1-lane-c",
+        "history_path": "ceg/pr205971.json",
+        "history_sha256": "1345e58ee8454a6c0bf8e43abef0cebc37dc7b2ca30a8b5a7e4b146298611520",
+        "history_bytes": 2333041
+      },
+      "evidence_lm_bisect": {
+        "availability": "no_valid_result",
+        "status": "in_progress",
+        "runner_builds": 0,
+        "skips": 0,
+        "first_bad_commit": null,
+        "run_label": "edu-evidence-diverse-master50-20260917-r3-lane-b",
+        "history_path": null,
+        "latest_invalid_history": "pr205971-model-gpt-5.6-terra-evidence-diverse-calibrated-posterior-obs-trace-only-reasoning-high-edu-evidence-diverse-master50-20260917-r3-lane-b.json"
+      }
+    },
+    {
+      "issue": "pr206007",
+      "interval_commits": 17954,
+      "interval_source": "run-history",
+      "binary_search_upper_bound": 15,
+      "git_bisect": {
+        "status": "completed",
+        "runner_builds": 17,
+        "skips": 0,
+        "first_bad_commit": "ffffe9c1696ad3ca59d9783e7511b16f41e4c3ae"
+      },
+      "ceg": {
+        "availability": "available",
+        "status": "completed",
+        "runner_builds": 13,
+        "skips": 0,
+        "first_bad_commit": "ffffe9c1696ad3ca59d9783e7511b16f41e4c3ae",
+        "run_label": "edu-ceg-master50-remaining30-latest-r1-lane-a",
+        "history_path": "ceg/pr206007.json",
+        "history_sha256": "c75e0609c68e1b6a5d105dc5d367868cbc162079141a2951971ea982be374924",
+        "history_bytes": 23149983
+      },
+      "evidence_lm_bisect": {
+        "availability": "no_valid_result",
+        "status": "in_progress",
+        "runner_builds": 0,
+        "skips": 0,
+        "first_bad_commit": null,
+        "run_label": "edu-evidence-diverse-master50-20260917-r3-lane-a",
+        "history_path": null,
+        "latest_invalid_history": "pr206007-model-gpt-5.6-terra-evidence-diverse-calibrated-posterior-obs-trace-only-reasoning-high-edu-evidence-diverse-master50-20260917-r3-lane-a.json"
+      }
+    },
+    {
+      "issue": "pr48154",
+      "interval_commits": 17273,
+      "interval_source": "run-history",
+      "binary_search_upper_bound": 15,
+      "git_bisect": {
+        "status": "completed",
+        "runner_builds": 17,
+        "skips": 0,
+        "first_bad_commit": "20e989e9de6abcf9a684978a2688acc4ea01036f"
+      },
+      "ceg": {
+        "availability": "available",
+        "status": "completed",
+        "runner_builds": 14,
+        "skips": 0,
+        "first_bad_commit": "20e989e9de6abcf9a684978a2688acc4ea01036f",
+        "run_label": "edu-ceg-master50-leftover-20260918-r1-lane-a",
+        "history_path": "ceg/pr48154.json",
+        "history_sha256": "9574515fc624e2833281617ca14831b7535b315109d7f27978e0092d39a7fcb8",
+        "history_bytes": 26736919
+      },
+      "evidence_lm_bisect": {
+        "availability": "no_valid_result",
+        "status": "in_progress",
+        "runner_builds": 0,
+        "skips": 0,
+        "first_bad_commit": null,
+        "run_label": "edu-evidence-diverse-master50-20260917-r3-lane-b",
+        "history_path": null,
+        "latest_invalid_history": "pr48154-model-gpt-5.6-terra-evidence-diverse-calibrated-posterior-obs-trace-only-reasoning-high-edu-evidence-diverse-master50-20260917-r3-lane-b.json"
+      }
+    },
+    {
+      "issue": "pr49535",
+      "interval_commits": 9089,
+      "interval_source": "run-history",
+      "binary_search_upper_bound": 14,
+      "git_bisect": {
+        "status": "completed",
+        "runner_builds": 16,
+        "skips": 0,
+        "first_bad_commit": "6792e26c0d0f2260f1e12693382e184f5ea1966f;"
+      },
+      "ceg": {
+        "availability": "available",
+        "status": "completed",
+        "runner_builds": 6,
+        "skips": 0,
+        "first_bad_commit": "6792e26c0d0f2260f1e12693382e184f5ea1966f",
+        "run_label": "edu-ceg-master50-scoped10-latest-r1-lane-c",
+        "history_path": "ceg/pr49535.json",
+        "history_sha256": "a0aad7beaceeff58aacdfe00fa67814294a09cab0385368db2579fbb078f3b36",
+        "history_bytes": 2011494
+      },
+      "evidence_lm_bisect": {
+        "availability": "no_valid_result",
+        "status": "in_progress",
+        "runner_builds": 0,
+        "skips": 0,
+        "first_bad_commit": null,
+        "run_label": "edu-evidence-diverse-master50-20260917-r3-lane-a",
+        "history_path": null,
+        "latest_invalid_history": "pr49535-model-gpt-5.6-terra-evidence-diverse-calibrated-posterior-obs-trace-only-reasoning-high-edu-evidence-diverse-master50-20260917-r3-lane-a.json"
+      }
+    },
+    {
+      "issue": "pr50304",
+      "interval_commits": 14311,
+      "interval_source": "run-history",
+      "binary_search_upper_bound": 14,
+      "git_bisect": {
+        "status": "completed",
+        "runner_builds": 17,
+        "skips": 0,
+        "first_bad_commit": "c9c05a91c4843c243d508c39bdfbc5e26f311af2"
+      },
+      "ceg": {
+        "availability": "available",
+        "status": "completed",
+        "runner_builds": 2,
+        "skips": 0,
+        "first_bad_commit": "c9c05a91c4843c243d508c39bdfbc5e26f311af2",
+        "run_label": "edu-ceg-master50-repair-20260921-r2-lane-a",
+        "history_path": "ceg/pr50304.json",
+        "history_sha256": "b5f2289cde0335ae7550f90d959762b1ba7200d836e3bba203f6630ac800616b",
+        "history_bytes": 921210
+      },
+      "evidence_lm_bisect": {
+        "availability": "no_valid_result",
+        "status": "in_progress",
+        "runner_builds": 0,
+        "skips": 0,
+        "first_bad_commit": null,
+        "run_label": "edu-evidence-diverse-master50-20260917-r3-lane-a",
+        "history_path": null,
+        "latest_invalid_history": "pr50304-model-gpt-5.6-terra-evidence-diverse-calibrated-posterior-obs-trace-only-reasoning-high-edu-evidence-diverse-master50-20260917-r3-lane-a.json"
+      }
+    },
+    {
+      "issue": "pr50585",
+      "interval_commits": 16855,
+      "interval_source": "run-history",
+      "binary_search_upper_bound": 15,
+      "git_bisect": {
+        "status": "completed",
+        "runner_builds": 18,
+        "skips": 0,
+        "first_bad_commit": "e38b7e894808ec2a0c976ab01e44364f167508d3"
+      },
+      "ceg": {
+        "availability": "available",
+        "status": "completed",
+        "runner_builds": 14,
+        "skips": 0,
+        "first_bad_commit": "e38b7e894808ec2a0c976ab01e44364f167508d3",
+        "run_label": "edu-ceg-master50-scoped10-latest-r1-lane-b",
+        "history_path": "ceg/pr50585.json",
+        "history_sha256": "0b27f69634023121c44e3b4f6855d36fe3fdb09dd73a5d0304a0767993c4c00f",
+        "history_bytes": 19368774
+      },
+      "evidence_lm_bisect": {
+        "availability": "available",
+        "status": "completed",
+        "runner_builds": 11,
+        "skips": 0,
+        "first_bad_commit": "e38b7e894808ec2a0c976ab01e44364f167508d3",
+        "run_label": "edu-evidence-diverse-master50-20260917-r3-lane-b",
+        "history_path": "evidence-diverse/pr50585.json",
+        "history_sha256": "82430e6c75b8517000f3ff2da7e564cc815990f1d71074798c3ace31e5614d82",
+        "history_bytes": 1631188
+      }
+    },
+    {
+      "issue": "pr50655",
+      "interval_commits": 17514,
+      "interval_source": "run-history",
+      "binary_search_upper_bound": 15,
+      "git_bisect": {
+        "status": "completed",
+        "runner_builds": 17,
+        "skips": 0,
+        "first_bad_commit": "34c098b780a27a90b5614ea3b949b9269835f2a5"
+      },
+      "ceg": {
+        "availability": "available",
+        "status": "completed",
+        "runner_builds": 10,
+        "skips": 0,
+        "first_bad_commit": "34c098b780a27a90b5614ea3b949b9269835f2a5",
+        "run_label": "edu-ceg-master50-remaining30-latest-r1-lane-b",
+        "history_path": "ceg/pr50655.json",
+        "history_sha256": "21f4355846335236d8f990bf0a6762b246515c20a6936a08ea8e92496d07a083",
+        "history_bytes": 9262494
+      },
+      "evidence_lm_bisect": {
+        "availability": "no_valid_result",
+        "status": "in_progress",
+        "runner_builds": 0,
+        "skips": 0,
+        "first_bad_commit": null,
+        "run_label": "edu-evidence-diverse-master50-20260917-r3-lane-b",
+        "history_path": null,
+        "latest_invalid_history": "pr50655-model-gpt-5.6-terra-evidence-diverse-calibrated-posterior-obs-trace-only-reasoning-high-edu-evidence-diverse-master50-20260917-r3-lane-b.json"
+      }
+    },
+    {
+      "issue": "pr52635",
+      "interval_commits": 13008,
+      "interval_source": "run-history",
+      "binary_search_upper_bound": 14,
+      "git_bisect": {
+        "status": "completed",
+        "runner_builds": 25,
+        "skips": 8,
+        "first_bad_commit": "10bc12588dac532fad044b2851dde8e7b9121e88"
+      },
+      "ceg": {
+        "availability": "available",
+        "status": "completed",
+        "runner_builds": 3,
+        "skips": 0,
+        "first_bad_commit": "10bc12588dac532fad044b2851dde8e7b9121e88",
+        "run_label": "edu-ceg-master50-scoped10-latest-r1-lane-c",
+        "history_path": "ceg/pr52635.json",
+        "history_sha256": "12c8c4795946cd1d061b5049a150883fd587831856d8a39d2ae383c04ca7dd54",
+        "history_bytes": 1508636
+      },
+      "evidence_lm_bisect": {
+        "availability": "available",
+        "status": "completed",
+        "runner_builds": 12,
+        "skips": 0,
+        "first_bad_commit": "10bc12588dac532fad044b2851dde8e7b9121e88",
+        "run_label": "edu-evidence-diverse-master50-20260915-r1-lane-b",
+        "history_path": "evidence-diverse/pr52635.json",
+        "history_sha256": "9266431ccdd46f302d941840dd5fc34e409742cac1ddec0fbf68b773c67f7ff5",
+        "history_bytes": 1842163
+      }
+    },
+    {
+      "issue": "pr65982",
+      "interval_commits": 4001,
+      "interval_source": "run-history",
+      "binary_search_upper_bound": 12,
+      "git_bisect": {
+        "status": "non_clean",
+        "runner_builds": 16,
+        "skips": 0,
+        "first_bad_commit": "ab720289ca8f9b04674b915f6a74d81847c9c341"
+      },
+      "ceg": {
+        "availability": "available",
+        "status": "completed",
+        "runner_builds": 14,
+        "skips": 0,
+        "first_bad_commit": "ab720289ca8f9b04674b915f6a74d81847c9c341",
+        "run_label": "edu-ceg-master50-remaining30-latest-r1-lane-c",
+        "history_path": "ceg/pr65982.json",
+        "history_sha256": "beb9b2d1d351b556325ce90ff760502f683d0049cb161bc2c806e57e2d8575de",
+        "history_bytes": 7340247
+      },
+      "evidence_lm_bisect": {
+        "availability": "no_valid_result",
+        "status": "in_progress",
+        "runner_builds": 0,
+        "skips": 0,
+        "first_bad_commit": null,
+        "run_label": "edu-evidence-diverse-master50-20260917-r3-lane-b",
+        "history_path": null,
+        "latest_invalid_history": "pr65982-model-gpt-5.6-terra-evidence-diverse-calibrated-posterior-obs-trace-only-reasoning-high-edu-evidence-diverse-master50-20260917-r3-lane-b.json"
+      }
+    }
+  ]
+}

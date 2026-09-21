@@ -69,8 +69,8 @@
   },
   {
     "issue": "pr165246",
-    "interval_commits": null,
-    "interval_source": null,
+    "interval_commits": 40343,
+    "interval_source": "run-history",
     "git_steps": 18,
     "git_skips": 0,
     "git_status": "completed",
@@ -103,8 +103,8 @@
   },
   {
     "issue": "pr167514",
-    "interval_commits": null,
-    "interval_source": null,
+    "interval_commits": 39025,
+    "interval_source": "run-history",
     "git_steps": 18,
     "git_skips": 0,
     "git_status": "completed",
@@ -443,8 +443,8 @@
   },
   {
     "issue": "pr200648",
-    "interval_commits": null,
-    "interval_source": null,
+    "interval_commits": 20547,
+    "interval_source": "run-history",
     "git_steps": 18,
     "git_skips": 0,
     "git_status": "completed",

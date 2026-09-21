@@ -19,6 +19,25 @@ venv/
 results/
 scratch/
 .ccache/
+baseline-llmbisect/
+benchmark-results/
+
+# Curated, reviewable impact-study CEG snapshots.
+!benchmark-results/
+benchmark-results/*
+!benchmark-results/impact-study/
+benchmark-results/impact-study/*
+!benchmark-results/impact-study/llvm223167-*.json
+!benchmark-results/impact-study/llvm-impact-ceg-comparison-*.json
+!benchmark-results/impact-study/lm_bisect_runs/
+benchmark-results/impact-study/lm_bisect_runs/*
+!benchmark-results/impact-study/lm_bisect_runs/pr223167-*.json
+!benchmark-results/master50/
+benchmark-results/master50/*
+!benchmark-results/master50/master50-ceg-evidence-results-20260921/
+!benchmark-results/master50/master50-ceg-evidence-results-20260921/**
+!benchmark-results/master50/master50-ceg-evidence-results-20260921.zip
+!benchmark-results/master50/issues.json
 
 # Documentation, reports, and generated figures
 doc/
@@ -26,6 +45,21 @@ docs/
 tools/generate_lm_bisect_method_figure.py
 tools/generate_trace_presentation_pdf.py
 human_analysis/
+
+# Answer-free bad-endpoint inputs for the LLVM #223167 impact study.
+!human_analysis/
+human_analysis/*
+!human_analysis/raw/
+human_analysis/raw/*
+!human_analysis/raw/ceg-impact-llvm223167-bad-endpoint-20260920-r1/
+!human_analysis/raw/ceg-impact-llvm223167-bad-endpoint-20260920-r1/**
+!human_analysis/human_analysis-20260905/
+human_analysis/human_analysis-20260905/*
+!human_analysis/human_analysis-20260905/human_analysis/
+human_analysis/human_analysis-20260905/human_analysis/*
+!human_analysis/human_analysis-20260905/human_analysis/index.html
+!human_analysis/human_analysis-20260905/human_analysis/crash-to-gt-report.html
+!human_analysis/human_analysis-20260905/human_analysis/master50-ceg-evidence-results.json
 *.md
 *.pdf
 *.aux
@@ -59,3 +93,4 @@ Thumbs.db
 .server_key
 .vercel
 .env*
+.cursor/
